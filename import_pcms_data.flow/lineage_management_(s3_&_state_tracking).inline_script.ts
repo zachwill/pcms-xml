@@ -221,31 +221,37 @@ async function downloadExtractAndParse(s3Key: string): Promise<{
   const xmlFiles = allFiles.filter(f => f.endsWith(".xml"));
   console.log(`Found ${xmlFiles.length} XML files`);
 
-  // Parse each XML → clean JSON
-  const jsonFiles: string[] = [];
-  for (const xmlFile of xmlFiles) {
-    // Extract key from filename like "nba_pcms_full_extract_player.xml" → "player"
-    const key = xmlFile.replace(/^nba_pcms_full_extract_/, "").replace(".xml", "");
-    const config = EXTRACT_MAP[key];
+  // Parse each XML → clean JSON (in parallel for speed)
+  console.log(`Parsing XML files in parallel...`);
+  const parseResults = await Promise.all(
+    xmlFiles.map(async (xmlFile) => {
+      // Extract key from filename like "nba_pcms_full_extract_player.xml" → "player"
+      const key = xmlFile.replace(/^nba_pcms_full_extract_/, "").replace(".xml", "");
+      const config = EXTRACT_MAP[key];
 
-    if (!config) {
-      console.log(`  ⏭️  ${xmlFile} - no mapping`);
-      continue;
-    }
+      if (!config) {
+        console.log(`  ⏭️  ${xmlFile} - no mapping`);
+        return null;
+      }
 
-    console.log(`  ${key} → ${config.outputFile}...`);
-    try {
-      const xmlContent = await Bun.file(`${extractDir}/${xmlFile}`).text();
-      const parsed = xmlParser.parse(xmlContent);
-      const rawData = config.extract(parsed);
-      const cleanData = clean(rawData);
-      await Bun.write(`${extractDir}/${config.outputFile}`, JSON.stringify(cleanData));
-      jsonFiles.push(config.outputFile);
-    } catch (err) {
-      console.error(`  ❌ Failed: ${err}`);
-    }
-  }
+      const startTime = Date.now();
+      try {
+        const xmlContent = await Bun.file(`${extractDir}/${xmlFile}`).text();
+        const parsed = xmlParser.parse(xmlContent);
+        const rawData = config.extract(parsed);
+        const cleanData = clean(rawData);
+        await Bun.write(`${extractDir}/${config.outputFile}`, JSON.stringify(cleanData));
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`  ✅ ${key} → ${config.outputFile} (${elapsed}s)`);
+        return config.outputFile;
+      } catch (err) {
+        console.error(`  ❌ ${key} failed: ${err}`);
+        return null;
+      }
+    })
+  );
 
+  const jsonFiles = parseResults.filter((f): f is string => f !== null);
   console.log(`Parsed ${jsonFiles.length} clean JSON files`);
   return { fileHash, extractDir, jsonFiles };
 }
