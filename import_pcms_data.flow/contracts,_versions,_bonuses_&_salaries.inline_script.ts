@@ -1,8 +1,7 @@
 /**
  * Contracts / Versions / Bonuses / Salaries Import
  *
- * Reads pre-parsed JSON from shared extract dir (created by lineage step), then
- * upserts into:
+ * Reads clean JSON from lineage step and upserts into:
  * - pcms.contracts
  * - pcms.contract_versions
  * - pcms.contract_bonuses
@@ -13,276 +12,21 @@ import { SQL } from "bun";
 import { readdir } from "node:fs/promises";
 
 const sql = new SQL({ url: Bun.env.POSTGRES_URL!, prepare: false });
-const PARSER_VERSION = "2.1.0";
-const SHARED_DIR = "./shared/pcms";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
+function normalizeVersionNumber(val: unknown): number | null {
+  if (val === null || val === undefined || val === "") return null;
 
-interface LineageContext {
-  lineage_id: number;
-  s3_key: string;
-  source_hash: string;
+  const n = typeof val === "number" ? val : Number(val);
+  if (!Number.isFinite(n)) return null;
+
+  // PCMS sometimes represents version_number as a decimal like 1.01
+  // Schema expects an integer (1.01 -> 101)
+  return Number.isInteger(n) ? n : Math.round(n * 100);
 }
 
-interface UpsertResult {
-  table: string;
-  attempted: number;
-  success: boolean;
-  error?: string;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-function hash(data: string): string {
-  return new Bun.CryptoHasher("sha256").update(data).digest("hex");
-}
-
-function nilSafe(val: unknown): unknown {
-  if (val && typeof val === "object" && "@_xsi:nil" in val) return null;
-  return val;
-}
-
-function safeNum(val: unknown): number | null {
-  const v = nilSafe(val);
-  if (v === null || v === undefined || v === "") return null;
-  if (typeof v === "object") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-/**
- * PCMS versionNumber is sometimes represented as a decimal like 1.01.
- * The schema uses integer version_number; we normalize by multiplying
- * decimals by 100 (e.g., 1.01 -> 101). Integers are passed through.
- */
-function safeVersionNum(val: unknown): number | null {
-  const n = safeNum(val);
-  if (n === null) return null;
-  if (Number.isInteger(n)) return n;
-  return Math.round(n * 100);
-}
-
-function safeStr(val: unknown): string | null {
-  const v = nilSafe(val);
-  if (v === null || v === undefined || v === "") return null;
-  if (typeof v === "object") return null;
-  return String(v);
-}
-
-function safeBool(val: unknown): boolean | null {
-  const v = nilSafe(val);
-  if (v === null || v === undefined) return null;
-  if (typeof v === "boolean") return v;
-  if (v === 1 || v === "1" || v === "Y" || v === "true" || v === true) return true;
-  if (v === 0 || v === "0" || v === "N" || v === "false" || v === false) return false;
-  return null;
-}
-
-function safeBigInt(val: unknown): string | null {
-  const v = nilSafe(val);
-  if (v === null || v === undefined || v === "") return null;
-  if (typeof v === "object") return null;
-  try {
-    return BigInt(Math.round(Number(v))).toString();
-  } catch {
-    return null;
-  }
-}
-
-function asArray<T = any>(val: unknown): T[] {
-  const v = nilSafe(val);
-  if (v === null || v === undefined) return [];
-  return Array.isArray(v) ? (v as T[]) : ([v] as T[]);
-}
-
-async function getLineageContext(extractDir: string): Promise<LineageContext> {
-  const lineageFile = `${extractDir}/lineage.json`;
-  const file = Bun.file(lineageFile);
-  if (await file.exists()) {
-    return await file.json();
-  }
-  throw new Error(`Lineage file not found: ${lineageFile}`);
-}
-
-async function upsertBatch<T extends Record<string, unknown>>(
-  schema: string,
-  table: string,
-  rows: T[],
-  conflictColumns: string[]
-): Promise<UpsertResult> {
-  const fullTable = `${schema}.${table}`;
-  if (rows.length === 0) {
-    return { table: fullTable, attempted: 0, success: true };
-  }
-
-  try {
-    const allColumns = Object.keys(rows[0]);
-    const updateColumns = allColumns.filter((col) => !conflictColumns.includes(col));
-    const setClauses = updateColumns.map((col) => `${col} = EXCLUDED.${col}`).join(", ");
-    const conflictTarget = conflictColumns.join(", ");
-
-    const query = `
-      INSERT INTO ${fullTable} (${allColumns.join(", ")})
-      SELECT * FROM jsonb_populate_recordset(null::${fullTable}, $1::jsonb)
-      ON CONFLICT (${conflictTarget}) DO UPDATE SET ${setClauses}
-      WHERE ${fullTable}.source_hash IS DISTINCT FROM EXCLUDED.source_hash
-    `;
-
-    await sql.unsafe(query, [JSON.stringify(rows)]);
-    return { table: fullTable, attempted: rows.length, success: true };
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    return { table: fullTable, attempted: rows.length, success: false, error: msg };
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Transformers
-// ─────────────────────────────────────────────────────────────────────────────
-
-function transformContract(c: any, provenance: any) {
-  return {
-    contract_id: safeNum(c.contractId),
-    player_id: safeNum(c.playerId),
-    signing_team_id: safeNum(c.signingTeamId),
-    signing_date: safeStr(c.signingDate),
-    contract_end_date: safeStr(c.contractEndDate),
-    record_status_lk: safeStr(c.recordStatusLk),
-    signed_method_lk: safeStr(c.signedMethodLk),
-    team_exception_id: safeNum(c.teamExceptionId),
-    is_sign_and_trade: safeBool(c.signAndTradeFlg),
-    sign_and_trade_date: safeStr(c.signAndTradeDate),
-    sign_and_trade_to_team_id: safeNum(c.signAndTradeToTeamId),
-    sign_and_trade_id: safeNum(c.signAndTradeId),
-    start_year: safeNum(c.startYear),
-    contract_length_wnba: safeStr(c.contractLength),
-    convert_date: safeStr(c.convertDate),
-    two_way_service_limit: safeNum(c.twoWayServiceLimit),
-    created_at: safeStr(c.createDate),
-    updated_at: safeStr(c.lastChangeDate),
-    record_changed_at: safeStr(c.recordChangeDate),
-    ...provenance,
-  };
-}
-
-function transformContractVersion(v: any, contractId: number, provenance: any) {
-  const { salaries: _salaries, bonuses: _bonuses, ...rest } = v ?? {};
-
-  return {
-    contract_id: contractId,
-    version_number: safeVersionNum(v.versionNumber),
-    transaction_id: safeNum(v.transactionId),
-    version_date: safeStr(v.versionDate),
-    start_salary_year: safeNum(v.startYear),
-    contract_length: safeNum(v.contractLength),
-    contract_type_lk: safeStr(v.contractTypeLk),
-    record_status_lk: safeStr(v.recordStatusLk),
-    agency_id: safeNum(v.agencyId),
-    agent_id: safeNum(v.agentId),
-    is_full_protection: safeBool(v.fullProtectionFlg),
-    is_exhibit_10: safeBool(v.exhibit10),
-    exhibit_10_bonus_amount: safeBigInt(v.exhibit10BonusAmount),
-    exhibit_10_protection_amount: safeBigInt(v.exhibit10ProtectionAmount),
-    exhibit_10_end_date: safeStr(v.exhibit10EndDate),
-    is_two_way: safeBool(v.isTwoWay),
-    is_rookie_scale_extension: safeBool(v.dpRookieScaleExtensionFlg),
-    is_veteran_extension: safeBool(v.dpVeteranExtensionFlg),
-    is_poison_pill: safeBool(v.poisonPillFlg),
-    poison_pill_amount: safeBigInt(v.poisonPillAmt),
-    trade_bonus_percent: safeNum(v.tradeBonusPercent),
-    trade_bonus_amount: safeBigInt(v.tradeBonusAmount),
-    is_trade_bonus: safeBool(v.tradeBonusFlg),
-    is_no_trade: safeBool(v.noTradeFlg),
-    is_minimum_contract: null,
-    is_protected_contract: null,
-    version_json: Object.keys(rest).length > 0 ? rest : null,
-    created_at: safeStr(v.createDate),
-    updated_at: safeStr(v.lastChangeDate),
-    record_changed_at: safeStr(v.recordChangeDate),
-    ...provenance,
-  };
-}
-
-function transformContractBonus(b: any, contractId: number, versionNumber: number, provenance: any) {
-  return {
-    bonus_id: safeNum(b.bonusId),
-    contract_id: contractId,
-    version_number: versionNumber,
-    salary_year: safeNum(b.bonusYear),
-    bonus_amount: safeBigInt(b.bonusAmount),
-    bonus_type_lk: safeStr(b.contractBonusTypeLk),
-    is_likely: safeBool(b.bonusLikelyFlg),
-    earned_lk: safeStr(b.earnedLk),
-    paid_by_date: safeStr(b.bonusPaidByDate),
-    clause_name: safeStr(b.clauseName),
-    criteria_description: safeStr(b.criteriaDescription),
-    criteria_json: nilSafe(b.bonusCriteria),
-    ...provenance,
-  };
-}
-
-function transformSalary(s: any, contractId: number, versionNumber: number, provenance: any) {
-  return {
-    contract_id: contractId,
-    version_number: versionNumber,
-    salary_year: safeNum(s.salaryYear),
-    total_salary: safeBigInt(s.totalSalary),
-    total_salary_adjustment: safeBigInt(s.totalSalaryAdjustment),
-    total_base_comp: safeBigInt(s.totalBaseComp),
-    current_base_comp: safeBigInt(s.currentBaseComp),
-    deferred_base_comp: safeBigInt(s.deferredBaseComp),
-    signing_bonus: safeBigInt(s.signingBonus),
-    likely_bonus: safeBigInt(s.likelyBonus),
-    unlikely_bonus: safeBigInt(s.unlikelyBonus),
-    contract_cap_salary: safeBigInt(s.contractCapSalary),
-    contract_cap_salary_adjustment: safeBigInt(s.contractCapSalaryAdjustment),
-    contract_tax_salary: safeBigInt(s.contractTaxSalary),
-    contract_tax_salary_adjustment: safeBigInt(s.contractTaxSalaryAdjustment),
-    contract_tax_apron_salary: safeBigInt(s.contractTaxApronSalary),
-    contract_tax_apron_salary_adjustment: safeBigInt(s.contractTaxApronSalaryAdjustment),
-    contract_mts_salary: safeBigInt(s.contractMtsSalary),
-    skill_protection_amount: safeBigInt(s.skillProtectionAmount),
-    trade_bonus_amount: safeBigInt(s.tradeBonusAmount),
-    trade_bonus_amount_calc: safeBigInt(s.tradeBonusAmountCalc),
-    cap_raise_percent: safeNum(s.capRaisePercent),
-    two_way_nba_salary: safeBigInt(s.twoWayNbaSalary),
-    two_way_dlg_salary: safeBigInt(s.twoWayDlgSalary),
-    option_lk: safeStr(s.optionLk),
-    option_decision_lk: safeStr(s.optionDecisionLk),
-    is_applicable_min_salary: safeBool(s.applicableMinSalaryFlg),
-    created_at: safeStr(s.createDate),
-    updated_at: safeStr(s.lastChangeDate),
-    record_changed_at: safeStr(s.recordChangeDate),
-    ...provenance,
-  };
-}
-
-function transformPaymentSchedule(
-  ps: any,
-  contractId: number,
-  versionNumber: number,
-  salaryYear: number,
-  provenance: any
-) {
-  return {
-    payment_schedule_id: safeNum(ps.contractPaymentScheduleId),
-    contract_id: contractId,
-    version_number: versionNumber,
-    salary_year: salaryYear,
-    payment_amount: safeBigInt(ps.paymentAmount),
-    payment_start_date: safeStr(ps.paymentStartDate),
-    schedule_type_lk: safeStr(ps.paymentScheduleTypeLk),
-    payment_type_lk: safeStr(ps.contractPaymentTypeLk),
-    is_default_schedule: safeBool(ps.defaultPaymentScheduleFlg),
-    created_at: safeStr(ps.createDate),
-    updated_at: safeStr(ps.lastChangeDate),
-    record_changed_at: safeStr(ps.recordChangeDate),
-    ...provenance,
-  };
+function asArray<T = any>(val: any): T[] {
+  if (val === null || val === undefined) return [];
+  return Array.isArray(val) ? val : [val];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -293,113 +37,230 @@ export async function main(
   dry_run = false,
   lineage_id?: number,
   s3_key?: string,
-  extract_dir: string = SHARED_DIR
+  extract_dir = "./shared/pcms"
 ) {
   const startedAt = new Date().toISOString();
-  const tables: UpsertResult[] = [];
-  const errors: string[] = [];
+  void lineage_id;
 
   try {
-    // Find the actual extract directory
+    // Find extract directory
     const entries = await readdir(extract_dir, { withFileTypes: true });
     const subDir = entries.find((e) => e.isDirectory());
     const baseDir = subDir ? `${extract_dir}/${subDir.name}` : extract_dir;
 
-    // Get lineage context
-    const ctx = await getLineageContext(baseDir);
-    const effectiveLineageId = lineage_id ?? ctx.lineage_id;
-    const effectiveS3Key = s3_key ?? ctx.s3_key;
-    void effectiveLineageId; // lineage_id is not stored on these tables, but available for debugging
-
-    // Find JSON file
-    const allFiles = await readdir(baseDir);
-    const contractJsonFile = allFiles.find((f) => f.includes("contract") && f.endsWith(".json"));
-    if (!contractJsonFile) {
-      throw new Error(`No contract JSON file found in ${baseDir}`);
-    }
-
-    // Read pre-parsed JSON
-    console.log(`Reading ${contractJsonFile}...`);
-    const data = await Bun.file(`${baseDir}/${contractJsonFile}`).json();
-
-    // Extract contracts array
-    const contracts: any[] = asArray(data?.["xml-extract"]?.["contract-extract"]?.contract);
+    // Read clean JSON (already snake_case, nulls handled)
+    const contracts: any[] = await Bun.file(`${baseDir}/contracts.json`).json();
     console.log(`Found ${contracts.length} contracts`);
 
-    // Build provenance
-    const baseProvenance = {
-      source_drop_file: effectiveS3Key,
-      parser_version: PARSER_VERSION,
-      ingested_at: new Date(),
-    };
+    const ingestedAt = new Date();
 
-    const contractRows: any[] = [];
+    // Flatten nested structures
+    const contractRows = contracts.map((c) => ({
+      contract_id: c.contract_id,
+      player_id: c.player_id,
+      signing_team_id: c.signing_team_id,
+      signing_date: c.signing_date,
+      contract_end_date: c.contract_end_date,
+      record_status_lk: c.record_status_lk,
+      signed_method_lk: c.signed_method_lk,
+      team_exception_id: c.team_exception_id,
+
+      is_sign_and_trade: c.sign_and_trade_flg,
+      sign_and_trade_date: c.sign_and_trade_date,
+      sign_and_trade_to_team_id: c.sign_and_trade_to_team_id,
+      sign_and_trade_id: c.sign_and_trade_id,
+
+      // v2+ WNBA only; NBA loads as NULL
+      start_year: c.start_year ?? null,
+      contract_length_wnba: c.contract_length_wnba ?? c.contract_length ?? null,
+
+      convert_date: c.convert_date,
+      two_way_service_limit: c.two_way_service_limit,
+
+      created_at: c.create_date,
+      updated_at: c.last_change_date,
+      record_changed_at: c.record_change_date,
+
+      source_drop_file: s3_key,
+      ingested_at: ingestedAt,
+    }));
+
     const versionRows: any[] = [];
     const bonusRows: any[] = [];
     const salaryRows: any[] = [];
     const paymentScheduleRows: any[] = [];
 
     for (const c of contracts) {
-      const contractId = safeNum(c.contractId);
-      if (!contractId) continue;
+      const versions = asArray<any>(c?.versions?.version);
 
-      const contractProv = {
-        ...baseProvenance,
-        source_hash: hash(JSON.stringify(c)),
-      };
-
-      contractRows.push(transformContract(c, contractProv));
-
-      const versions = asArray(c?.versions?.version);
       for (const v of versions) {
-        const versionNum = safeVersionNum(v?.versionNumber);
-        if (!versionNum) continue;
+        const versionNumber = normalizeVersionNumber(v?.version_number);
+        if (!c?.contract_id || !versionNumber) continue;
 
-        const versionProv = {
-          ...baseProvenance,
-          source_hash: hash(JSON.stringify(v)),
-        };
+        // Store remaining version fields (excluding nested arrays) in version_json
+        const versionJson: any = { ...(v ?? {}) };
+        delete versionJson.salaries;
+        delete versionJson.bonuses;
 
-        versionRows.push(transformContractVersion(v, contractId, versionProv));
-
-        const bonuses = asArray(v?.bonuses?.bonus);
-        for (const b of bonuses) {
-          const bonusId = safeNum(b?.bonusId);
-          if (!bonusId) continue;
-
-          const bonusProv = {
-            ...baseProvenance,
-            source_hash: hash(JSON.stringify(b)),
-          };
-
-          bonusRows.push(transformContractBonus(b, contractId, versionNum, bonusProv));
+        // Remove mapped scalar fields to reduce duplication
+        for (const k of [
+          "version_number",
+          "transaction_id",
+          "version_date",
+          "start_year",
+          "contract_length",
+          "contract_type_lk",
+          "record_status_lk",
+          "agency_id",
+          "agent_id",
+          "full_protection_flg",
+          "exhibit10",
+          "exhibit10_bonus_amount",
+          "exhibit10_protection_amount",
+          "exhibit10_end_date",
+          "dp_rookie_scale_extension_flg",
+          "dp_veteran_extension_flg",
+          "poison_pill_flg",
+          "poison_pill_amt",
+          "trade_bonus_percent",
+          "trade_bonus_amount",
+          "trade_bonus_flg",
+          "no_trade_flg",
+          "create_date",
+          "last_change_date",
+          "record_change_date",
+        ]) {
+          delete versionJson[k];
         }
 
-        const salaries = asArray(v?.salaries?.salary);
+        versionRows.push({
+          contract_id: c.contract_id,
+          version_number: versionNumber,
+          transaction_id: v?.transaction_id ?? null,
+          version_date: v?.version_date ?? null,
+          start_salary_year: v?.start_year ?? null,
+          contract_length: v?.contract_length ?? null,
+          contract_type_lk: v?.contract_type_lk ?? null,
+          record_status_lk: v?.record_status_lk ?? null,
+          agency_id: v?.agency_id ?? null,
+          agent_id: v?.agent_id ?? null,
+          is_full_protection: v?.full_protection_flg ?? null,
+          is_exhibit_10: v?.exhibit10 ?? null,
+          exhibit_10_bonus_amount: v?.exhibit10_bonus_amount ?? null,
+          exhibit_10_protection_amount: v?.exhibit10_protection_amount ?? null,
+          exhibit_10_end_date: v?.exhibit10_end_date ?? null,
+          is_two_way: v?.is_two_way ?? null,
+          is_rookie_scale_extension: v?.dp_rookie_scale_extension_flg ?? null,
+          is_veteran_extension: v?.dp_veteran_extension_flg ?? null,
+          is_poison_pill: v?.poison_pill_flg ?? null,
+          poison_pill_amount: v?.poison_pill_amt ?? null,
+          trade_bonus_percent: v?.trade_bonus_percent ?? null,
+          trade_bonus_amount: v?.trade_bonus_amount ?? null,
+          is_trade_bonus: v?.trade_bonus_flg ?? null,
+          is_no_trade: v?.no_trade_flg ?? null,
+          is_minimum_contract: v?.is_minimum_contract ?? null,
+          is_protected_contract: v?.is_protected_contract ?? null,
+          version_json: Object.keys(versionJson).length > 0 ? versionJson : null,
+
+          created_at: v?.create_date ?? null,
+          updated_at: v?.last_change_date ?? null,
+          record_changed_at: v?.record_change_date ?? null,
+
+          source_drop_file: s3_key,
+          ingested_at: ingestedAt,
+        });
+
+        const bonuses = asArray<any>(v?.bonuses?.bonus);
+        for (const b of bonuses) {
+          if (!b?.bonus_id) continue;
+
+          bonusRows.push({
+            bonus_id: b.bonus_id,
+            contract_id: c.contract_id,
+            version_number: versionNumber,
+            salary_year: b?.bonus_year ?? null,
+            bonus_amount: b?.bonus_amount ?? null,
+            bonus_type_lk: b?.contract_bonus_type_lk ?? null,
+            is_likely: b?.bonus_likely_flg ?? null,
+            earned_lk: b?.earned_lk ?? null,
+            paid_by_date: b?.bonus_paid_by_date ?? null,
+            clause_name: b?.clause_name ?? null,
+            criteria_description: b?.criteria_description ?? null,
+            criteria_json: b?.bonus_criteria ?? null,
+
+            source_drop_file: s3_key,
+            ingested_at: ingestedAt,
+          });
+        }
+
+        const salaries = asArray<any>(v?.salaries?.salary);
         for (const s of salaries) {
-          const salaryYear = safeNum(s?.salaryYear);
-          if (!salaryYear) continue;
+          if (!s?.salary_year) continue;
 
-          const salaryProv = {
-            ...baseProvenance,
-            source_hash: hash(JSON.stringify(s)),
-          };
+          salaryRows.push({
+            contract_id: c.contract_id,
+            version_number: versionNumber,
+            salary_year: s.salary_year,
 
-          salaryRows.push(transformSalary(s, contractId, versionNum, salaryProv));
+            total_salary: s?.total_salary ?? null,
+            total_salary_adjustment: s?.total_salary_adjustment ?? null,
+            total_base_comp: s?.total_base_comp ?? null,
+            current_base_comp: s?.current_base_comp ?? null,
+            deferred_base_comp: s?.deferred_base_comp ?? null,
+            signing_bonus: s?.signing_bonus ?? null,
+            likely_bonus: s?.likely_bonus ?? null,
+            unlikely_bonus: s?.unlikely_bonus ?? null,
+            contract_cap_salary: s?.contract_cap_salary ?? null,
+            contract_cap_salary_adjustment: s?.contract_cap_salary_adjustment ?? null,
+            contract_tax_salary: s?.contract_tax_salary ?? null,
+            contract_tax_salary_adjustment: s?.contract_tax_salary_adjustment ?? null,
+            contract_tax_apron_salary: s?.contract_tax_apron_salary ?? null,
+            contract_tax_apron_salary_adjustment: s?.contract_tax_apron_salary_adjustment ?? null,
+            contract_mts_salary: s?.contract_mts_salary ?? null,
+            skill_protection_amount: s?.skill_protection_amount ?? null,
+            trade_bonus_amount: s?.trade_bonus_amount ?? null,
+            trade_bonus_amount_calc: s?.trade_bonus_amount_calc ?? null,
+            cap_raise_percent: s?.cap_raise_percent ?? null,
+            two_way_nba_salary: s?.two_way_nba_salary ?? null,
+            two_way_dlg_salary: s?.two_way_dlg_salary ?? null,
+            wnba_salary: s?.wnba_salary ?? null,
+            wnba_time_off_bonus_amount: s?.wnba_time_off_bonus_amount ?? null,
+            wnba_merit_bonus_amount: s?.wnba_merit_bonus_amount ?? null,
+            wnba_time_off_bonus_days: s?.wnba_time_off_bonus_days ?? null,
+            option_lk: s?.option_lk ?? null,
+            option_decision_lk: s?.option_decision_lk ?? null,
+            is_applicable_min_salary: s?.applicable_min_salary_flg ?? null,
 
-          const paymentSchedules = asArray(s?.paymentSchedules?.paymentSchedule);
+            created_at: s?.create_date ?? null,
+            updated_at: s?.last_change_date ?? null,
+            record_changed_at: s?.record_change_date ?? null,
+
+            source_drop_file: s3_key,
+            ingested_at: ingestedAt,
+          });
+
+          const paymentSchedules = asArray<any>(s?.payment_schedules?.payment_schedule);
           for (const ps of paymentSchedules) {
-            const psId = safeNum(ps?.contractPaymentScheduleId);
-            if (!psId) continue;
+            if (!ps?.contract_payment_schedule_id) continue;
 
-            const psProv = {
-              ...baseProvenance,
-              source_hash: hash(JSON.stringify(ps)),
-            };
+            paymentScheduleRows.push({
+              payment_schedule_id: ps.contract_payment_schedule_id,
+              contract_id: c.contract_id,
+              version_number: versionNumber,
+              salary_year: ps?.salary_year ?? s.salary_year,
+              payment_amount: ps?.payment_amount ?? null,
+              payment_start_date: ps?.payment_start_date ?? null,
+              schedule_type_lk: ps?.payment_schedule_type_lk ?? null,
+              payment_type_lk: ps?.contract_payment_type_lk ?? null,
+              is_default_schedule: ps?.default_payment_schedule_flg ?? null,
 
-            paymentScheduleRows.push(
-              transformPaymentSchedule(ps, contractId, versionNum, salaryYear, psProv)
-            );
+              created_at: ps?.create_date ?? null,
+              updated_at: ps?.last_change_date ?? null,
+              record_changed_at: ps?.record_change_date ?? null,
+
+              source_drop_file: s3_key,
+              ingested_at: ingestedAt,
+            });
           }
         }
       }
@@ -409,92 +270,195 @@ export async function main(
       `Prepared rows: contracts=${contractRows.length}, versions=${versionRows.length}, bonuses=${bonusRows.length}, salaries=${salaryRows.length}, payment_schedules=${paymentScheduleRows.length}`
     );
 
-    const BATCH_SIZE = 500;
+    if (dry_run) {
+      return {
+        dry_run: true,
+        started_at: startedAt,
+        finished_at: new Date().toISOString(),
+        tables: [
+          { table: "pcms.contracts", attempted: contractRows.length, success: true },
+          { table: "pcms.contract_versions", attempted: versionRows.length, success: true },
+          { table: "pcms.contract_bonuses", attempted: bonusRows.length, success: true },
+          { table: "pcms.salaries", attempted: salaryRows.length, success: true },
+          { table: "pcms.payment_schedules", attempted: paymentScheduleRows.length, success: true },
+        ],
+        errors: [],
+      };
+    }
 
-    // Upsert contracts
+    const BATCH_SIZE = 1000;
+
+    const tables: { table: string; attempted: number; success: boolean }[] = [];
+
+    // Contracts
     for (let i = 0; i < contractRows.length; i += BATCH_SIZE) {
       const rows = contractRows.slice(i, i + BATCH_SIZE);
-      if (!dry_run) {
-        const result = await upsertBatch("pcms", "contracts", rows, ["contract_id"]);
-        tables.push(result);
-        if (!result.success) errors.push(result.error!);
-      } else {
-        tables.push({ table: "pcms.contracts", attempted: rows.length, success: true });
-      }
+      await sql`
+        INSERT INTO pcms.contracts ${sql(rows)}
+        ON CONFLICT (contract_id) DO UPDATE SET
+          player_id = EXCLUDED.player_id,
+          signing_team_id = EXCLUDED.signing_team_id,
+          signing_date = EXCLUDED.signing_date,
+          contract_end_date = EXCLUDED.contract_end_date,
+          record_status_lk = EXCLUDED.record_status_lk,
+          signed_method_lk = EXCLUDED.signed_method_lk,
+          team_exception_id = EXCLUDED.team_exception_id,
+          is_sign_and_trade = EXCLUDED.is_sign_and_trade,
+          sign_and_trade_date = EXCLUDED.sign_and_trade_date,
+          sign_and_trade_to_team_id = EXCLUDED.sign_and_trade_to_team_id,
+          sign_and_trade_id = EXCLUDED.sign_and_trade_id,
+          start_year = EXCLUDED.start_year,
+          contract_length_wnba = EXCLUDED.contract_length_wnba,
+          convert_date = EXCLUDED.convert_date,
+          two_way_service_limit = EXCLUDED.two_way_service_limit,
+          updated_at = EXCLUDED.updated_at,
+          record_changed_at = EXCLUDED.record_changed_at,
+          source_drop_file = EXCLUDED.source_drop_file,
+          ingested_at = EXCLUDED.ingested_at
+      `;
     }
+    tables.push({ table: "pcms.contracts", attempted: contractRows.length, success: true });
 
-    // Upsert versions
+    // Contract versions
     for (let i = 0; i < versionRows.length; i += BATCH_SIZE) {
       const rows = versionRows.slice(i, i + BATCH_SIZE);
-      if (!dry_run) {
-        const result = await upsertBatch("pcms", "contract_versions", rows, [
-          "contract_id",
-          "version_number",
-        ]);
-        tables.push(result);
-        if (!result.success) errors.push(result.error!);
-      } else {
-        tables.push({ table: "pcms.contract_versions", attempted: rows.length, success: true });
-      }
+      await sql`
+        INSERT INTO pcms.contract_versions ${sql(rows)}
+        ON CONFLICT (contract_id, version_number) DO UPDATE SET
+          transaction_id = EXCLUDED.transaction_id,
+          version_date = EXCLUDED.version_date,
+          start_salary_year = EXCLUDED.start_salary_year,
+          contract_length = EXCLUDED.contract_length,
+          contract_type_lk = EXCLUDED.contract_type_lk,
+          record_status_lk = EXCLUDED.record_status_lk,
+          agency_id = EXCLUDED.agency_id,
+          agent_id = EXCLUDED.agent_id,
+          is_full_protection = EXCLUDED.is_full_protection,
+          is_exhibit_10 = EXCLUDED.is_exhibit_10,
+          exhibit_10_bonus_amount = EXCLUDED.exhibit_10_bonus_amount,
+          exhibit_10_protection_amount = EXCLUDED.exhibit_10_protection_amount,
+          exhibit_10_end_date = EXCLUDED.exhibit_10_end_date,
+          is_two_way = EXCLUDED.is_two_way,
+          is_rookie_scale_extension = EXCLUDED.is_rookie_scale_extension,
+          is_veteran_extension = EXCLUDED.is_veteran_extension,
+          is_poison_pill = EXCLUDED.is_poison_pill,
+          poison_pill_amount = EXCLUDED.poison_pill_amount,
+          trade_bonus_percent = EXCLUDED.trade_bonus_percent,
+          trade_bonus_amount = EXCLUDED.trade_bonus_amount,
+          is_trade_bonus = EXCLUDED.is_trade_bonus,
+          is_no_trade = EXCLUDED.is_no_trade,
+          is_minimum_contract = EXCLUDED.is_minimum_contract,
+          is_protected_contract = EXCLUDED.is_protected_contract,
+          version_json = EXCLUDED.version_json,
+          updated_at = EXCLUDED.updated_at,
+          record_changed_at = EXCLUDED.record_changed_at,
+          source_drop_file = EXCLUDED.source_drop_file,
+          ingested_at = EXCLUDED.ingested_at
+      `;
     }
+    tables.push({ table: "pcms.contract_versions", attempted: versionRows.length, success: true });
 
-    // Upsert bonuses
+    // Contract bonuses
     for (let i = 0; i < bonusRows.length; i += BATCH_SIZE) {
       const rows = bonusRows.slice(i, i + BATCH_SIZE);
-      if (!dry_run) {
-        const result = await upsertBatch("pcms", "contract_bonuses", rows, ["bonus_id"]);
-        tables.push(result);
-        if (!result.success) errors.push(result.error!);
-      } else {
-        tables.push({ table: "pcms.contract_bonuses", attempted: rows.length, success: true });
-      }
+      await sql`
+        INSERT INTO pcms.contract_bonuses ${sql(rows)}
+        ON CONFLICT (bonus_id) DO UPDATE SET
+          contract_id = EXCLUDED.contract_id,
+          version_number = EXCLUDED.version_number,
+          salary_year = EXCLUDED.salary_year,
+          bonus_amount = EXCLUDED.bonus_amount,
+          bonus_type_lk = EXCLUDED.bonus_type_lk,
+          is_likely = EXCLUDED.is_likely,
+          earned_lk = EXCLUDED.earned_lk,
+          paid_by_date = EXCLUDED.paid_by_date,
+          clause_name = EXCLUDED.clause_name,
+          criteria_description = EXCLUDED.criteria_description,
+          criteria_json = EXCLUDED.criteria_json,
+          source_drop_file = EXCLUDED.source_drop_file,
+          ingested_at = EXCLUDED.ingested_at
+      `;
     }
+    tables.push({ table: "pcms.contract_bonuses", attempted: bonusRows.length, success: true });
 
-    // Upsert salaries
+    // Salaries
     for (let i = 0; i < salaryRows.length; i += BATCH_SIZE) {
       const rows = salaryRows.slice(i, i + BATCH_SIZE);
-      if (!dry_run) {
-        const result = await upsertBatch("pcms", "salaries", rows, [
-          "contract_id",
-          "version_number",
-          "salary_year",
-        ]);
-        tables.push(result);
-        if (!result.success) errors.push(result.error!);
-      } else {
-        tables.push({ table: "pcms.salaries", attempted: rows.length, success: true });
-      }
+      await sql`
+        INSERT INTO pcms.salaries ${sql(rows)}
+        ON CONFLICT (contract_id, version_number, salary_year) DO UPDATE SET
+          total_salary = EXCLUDED.total_salary,
+          total_salary_adjustment = EXCLUDED.total_salary_adjustment,
+          total_base_comp = EXCLUDED.total_base_comp,
+          current_base_comp = EXCLUDED.current_base_comp,
+          deferred_base_comp = EXCLUDED.deferred_base_comp,
+          signing_bonus = EXCLUDED.signing_bonus,
+          likely_bonus = EXCLUDED.likely_bonus,
+          unlikely_bonus = EXCLUDED.unlikely_bonus,
+          contract_cap_salary = EXCLUDED.contract_cap_salary,
+          contract_cap_salary_adjustment = EXCLUDED.contract_cap_salary_adjustment,
+          contract_tax_salary = EXCLUDED.contract_tax_salary,
+          contract_tax_salary_adjustment = EXCLUDED.contract_tax_salary_adjustment,
+          contract_tax_apron_salary = EXCLUDED.contract_tax_apron_salary,
+          contract_tax_apron_salary_adjustment = EXCLUDED.contract_tax_apron_salary_adjustment,
+          contract_mts_salary = EXCLUDED.contract_mts_salary,
+          skill_protection_amount = EXCLUDED.skill_protection_amount,
+          trade_bonus_amount = EXCLUDED.trade_bonus_amount,
+          trade_bonus_amount_calc = EXCLUDED.trade_bonus_amount_calc,
+          cap_raise_percent = EXCLUDED.cap_raise_percent,
+          two_way_nba_salary = EXCLUDED.two_way_nba_salary,
+          two_way_dlg_salary = EXCLUDED.two_way_dlg_salary,
+          wnba_salary = EXCLUDED.wnba_salary,
+          wnba_time_off_bonus_amount = EXCLUDED.wnba_time_off_bonus_amount,
+          wnba_merit_bonus_amount = EXCLUDED.wnba_merit_bonus_amount,
+          wnba_time_off_bonus_days = EXCLUDED.wnba_time_off_bonus_days,
+          option_lk = EXCLUDED.option_lk,
+          option_decision_lk = EXCLUDED.option_decision_lk,
+          is_applicable_min_salary = EXCLUDED.is_applicable_min_salary,
+          updated_at = EXCLUDED.updated_at,
+          record_changed_at = EXCLUDED.record_changed_at,
+          source_drop_file = EXCLUDED.source_drop_file,
+          ingested_at = EXCLUDED.ingested_at
+      `;
     }
+    tables.push({ table: "pcms.salaries", attempted: salaryRows.length, success: true });
 
-    // Upsert payment schedules
+    // Payment schedules
     for (let i = 0; i < paymentScheduleRows.length; i += BATCH_SIZE) {
       const rows = paymentScheduleRows.slice(i, i + BATCH_SIZE);
-      if (!dry_run) {
-        const result = await upsertBatch("pcms", "payment_schedules", rows, [
-          "payment_schedule_id",
-        ]);
-        tables.push(result);
-        if (!result.success) errors.push(result.error!);
-      } else {
-        tables.push({ table: "pcms.payment_schedules", attempted: rows.length, success: true });
-      }
+      await sql`
+        INSERT INTO pcms.payment_schedules ${sql(rows)}
+        ON CONFLICT (payment_schedule_id) DO UPDATE SET
+          contract_id = EXCLUDED.contract_id,
+          version_number = EXCLUDED.version_number,
+          salary_year = EXCLUDED.salary_year,
+          payment_amount = EXCLUDED.payment_amount,
+          payment_start_date = EXCLUDED.payment_start_date,
+          schedule_type_lk = EXCLUDED.schedule_type_lk,
+          payment_type_lk = EXCLUDED.payment_type_lk,
+          is_default_schedule = EXCLUDED.is_default_schedule,
+          updated_at = EXCLUDED.updated_at,
+          record_changed_at = EXCLUDED.record_changed_at,
+          source_drop_file = EXCLUDED.source_drop_file,
+          ingested_at = EXCLUDED.ingested_at
+      `;
     }
+    tables.push({ table: "pcms.payment_schedules", attempted: paymentScheduleRows.length, success: true });
 
     return {
-      dry_run,
+      dry_run: false,
       started_at: startedAt,
       finished_at: new Date().toISOString(),
       tables,
-      errors,
+      errors: [],
     };
   } catch (e: any) {
-    errors.push(e.message);
     return {
       dry_run,
       started_at: startedAt,
       finished_at: new Date().toISOString(),
-      tables,
-      errors,
+      tables: [],
+      errors: [e.message],
     };
   }
 }
