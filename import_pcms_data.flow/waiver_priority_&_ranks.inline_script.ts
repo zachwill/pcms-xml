@@ -1,128 +1,245 @@
+/**
+ * Waiver Priority & Ranks (plus Tax configuration)
+ *
+ * Reads pre-parsed JSON from the shared extract dir (created by lineage step),
+ * then upserts into:
+ * - pcms.waiver_priority
+ * - pcms.waiver_priority_ranks
+ * - pcms.league_tax_rates
+ * - pcms.tax_team_status
+ *
+ * Source JSON files (if present):
+ * - *_waiver-priority-extract.json
+ * - *_tax-rates-extract.json
+ * - *_tax-teams-extract.json
+ *
+ * Expected paths:
+ *   data["xml-extract"]["waiver-priority-extract"].waiverPriority
+ *   data["xml-extract"]["tax-rates-extract"].taxRate
+ *   data["xml-extract"]["tax-teams-extract"].taxTeam
+ */
 import { SQL } from "bun";
-import {
-  hash,
-  upsertBatch,
-  createSummary,
-  finalizeSummary,
-  safeNum,
-  safeBigInt,
-  safeBool,
-  parsePCMSDate,
-  UpsertResult,
-  PCMSStreamParser,
-  resolvePCMSLineageContext
-} from "/f/ralph/utils.ts";
-import { readdirSync, createReadStream, readFileSync } from "fs";
+import { readdir } from "node:fs/promises";
 
 const sql = new SQL({ url: Bun.env.POSTGRES_URL!, prepare: false });
-const PARSER_VERSION = "2.0.0";
+const PARSER_VERSION = "2.1.0";
 const SHARED_DIR = "./shared/pcms";
 
-/**
- * Peek at the beginning of an XML file to find specific tags.
- */
-function peekContext(filePath: string, tags: string[]): Record<string, string | null> {
-  const results: Record<string, string | null> = {};
-  for (const tag of tags) results[tag] = null;
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // Read first 100KB to find context tags
-  const buffer = readFileSync(filePath, { encoding: 'utf8', flag: 'r' }).slice(0, 100 * 1024);
+interface LineageContext {
+  lineage_id: number;
+  s3_key: string;
+  source_hash: string;
+}
 
-  for (const tag of tags) {
-    const match = buffer.match(new RegExp(`<${tag}[^>]*>([^<]+)</${tag}>`));
-    if (match) results[tag] = match[1];
+interface UpsertResult {
+  table: string;
+  attempted: number;
+  success: boolean;
+  error?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function hash(data: string): string {
+  return new Bun.CryptoHasher("sha256").update(data).digest("hex");
+}
+
+function nilSafe(val: unknown): unknown {
+  if (val && typeof val === "object" && "@_xsi:nil" in val) return null;
+  return val;
+}
+
+function safeNum(val: unknown): number | null {
+  const v = nilSafe(val);
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "object") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function safeStr(val: unknown): string | null {
+  const v = nilSafe(val);
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "object") return null;
+  return String(v);
+}
+
+function safeBool(val: unknown): boolean | null {
+  const v = nilSafe(val);
+  if (v === null || v === undefined) return null;
+  if (typeof v === "boolean") return v;
+  if (v === 1 || v === "1" || v === "Y" || v === "true" || v === true) return true;
+  if (v === 0 || v === "0" || v === "N" || v === "false" || v === false) return false;
+  return null;
+}
+
+function safeBigInt(val: unknown): string | null {
+  const v = nilSafe(val);
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "object") return null;
+  try {
+    return BigInt(Math.round(Number(v))).toString();
+  } catch {
+    return null;
   }
-  return results;
 }
 
-async function auditUpsert(lineageId: number, result: UpsertResult, pkFields: string[], originalDataMap: Map<string, any>) {
-  if (!result.success || !result.rows || result.rows.length === 0) return;
-  const audits = result.rows.map((row) => ({
-    lineage_id: lineageId,
-    table_name: result.table.split('.').pop(),
-    source_record_id: pkFields.map(f => String(row[f])).join(':'),
-    record_hash: row.source_hash,
-    parser_version: PARSER_VERSION,
-    operation_type: 'UPSERT',
-    source_data_json: originalDataMap.get(pkFields.map(f => String(row[f])).join(':'))
-  }));
-  if (audits.length > 0) {
-    await sql`INSERT INTO pcms.pcms_lineage_audit ${sql(audits)} ON CONFLICT (table_name, source_record_id, record_hash, parser_version) DO NOTHING`;
+function parsePCMSDate(val: unknown): string | null {
+  const v = safeStr(val);
+  if (!v || v === "0001-01-01") return null;
+  return !isNaN(Date.parse(v)) ? v : null;
+}
+
+function asArray<T = any>(val: unknown): T[] {
+  const v = nilSafe(val);
+  if (v === null || v === undefined) return [];
+  return Array.isArray(v) ? (v as T[]) : ([v] as T[]);
+}
+
+async function getLineageContext(extractDir: string): Promise<LineageContext> {
+  const lineageFile = `${extractDir}/lineage.json`;
+  const file = Bun.file(lineageFile);
+  if (await file.exists()) {
+    return await file.json();
+  }
+  throw new Error(`Lineage file not found: ${lineageFile}`);
+}
+
+async function upsertBatch<T extends Record<string, unknown>>(
+  schema: string,
+  table: string,
+  rows: T[],
+  conflictColumns: string[]
+): Promise<UpsertResult> {
+  const fullTable = `${schema}.${table}`;
+  if (rows.length === 0) {
+    return { table: fullTable, attempted: 0, success: true };
+  }
+
+  try {
+    const allColumns = Object.keys(rows[0]);
+    const updateColumns = allColumns.filter((col) => !conflictColumns.includes(col));
+    const setClauses = updateColumns.map((col) => `${col} = EXCLUDED.${col}`).join(", ");
+    const conflictTarget = conflictColumns.join(", ");
+
+    const query = `
+      INSERT INTO ${fullTable} (${allColumns.join(", ")})
+      SELECT * FROM jsonb_populate_recordset(null::${fullTable}, $1::jsonb)
+      ON CONFLICT (${conflictTarget}) DO UPDATE SET ${setClauses}
+      WHERE ${fullTable}.source_hash IS DISTINCT FROM EXCLUDED.source_hash
+    `;
+
+    await sql.unsafe(query, [JSON.stringify(rows)]);
+    return { table: fullTable, attempted: rows.length, success: true };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return { table: fullTable, attempted: rows.length, success: false, error: msg };
   }
 }
 
-// --- Transformation Logic ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Transformers
+// ─────────────────────────────────────────────────────────────────────────────
 
-function transformWaiverPriority(wp: any, prov: any) {
+function transformWaiverPriority(wp: any, provenance: Record<string, unknown>) {
+  const waiver_priority_id = safeNum(wp?.waiverPriorityId);
+  if (waiver_priority_id === null) return null;
+
   return {
-    waiver_priority_id: safeNum(wp.waiverPriorityId), priority_date: wp.priorityDate,
-    seqno: safeNum(wp.seqno), status_lk: wp.recordStatusLk, comments: wp.comments,
-    created_at: parsePCMSDate(wp.createDate), updated_at: parsePCMSDate(wp.lastChangeDate),
-    record_changed_at: parsePCMSDate(wp.recordChangeDate), ...prov
+    waiver_priority_id,
+    priority_date: parsePCMSDate(wp?.priorityDate),
+    seqno: safeNum(wp?.seqno),
+    status_lk: safeStr(wp?.recordStatusLk),
+    comments: safeStr(wp?.comments),
+    created_at: parsePCMSDate(wp?.createDate),
+    updated_at: parsePCMSDate(wp?.lastChangeDate),
+    record_changed_at: parsePCMSDate(wp?.recordChangeDate),
+    ...provenance,
   };
 }
 
-function transformWaiverPriorityRank(wpr: any, wpId: number, prov: any) {
+function transformWaiverPriorityRank(wpr: any, waiverPriorityId: number, provenance: Record<string, unknown>) {
+  const waiver_priority_rank_id = safeNum(wpr?.waiverPriorityDetailId);
+  if (waiver_priority_rank_id === null) return null;
+
   return {
-    waiver_priority_rank_id: safeNum(wpr.waiverPriorityDetailId), waiver_priority_id: wpId,
-    team_id: safeNum(wpr.teamId), priority_order: safeNum(wpr.priorityOrder),
-    is_order_priority: safeBool(wpr.orderPriorityFlg), exclusivity_status_lk: wpr.exclusivityStatusLk,
-    exclusivity_expiration_date: wpr.exclusivityExpirationDate, status_lk: wpr.recordStatusLk,
-    seqno: safeNum(wpr.seqno), comments: wpr.comments, created_at: parsePCMSDate(wpr.createDate),
-    updated_at: parsePCMSDate(wpr.lastChangeDate), record_changed_at: parsePCMSDate(wpr.recordChangeDate), ...prov
+    waiver_priority_rank_id,
+    waiver_priority_id: waiverPriorityId,
+    team_id: safeNum(wpr?.teamId),
+    priority_order: safeNum(wpr?.priorityOrder),
+    is_order_priority: safeBool(wpr?.orderPriorityFlg),
+    exclusivity_status_lk: safeStr(wpr?.exclusivityStatusLk),
+    exclusivity_expiration_date: parsePCMSDate(wpr?.exclusivityExpirationDate),
+    status_lk: safeStr(wpr?.recordStatusLk),
+    seqno: safeNum(wpr?.seqno),
+    comments: safeStr(wpr?.comments),
+    created_at: parsePCMSDate(wpr?.createDate),
+    updated_at: parsePCMSDate(wpr?.lastChangeDate),
+    record_changed_at: parsePCMSDate(wpr?.recordChangeDate),
+    ...provenance,
   };
 }
 
-function transformTaxRate(tr: any, prov: any) {
-  return {
-    league_lk: tr.leagueLk, salary_year: safeNum(tr.salaryYear), lower_limit: safeBigInt(tr.lowerLimit),
-    upper_limit: safeBigInt(tr.upperLimit), tax_rate_non_repeater: safeNum(tr.taxRateNonRepeater),
-    tax_rate_repeater: safeNum(tr.taxRateRepeater), base_charge_non_repeater: safeBigInt(tr.baseChargeNonRepeater),
-    base_charge_repeater: safeBigInt(tr.baseChargeRepeater), created_at: parsePCMSDate(tr.createDate),
-    updated_at: parsePCMSDate(tr.lastChangeDate), record_changed_at: parsePCMSDate(tr.recordChangeDate), ...prov
-  };
-}
+function transformTaxRate(tr: any, provenance: Record<string, unknown>) {
+  // The tax-rates extract does not include leagueLk; schema expects NBA-only.
+  const league_lk = safeStr(tr?.leagueLk) ?? "NBA";
 
-function transformTaxTeamStatus(tts: any, prov: any) {
-  return {
-    team_id: safeNum(tts.teamId), salary_year: safeNum(tts.salaryYear), is_taxpayer: safeBool(tts.taxpayerFlg),
-    is_repeater_taxpayer: safeBool(tts.repeaterTaxpayerFlg), is_subject_to_apron: safeBool(tts.subjectToApronFlg),
-    apron_level_lk: tts.apronLevelLk, subject_to_apron_reason_lk: tts.subjectToApronReasonLk,
-    apron1_transaction_id: safeNum(tts.apron1TransactionId), apron2_transaction_id: safeNum(tts.apron2TransactionId),
-    created_at: parsePCMSDate(tts.createDate), updated_at: parsePCMSDate(tts.lastChangeDate),
-    record_changed_at: parsePCMSDate(tts.recordChangeDate), ...prov
-  };
-}
+  const salary_year = safeNum(tr?.salaryYear);
+  const lower_limit = safeBigInt(tr?.lowerLimit);
+  const tax_rate_non_repeater = safeNum(tr?.taxRateNonRepeater);
+  const tax_rate_repeater = safeNum(tr?.taxRateRepeater);
 
-function transformBudgetSnapshot(be: any, teamId: number, salaryYear: number, prov: any) {
-  const base: any = {
-    team_id: teamId, salary_year: salaryYear, player_id: safeNum(be.playerId),
-    contract_id: safeNum(be.contractId), transaction_id: safeNum(be.transactionId),
-    transaction_type_lk: be.transactionTypeLk, transaction_description_lk: be.transactionDescriptionLk,
-    budget_group_lk: be.budgetGroupLk, contract_type_lk: be.contractTypeLk,
-    free_agent_designation_lk: be.freeAgentDesignationLk, free_agent_status_lk: be.freeAgentStatusLk,
-    signing_method_lk: be.signingMethodLk, overall_contract_bonus_type_lk: be.overallContractBonusTypeLk,
-    overall_protection_coverage_lk: be.overallProtectionCoverageLk, max_contract_lk: be.maxContractLk,
-    years_of_service: safeNum(be.yearsOfService), ledger_date: be.ledgerDate, signing_date: be.signingDate,
-    version_number: safeNum(be.versionNumber), ...prov
-  };
-
-  const amounts = Array.isArray(be.budgetAmounts?.budgetAmount)
-    ? be.budgetAmounts.budgetAmount
-    : (be.budgetAmounts?.budgetAmount ? [be.budgetAmounts.budgetAmount] : []);
-
-  const amount = amounts.find((a: any) => safeNum(a.year) === salaryYear) || amounts[0];
-  if (amount) {
-    return {
-      ...base, cap_amount: safeBigInt(amount.capAmount), tax_amount: safeBigInt(amount.taxAmount),
-      mts_amount: safeBigInt(amount.mtsAmount), apron_amount: safeBigInt(amount.apronAmount),
-      is_fa_amount: safeBool(amount.faAmountFlg), option_lk: amount.optionLk, option_decision_lk: amount.optionDecisionLk,
-    };
+  if (salary_year === null || lower_limit === null || tax_rate_non_repeater === null || tax_rate_repeater === null) {
+    return null;
   }
-  return base;
+
+  return {
+    league_lk,
+    salary_year,
+    lower_limit,
+    upper_limit: safeBigInt(tr?.upperLimit),
+    tax_rate_non_repeater,
+    tax_rate_repeater,
+    base_charge_non_repeater: safeBigInt(tr?.baseChargeNonRepeater),
+    base_charge_repeater: safeBigInt(tr?.baseChargeRepeater),
+    created_at: parsePCMSDate(tr?.createDate),
+    updated_at: parsePCMSDate(tr?.lastChangeDate),
+    record_changed_at: parsePCMSDate(tr?.recordChangeDate),
+    ...provenance,
+  };
 }
 
-// --- Main Execution ---
+function transformTaxTeamStatus(tts: any, provenance: Record<string, unknown>) {
+  const team_id = safeNum(tts?.teamId);
+  const salary_year = safeNum(tts?.salaryYear);
+  if (team_id === null || salary_year === null) return null;
+
+  return {
+    team_id,
+    salary_year,
+    is_taxpayer: safeBool(tts?.taxpayerFlg) ?? false,
+    is_repeater_taxpayer: safeBool(tts?.taxpayerRepeaterRateFlg) ?? false,
+    is_subject_to_apron: safeBool(tts?.subjectToApronFlg) ?? false,
+    apron_level_lk: safeStr(tts?.apronLevelLk),
+    subject_to_apron_reason_lk: safeStr(tts?.subjectToApronReasonLk),
+    apron1_transaction_id: safeNum(tts?.apron1TransactionId),
+    apron2_transaction_id: safeNum(tts?.apron2TransactionId),
+    created_at: parsePCMSDate(tts?.createDate),
+    updated_at: parsePCMSDate(tts?.lastChangeDate),
+    record_changed_at: parsePCMSDate(tts?.recordChangeDate),
+    ...provenance,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main
+// ─────────────────────────────────────────────────────────────────────────────
 
 export async function main(
   dry_run = false,
@@ -130,180 +247,176 @@ export async function main(
   s3_key?: string,
   extract_dir: string = SHARED_DIR
 ) {
-  const summary = createSummary(dry_run);
+  const startedAt = new Date().toISOString();
+  const tables: UpsertResult[] = [];
+  const errors: string[] = [];
 
-  const extractDir = (extract_dir as any) || SHARED_DIR;
-  const row = await resolvePCMSLineageContext(sql, { lineageId: lineage_id, s3Key: s3_key, sharedDir: extractDir });
-  const xmlFiles = readdirSync(extractDir).filter(f => f.endsWith('.xml'));
-  const provenance = { source_drop_file: row.s3_key, parser_version: PARSER_VERSION, ingested_at: new Date() };
+  try {
+    // Find the actual extract directory
+    const entries = await readdir(extract_dir, { withFileTypes: true });
+    const subDir = entries.find((e) => e.isDirectory());
+    const baseDir = subDir ? `${extract_dir}/${subDir.name}` : extract_dir;
 
-  for (const xmlFile of xmlFiles) {
-    const filePath = `${extractDir}/${xmlFile}`;
+    // Get lineage context
+    const ctx = await getLineageContext(baseDir);
+    const effectiveLineageId = lineage_id ?? ctx.lineage_id;
+    const effectiveS3Key = s3_key ?? ctx.s3_key;
+    void effectiveLineageId; // lineage_id not stored on these tables
 
-    // 1. Waiver Priority
-    if (xmlFile.includes('waiver-priority')) {
-      console.log(`Processing ${xmlFile} (waiver priority)...`);
-      const priorities: any[] = [];
-      const ranks: any[] = [];
-      const rawPriorities = new Map<string, any>();
-      const rawRanks = new Map<string, any>();
+    const provenanceBase = {
+      source_drop_file: effectiveS3Key,
+      parser_version: PARSER_VERSION,
+      ingested_at: new Date(),
+    };
 
-      async function flush() {
-        if (priorities.length === 0) return;
-        if (!dry_run) {
-          const res = await upsertBatch(sql, 'pcms', 'waiver_priority', priorities, ['waiver_priority_id']);
-          await auditUpsert(row.lineage_id, res, ['waiver_priority_id'], rawPriorities);
-          summary.tables.push(res);
-          if (ranks.length > 0) {
-            const rRes = await upsertBatch(sql, 'pcms', 'waiver_priority_ranks', ranks, ['waiver_priority_rank_id']);
-            await auditUpsert(row.lineage_id, rRes, ['waiver_priority_rank_id'], rawRanks);
-            summary.tables.push(rRes);
-          }
-        } else {
-          summary.tables.push({ table: 'pcms.waiver_priority', attempted: priorities.length, success: true });
-          if (ranks.length > 0) summary.tables.push({ table: 'pcms.waiver_priority_ranks', attempted: ranks.length, success: true });
-        }
-        priorities.length = 0; ranks.length = 0; rawPriorities.clear(); rawRanks.clear();
-      }
+    const allFiles = await readdir(baseDir);
+    const waiverJsonFile = allFiles.find((f) => f.includes("waiver-priority") && f.endsWith(".json"));
+    const taxRatesJsonFile = allFiles.find((f) => f.includes("tax-rates") && f.endsWith(".json"));
+    const taxTeamsJsonFile = allFiles.find((f) => f.includes("tax-teams") && f.endsWith(".json"));
 
-      const streamParser = new PCMSStreamParser('waiverPriority', async (wp, rawXml) => {
-        const pRow = transformWaiverPriority(wp, { ...provenance, source_hash: hash(rawXml) });
-        priorities.push(pRow);
-        rawPriorities.set(String(pRow.waiver_priority_id), wp);
-
-        if (wp.waiverPriorityRanks?.waiverPriorityRank) {
-          const rList = Array.isArray(wp.waiverPriorityRanks.waiverPriorityRank) ? wp.waiverPriorityRanks.waiverPriorityRank : [wp.waiverPriorityRanks.waiverPriorityRank];
-          for (const r of rList) {
-            const rRow = transformWaiverPriorityRank(r, pRow.waiver_priority_id, { ...provenance, source_hash: hash(rawXml) });
-            ranks.push(rRow);
-            rawRanks.set(String(rRow.waiver_priority_rank_id), r);
-          }
-        }
-        if (priorities.length >= 500) await flush();
-      });
-
-      const stream = createReadStream(filePath);
-      for await (const chunk of stream) await streamParser.parseChunk(chunk);
-      await flush();
+    if (!waiverJsonFile && !taxRatesJsonFile && !taxTeamsJsonFile) {
+      throw new Error(`No waiver/tax JSON files found in ${baseDir}`);
     }
 
-    // 2. Tax Rates
-    if (xmlFile.includes('tax-rates')) {
-      console.log(`Processing ${xmlFile} (tax rates)...`);
-      const batch: any[] = [];
-      const rawMap = new Map<string, any>();
-      const pkFields = ['league_lk', 'salary_year', 'lower_limit'];
+    const BATCH_SIZE = 500;
 
-      const streamParser = new PCMSStreamParser('taxRate', async (tr, rawXml) => {
-        const transformed = transformTaxRate(tr, { ...provenance, source_hash: hash(rawXml) });
-        batch.push(transformed);
-        rawMap.set(pkFields.map(f => String(transformed[f])).join(':'), tr);
-        if (batch.length >= 500) {
-          if (!dry_run) {
-            const res = await upsertBatch(sql, 'pcms', 'league_tax_rates', batch, pkFields);
-            await auditUpsert(row.lineage_id, res, pkFields, rawMap);
-            summary.tables.push(res);
-          } else {
-            summary.tables.push({ table: 'pcms.league_tax_rates', attempted: batch.length, success: true });
-          }
-          batch.length = 0; rawMap.clear();
-        }
-      });
+    // -------------------------------------------------------------------------
+    // waiver_priority + waiver_priority_ranks
+    // -------------------------------------------------------------------------
 
-      const stream = createReadStream(filePath);
-      for await (const chunk of stream) await streamParser.parseChunk(chunk);
-      if (batch.length > 0) {
-        if (!dry_run) {
-          const res = await upsertBatch(sql, 'pcms', 'league_tax_rates', batch, pkFields);
-          await auditUpsert(row.lineage_id, res, pkFields, rawMap);
-          summary.tables.push(res);
-        } else {
-          summary.tables.push({ table: 'pcms.league_tax_rates', attempted: batch.length, success: true });
+    if (waiverJsonFile) {
+      console.log(`Reading ${waiverJsonFile}...`);
+      const data = await Bun.file(`${baseDir}/${waiverJsonFile}`).json();
+
+      const waiverPriorities = asArray<any>(data?.["xml-extract"]?.["waiver-priority-extract"]?.waiverPriority);
+      console.log(`Found ${waiverPriorities.length} waiver priorities`);
+
+      const priorityRows: any[] = [];
+      const rankRows: any[] = [];
+
+      for (const wp of waiverPriorities) {
+        const priorityHash = hash(JSON.stringify(wp));
+        const pRow = transformWaiverPriority(wp, { ...provenanceBase, source_hash: priorityHash });
+        if (!pRow) continue;
+        priorityRows.push(pRow);
+
+        const ranks = asArray<any>(wp?.waiverPriorityRanks?.waiverPriorityRank);
+        for (const r of ranks) {
+          const rHash = hash(JSON.stringify({ waiverPriorityId: pRow.waiver_priority_id, ...r }));
+          const rRow = transformWaiverPriorityRank(r, pRow.waiver_priority_id, { ...provenanceBase, source_hash: rHash });
+          if (!rRow) continue;
+          rankRows.push(rRow);
         }
       }
+
+      for (let i = 0; i < priorityRows.length; i += BATCH_SIZE) {
+        const batch = priorityRows.slice(i, i + BATCH_SIZE);
+        if (!dry_run) {
+          const result = await upsertBatch("pcms", "waiver_priority", batch, ["waiver_priority_id"]);
+          tables.push(result);
+          if (!result.success) errors.push(result.error!);
+        } else {
+          tables.push({ table: "pcms.waiver_priority", attempted: batch.length, success: true });
+        }
+      }
+
+      for (let i = 0; i < rankRows.length; i += BATCH_SIZE) {
+        const batch = rankRows.slice(i, i + BATCH_SIZE);
+        if (!dry_run) {
+          const result = await upsertBatch("pcms", "waiver_priority_ranks", batch, ["waiver_priority_rank_id"]);
+          tables.push(result);
+          if (!result.success) errors.push(result.error!);
+        } else {
+          tables.push({ table: "pcms.waiver_priority_ranks", attempted: batch.length, success: true });
+        }
+      }
+    } else {
+      errors.push(`No waiver-priority JSON file found in ${baseDir}`);
     }
 
-    // 3. Tax Team Status
-    if (xmlFile.includes('tax-teams')) {
-      console.log(`Processing ${xmlFile} (tax team status)...`);
-      const batch: any[] = [];
-      const rawMap = new Map<string, any>();
-      const pkFields = ['team_id', 'salary_year'];
+    // -------------------------------------------------------------------------
+    // league_tax_rates
+    // -------------------------------------------------------------------------
 
-      const streamParser = new PCMSStreamParser('taxTeamStatus', async (tts, rawXml) => {
-        const transformed = transformTaxTeamStatus(tts, { ...provenance, source_hash: hash(rawXml) });
-        batch.push(transformed);
-        rawMap.set(pkFields.map(f => String(transformed[f])).join(':'), tts);
-        if (batch.length >= 500) {
-          if (!dry_run) {
-            const res = await upsertBatch(sql, 'pcms', 'tax_team_status', batch, pkFields);
-            await auditUpsert(row.lineage_id, res, pkFields, rawMap);
-            summary.tables.push(res);
-          } else {
-            summary.tables.push({ table: 'pcms.tax_team_status', attempted: batch.length, success: true });
-          }
-          batch.length = 0; rawMap.clear();
-        }
-      });
+    if (taxRatesJsonFile) {
+      console.log(`Reading ${taxRatesJsonFile}...`);
+      const data = await Bun.file(`${baseDir}/${taxRatesJsonFile}`).json();
 
-      const stream = createReadStream(filePath);
-      for await (const chunk of stream) await streamParser.parseChunk(chunk);
-      if (batch.length > 0) {
+      const taxRates = asArray<any>(data?.["xml-extract"]?.["tax-rates-extract"]?.taxRate);
+      console.log(`Found ${taxRates.length} tax rates`);
+
+      const rows = taxRates
+        .map((tr) => {
+          const transformed = transformTaxRate(tr, provenanceBase);
+          if (!transformed) return null;
+          return { ...transformed, source_hash: hash(JSON.stringify(tr)) };
+        })
+        .filter(Boolean) as Record<string, unknown>[];
+
+      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const batch = rows.slice(i, i + BATCH_SIZE);
+
         if (!dry_run) {
-          const res = await upsertBatch(sql, 'pcms', 'tax_team_status', batch, pkFields);
-          await auditUpsert(row.lineage_id, res, pkFields, rawMap);
-          summary.tables.push(res);
+          const result = await upsertBatch("pcms", "league_tax_rates", batch, ["league_lk", "salary_year", "lower_limit"]);
+          tables.push(result);
+          if (!result.success) errors.push(result.error!);
         } else {
-          summary.tables.push({ table: 'pcms.tax_team_status', attempted: batch.length, success: true });
+          tables.push({ table: "pcms.league_tax_rates", attempted: batch.length, success: true });
         }
       }
+    } else {
+      errors.push(`No tax-rates JSON file found in ${baseDir}`);
     }
 
-    // 4. Team Budget
-    if (xmlFile.includes('team-budget')) {
-      console.log(`Processing ${xmlFile} (team budget)...`);
-      const context = peekContext(filePath, ['teamId', 'salaryYear']);
-      const teamId = safeNum(context.teamId);
-      const salaryYear = safeNum(context.salaryYear);
+    // -------------------------------------------------------------------------
+    // tax_team_status
+    // -------------------------------------------------------------------------
 
-      if (!teamId || !salaryYear) {
-        summary.errors.push(`${xmlFile}: Missing teamId or salaryYear`);
-        continue;
-      }
+    if (taxTeamsJsonFile) {
+      console.log(`Reading ${taxTeamsJsonFile}...`);
+      const data = await Bun.file(`${baseDir}/${taxTeamsJsonFile}`).json();
 
-      const batch: any[] = [];
-      const rawMap = new Map<string, any>();
-      const pkFields = ['team_id', 'salary_year', 'transaction_id', 'budget_group_lk', 'player_id', 'contract_id', 'version_number'];
+      const taxTeams = asArray<any>(data?.["xml-extract"]?.["tax-teams-extract"]?.taxTeam);
+      console.log(`Found ${taxTeams.length} tax teams`);
 
-      const streamParser = new PCMSStreamParser('teamBudgetEntry', async (be, rawXml) => {
-        const transformed = transformBudgetSnapshot(be, teamId, salaryYear, { ...provenance, source_hash: hash(rawXml) });
-        batch.push(transformed);
-        rawMap.set(pkFields.map(f => String(transformed[f])).join(':'), be);
-        if (batch.length >= 500) {
-          if (!dry_run) {
-            const res = await upsertBatch(sql, 'pcms', 'team_budget_snapshots', batch, pkFields);
-            await auditUpsert(row.lineage_id, res, pkFields, rawMap);
-            summary.tables.push(res);
-          } else {
-            summary.tables.push({ table: 'pcms.team_budget_snapshots', attempted: batch.length, success: true });
-          }
-          batch.length = 0; rawMap.clear();
-        }
-      });
+      const rows = taxTeams
+        .map((t) => {
+          const transformed = transformTaxTeamStatus(t, provenanceBase);
+          if (!transformed) return null;
+          return { ...transformed, source_hash: hash(JSON.stringify(t)) };
+        })
+        .filter(Boolean) as Record<string, unknown>[];
 
-      const stream = createReadStream(filePath);
-      for await (const chunk of stream) await streamParser.parseChunk(chunk);
-      if (batch.length > 0) {
+      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const batch = rows.slice(i, i + BATCH_SIZE);
+
         if (!dry_run) {
-          const res = await upsertBatch(sql, 'pcms', 'team_budget_snapshots', batch, pkFields);
-          await auditUpsert(row.lineage_id, res, pkFields, rawMap);
-          summary.tables.push(res);
+          const result = await upsertBatch("pcms", "tax_team_status", batch, ["team_id", "salary_year"]);
+          tables.push(result);
+          if (!result.success) errors.push(result.error!);
         } else {
-          summary.tables.push({ table: 'pcms.team_budget_snapshots', attempted: batch.length, success: true });
+          tables.push({ table: "pcms.tax_team_status", attempted: batch.length, success: true });
         }
       }
+    } else {
+      errors.push(`No tax-teams JSON file found in ${baseDir}`);
     }
+
+    return {
+      dry_run,
+      started_at: startedAt,
+      finished_at: new Date().toISOString(),
+      tables,
+      errors,
+    };
+  } catch (e: any) {
+    errors.push(e?.message ?? String(e));
+    return {
+      dry_run,
+      started_at: startedAt,
+      finished_at: new Date().toISOString(),
+      tables,
+      errors,
+    };
   }
-
-  return finalizeSummary(summary);
 }
