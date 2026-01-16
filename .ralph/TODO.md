@@ -13,7 +13,7 @@ Refactor all scripts to use Bun-native APIs (read JSON, not XML).
 - [x] system_values,_rookie_scale_&_nca.inline_script.ts
 - [x] two-way_daily_statuses.inline_script.ts
 - [x] waiver_priority_&_ranks.inline_script.ts
-- [ ] finalize_lineage.inline_script.ts
+- [x] finalize_lineage.inline_script.ts
 
 ## Reference
 
