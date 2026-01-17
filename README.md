@@ -38,30 +38,46 @@ The lineage step produces these files in `.shared/nba_pcms_full_extract/`:
 | `players.json` | 14,421 | `pcms.people` |
 | `contracts.json` | 8,071 | `pcms.contracts`, `contract_versions`, `salaries` |
 | `transactions.json` | 232,417 | `pcms.transactions` |
-| `ledger.json` | 50,713 | `pcms.transaction_ledger` |
-| `trades.json` | 1,731 | `pcms.trades` |
-| `draft_picks.json` | 1,169 | `pcms.draft_picks` |
-| `team_exceptions.json` | nested | `pcms.team_exceptions` |
-| `lookups.json` | 43 tables | `pcms.lookups` |
+| `ledger.json` | 50,713 | `pcms.ledger_entries` |
+| `trades.json` | 1,731 | `pcms.trades`, `trade_teams`, `trade_groups` |
+| `draft_picks.json` | 1,169 | `pcms.draft_picks` (DLG/WNBA) |
+| `draft_pick_summaries.json` | 450 | `pcms.draft_pick_summaries` |
+| `team_exceptions.json` | nested | `pcms.team_exceptions`, `team_exception_usage` |
+| `team_budgets.json` | nested | `pcms.team_budget_snapshots`, `tax_team_status` |
+| `team_transactions.json` | 80,130 | ⚠️ Not yet imported (see TODO.md) |
+| `two_way.json` | 28,659 | `pcms.two_way_daily_statuses` |
+| `two_way_utility.json` | nested | `pcms.two_way_contract_utility`, `two_way_game_utility` |
+| `lookups.json` | 43 tables | `pcms.lookups`, `pcms.teams` |
+| `yearly_system_values.json` | varies | `pcms.league_system_values` |
+| `cap_projections.json` | varies | `pcms.league_salary_cap_projections` |
 
 ## Directory Structure
 
 ```
 .
-├── import_pcms_data.flow/       # Windmill flow
-│   ├── flow.yaml                # Flow definition (steps A-L)
+├── import_pcms_data.flow/       # Windmill flow (18 steps)
+│   ├── flow.yaml                # Flow definition
 │   ├── lineage_management_*.ts  # Step A: S3 → XML → clean JSON
 │   ├── players_&_people.*.ts    # Step B: Insert players
-│   └── ...                      # Steps C-L
+│   ├── contracts,_versions_*.ts # Step C: Contracts, versions, salaries
+│   ├── ...                      # Steps D-P (see flow.yaml)
+│   └── finalize_lineage.*.ts    # Step L: Aggregate results
+├── migrations/                  # SQL migrations for pcms schema
 ├── scripts/
 │   ├── parse-xml-to-json.ts     # Dev tool: XML → clean JSON
 │   ├── inspect-json-structure.ts
 │   └── show-all-paths.ts
+├── agents/                      # Autonomous coding agents
+│   ├── coverage.ts              # Fill coverage gaps (team_transactions, etc.)
+│   ├── enhance.ts               # Add team_code columns
+│   └── ...
+├── .ralph/                      # Agent task files
 ├── .shared/
 │   ├── nba_pcms_full_extract/   # Clean JSON output
 │   └── nba_pcms_full_extract_xml/ # Source XML (local dev)
 ├── AGENTS.md                    # Architecture details
-└── TODO.md                      # Remaining work
+├── SCHEMA.md                    # Target database schema
+└── TODO.md                      # Remaining work & coverage audit
 ```
 
 ## Import Script Pattern

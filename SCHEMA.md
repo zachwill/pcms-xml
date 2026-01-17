@@ -156,6 +156,8 @@ contracts
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
  - ingested_at timestamp with time zone default now()
+ - team_code text
+ - sign_and_trade_to_team_code text
 
 depth_charts
  - team_id integer primary key
@@ -175,6 +177,43 @@ depth_charts
  - updated_at timestamp with time zone default now()
  - updated_by_user_id text
  - source_record_id text
+ - ingested_at timestamp with time zone default now()
+ - team_code text
+
+draft_pick_ownership
+ - id serial primary key
+ - draft_year integer
+ - round integer
+ - original_team_id integer
+ - original_team_code text
+ - current_team_id integer
+ - current_team_code text
+ - ownership_status text
+ - destination_team_id integer
+ - destination_team_code text
+ - is_conditional boolean default false
+ - condition_description text
+ - protection_description text
+ - swap_rights_team_id integer
+ - swap_rights_team_code text
+ - provenance_chain jsonb
+ - endnote_refs integer[]
+ - source text default 'parsed'::text
+ - confidence text default 'high'::text
+ - notes text
+ - created_at timestamp with time zone default now()
+ - updated_at timestamp with time zone default now()
+
+draft_pick_summaries
+ - draft_year integer primary key
+ - team_id integer primary key
+ - team_code text
+ - first_round text
+ - second_round text
+ - is_active boolean
+ - created_at timestamp with time zone
+ - updated_at timestamp with time zone
+ - record_changed_at timestamp with time zone
  - ingested_at timestamp with time zone default now()
 
 draft_picks
@@ -202,6 +241,9 @@ draft_picks
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
  - ingested_at timestamp with time zone default now()
+ - player_id integer
+ - original_team_code text
+ - current_team_code text
 
 league_salary_cap_projections
  - projection_id integer primary key
@@ -355,6 +397,7 @@ ledger_entries
  - apron_value bigint
  - trade_bonus_amount bigint
  - ingested_at timestamp with time zone default now()
+ - team_code text
 
 lk_subject_to_apron_reasons
  - reason_lk text primary key
@@ -409,6 +452,7 @@ non_contract_amounts
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
  - ingested_at timestamp with time zone default now()
+ - team_code text
 
 payment_schedule_details
  - payment_detail_id integer primary key
@@ -516,6 +560,10 @@ people
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
  - ingested_at timestamp with time zone default now()
+ - team_code text
+ - draft_team_code text
+ - dlg_returning_rights_team_code text
+ - dlg_team_code text
 
 rookie_scale_amounts
  - rookie_scale_id serial primary key
@@ -590,6 +638,7 @@ tax_team_status
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
  - ingested_at timestamp with time zone default now()
+ - team_code text
 
 team_budget_snapshots
  - team_budget_snapshot_id serial primary key
@@ -620,6 +669,7 @@ team_budget_snapshots
  - option_lk text
  - option_decision_lk text
  - ingested_at timestamp with time zone default now()
+ - team_code text
 
 team_exception_usage
  - team_exception_detail_id integer primary key
@@ -660,6 +710,7 @@ team_exceptions
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
  - ingested_at timestamp with time zone default now()
+ - team_code text
 
 team_tax_summary_snapshots
  - team_tax_summary_id serial primary key
@@ -676,6 +727,27 @@ team_tax_summary_snapshots
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - ingested_at timestamp with time zone default now()
+ - team_code text
+
+team_transactions
+ - team_transaction_id integer primary key
+ - team_id integer
+ - team_code text
+ - team_transaction_type_lk text
+ - team_ledger_seqno integer
+ - transaction_date date
+ - cap_adjustment bigint
+ - cap_hold_adjustment integer
+ - tax_adjustment bigint
+ - tax_apron_adjustment bigint
+ - mts_adjustment bigint
+ - protection_count_flg boolean
+ - comments text
+ - record_status_lk text
+ - created_at timestamp with time zone
+ - updated_at timestamp with time zone
+ - record_changed_at timestamp with time zone
+ - ingested_at timestamp with time zone default now()
 
 team_two_way_capacity
  - team_id integer primary key
@@ -684,11 +756,12 @@ team_two_way_capacity
  - under_15_games_count integer
  - under_15_games_remaining integer
  - ingested_at timestamp with time zone default now()
+ - team_code text
 
 teams
  - team_id integer primary key
  - team_name text
- - team_name_short text
+ - team_code text
  - team_nickname text
  - city text
  - state_lk text
@@ -715,6 +788,7 @@ trade_groups
  - generated_team_exception_id integer
  - signed_method_lk text
  - ingested_at timestamp with time zone default now()
+ - team_code text
 
 trade_team_details
  - trade_team_detail_id text primary key
@@ -746,6 +820,7 @@ trade_team_details
  - draft_pick_conditional_lk text
  - is_draft_year_plus_two boolean
  - ingested_at timestamp with time zone default now()
+ - team_code text
 
 trade_teams
  - trade_team_id text primary key
@@ -756,6 +831,7 @@ trade_teams
  - total_cash_sent bigint
  - seqno integer
  - ingested_at timestamp with time zone default now()
+ - team_code text
 
 trades
  - trade_id integer primary key
@@ -796,6 +872,7 @@ transaction_waiver_amounts
  - wnba_contract_id integer
  - wnba_version_number text
  - ingested_at timestamp with time zone default now()
+ - team_code text
 
 transactions
  - transaction_id integer primary key
@@ -849,6 +926,10 @@ transactions
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
  - ingested_at timestamp with time zone default now()
+ - from_team_code text
+ - to_team_code text
+ - rights_team_code text
+ - sign_and_trade_team_code text
 
 two_way_contract_utility
  - contract_id integer primary key
@@ -860,6 +941,8 @@ two_way_contract_utility
  - active_list_games_limit integer
  - remaining_active_list_games integer
  - ingested_at timestamp with time zone default now()
+ - contract_team_code text
+ - signing_team_code text
 
 two_way_daily_statuses
  - player_id integer primary key
@@ -889,6 +972,9 @@ two_way_daily_statuses
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
  - ingested_at timestamp with time zone default now()
+ - status_team_code text
+ - contract_team_code text
+ - signing_team_code text
 
 two_way_game_utility
  - game_id integer primary key
@@ -904,6 +990,8 @@ two_way_game_utility
  - active_list_games_limit integer
  - standard_nba_contracts_on_team integer
  - ingested_at timestamp with time zone default now()
+ - team_code text
+ - opposition_team_code text
 
 ui_projected_salaries
  - projection_salary_id serial primary key
@@ -928,6 +1016,7 @@ ui_projected_salaries
  - trade_status_lk text default 'RETAINED'::text
  - projection_notes text
  - ingested_at timestamp with time zone default now()
+ - team_code text
 
 ui_projection_overrides
  - override_id uuid primary key
@@ -953,6 +1042,7 @@ ui_projections
  - base_source_hash text
  - created_at timestamp with time zone default now()
  - updated_at timestamp with time zone default now()
+ - team_code text
 
 waiver_priority
  - waiver_priority_id integer primary key
@@ -980,3 +1070,4 @@ waiver_priority_ranks
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
  - ingested_at timestamp with time zone default now()
+ - team_code text

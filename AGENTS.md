@@ -18,10 +18,15 @@ Windmill flow that imports NBA PCMS XML data into PostgreSQL. Runs on Bun runtim
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  Steps B-K: Import scripts (read clean JSON, insert to Postgres)           │
+│  Steps B-P: Import scripts (read clean JSON, insert to Postgres)           │
 │                                                                             │
 │    const players = await Bun.file("players.json").json();                  │
 │    await sql`INSERT INTO pcms.people ${sql(players)}`;                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Step L: Finalize Lineage (aggregate results, update state)                │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -31,11 +36,25 @@ Windmill flow that imports NBA PCMS XML data into PostgreSQL. Runs on Bun runtim
 
 ```
 import_pcms_data.flow/
-├── flow.yaml                    # Flow definition (steps A-L)
-├── lineage_management_*.ts      # Step A: S3 → extract → XML → CLEAN JSON ✅
-├── players_&_people.*.ts        # Step B: Read clean JSON, insert ✅
-├── contracts_*.ts               # Step C: (needs simplification)
-└── ...                          # Steps D-L
+├── flow.yaml                              # Flow definition (18 steps)
+├── lineage_management_*.ts                # Step A: S3 → extract → XML → CLEAN JSON
+├── players_&_people.*.ts                  # Step B: People/players
+├── generate_nba_draft_picks.*.ts          # Step R: Generate NBA draft picks from players
+├── contracts,_versions,_bonuses_*.ts      # Step C: Contracts, versions, salaries
+├── team_exceptions_&_usage.*.ts           # Step D: Team exceptions
+├── trades,_transactions_&_ledger.*.ts     # Step E: Trades, transactions, ledger
+├── system_values,_rookie_scale_*.ts       # Step F: System values, rookie scale, NCA
+├── two-way_daily_statuses.*.ts            # Step G: Two-way daily statuses
+├── draft_picks.*.ts                       # Step H: Draft picks
+├── draft_pick_summaries.*.ts              # Step Q: Draft pick summaries
+├── team_budgets.*.ts                      # Step I: Team budgets
+├── waiver_priority_&_ranks.*.ts           # Step J: Waiver priority
+├── lookups.*.ts                           # Step K: Lookups
+├── agents_&_agencies.*.ts                 # Step M: Agents & agencies
+├── transaction_waiver_amounts.*.ts        # Step N: Transaction waiver amounts
+├── league_salary_scales_*.ts              # Step O: League salary scales
+├── two-way_utility.*.ts                   # Step P: Two-way utility
+└── finalize_lineage.*.ts                  # Step L: Finalize (aggregate results)
 
 scripts/
 ├── parse-xml-to-json.ts         # Dev tool: XML → clean JSON (mirrors lineage)
@@ -57,9 +76,20 @@ The lineage step produces these clean JSON files:
 | `transactions.json` | 232,417 | Transaction history |
 | `ledger.json` | 50,713 | Ledger entries |
 | `trades.json` | 1,731 | Trade records |
-| `draft_picks.json` | 1,169 | Draft picks |
+| `draft_picks.json` | 1,169 | Draft picks (DLG/WNBA) |
+| `draft_pick_summaries.json` | 450 | Draft pick summaries by team/year |
+| `team_exceptions.json` | nested | Team exceptions & usage |
+| `team_budgets.json` | nested | Team budget snapshots |
+| `team_transactions.json` | 80,130 | Team transactions (cap hold adjustments) |
+| `transaction_waiver_amounts.json` | varies | Waiver amount calculations |
+| `two_way.json` | 28,659 | Two-way daily statuses |
+| `two_way_utility.json` | nested | Two-way game/contract utility |
 | `lookups.json` | 43 tables | Reference data |
-| ... | ... | ... |
+| `cap_projections.json` | varies | Salary cap projections |
+| `yearly_system_values.json` | varies | League system values by year |
+| `yearly_salary_scales.json` | varies | Salary scales by year |
+| `rookie_scale_amounts.json` | varies | Rookie scale amounts |
+| `non_contract_amounts.json` | varies | Non-contract amounts (cap holds, etc.) |
 
 ## Clean JSON Format
 
