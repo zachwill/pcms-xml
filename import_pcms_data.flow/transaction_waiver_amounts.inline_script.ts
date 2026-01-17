@@ -51,6 +51,16 @@ export async function main(
   try {
     const baseDir = await resolveBaseDir(extract_dir);
 
+    // Build team_id → team_code lookup map
+    const lookups: any = await Bun.file(`${baseDir}/lookups.json`).json();
+    const teamsData: any[] = lookups?.lk_teams?.lk_team || [];
+    const teamCodeMap = new Map<number, string>();
+    for (const t of teamsData) {
+      if (t.team_id && t.team_code) {
+        teamCodeMap.set(t.team_id, t.team_code);
+      }
+    }
+
     const waiverFile = Bun.file(`${baseDir}/transaction_waiver_amounts.json`);
     const waiverAmounts: any[] = (await waiverFile.exists()) ? await waiverFile.json() : [];
 
@@ -63,6 +73,7 @@ export async function main(
         const id = toIntOrNull(w?.transaction_waiver_amount_id);
         const transactionId = toIntOrNull(w?.transaction_id);
         const playerId = toIntOrNull(w?.player_id);
+        const teamId = toIntOrNull(w?.team_id);
         const salaryYear = toIntOrNull(w?.salary_year);
 
         // Required columns (per schema)
@@ -72,7 +83,8 @@ export async function main(
           transaction_waiver_amount_id: id,
           transaction_id: transactionId,
           player_id: playerId,
-          team_id: toIntOrNull(w?.team_id),
+          team_id: teamId,
+          team_code: teamId !== null ? (teamCodeMap.get(teamId) ?? null) : null,
           contract_id: toIntOrNull(w?.contract_id),
           salary_year: salaryYear,
           version_number: toIntOrNull(w?.version_number),
@@ -120,6 +132,7 @@ export async function main(
           transaction_id = EXCLUDED.transaction_id,
           player_id = EXCLUDED.player_id,
           team_id = EXCLUDED.team_id,
+          team_code = EXCLUDED.team_code,
           contract_id = EXCLUDED.contract_id,
           salary_year = EXCLUDED.salary_year,
           version_number = EXCLUDED.version_number,

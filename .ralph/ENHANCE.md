@@ -34,7 +34,7 @@ team_code: teamCodeMap.get(record.team_id) ?? null,
 - [x] `team_exceptions_&_usage.inline_script.ts` — add `team_code`
 - [x] `team_budgets.inline_script.ts` — add `team_code` to team_budget_snapshots, tax_team_status, team_tax_summary_snapshots
 - [x] `system_values,_rookie_scale_&_nca.inline_script.ts` — add `team_code` to non_contract_amounts
-- [ ] `transaction_waiver_amounts.inline_script.ts` — add `team_code`
+- [x] `transaction_waiver_amounts.inline_script.ts` — add `team_code`
 - [ ] `two-way_daily_statuses.inline_script.ts` — add `status_team_code`, `contract_team_code`, `signing_team_code`
 - [ ] `two-way_utility.inline_script.ts` — add `contract_team_code`, `signing_team_code` to two_way_contract_utility; `team_code`, `opposition_team_code` to two_way_game_utility
 - [ ] `waiver_priority_&_ranks.inline_script.ts` — add `team_code`
