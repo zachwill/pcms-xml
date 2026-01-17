@@ -46,12 +46,9 @@ async function resolveBaseDir(extractDir: string): Promise<string> {
 
 export async function main(
   dry_run = false,
-  lineage_id?: number,
-  s3_key?: string,
   extract_dir = "./shared/pcms"
 ) {
   const startedAt = new Date().toISOString();
-  void lineage_id;
 
   try {
     const baseDir = await resolveBaseDir(extract_dir);
@@ -66,12 +63,6 @@ export async function main(
     console.log(`Found ${capProjections.length} cap projections`);
 
     const ingestedAt = new Date();
-    const provenance = {
-      source_drop_file: s3_key ?? null,
-      source_hash: null,
-      parser_version: null,
-      ingested_at: ingestedAt,
-    };
 
     const scaleRows = salaryScales
       .map((s) => {
@@ -91,7 +82,7 @@ export async function main(
           created_at: s?.create_date ?? null,
           updated_at: s?.last_change_date ?? null,
           record_changed_at: s?.record_change_date ?? null,
-          ...provenance,
+          ingested_at: ingestedAt,
         };
       })
       .filter(Boolean) as Record<string, any>[];
@@ -115,7 +106,7 @@ export async function main(
           created_at: p?.create_date ?? null,
           updated_at: p?.last_change_date ?? null,
           record_changed_at: p?.record_change_date ?? null,
-          ...provenance,
+          ingested_at: ingestedAt,
         };
       })
       .filter(Boolean) as Record<string, any>[];
@@ -146,9 +137,6 @@ export async function main(
           created_at = EXCLUDED.created_at,
           updated_at = EXCLUDED.updated_at,
           record_changed_at = EXCLUDED.record_changed_at,
-          source_drop_file = EXCLUDED.source_drop_file,
-          source_hash = EXCLUDED.source_hash,
-          parser_version = EXCLUDED.parser_version,
           ingested_at = EXCLUDED.ingested_at
       `;
     }
@@ -170,9 +158,6 @@ export async function main(
           created_at = EXCLUDED.created_at,
           updated_at = EXCLUDED.updated_at,
           record_changed_at = EXCLUDED.record_changed_at,
-          source_drop_file = EXCLUDED.source_drop_file,
-          source_hash = EXCLUDED.source_hash,
-          parser_version = EXCLUDED.parser_version,
           ingested_at = EXCLUDED.ingested_at
       `;
     }

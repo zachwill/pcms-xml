@@ -80,7 +80,7 @@ function inferDescription(record: Record<string, any>): { description: string | 
   };
 }
 
-function transformLookup(lookupType: string, record: unknown, provenance: Record<string, any>) {
+function transformLookup(lookupType: string, record: unknown, ingestedAt: Date) {
   if (!isPlainObject(record)) return null;
 
   const { code_key, lookup_code } = inferLookupCode(record);
@@ -118,7 +118,7 @@ function transformLookup(lookupType: string, record: unknown, provenance: Record
     created_at: record.create_date ?? null,
     updated_at: record.last_change_date ?? null,
     record_changed_at: record.record_change_date ?? null,
-    ...provenance,
+    ingested_at: ingestedAt,
   };
 }
 
@@ -143,12 +143,9 @@ function extractRecords(container: unknown): any[] {
 
 export async function main(
   dry_run = false,
-  lineage_id?: number,
-  s3_key?: string,
   extract_dir = "./shared/pcms"
 ) {
   const startedAt = new Date().toISOString();
-  void lineage_id;
 
   try {
     // Find extract directory
@@ -161,10 +158,6 @@ export async function main(
     console.log(`Found ${Object.keys(lookupGroups).length} lookup groups`);
 
     const ingestedAt = new Date();
-    const provenance = {
-      source_drop_file: s3_key,
-      ingested_at: ingestedAt,
-    };
 
     const BATCH_SIZE = 10;
     let attempted = 0;
@@ -174,7 +167,7 @@ export async function main(
       if (records.length === 0) continue;
 
       const transformed = records
-        .map((r) => transformLookup(lookupType, r, provenance))
+        .map((r) => transformLookup(lookupType, r, ingestedAt))
         .filter(Boolean) as Record<string, any>[];
 
       if (transformed.length === 0) continue;
@@ -196,7 +189,6 @@ export async function main(
             properties_json = EXCLUDED.properties_json,
             updated_at = EXCLUDED.updated_at,
             record_changed_at = EXCLUDED.record_changed_at,
-            source_drop_file = EXCLUDED.source_drop_file,
             ingested_at = EXCLUDED.ingested_at
         `;
       }

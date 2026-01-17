@@ -32,12 +32,9 @@ function toDateOnly(val: any): string | null {
 
 export async function main(
   dry_run = false,
-  lineage_id?: number,
-  s3_key?: string,
   extract_dir = "./shared/pcms"
 ) {
   const startedAt = new Date().toISOString();
-  void lineage_id;
 
   try {
     // Find extract directory
@@ -57,10 +54,6 @@ export async function main(
     console.log(`Found ${statuses.length} two-way daily statuses`);
 
     const ingestedAt = new Date();
-    const provenance = {
-      source_drop_file: s3_key,
-      ingested_at: ingestedAt,
-    };
 
     const rows = statuses
       .map((s) => {
@@ -105,7 +98,7 @@ export async function main(
           updated_at: s?.last_change_date ?? null,
           record_changed_at: s?.record_change_date ?? null,
 
-          ...provenance,
+          ingested_at: ingestedAt,
         };
       })
       .filter(Boolean) as Record<string, any>[];
@@ -151,7 +144,6 @@ export async function main(
           season_total_days = EXCLUDED.season_total_days,
           updated_at = EXCLUDED.updated_at,
           record_changed_at = EXCLUDED.record_changed_at,
-          source_drop_file = EXCLUDED.source_drop_file,
           ingested_at = EXCLUDED.ingested_at
       `;
 

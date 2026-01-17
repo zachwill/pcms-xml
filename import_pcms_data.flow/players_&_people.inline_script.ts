@@ -14,8 +14,6 @@ const sql = new SQL({ url: Bun.env.POSTGRES_URL!, prepare: false });
 
 export async function main(
   dry_run = false,
-  lineage_id?: number,
-  s3_key?: string,
   extract_dir = "./shared/pcms"
 ) {
   const startedAt = new Date().toISOString();
@@ -47,48 +45,47 @@ export async function main(
     for (let i = 0; i < players.length; i += BATCH_SIZE) {
       const batch = players.slice(i, i + BATCH_SIZE);
 
-    /** Convert empty strings/invalid values to null for integer columns */
-    const toIntOrNull = (val: unknown): number | null => {
-      if (val === "" || val === null || val === undefined) return null;
-      const num = Number(val);
-      return Number.isNaN(num) ? null : num;
-    };
+      /** Convert empty strings/invalid values to null for integer columns */
+      const toIntOrNull = (val: unknown): number | null => {
+        if (val === "" || val === null || val === undefined) return null;
+        const num = Number(val);
+        return Number.isNaN(num) ? null : num;
+      };
     
-    // Then in your row mapping:
-    const rows = batch.map(p => ({
-      person_id: p.player_id,
-      first_name: p.first_name,
-      last_name: p.last_name,
-      middle_name: p.middle_name || null,
-      display_first_name: p.display_first_name,
-      display_last_name: p.display_last_name,
-      roster_first_name: p.roster_first_name,
-      roster_last_name: p.roster_last_name,
-      birth_date: p.birth_date || null,
-      birth_country_lk: p.birth_country_lk,
-      gender: p.gender,
-      height: toIntOrNull(p.height),
-      weight: toIntOrNull(p.weight),
-      person_type_lk: p.person_type_lk,
-      player_status_lk: p.player_status_lk,
-      record_status_lk: p.record_status_lk,
-      league_lk: p.league_lk,
-      team_id: toIntOrNull(p.team_id),
-      school_id: toIntOrNull(p.school_id),
-      draft_year: toIntOrNull(p.draft_year),
-      draft_round: toIntOrNull(p.draft_round),                              // ← Fixed
-      draft_pick: toIntOrNull(Array.isArray(p.draft_pick) ? p.draft_pick[0] : p.draft_pick),
-      years_of_service: toIntOrNull(p.years_of_service),
-      service_years_json: p.player_service_years ?? null,
-      created_at: p.create_date || null,
-      updated_at: p.last_change_date || null,
-      record_changed_at: p.record_change_date || null,
-      poison_pill_amt: toIntOrNull(p.poison_pill_amt),
-      is_two_way: p.two_way_flg ?? false,
-      is_flex: p.flex_flg ?? false,
-      source_drop_file: s3_key ?? null,
-      ingested_at: new Date(),
-    }));
+      // Map to DB columns
+      const rows = batch.map(p => ({
+        person_id: p.player_id,
+        first_name: p.first_name,
+        last_name: p.last_name,
+        middle_name: p.middle_name || null,
+        display_first_name: p.display_first_name,
+        display_last_name: p.display_last_name,
+        roster_first_name: p.roster_first_name,
+        roster_last_name: p.roster_last_name,
+        birth_date: p.birth_date || null,
+        birth_country_lk: p.birth_country_lk,
+        gender: p.gender,
+        height: toIntOrNull(p.height),
+        weight: toIntOrNull(p.weight),
+        person_type_lk: p.person_type_lk,
+        player_status_lk: p.player_status_lk,
+        record_status_lk: p.record_status_lk,
+        league_lk: p.league_lk,
+        team_id: toIntOrNull(p.team_id),
+        school_id: toIntOrNull(p.school_id),
+        draft_year: toIntOrNull(p.draft_year),
+        draft_round: toIntOrNull(p.draft_round),
+        draft_pick: toIntOrNull(Array.isArray(p.draft_pick) ? p.draft_pick[0] : p.draft_pick),
+        years_of_service: toIntOrNull(p.years_of_service),
+        service_years_json: p.player_service_years ?? null,
+        created_at: p.create_date || null,
+        updated_at: p.last_change_date || null,
+        record_changed_at: p.record_change_date || null,
+        poison_pill_amt: toIntOrNull(p.poison_pill_amt),
+        is_two_way: p.two_way_flg ?? false,
+        is_flex: p.flex_flg ?? false,
+        ingested_at: new Date(),
+      }));
 
       try {
         await sql`
@@ -122,7 +119,6 @@ export async function main(
             is_flex = EXCLUDED.is_flex,
             updated_at = EXCLUDED.updated_at,
             record_changed_at = EXCLUDED.record_changed_at,
-            source_drop_file = EXCLUDED.source_drop_file,
             ingested_at = EXCLUDED.ingested_at
         `;
       } catch (e) {
@@ -131,7 +127,6 @@ export async function main(
       }
 
       total += batch.length;
-      // console.log(`  Upserted ${total}/${players.length}`);
     }
 
     return {

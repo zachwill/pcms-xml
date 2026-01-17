@@ -44,12 +44,9 @@ async function resolveBaseDir(extractDir: string): Promise<string> {
 
 export async function main(
   dry_run = false,
-  lineage_id?: number,
-  s3_key?: string,
   extract_dir = "./shared/pcms"
 ) {
   const startedAt = new Date().toISOString();
-  void lineage_id;
 
   try {
     const baseDir = await resolveBaseDir(extract_dir);
@@ -60,12 +57,6 @@ export async function main(
     console.log(`Found ${waiverAmounts.length} transaction waiver amounts`);
 
     const ingestedAt = new Date();
-    const provenance = {
-      source_drop_file: s3_key ?? null,
-      source_hash: null,
-      parser_version: null,
-      ingested_at: ingestedAt,
-    };
 
     const rows = waiverAmounts
       .map((w) => {
@@ -103,7 +94,7 @@ export async function main(
           option_decision_lk: w?.option_decision_lk ?? null,
           wnba_contract_id: toIntOrNull(w?.wnba_contract_id),
           wnba_version_number: w?.wnba_version_number ?? null,
-          ...provenance,
+          ingested_at: ingestedAt,
         };
       })
       .filter(Boolean) as Record<string, any>[];
@@ -150,9 +141,6 @@ export async function main(
           option_decision_lk = EXCLUDED.option_decision_lk,
           wnba_contract_id = EXCLUDED.wnba_contract_id,
           wnba_version_number = EXCLUDED.wnba_version_number,
-          source_drop_file = EXCLUDED.source_drop_file,
-          source_hash = EXCLUDED.source_hash,
-          parser_version = EXCLUDED.parser_version,
           ingested_at = EXCLUDED.ingested_at
       `;
     }

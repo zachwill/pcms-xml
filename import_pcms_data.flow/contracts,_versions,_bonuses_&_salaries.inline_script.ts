@@ -35,12 +35,9 @@ function asArray<T = any>(val: any): T[] {
 
 export async function main(
   dry_run = false,
-  lineage_id?: number,
-  s3_key?: string,
   extract_dir = "./shared/pcms"
 ) {
   const startedAt = new Date().toISOString();
-  void lineage_id;
 
   try {
     // Find extract directory
@@ -81,7 +78,6 @@ export async function main(
       updated_at: c.last_change_date,
       record_changed_at: c.record_change_date,
 
-      source_drop_file: s3_key,
       ingested_at: ingestedAt,
     }));
 
@@ -166,7 +162,6 @@ export async function main(
           updated_at: v?.last_change_date ?? null,
           record_changed_at: v?.record_change_date ?? null,
 
-          source_drop_file: s3_key,
           ingested_at: ingestedAt,
         });
 
@@ -188,7 +183,6 @@ export async function main(
             criteria_description: b?.criteria_description ?? null,
             criteria_json: b?.bonus_criteria ?? null,
 
-            source_drop_file: s3_key,
             ingested_at: ingestedAt,
           });
         }
@@ -235,7 +229,6 @@ export async function main(
             updated_at: s?.last_change_date ?? null,
             record_changed_at: s?.record_change_date ?? null,
 
-            source_drop_file: s3_key,
             ingested_at: ingestedAt,
           });
 
@@ -258,7 +251,6 @@ export async function main(
               updated_at: ps?.last_change_date ?? null,
               record_changed_at: ps?.record_change_date ?? null,
 
-              source_drop_file: s3_key,
               ingested_at: ingestedAt,
             });
           }
@@ -314,7 +306,6 @@ export async function main(
             two_way_service_limit = EXCLUDED.two_way_service_limit,
             updated_at = EXCLUDED.updated_at,
             record_changed_at = EXCLUDED.record_changed_at,
-            source_drop_file = EXCLUDED.source_drop_file,
             ingested_at = EXCLUDED.ingested_at
         `;
       } catch (e) {
@@ -357,7 +348,6 @@ export async function main(
             version_json = EXCLUDED.version_json,
             updated_at = EXCLUDED.updated_at,
             record_changed_at = EXCLUDED.record_changed_at,
-            source_drop_file = EXCLUDED.source_drop_file,
             ingested_at = EXCLUDED.ingested_at
         `;
       } catch (e) {
@@ -384,7 +374,6 @@ export async function main(
             clause_name = EXCLUDED.clause_name,
             criteria_description = EXCLUDED.criteria_description,
             criteria_json = EXCLUDED.criteria_json,
-            source_drop_file = EXCLUDED.source_drop_file,
             ingested_at = EXCLUDED.ingested_at
         `;
       } catch (e) {
@@ -430,7 +419,6 @@ export async function main(
             is_applicable_min_salary = EXCLUDED.is_applicable_min_salary,
             updated_at = EXCLUDED.updated_at,
             record_changed_at = EXCLUDED.record_changed_at,
-            source_drop_file = EXCLUDED.source_drop_file,
             ingested_at = EXCLUDED.ingested_at
         `;
       } catch (e) {
@@ -456,7 +444,6 @@ export async function main(
             is_default_schedule = EXCLUDED.is_default_schedule,
             updated_at = EXCLUDED.updated_at,
             record_changed_at = EXCLUDED.record_changed_at,
-            source_drop_file = EXCLUDED.source_drop_file,
             ingested_at = EXCLUDED.ingested_at
         `;
       } catch (e) {

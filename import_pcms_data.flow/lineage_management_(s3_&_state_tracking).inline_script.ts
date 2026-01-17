@@ -1,12 +1,9 @@
-import { SQL } from "bun";
 import { $ } from "bun";
 import { XMLParser } from "fast-xml-parser";
 import { mkdir, readdir, rm } from "node:fs/promises";
 import * as wmill from "windmill-client";
 import type { S3Object } from "windmill-client";
 
-const sql = new SQL({ url: Bun.env.POSTGRES_URL!, prepare: false });
-const PARSER_VERSION = "3.0.0"; // Bumped for clean JSON output
 const DEFAULT_S3_KEY = "pcms/nba_pcms_full_extract.zip";
 const SHARED_DIR = "./shared/pcms";
 
@@ -257,35 +254,6 @@ async function downloadExtractAndParse(s3Key: string): Promise<{
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Database
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function initLineage(key: string, fileHash: string): Promise<number> {
-  const result = await sql`
-    INSERT INTO pcms.pcms_lineage (
-      drop_filename,
-      source_hash,
-      parser_version,
-      s3_key,
-      ingestion_status,
-      ingested_at
-    ) VALUES (
-      ${key.split("/").pop()},
-      ${fileHash},
-      ${PARSER_VERSION},
-      ${key},
-      'PROCESSING',
-      now()
-    )
-    ON CONFLICT (source_hash) DO UPDATE SET
-      ingestion_status = 'PROCESSING',
-      ingested_at = now()
-    RETURNING lineage_id
-  `;
-  return result[0].lineage_id;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Main
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -296,21 +264,6 @@ export async function main(dry_run = false, s3_key = DEFAULT_S3_KEY) {
   try {
     const { fileHash, extractDir, jsonFiles } = await downloadExtractAndParse(s3_key);
 
-    const lineageId = dry_run ? 0 : await initLineage(s3_key, fileHash);
-
-    // Write lineage context for downstream steps
-    await Bun.write(
-      `${extractDir}/lineage.json`,
-      JSON.stringify({
-        lineage_id: lineageId,
-        s3_key,
-        source_hash: fileHash,
-        parser_version: PARSER_VERSION,
-        extracted_at: new Date().toISOString(),
-        dry_run,
-      })
-    );
-
     return {
       dry_run,
       started_at: startedAt,
@@ -319,8 +272,7 @@ export async function main(dry_run = false, s3_key = DEFAULT_S3_KEY) {
       extract_dir: extractDir,
       json_files: jsonFiles,
       file_hash: fileHash,
-      lineage_id: lineageId,
-      tables: [{ table: "pcms.pcms_lineage", attempted: dry_run ? 0 : 1, success: true }],
+      tables: [],
       errors: [],
     };
   } catch (e: any) {
@@ -333,7 +285,6 @@ export async function main(dry_run = false, s3_key = DEFAULT_S3_KEY) {
       extract_dir: SHARED_DIR,
       json_files: [],
       file_hash: "",
-      lineage_id: 0,
       tables: [],
       errors,
     };

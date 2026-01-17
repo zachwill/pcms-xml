@@ -37,22 +37,15 @@ function normalizeVersionNumber(val: unknown): number | null {
   return Number.isInteger(n) ? n : Math.round(n * 100);
 }
 
-function sha256(data: string): string {
-  return new Bun.CryptoHasher("sha256").update(data).digest("hex");
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Main
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function main(
   dry_run = false,
-  lineage_id?: number,
-  s3_key?: string,
   extract_dir = "./shared/pcms"
 ) {
   const startedAt = new Date().toISOString();
-  void lineage_id;
 
   try {
     // Find extract directory
@@ -72,10 +65,6 @@ export async function main(
     const taxTeams = asArray<any>(data?.tax_teams?.tax_team);
 
     const ingestedAt = new Date();
-    const provenance = {
-      source_drop_file: s3_key,
-      ingested_at: ingestedAt,
-    };
 
     // ─────────────────────────────────────────────────────────────────────────
     // Flatten budget teams
@@ -124,8 +113,7 @@ export async function main(
             is_fa_amount: amount?.fa_amount_flg ?? null,
             option_lk: amount?.option_lk ?? null,
             option_decision_lk: amount?.option_decision_lk ?? null,
-
-            ...provenance,
+            ingested_at: ingestedAt,
           });
         }
       }
@@ -150,8 +138,7 @@ export async function main(
         record_changed_at: t.record_change_date ?? null,
         created_at: t.create_date ?? null,
         updated_at: t.last_change_date ?? null,
-        source_hash: sha256(JSON.stringify(t)),
-        ...provenance,
+        ingested_at: ingestedAt,
       }));
 
     console.log(
@@ -207,7 +194,6 @@ export async function main(
           is_fa_amount = EXCLUDED.is_fa_amount,
           option_lk = EXCLUDED.option_lk,
           option_decision_lk = EXCLUDED.option_decision_lk,
-          source_drop_file = EXCLUDED.source_drop_file,
           ingested_at = EXCLUDED.ingested_at
       `;
     }
@@ -221,7 +207,7 @@ export async function main(
       const rows = taxRows.slice(i, i + BATCH_SIZE);
       await sql`
         INSERT INTO pcms.team_tax_summary_snapshots ${sql(rows)}
-        ON CONFLICT (team_id, salary_year, source_hash)
+        ON CONFLICT (team_id, salary_year)
         DO UPDATE SET
           is_taxpayer = EXCLUDED.is_taxpayer,
           is_repeater_taxpayer = EXCLUDED.is_repeater_taxpayer,
@@ -233,7 +219,6 @@ export async function main(
           record_changed_at = EXCLUDED.record_changed_at,
           created_at = EXCLUDED.created_at,
           updated_at = EXCLUDED.updated_at,
-          source_drop_file = EXCLUDED.source_drop_file,
           ingested_at = EXCLUDED.ingested_at
       `;
     }

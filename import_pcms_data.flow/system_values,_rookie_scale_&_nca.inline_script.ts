@@ -17,13 +17,6 @@ import { readdir } from "node:fs/promises";
 
 const sql = new SQL({ url: Bun.env.POSTGRES_URL!, prepare: false });
 
-// Keep in sync with lineage_management_(s3_&_state_tracking).inline_script.ts
-const PARSER_VERSION = "3.0.0";
-
-function sha256(data: string): string {
-  return new Bun.CryptoHasher("sha256").update(data).digest("hex");
-}
-
 function firstScalar(val: any): any {
   if (val === null || val === undefined) return null;
   if (Array.isArray(val)) return val.length > 0 ? val[0] : null;
@@ -36,12 +29,9 @@ function firstScalar(val: any): any {
 
 export async function main(
   dry_run = false,
-  lineage_id?: number,
-  s3_key?: string,
   extract_dir = "./shared/pcms"
 ) {
   const startedAt = new Date().toISOString();
-  void lineage_id;
 
   try {
     // Find extract directory
@@ -61,17 +51,7 @@ export async function main(
       `Found yearly_system_values=${ysv.length}, rookie_scale_amounts=${rookieScale.length}, non_contract_amounts=${ncas.length}`
     );
 
-    if (ncas.length > 0 && !s3_key && !dry_run) {
-      // non_contract_amounts.source_drop_file is NOT NULL in schema
-      throw new Error("s3_key is required for non_contract_amounts import");
-    }
-
     const ingestedAt = new Date();
-    const provenanceBase = {
-      source_drop_file: s3_key,
-      parser_version: PARSER_VERSION,
-      ingested_at: ingestedAt,
-    };
 
     // ─────────────────────────────────────────────────────────────────────────
     // Map JSON → DB rows
@@ -163,9 +143,7 @@ export async function main(
           created_at: sv?.create_date ?? null,
           updated_at: sv?.last_change_date ?? null,
           record_changed_at: sv?.record_change_date ?? null,
-
-          ...provenanceBase,
-          source_hash: sha256(JSON.stringify(sv)),
+          ingested_at: ingestedAt,
         };
       })
       .filter(Boolean) as Record<string, any>[];
@@ -197,9 +175,7 @@ export async function main(
           created_at: rs?.create_date ?? null,
           updated_at: rs?.last_change_date ?? null,
           record_changed_at: rs?.record_change_date ?? null,
-
-          ...provenanceBase,
-          source_hash: sha256(JSON.stringify(rs)),
+          ingested_at: ingestedAt,
         };
       })
       .filter(Boolean) as Record<string, any>[];
@@ -243,9 +219,7 @@ export async function main(
           created_at: nca?.create_date ?? null,
           updated_at: nca?.last_change_date ?? null,
           record_changed_at: nca?.record_change_date ?? null,
-
-          ...provenanceBase,
-          source_hash: sha256(JSON.stringify(nca)),
+          ingested_at: ingestedAt,
         };
       })
       .filter(Boolean) as Record<string, any>[];
@@ -337,9 +311,6 @@ export async function main(
             created_at = EXCLUDED.created_at,
             updated_at = EXCLUDED.updated_at,
             record_changed_at = EXCLUDED.record_changed_at,
-            source_drop_file = EXCLUDED.source_drop_file,
-            source_hash = EXCLUDED.source_hash,
-            parser_version = EXCLUDED.parser_version,
             ingested_at = EXCLUDED.ingested_at
         `;
       }
@@ -369,9 +340,6 @@ export async function main(
             created_at = EXCLUDED.created_at,
             updated_at = EXCLUDED.updated_at,
             record_changed_at = EXCLUDED.record_changed_at,
-            source_drop_file = EXCLUDED.source_drop_file,
-            source_hash = EXCLUDED.source_hash,
-            parser_version = EXCLUDED.parser_version,
             ingested_at = EXCLUDED.ingested_at
         `;
       }
@@ -415,9 +383,6 @@ export async function main(
             created_at = EXCLUDED.created_at,
             updated_at = EXCLUDED.updated_at,
             record_changed_at = EXCLUDED.record_changed_at,
-            source_drop_file = EXCLUDED.source_drop_file,
-            source_hash = EXCLUDED.source_hash,
-            parser_version = EXCLUDED.parser_version,
             ingested_at = EXCLUDED.ingested_at
         `;
       }

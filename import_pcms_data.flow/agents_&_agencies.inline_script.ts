@@ -43,12 +43,9 @@ async function resolveBaseDir(extractDir: string): Promise<string> {
 
 export async function main(
   dry_run = false,
-  lineage_id?: number,
-  s3_key?: string,
   extract_dir = "./shared/pcms"
 ) {
   const startedAt = new Date().toISOString();
-  void lineage_id;
 
   try {
     const baseDir = await resolveBaseDir(extract_dir);
@@ -57,10 +54,6 @@ export async function main(
     const players: any[] = await Bun.file(`${baseDir}/players.json`).json();
 
     const ingestedAt = new Date();
-    const provenance = {
-      source_drop_file: s3_key ?? null,
-      ingested_at: ingestedAt,
-    };
 
     // ─────────────────────────────────────────────────────────────────────────
     // Agencies
@@ -80,7 +73,7 @@ export async function main(
           updated_at: a?.last_change_date ?? null,
           record_changed_at: a?.record_change_date ?? null,
           agency_json: a ?? null,
-          ...provenance,
+          ingested_at: ingestedAt,
         };
       })
       .filter(Boolean) as Record<string, any>[];
@@ -117,7 +110,7 @@ export async function main(
           updated_at: p?.last_change_date ?? null,
           record_changed_at: p?.record_change_date ?? null,
           agent_json: p ?? null,
-          ...provenance,
+          ingested_at: ingestedAt,
         };
       })
       .filter(Boolean) as Record<string, any>[];
@@ -153,7 +146,6 @@ export async function main(
           updated_at = EXCLUDED.updated_at,
           record_changed_at = EXCLUDED.record_changed_at,
           agency_json = EXCLUDED.agency_json,
-          source_drop_file = EXCLUDED.source_drop_file,
           ingested_at = EXCLUDED.ingested_at
       `;
     }
@@ -177,7 +169,6 @@ export async function main(
           updated_at = EXCLUDED.updated_at,
           record_changed_at = EXCLUDED.record_changed_at,
           agent_json = EXCLUDED.agent_json,
-          source_drop_file = EXCLUDED.source_drop_file,
           ingested_at = EXCLUDED.ingested_at
       `;
     }

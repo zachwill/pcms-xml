@@ -44,12 +44,9 @@ async function resolveBaseDir(extractDir: string): Promise<string> {
 
 export async function main(
   dry_run = false,
-  lineage_id?: number,
-  s3_key?: string,
   extract_dir = "./shared/pcms"
 ) {
   const startedAt = new Date().toISOString();
-  void lineage_id;
 
   try {
     const baseDir = await resolveBaseDir(extract_dir);
@@ -64,12 +61,6 @@ export async function main(
     console.log(`Found ${budgets.length} team two-way capacity rows`);
 
     const ingestedAt = new Date();
-    const provenance = {
-      source_drop_file: s3_key ?? null,
-      source_hash: null,
-      parser_version: null,
-      ingested_at: ingestedAt,
-    };
 
     const gameRows = games
       .flatMap((g: any) => {
@@ -101,7 +92,7 @@ export async function main(
               games_on_active_list: toIntOrNull(p?.number_of_games_on_active_list),
               active_list_games_limit: toIntOrNull(p?.active_list_games_limit),
               standard_nba_contracts_on_team: standardContractsOnTeam,
-              ...provenance,
+              ingested_at: ingestedAt,
             };
           })
           .filter(Boolean);
@@ -119,7 +110,7 @@ export async function main(
           games_remaining: toIntOrNull(b?.games_remaining),
           under_15_games_count: toIntOrNull(b?.under15_games_count),
           under_15_games_remaining: toIntOrNull(b?.under15_games_remaining),
-          ...provenance,
+          ingested_at: ingestedAt,
         };
       })
       .filter(Boolean) as Record<string, any>[];
@@ -156,9 +147,6 @@ export async function main(
           games_on_active_list = EXCLUDED.games_on_active_list,
           active_list_games_limit = EXCLUDED.active_list_games_limit,
           standard_nba_contracts_on_team = EXCLUDED.standard_nba_contracts_on_team,
-          source_drop_file = EXCLUDED.source_drop_file,
-          source_hash = EXCLUDED.source_hash,
-          parser_version = EXCLUDED.parser_version,
           ingested_at = EXCLUDED.ingested_at
       `;
     }
@@ -174,9 +162,6 @@ export async function main(
           games_remaining = EXCLUDED.games_remaining,
           under_15_games_count = EXCLUDED.under_15_games_count,
           under_15_games_remaining = EXCLUDED.under_15_games_remaining,
-          source_drop_file = EXCLUDED.source_drop_file,
-          source_hash = EXCLUDED.source_hash,
-          parser_version = EXCLUDED.parser_version,
           ingested_at = EXCLUDED.ingested_at
       `;
     }

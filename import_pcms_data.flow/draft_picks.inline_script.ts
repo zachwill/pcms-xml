@@ -50,12 +50,9 @@ function normalizePick(val: any): { pick_number: string | null; pick_number_int:
 
 export async function main(
   dry_run = false,
-  lineage_id?: number,
-  s3_key?: string,
   extract_dir = "./shared/pcms"
 ) {
   const startedAt = new Date().toISOString();
-  void lineage_id;
 
   try {
     // Find extract directory
@@ -68,10 +65,6 @@ export async function main(
     console.log(`Found ${draftPicks.length} draft picks`);
 
     const ingestedAt = new Date();
-    const provenance = {
-      source_drop_file: s3_key,
-      ingested_at: ingestedAt,
-    };
 
     const rows = draftPicks
       .map((dp) => {
@@ -111,7 +104,7 @@ export async function main(
           updated_at: dp?.last_change_date ?? null,
           record_changed_at: dp?.record_change_date ?? null,
 
-          ...provenance,
+          ingested_at: ingestedAt,
         };
       })
       .filter(Boolean) as Record<string, any>[];
@@ -155,7 +148,6 @@ export async function main(
           summary_json = EXCLUDED.summary_json,
           updated_at = EXCLUDED.updated_at,
           record_changed_at = EXCLUDED.record_changed_at,
-          source_drop_file = EXCLUDED.source_drop_file,
           ingested_at = EXCLUDED.ingested_at
       `;
 

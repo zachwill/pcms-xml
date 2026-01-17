@@ -27,12 +27,9 @@ function asArray<T = any>(val: any): T[] {
 
 export async function main(
   dry_run = false,
-  lineage_id?: number,
-  s3_key?: string,
   extract_dir = "./shared/pcms"
 ) {
   const startedAt = new Date().toISOString();
-  void lineage_id;
 
   try {
     // Find extract directory
@@ -44,10 +41,6 @@ export async function main(
     const data: any = await Bun.file(`${baseDir}/team_exceptions.json`).json();
 
     const ingestedAt = new Date();
-    const provenance = {
-      source_drop_file: s3_key,
-      ingested_at: ingestedAt,
-    };
 
     const exceptionTeams = asArray<any>(data?.exception_team);
 
@@ -81,7 +74,7 @@ export async function main(
           created_at: te?.create_date ?? null,
           updated_at: te?.last_change_date ?? null,
           record_changed_at: te?.record_change_date ?? null,
-          ...provenance,
+          ingested_at: ingestedAt,
         });
 
         const details = asArray<any>(te?.exception_details?.exception_detail);
@@ -108,7 +101,7 @@ export async function main(
             created_at: ed?.create_date ?? null,
             updated_at: ed?.last_change_date ?? null,
             record_changed_at: ed?.record_change_date ?? null,
-            ...provenance,
+            ingested_at: ingestedAt,
           });
         }
       }
@@ -153,7 +146,6 @@ export async function main(
           record_status_lk = EXCLUDED.record_status_lk,
           updated_at = EXCLUDED.updated_at,
           record_changed_at = EXCLUDED.record_changed_at,
-          source_drop_file = EXCLUDED.source_drop_file,
           ingested_at = EXCLUDED.ingested_at
       `;
     }
@@ -180,7 +172,6 @@ export async function main(
           manual_action_text = EXCLUDED.manual_action_text,
           updated_at = EXCLUDED.updated_at,
           record_changed_at = EXCLUDED.record_changed_at,
-          source_drop_file = EXCLUDED.source_drop_file,
           ingested_at = EXCLUDED.ingested_at
       `;
     }
