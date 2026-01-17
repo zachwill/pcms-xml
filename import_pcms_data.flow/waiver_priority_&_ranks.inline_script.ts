@@ -47,8 +47,10 @@ export async function main(
     const teamsData: any[] = lookups?.lk_teams?.lk_team || [];
     const teamCodeMap = new Map<number, string>();
     for (const t of teamsData) {
-      if (t.team_id && t.team_code) {
-        teamCodeMap.set(t.team_id, t.team_code);
+      const teamId = t?.team_id;
+      const teamCode = t?.team_code ?? t?.team_name_short;
+      if (teamId && teamCode) {
+        teamCodeMap.set(Number(teamId), String(teamCode));
       }
     }
 
@@ -104,10 +106,14 @@ export async function main(
         const waiverPriorityRankId = r?.waiver_priority_detail_id ?? r?.waiver_priority_rank_id;
         if (waiverPriorityRankId === null || waiverPriorityRankId === undefined) continue;
 
+        const teamIdRaw = r?.team_id ?? null;
+        const teamId = teamIdRaw === null || teamIdRaw === undefined ? null : Number(teamIdRaw);
+
         waiverPriorityRankRows.push({
           waiver_priority_rank_id: waiverPriorityRankId,
           waiver_priority_id: waiverPriorityId,
-          team_id: r?.team_id ?? null,
+          team_id: teamId,
+          team_code: teamId ? (teamCodeMap.get(teamId) ?? null) : null,
           priority_order: r?.priority_order ?? null,
           is_order_priority: r?.order_priority_flg ?? null,
           exclusivity_status_lk: r?.exclusivity_status_lk ?? null,
@@ -160,13 +166,14 @@ export async function main(
 
     const taxTeamStatusRows: Record<string, any>[] = taxTeams
       .map((tt) => {
-        const team_id = tt?.team_id ?? null;
+        const teamIdRaw = tt?.team_id ?? null;
+        const team_id = teamIdRaw === null || teamIdRaw === undefined ? null : Number(teamIdRaw);
         const salary_year = tt?.salary_year ?? null;
         if (team_id === null || team_id === undefined || salary_year === null || salary_year === undefined) return null;
 
         return {
           team_id,
-          team_code: teamCodeMap.get(team_id) ?? null,
+          team_code: team_id ? (teamCodeMap.get(team_id) ?? null) : null,
           salary_year,
           is_taxpayer: tt?.taxpayer_flg ?? false,
           is_repeater_taxpayer: tt?.taxpayer_repeater_rate_flg ?? false,
@@ -238,6 +245,7 @@ export async function main(
         ON CONFLICT (waiver_priority_rank_id) DO UPDATE SET
           waiver_priority_id = EXCLUDED.waiver_priority_id,
           team_id = EXCLUDED.team_id,
+          team_code = EXCLUDED.team_code,
           priority_order = EXCLUDED.priority_order,
           is_order_priority = EXCLUDED.is_order_priority,
           exclusivity_status_lk = EXCLUDED.exclusivity_status_lk,
