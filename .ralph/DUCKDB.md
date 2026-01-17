@@ -221,7 +221,7 @@ Scripts organized by dependency order. Each should be 200-600 LOC (max 800 for c
 
 ### Phase 4: League Configuration
 
-- [ ] **4. league_config.duckdb.sql** — System values, scales, amounts
+- [x] **4. league_config.duckdb.sql** — System values, scales, amounts
   
   **Tables:** 
   - `pcms.league_system_values`
