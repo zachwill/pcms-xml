@@ -199,7 +199,7 @@ Scripts organized by dependency order. Each should be 200-600 LOC (max 800 for c
 
 ### Phase 3: Draft Assets
 
-- [ ] **3. draft_assets.duckdb.sql** — Draft picks and summaries
+- [x] **3. draft_assets.duckdb.sql** — Draft picks and summaries
   
   **Tables:** `pcms.draft_picks`, `pcms.draft_pick_summaries`
   
