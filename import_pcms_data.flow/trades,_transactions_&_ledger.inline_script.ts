@@ -61,6 +61,16 @@ export async function main(
     const subDir = entries.find((e) => e.isDirectory());
     const baseDir = subDir ? `${extract_dir}/${subDir.name}` : extract_dir;
 
+    // Build team_id → team_code lookup map
+    const lookups: any = await Bun.file(`${baseDir}/lookups.json`).json();
+    const teamsData: any[] = lookups?.lk_teams?.lk_team || [];
+    const teamCodeMap = new Map<number, string>();
+    for (const t of teamsData) {
+      if (t.team_id && t.team_code) {
+        teamCodeMap.set(t.team_id, t.team_code);
+      }
+    }
+
     // Read clean JSON
     const trades: any[] = await Bun.file(`${baseDir}/trades.json`).json();
     const transactions: any[] = await Bun.file(`${baseDir}/transactions.json`).json();
@@ -113,6 +123,7 @@ export async function main(
           trade_team_id: tradeTeamId,
           trade_id: t.trade_id,
           team_id: tt.team_id,
+          team_code: teamCodeMap.get(tt.team_id) ?? null,
           team_salary_change: tt.team_salary_change ?? null,
           total_cash_received: tt.total_cash_received ?? null,
           total_cash_sent: tt.total_cash_sent ?? null,
@@ -128,6 +139,7 @@ export async function main(
             trade_team_detail_id: `${t.trade_id}_${tt.team_id}_${d.seqno}`,
             trade_id: t.trade_id,
             team_id: tt.team_id,
+            team_code: teamCodeMap.get(tt.team_id) ?? null,
             seqno: d.seqno,
             group_number: d.group_number ?? null,
             player_id: d.player_id ?? null,
@@ -170,6 +182,7 @@ export async function main(
             trade_group_id: `${t.trade_id}_${tt.team_id}_${groupNumber}`,
             trade_id: t.trade_id,
             team_id: g?.team_id ?? tt.team_id,
+            team_code: teamCodeMap.get(g?.team_id ?? tt.team_id) ?? null,
             trade_group_number: groupNumber,
             trade_group_comments: g?.trade_group_comments ?? null,
             acquired_team_exception_id: g?.acquired_team_exception_id ?? null,
@@ -239,6 +252,7 @@ export async function main(
         ON CONFLICT (trade_team_id) DO UPDATE SET
           trade_id = EXCLUDED.trade_id,
           team_id = EXCLUDED.team_id,
+          team_code = EXCLUDED.team_code,
           team_salary_change = EXCLUDED.team_salary_change,
           total_cash_received = EXCLUDED.total_cash_received,
           total_cash_sent = EXCLUDED.total_cash_sent,
@@ -256,6 +270,7 @@ export async function main(
         ON CONFLICT (trade_team_detail_id) DO UPDATE SET
           trade_id = EXCLUDED.trade_id,
           team_id = EXCLUDED.team_id,
+          team_code = EXCLUDED.team_code,
           seqno = EXCLUDED.seqno,
           group_number = EXCLUDED.group_number,
           player_id = EXCLUDED.player_id,
@@ -294,6 +309,7 @@ export async function main(
         ON CONFLICT (trade_group_id) DO UPDATE SET
           trade_id = EXCLUDED.trade_id,
           team_id = EXCLUDED.team_id,
+          team_code = EXCLUDED.team_code,
           trade_group_number = EXCLUDED.trade_group_number,
           trade_group_comments = EXCLUDED.trade_group_comments,
           acquired_team_exception_id = EXCLUDED.acquired_team_exception_id,
@@ -317,7 +333,9 @@ export async function main(
           transaction_id: t.transaction_id,
           player_id: t.player_id ?? null,
           from_team_id: t.from_team_id ?? null,
+          from_team_code: teamCodeMap.get(t.from_team_id) ?? null,
           to_team_id: t.to_team_id ?? null,
+          to_team_code: teamCodeMap.get(t.to_team_id) ?? null,
           transaction_date: t.transaction_date ?? null,
           trade_finalized_date: t.trade_finalized_date ?? null,
           trade_id: t.trade_id ?? null,
@@ -335,6 +353,7 @@ export async function main(
           signed_method_lk: t.signed_method_lk ?? null,
           team_exception_id: t.team_exception_id ?? null,
           rights_team_id: t.rights_team_id ?? null,
+          rights_team_code: teamCodeMap.get(t.rights_team_id) ?? null,
           waiver_clear_date: t.waiver_clear_date ?? null,
           is_clear_player_rights: t.clear_player_rights_flg ?? null,
           free_agent_status_lk: t.free_agent_status_lk ?? null,
@@ -356,6 +375,7 @@ export async function main(
           is_initially_convertible_exception: t.initially_convertible_exception_flg ?? null,
           is_sign_and_trade: t.sign_and_trade_flg ?? null,
           sign_and_trade_team_id: t.sign_and_trade_team_id ?? null,
+          sign_and_trade_team_code: teamCodeMap.get(t.sign_and_trade_team_id) ?? null,
           sign_and_trade_link_transaction_id: t.sign_and_trade_link_transaction_id ?? null,
           dlg_contract_id: t.dlg_contract_id ?? null,
           dlg_experience_level_lk: t.dlg_experience_level_lk ?? null,
@@ -374,7 +394,9 @@ export async function main(
         ON CONFLICT (transaction_id) DO UPDATE SET
           player_id = EXCLUDED.player_id,
           from_team_id = EXCLUDED.from_team_id,
+          from_team_code = EXCLUDED.from_team_code,
           to_team_id = EXCLUDED.to_team_id,
+          to_team_code = EXCLUDED.to_team_code,
           transaction_date = EXCLUDED.transaction_date,
           trade_finalized_date = EXCLUDED.trade_finalized_date,
           trade_id = EXCLUDED.trade_id,
@@ -392,6 +414,7 @@ export async function main(
           signed_method_lk = EXCLUDED.signed_method_lk,
           team_exception_id = EXCLUDED.team_exception_id,
           rights_team_id = EXCLUDED.rights_team_id,
+          rights_team_code = EXCLUDED.rights_team_code,
           waiver_clear_date = EXCLUDED.waiver_clear_date,
           is_clear_player_rights = EXCLUDED.is_clear_player_rights,
           free_agent_status_lk = EXCLUDED.free_agent_status_lk,
@@ -413,6 +436,7 @@ export async function main(
           is_initially_convertible_exception = EXCLUDED.is_initially_convertible_exception,
           is_sign_and_trade = EXCLUDED.is_sign_and_trade,
           sign_and_trade_team_id = EXCLUDED.sign_and_trade_team_id,
+          sign_and_trade_team_code = EXCLUDED.sign_and_trade_team_code,
           sign_and_trade_link_transaction_id = EXCLUDED.sign_and_trade_link_transaction_id,
           dlg_contract_id = EXCLUDED.dlg_contract_id,
           dlg_experience_level_lk = EXCLUDED.dlg_experience_level_lk,
@@ -433,11 +457,18 @@ export async function main(
       const batch = ledgerEntries.slice(i, i + BATCH_SIZE);
 
       const rows = batch
-        .filter((le) => le?.transaction_ledger_entry_id !== null && le?.transaction_ledger_entry_id !== undefined)
+        .filter(
+          (le) =>
+            le?.transaction_ledger_entry_id !== null &&
+            le?.transaction_ledger_entry_id !== undefined &&
+            le?.team_id !== null &&
+            le?.team_id !== undefined
+        )
         .map((le) => ({
           transaction_ledger_entry_id: le.transaction_ledger_entry_id,
           transaction_id: le.transaction_id,
           team_id: le.team_id,
+          team_code: teamCodeMap.get(le.team_id) ?? null,
           player_id: le.player_id ?? null,
           contract_id: le.contract_id ?? null,
           dlg_contract_id: le.dlg_contract_id ?? null,
@@ -468,13 +499,21 @@ export async function main(
           ...provenance,
         }));
 
-      if (rows.length === 0) continue;
+      // Dedupe by transaction_ledger_entry_id (avoids "ON CONFLICT DO UPDATE command cannot affect row a second time")
+      const seen = new Map<any, any>();
+      for (const r of rows) {
+        seen.set(r.transaction_ledger_entry_id, r);
+      }
+      const dedupedRows = Array.from(seen.values());
+
+      if (dedupedRows.length === 0) continue;
 
       await sql`
-        INSERT INTO pcms.ledger_entries ${sql(rows)}
+        INSERT INTO pcms.ledger_entries ${sql(dedupedRows)}
         ON CONFLICT (transaction_ledger_entry_id) DO UPDATE SET
           transaction_id = EXCLUDED.transaction_id,
           team_id = EXCLUDED.team_id,
+          team_code = EXCLUDED.team_code,
           player_id = EXCLUDED.player_id,
           contract_id = EXCLUDED.contract_id,
           dlg_contract_id = EXCLUDED.dlg_contract_id,
