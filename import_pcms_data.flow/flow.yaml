@@ -256,6 +256,26 @@ value:
             expr: results.a.extract_dir ?? './shared/pcms'
         lock: '!inline transaction_waiver_amounts.inline_script.lock'
         language: bun
+    - id: o
+      summary: League Salary Scales & Projections
+      value:
+        type: rawscript
+        content: '!inline league_salary_scales_&_projections.inline_script.ts'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          lineage_id:
+            type: javascript
+            expr: results.a.lineage_id
+          s3_key:
+            type: javascript
+            expr: results.a.s3_key ?? flow_input.s3_key
+          extract_dir:
+            type: javascript
+            expr: results.a.extract_dir ?? './shared/pcms'
+        lock: '!inline league_salary_scales_&_projections.inline_script.lock'
+        language: bun
     - id: l
       summary: Finalize Lineage
       value:
@@ -270,7 +290,7 @@ value:
             expr: results.a.lineage_id
           summaries:
             type: javascript
-            expr: '[results.b, results.c, results.d, results.e, results.f, results.g, results.h, results.i, results.j, results.k, results.m, results.n]'
+            expr: '[results.b, results.c, results.d, results.e, results.f, results.g, results.h, results.i, results.j, results.k, results.m, results.n, results.o]'
         lock: '!inline finalize_lineage.inline_script.lock'
         language: bun
   same_worker: true
