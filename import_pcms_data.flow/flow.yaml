@@ -31,10 +31,10 @@ value:
         lock: '!inline people_identity.inline_script.lock'
         language: bun
     - id: r
-      summary: Generate NBA Draft Picks
+      summary: Draft
       value:
         type: rawscript
-        content: '!inline generate_nba_draft_picks.inline_script.ts'
+        content: '!inline draft.inline_script.ts'
         input_transforms:
           dry_run:
             type: javascript
@@ -42,7 +42,7 @@ value:
           extract_dir:
             type: javascript
             expr: '''./shared/pcms'''
-        lock: '!inline generate_nba_draft_picks.inline_script.lock'
+        lock: '!inline draft.inline_script.lock'
         language: bun
     - id: c
       summary: 'Contracts, Versions, Bonuses & Salaries'
@@ -113,34 +113,6 @@ value:
             type: javascript
             expr: '''./shared/pcms'''
         lock: '!inline two-way_daily_statuses.inline_script.lock'
-        language: bun
-    - id: h
-      summary: Draft Picks
-      value:
-        type: rawscript
-        content: '!inline draft_picks.inline_script.ts'
-        input_transforms:
-          dry_run:
-            type: javascript
-            expr: flow_input.dry_run
-          extract_dir:
-            type: javascript
-            expr: '''./shared/pcms'''
-        lock: '!inline draft_picks.inline_script.lock'
-        language: bun
-    - id: q
-      summary: Draft Pick Summaries
-      value:
-        type: rawscript
-        content: '!inline draft_pick_summaries.inline_script.ts'
-        input_transforms:
-          dry_run:
-            type: javascript
-            expr: flow_input.dry_run
-          extract_dir:
-            type: javascript
-            expr: '''./shared/pcms'''
-        lock: '!inline draft_pick_summaries.inline_script.lock'
         language: bun
     - id: i
       summary: Team Budgets
@@ -239,8 +211,8 @@ value:
             type: javascript
             expr: >-
               [results.b, results.r, results.c, results.d, results.e, results.f,
-              results.g, results.h, results.q, results.i, results.j, results.k,
-              results.o, results.p, results.s]
+              results.g, results.i, results.j, results.k, results.o, results.p,
+              results.s]
         lock: '!inline finalize_lineage.inline_script.lock'
         language: bun
   same_worker: true

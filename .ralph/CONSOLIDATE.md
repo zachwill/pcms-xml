@@ -72,7 +72,7 @@ Each merged script should:
   - Tables: people, agencies, agents
   - Order: agencies → agents → people (FK order)
 
-- [ ] **2.2 `draft.inline_script.ts`**
+- [x] **2.2 `draft.inline_script.ts`**
   - Merge: `draft_picks` + `draft_pick_summaries` + `generate_nba_draft_picks`
   - Tables: draft_picks, draft_pick_summaries
   - Logic: PCMS picks first, then generated NBA picks (dedupe by draft_year/round/pick/league)
