@@ -243,7 +243,7 @@ Scripts organized by dependency order. Each should be 200-600 LOC (max 800 for c
 
 ### Phase 5: Contracts (Complex)
 
-- [ ] **5. contracts.duckdb.sql** — Contracts and nested tables
+- [x] **5. contracts.duckdb.sql** — Contracts and nested tables
   
   **Tables:**
   - `pcms.contracts`
