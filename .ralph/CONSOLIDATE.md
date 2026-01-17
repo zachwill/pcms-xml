@@ -67,7 +67,7 @@ Each merged script should:
 - Dedupe **upfront** before batching (not per-batch)
 - Use larger batch sizes where safe (100-500 instead of 10)
 
-- [ ] **2.1 `people_identity.inline_script.ts`**
+- [x] **2.1 `people_identity.inline_script.ts`**
   - Merge: `players_&_people` + `agents_&_agencies`
   - Tables: people, agencies, agents
   - Order: agencies → agents → people (FK order)

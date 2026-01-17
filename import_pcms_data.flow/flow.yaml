@@ -17,10 +17,10 @@ value:
         lock: '!inline pcms_xml_to_json.inline_script.lock'
         language: python3
     - id: b
-      summary: Players & People
+      summary: People & Identity
       value:
         type: rawscript
-        content: '!inline players_&_people.inline_script.ts'
+        content: '!inline people_identity.inline_script.ts'
         input_transforms:
           dry_run:
             type: javascript
@@ -28,7 +28,7 @@ value:
           extract_dir:
             type: javascript
             expr: '''./shared/pcms'''
-        lock: '!inline players_&_people.inline_script.lock'
+        lock: '!inline people_identity.inline_script.lock'
         language: bun
     - id: r
       summary: Generate NBA Draft Picks
@@ -184,20 +184,6 @@ value:
             expr: '''./shared/pcms'''
         lock: '!inline lookups.inline_script.lock'
         language: bun
-    - id: m
-      summary: Agents & Agencies
-      value:
-        type: rawscript
-        content: '!inline agents_&_agencies.inline_script.ts'
-        input_transforms:
-          dry_run:
-            type: javascript
-            expr: flow_input.dry_run
-          extract_dir:
-            type: static
-            value: ./shared/pcms
-        lock: '!inline agents_&_agencies.inline_script.lock'
-        language: bun
     - id: o
       summary: League Salary Scales & Protections
       value:
@@ -254,7 +240,7 @@ value:
             expr: >-
               [results.b, results.r, results.c, results.d, results.e, results.f,
               results.g, results.h, results.q, results.i, results.j, results.k,
-              results.m, results.o, results.p, results.s]
+              results.o, results.p, results.s]
         lock: '!inline finalize_lineage.inline_script.lock'
         language: bun
   same_worker: true
