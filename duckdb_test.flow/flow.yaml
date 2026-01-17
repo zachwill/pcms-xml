@@ -1,0 +1,28 @@
+summary: Ralph DuckDB test
+description: ''
+value:
+  modules:
+    - id: a
+      summary: Simple DuckDB Test
+      value:
+        type: rawscript
+        content: '!inline simple_duckdb_test.inline_script.duckdb.sql'
+        input_transforms:
+          name:
+            type: static
+            value: Ben
+          age:
+            type: static
+            value: '20'
+        assets:
+          - access_type: r
+            alt_access_type: null
+            kind: resource
+            path: f/env/postgres/pcms.lookups
+        lock: ''
+        language: duckdb
+schema:
+  $schema: 'https://json-schema.org/draft/2020-12/schema'
+  type: object
+  properties: {}
+  required: []
