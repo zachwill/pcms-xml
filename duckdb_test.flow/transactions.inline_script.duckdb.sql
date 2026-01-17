@@ -16,11 +16,11 @@ SET TimeZone='UTC';
 --   - pg.pcms.transaction_waiver_amounts
 --
 -- Source files (hard-coded):
---   ./shared/pcms/nba_pcms_full_extract/lookups.json
---   ./shared/pcms/nba_pcms_full_extract/trades.json
---   ./shared/pcms/nba_pcms_full_extract/transactions.json
---   ./shared/pcms/nba_pcms_full_extract/ledger.json
---   ./shared/pcms/nba_pcms_full_extract/transaction_waiver_amounts.json
+--   ./shared/nba_pcms_full_extract/lookups.json
+--   ./shared/nba_pcms_full_extract/trades.json
+--   ./shared/nba_pcms_full_extract/transactions.json
+--   ./shared/nba_pcms_full_extract/ledger.json
+--   ./shared/nba_pcms_full_extract/transaction_waiver_amounts.json
 --
 -- Notes:
 --   - Deduplication with QUALIFY is mandatory prior to each Postgres upsert.
@@ -41,7 +41,7 @@ SELECT
 FROM (
   SELECT
     to_json(r) AS team_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/lookups.json') AS lookups,
+  FROM read_json_auto('./shared/nba_pcms_full_extract/lookups.json') AS lookups,
   UNNEST(lookups.lk_teams.lk_team) AS t(r)
 )
 WHERE team_json->>'$.team_id' IS NOT NULL;
@@ -53,7 +53,7 @@ WHERE team_json->>'$.team_id' IS NOT NULL;
 CREATE OR REPLACE TEMP VIEW v_trade_json AS
 SELECT
   to_json(t) AS trade_json,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/trades.json') AS t;
+FROM read_json_auto('./shared/nba_pcms_full_extract/trades.json') AS t;
 
 -- trades
 CREATE OR REPLACE TEMP VIEW v_trades_source AS
@@ -398,7 +398,7 @@ ON CONFLICT (trade_group_id) DO UPDATE SET
 CREATE OR REPLACE TEMP VIEW v_transaction_json AS
 SELECT
   to_json(t) AS tx_json,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/transactions.json') AS t;
+FROM read_json_auto('./shared/nba_pcms_full_extract/transactions.json') AS t;
 
 CREATE OR REPLACE TEMP VIEW v_transactions_source AS
 WITH v_src AS (
@@ -576,7 +576,7 @@ ON CONFLICT (transaction_id) DO UPDATE SET
 CREATE OR REPLACE TEMP VIEW v_ledger_json AS
 SELECT
   to_json(le) AS le_json,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/ledger.json') AS le;
+FROM read_json_auto('./shared/nba_pcms_full_extract/ledger.json') AS le;
 
 CREATE OR REPLACE TEMP VIEW v_ledger_source AS
 WITH v_src AS (
@@ -697,7 +697,7 @@ ON CONFLICT (transaction_ledger_entry_id) DO UPDATE SET
 CREATE OR REPLACE TEMP VIEW v_waiver_json AS
 SELECT
   to_json(wa) AS wa_json,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/transaction_waiver_amounts.json') AS wa;
+FROM read_json_auto('./shared/nba_pcms_full_extract/transaction_waiver_amounts.json') AS wa;
 
 CREATE OR REPLACE TEMP VIEW v_waiver_source AS
 WITH v_src AS (

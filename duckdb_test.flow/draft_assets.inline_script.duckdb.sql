@@ -11,10 +11,10 @@ SET TimeZone='UTC';
 --   - pg.pcms.draft_pick_summaries
 --
 -- Sources (hard-coded):
---   ./shared/pcms/nba_pcms_full_extract/lookups.json
---   ./shared/pcms/nba_pcms_full_extract/draft_picks.json
---   ./shared/pcms/nba_pcms_full_extract/draft_pick_summaries.json
---   ./shared/pcms/nba_pcms_full_extract/players.json
+--   ./shared/nba_pcms_full_extract/lookups.json
+--   ./shared/nba_pcms_full_extract/draft_picks.json
+--   ./shared/nba_pcms_full_extract/draft_pick_summaries.json
+--   ./shared/nba_pcms_full_extract/players.json
 --
 -- Key logic:
 --   - PCMS draft_picks.json contains DLG/WNBA picks only.
@@ -31,7 +31,7 @@ SELECT
 FROM (
   SELECT
     to_json(r) AS team_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/lookups.json') AS lookups,
+  FROM read_json_auto('./shared/nba_pcms_full_extract/lookups.json') AS lookups,
   UNNEST(lookups.lk_teams.lk_team) AS t(r)
 )
 WHERE team_json->>'$.team_id' IS NOT NULL;
@@ -111,7 +111,7 @@ SELECT
 FROM (
   SELECT
     to_json(dp) AS dp_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/draft_picks.json') AS dp
+  FROM read_json_auto('./shared/nba_pcms_full_extract/draft_picks.json') AS dp
 ) AS src
 LEFT JOIN v_teams AS orig ON orig.team_id = TRY_CAST(dp_json->>'$.original_team_id' AS BIGINT)
 LEFT JOIN v_teams AS cur ON cur.team_id = TRY_CAST(COALESCE(dp_json->>'$.current_team_id', dp_json->>'$.team_id') AS BIGINT)
@@ -177,7 +177,7 @@ SELECT
 FROM (
   SELECT
     to_json(p) AS p_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/players.json') AS p
+  FROM read_json_auto('./shared/nba_pcms_full_extract/players.json') AS p
 ) AS src
 LEFT JOIN v_teams AS t ON t.team_id = TRY_CAST(p_json->>'$.draft_team_id' AS BIGINT)
 WHERE p_json->>'$.league_lk' = 'NBA'
@@ -298,7 +298,7 @@ SELECT
 FROM (
   SELECT
     to_json(s) AS s_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/draft_pick_summaries.json') AS s
+  FROM read_json_auto('./shared/nba_pcms_full_extract/draft_pick_summaries.json') AS s
 ) AS src
 LEFT JOIN v_teams AS team ON team.team_id = TRY_CAST(s_json->>'$.team_id' AS BIGINT)
 WHERE s_json->>'$.draft_year' IS NOT NULL

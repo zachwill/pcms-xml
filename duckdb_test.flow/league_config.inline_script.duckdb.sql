@@ -16,7 +16,7 @@ SET TimeZone='UTC';
 --   - pg.pcms.apron_constraints             (currently no JSON source; no-op)
 --
 -- Source base dir (hard-coded):
---   ./shared/pcms/nba_pcms_full_extract/
+--   ./shared/nba_pcms_full_extract/
 --
 -- Notes:
 --   - Dedupe is mandatory prior to each upsert to avoid Postgres
@@ -29,7 +29,7 @@ CREATE OR REPLACE TEMP VIEW v_teams AS
 SELECT
   t.team_id::BIGINT AS team_id,
   COALESCE(t.team_code, t.team_name_short) AS team_code,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/lookups.json') AS lookups,
+FROM read_json_auto('./shared/nba_pcms_full_extract/lookups.json') AS lookups,
 UNNEST(lookups.lk_teams.lk_team) AS t;
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ SELECT
   TRY_CAST(sv.last_change_date AS TIMESTAMP) AS updated_at,
   TRY_CAST(sv.record_change_date AS TIMESTAMP) AS record_changed_at,
   now() AS ingested_at,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/yearly_system_values.json') AS sv
+FROM read_json_auto('./shared/nba_pcms_full_extract/yearly_system_values.json') AS sv
 WHERE sv.league_lk IS NOT NULL
   AND sv.system_year IS NOT NULL;
 
@@ -224,7 +224,7 @@ SELECT
   TRY_CAST(rs.last_change_date AS TIMESTAMP) AS updated_at,
   TRY_CAST(rs.record_change_date AS TIMESTAMP) AS record_changed_at,
   now() AS ingested_at,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/rookie_scale_amounts.json') AS rs
+FROM read_json_auto('./shared/nba_pcms_full_extract/rookie_scale_amounts.json') AS rs
 WHERE rs.season IS NOT NULL
   AND rs.pick IS NOT NULL;
 
@@ -305,7 +305,7 @@ SELECT
   TRY_CAST(nca.last_change_date AS TIMESTAMP) AS updated_at,
   TRY_CAST(nca.record_change_date AS TIMESTAMP) AS record_changed_at,
   now() AS ingested_at,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/non_contract_amounts.json') AS nca
+FROM read_json_auto('./shared/nba_pcms_full_extract/non_contract_amounts.json') AS nca
 LEFT JOIN v_teams AS teams
   ON teams.team_id = TRY_CAST(nca.team_id AS BIGINT)
 WHERE nca.non_contract_amount_id IS NOT NULL;
@@ -373,7 +373,7 @@ SELECT
   TRY_CAST(s.last_change_date AS TIMESTAMP) AS updated_at,
   TRY_CAST(s.record_change_date AS TIMESTAMP) AS record_changed_at,
   now() AS ingested_at,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/yearly_salary_scales.json') AS s
+FROM read_json_auto('./shared/nba_pcms_full_extract/yearly_salary_scales.json') AS s
 WHERE s.salary_year IS NOT NULL
   AND s.league_lk IS NOT NULL
   AND s.years_of_service IS NOT NULL;
@@ -418,7 +418,7 @@ SELECT
   TRY_CAST(p.last_change_date AS TIMESTAMP) AS updated_at,
   TRY_CAST(p.record_change_date AS TIMESTAMP) AS record_changed_at,
   now() AS ingested_at,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/cap_projections.json') AS p
+FROM read_json_auto('./shared/nba_pcms_full_extract/cap_projections.json') AS p
 WHERE p.salary_cap_projection_id IS NOT NULL
   AND p.season_year IS NOT NULL;
 
@@ -470,7 +470,7 @@ SELECT
   TRY_CAST(tr.last_change_date AS TIMESTAMP) AS updated_at,
   TRY_CAST(tr.record_change_date AS TIMESTAMP) AS record_changed_at,
   now() AS ingested_at,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/tax_rates.json') AS tr
+FROM read_json_auto('./shared/nba_pcms_full_extract/tax_rates.json') AS tr
 WHERE tr.salary_year IS NOT NULL
   AND tr.lower_limit IS NOT NULL;
 

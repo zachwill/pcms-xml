@@ -13,9 +13,9 @@ SET TimeZone='UTC';
 --   - pg.pcms.team_two_way_capacity      (two_way_utility.json; nested under under15_games)
 --
 -- Source files (hard-coded):
---   ./shared/pcms/nba_pcms_full_extract/lookups.json
---   ./shared/pcms/nba_pcms_full_extract/two_way.json
---   ./shared/pcms/nba_pcms_full_extract/two_way_utility.json
+--   ./shared/nba_pcms_full_extract/lookups.json
+--   ./shared/nba_pcms_full_extract/two_way.json
+--   ./shared/nba_pcms_full_extract/two_way_utility.json
 --
 -- Notes:
 --   - two_way.json is a single JSON object (not an array) and may contain hyphenated keys.
@@ -33,7 +33,7 @@ SELECT
 FROM (
   SELECT
     to_json(r) AS team_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/lookups.json') AS lookups,
+  FROM read_json_auto('./shared/nba_pcms_full_extract/lookups.json') AS lookups,
   UNNEST(lookups.lk_teams.lk_team) AS t(r)
 )
 WHERE team_json->>'$.team_id' IS NOT NULL;
@@ -45,7 +45,7 @@ WHERE team_json->>'$.team_id' IS NOT NULL;
 CREATE OR REPLACE TEMP VIEW v_two_way_root AS
 SELECT
   to_json(r) AS root_json,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/two_way.json') AS r;
+FROM read_json_auto('./shared/nba_pcms_full_extract/two_way.json') AS r;
 
 CREATE OR REPLACE TEMP VIEW v_two_way_daily_statuses_source AS
 WITH statuses AS (
@@ -212,7 +212,7 @@ ON CONFLICT (player_id, status_date) DO UPDATE SET
 CREATE OR REPLACE TEMP VIEW v_two_way_utility_root AS
 SELECT
   to_json(r) AS root_json,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/two_way_utility.json') AS r;
+FROM read_json_auto('./shared/nba_pcms_full_extract/two_way_utility.json') AS r;
 
 -- 3a) team_two_way_capacity (under15_games.under15_team_budget[])
 CREATE OR REPLACE TEMP VIEW v_team_two_way_capacity_source AS

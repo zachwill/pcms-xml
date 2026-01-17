@@ -11,8 +11,8 @@ SET TimeZone='UTC';
 --   - pg.pcms.team_exception_usage
 --
 -- Source files (hard-coded):
---   ./shared/pcms/nba_pcms_full_extract/team_exceptions.json
---   ./shared/pcms/nba_pcms_full_extract/lookups.json
+--   ./shared/nba_pcms_full_extract/team_exceptions.json
+--   ./shared/nba_pcms_full_extract/lookups.json
 --
 -- Notes:
 --   - This extract is not a simple array; it's a JSON object with exception_team[]
@@ -30,7 +30,7 @@ SELECT
 FROM (
   SELECT
     to_json(r) AS team_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/lookups.json') AS lookups,
+  FROM read_json_auto('./shared/nba_pcms_full_extract/lookups.json') AS lookups,
   UNNEST(lookups.lk_teams.lk_team) AS t(r)
 )
 WHERE team_json->>'$.team_id' IS NOT NULL;
@@ -39,7 +39,7 @@ WHERE team_json->>'$.team_id' IS NOT NULL;
 CREATE OR REPLACE TEMP VIEW v_team_exceptions_root AS
 SELECT
   to_json(r) AS root_json,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/team_exceptions.json') AS r;
+FROM read_json_auto('./shared/nba_pcms_full_extract/team_exceptions.json') AS r;
 
 -- 3) exception_team[] (one row per team)
 CREATE OR REPLACE TEMP VIEW v_exception_team_json AS

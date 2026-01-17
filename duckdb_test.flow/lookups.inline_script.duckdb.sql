@@ -11,7 +11,7 @@ SET TimeZone='UTC';
 --   - pg.pcms.teams
 --
 -- Source:
---   ./shared/pcms/nba_pcms_full_extract/lookups.json
+--   ./shared/nba_pcms_full_extract/lookups.json
 --
 -- Notes:
 --   - lookups.json is grouped by lookup type (43 groups)
@@ -24,7 +24,7 @@ SET TimeZone='UTC';
 CREATE OR REPLACE TEMP VIEW v_lookups_struct AS
 SELECT
   *,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/lookups.json');
+FROM read_json_auto('./shared/nba_pcms_full_extract/lookups.json');
 
 -- 2) Flatten all lookup groups into one stream of JSON records
 CREATE OR REPLACE TEMP VIEW v_lookup_records AS

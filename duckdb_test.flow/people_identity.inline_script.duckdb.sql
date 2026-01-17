@@ -12,8 +12,8 @@ SET TimeZone='UTC';
 --   - pg.pcms.agents     (from players.json filtered by person_type_lk = 'AGENT')
 --
 -- Source files (hard-coded):
---   ./shared/pcms/nba_pcms_full_extract/lookups.json
---   ./shared/pcms/nba_pcms_full_extract/players.json
+--   ./shared/nba_pcms_full_extract/lookups.json
+--   ./shared/nba_pcms_full_extract/players.json
 --
 -- Notes:
 --   - players.json has a few non-snake-case keys (e.g. pronoun1, exhibit10)
@@ -29,7 +29,7 @@ SELECT
 FROM (
   SELECT
     to_json(r) AS team_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/lookups.json') AS lookups,
+  FROM read_json_auto('./shared/nba_pcms_full_extract/lookups.json') AS lookups,
   UNNEST(lookups.lk_teams.lk_team) AS t(r)
 )
 WHERE team_json->>'$.team_id' IS NOT NULL;
@@ -51,7 +51,7 @@ SELECT
 FROM (
   SELECT
     to_json(a) AS a_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/lookups.json') AS lookups,
+  FROM read_json_auto('./shared/nba_pcms_full_extract/lookups.json') AS lookups,
   UNNEST(lookups.lk_agencies.lk_agency) AS t(a)
 )
 WHERE a_json->>'$.agency_id' IS NOT NULL;
@@ -208,7 +208,7 @@ SELECT
 FROM (
   SELECT
     to_json(p) AS p_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/players.json') AS p
+  FROM read_json_auto('./shared/nba_pcms_full_extract/players.json') AS p
 ) AS src
 LEFT JOIN v_teams AS team ON team.team_id = TRY_CAST(p_json->>'$.team_id' AS BIGINT)
 LEFT JOIN v_teams AS draft_team ON draft_team.team_id = TRY_CAST(p_json->>'$.draft_team_id' AS BIGINT)
@@ -420,7 +420,7 @@ SELECT
 FROM (
   SELECT
     to_json(p) AS p_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/players.json') AS p
+  FROM read_json_auto('./shared/nba_pcms_full_extract/players.json') AS p
 ) AS src
 LEFT JOIN v_agencies_deduped AS a ON a.agency_id = TRY_CAST(p_json->>'$.agency_id' AS INTEGER)
 WHERE p_json->>'$.person_type_lk' = 'AGENT'

@@ -15,10 +15,10 @@ SET TimeZone='UTC';
 --   - pg.pcms.team_transactions            (from team_transactions.json)
 --
 -- Source files (hard-coded):
---   ./shared/pcms/nba_pcms_full_extract/lookups.json
---   ./shared/pcms/nba_pcms_full_extract/team_budgets.json
---   ./shared/pcms/nba_pcms_full_extract/waiver_priority.json
---   ./shared/pcms/nba_pcms_full_extract/team_transactions.json
+--   ./shared/nba_pcms_full_extract/lookups.json
+--   ./shared/nba_pcms_full_extract/team_budgets.json
+--   ./shared/nba_pcms_full_extract/waiver_priority.json
+--   ./shared/nba_pcms_full_extract/team_transactions.json
 --
 -- Notes:
 --   - team_budgets.json contains hyphenated keys ("budget-entries", "budget-entry"); we use json_extract paths.
@@ -34,7 +34,7 @@ SELECT
 FROM (
   SELECT
     to_json(r) AS team_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/lookups.json') AS lookups,
+  FROM read_json_auto('./shared/nba_pcms_full_extract/lookups.json') AS lookups,
   UNNEST(lookups.lk_teams.lk_team) AS t(r)
 )
 WHERE team_json->>'$.team_id' IS NOT NULL;
@@ -46,7 +46,7 @@ WHERE team_json->>'$.team_id' IS NOT NULL;
 CREATE OR REPLACE TEMP VIEW v_team_budgets_raw AS
 SELECT
   j AS root_json,
-FROM read_json('./shared/pcms/nba_pcms_full_extract/team_budgets.json', format = 'unstructured') AS t(j);
+FROM read_json('./shared/nba_pcms_full_extract/team_budgets.json', format = 'unstructured') AS t(j);
 
 CREATE OR REPLACE TEMP VIEW v_budget_teams AS
 SELECT
@@ -343,7 +343,7 @@ ON CONFLICT (team_id, salary_year) DO UPDATE SET
 CREATE OR REPLACE TEMP VIEW v_waiver_raw AS
 SELECT
   COALESCE(j->'$.waiver_priority', j) AS waiver_priority_arr,
-FROM read_json('./shared/pcms/nba_pcms_full_extract/waiver_priority.json', format = 'unstructured') AS t(j);
+FROM read_json('./shared/nba_pcms_full_extract/waiver_priority.json', format = 'unstructured') AS t(j);
 
 CREATE OR REPLACE TEMP VIEW v_waiver_priority_source AS
 SELECT
@@ -516,7 +516,7 @@ SELECT
 FROM (
   SELECT
     to_json(t) AS tx_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/team_transactions.json') AS t
+  FROM read_json_auto('./shared/nba_pcms_full_extract/team_transactions.json') AS t
 ) AS src
 LEFT JOIN v_teams AS teams ON teams.team_id = TRY_CAST(tx_json->>'$.team_id' AS BIGINT)
 WHERE tx_json->>'$.team_transaction_id' IS NOT NULL;

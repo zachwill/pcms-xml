@@ -19,8 +19,8 @@ SET TimeZone='UTC';
 --   - pg.pcms.payment_schedule_details
 --
 -- Source files (hard-coded):
---   ./shared/pcms/nba_pcms_full_extract/contracts.json
---   ./shared/pcms/nba_pcms_full_extract/lookups.json
+--   ./shared/nba_pcms_full_extract/contracts.json
+--   ./shared/nba_pcms_full_extract/lookups.json
 --
 -- Notes:
 --   - Deduplication with QUALIFY is mandatory prior to each Postgres upsert.
@@ -38,7 +38,7 @@ SELECT
 FROM (
   SELECT
     to_json(r) AS team_json,
-  FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/lookups.json') AS lookups,
+  FROM read_json_auto('./shared/nba_pcms_full_extract/lookups.json') AS lookups,
   UNNEST(lookups.lk_teams.lk_team) AS t(r)
 )
 WHERE team_json->>'$.team_id' IS NOT NULL;
@@ -47,7 +47,7 @@ WHERE team_json->>'$.team_id' IS NOT NULL;
 CREATE OR REPLACE TEMP VIEW v_contract_json AS
 SELECT
   to_json(c) AS c_json,
-FROM read_json_auto('./shared/pcms/nba_pcms_full_extract/contracts.json') AS c;
+FROM read_json_auto('./shared/nba_pcms_full_extract/contracts.json') AS c;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- contracts
