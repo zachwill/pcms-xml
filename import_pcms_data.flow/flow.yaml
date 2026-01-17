@@ -114,6 +114,20 @@ value:
             expr: results.a.extract_dir ?? './shared/pcms'
         lock: '!inline draft_picks.inline_script.lock'
         language: bun
+    - id: q
+      summary: Draft Pick Summaries
+      value:
+        type: rawscript
+        content: '!inline draft_pick_summaries.inline_script.ts'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          extract_dir:
+            type: javascript
+            expr: results.a.extract_dir ?? './shared/pcms'
+        lock: '!inline draft_pick_summaries.inline_script.lock'
+        language: bun
     - id: i
       summary: Team Budgets
       value:
@@ -225,7 +239,7 @@ value:
             type: javascript
             expr: >-
               [results.b, results.c, results.d, results.e, results.f, results.g,
-              results.h, results.i, results.j, results.k]
+              results.h, results.q, results.i, results.j, results.k]
         lock: '!inline finalize_lineage.inline_script.lock'
         language: bun
   same_worker: true
