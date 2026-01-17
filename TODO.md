@@ -1,6 +1,6 @@
 # TODO: PCMS Data Import Issues
 
-Last updated: 2026-01-16
+Last updated: 2026-01-16 (added draft_pick_summaries section)
 
 This document catalogs all known issues with the PCMS data import flow. A coding agent should address these in priority order.
 
@@ -80,6 +80,12 @@ const row = {
 
 **Problem:** The `pcms.draft_picks` table contains only DLG/WNBA records. We need NBA draft picks too!
 
+**Current state of `draft_picks.json`:**
+```bash
+jq '[.[].league_lk] | group_by(.) | map({league: .[0], count: length})' draft_picks.json
+# Returns: DLG: 944, WNBA: 225 — NO NBA picks!
+```
+
 **Why it matters:** Analysts expect `draft_picks` to have NBA data for querying draft history, pick trades, etc.
 
 ### Solution: Generate NBA Draft Picks from Player Data
@@ -129,7 +135,7 @@ await sql`INSERT INTO pcms.draft_picks ${sql(nbaDraftPicks)}
 ### Data Available
 
 ```bash
-# ~3,664 NBA players with draft info
+# ~2,411 NBA players with draft info
 jq '[.[] | select(.draft_year != null and .draft_round != null and .league_lk == "NBA")] | length' players.json
 ```
 
@@ -139,6 +145,167 @@ jq '[.[] | select(.draft_year != null and .draft_round != null and .league_lk ==
 |------|--------|
 | `generate_nba_draft_picks.inline_script.ts` | **CREATE** - New script |
 | `flow.yaml` | Add new step after players import |
+
+**Note:** This only generates HISTORICAL NBA draft picks (picks used to draft players). For FUTURE NBA draft picks and trade descriptions, see the next section.
+
+---
+
+## 🔴 CRITICAL: Create `pcms.draft_pick_summaries` Table
+
+**Problem:** The `draft_pick_summaries.json` file is extracted but has NO table or import script!
+
+**What this data contains:** Per-team-per-year summaries of draft pick ownership with rich descriptions of trades, protections, and conditions.
+
+### Source Data Stats
+
+```bash
+# 450 total records (30 teams × 15 years)
+jq 'length' draft_pick_summaries.json
+# 450
+
+# Covers 2018-2032 (includes future picks!)
+jq '[.[].draft_year] | unique | sort' draft_pick_summaries.json
+# [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032]
+
+# 210 FUTURE records (2026+)
+jq '[.[] | select(.draft_year >= 2026)] | length' draft_pick_summaries.json
+# 210
+```
+
+### Sample Data (Future Pick Descriptions)
+
+```json
+{
+  "team_id": 1610612737,
+  "draft_year": 2027,
+  "first_round": "To SAS(58) | May have MIL(202) (via NOP(8)); may have NOP(202)",
+  "second_round": "To POR(285) (via MEM(160) via BOS(113))",
+  "active_flg": true
+}
+```
+
+These descriptions show:
+- Who owns the pick ("Own", "To SAS(58)")
+- Conditional ownership ("may have")
+- Trade chains ("via NOP(8)")
+- Protection details (referenced by trade IDs)
+
+### Migration Required: `migrations/004_draft_pick_summaries.sql`
+
+```sql
+-- Migration: 004_draft_pick_summaries.sql
+-- Description: Create draft_pick_summaries table for NBA draft pick ownership by team/year
+-- Date: 2026-01-16
+
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS pcms.draft_pick_summaries (
+  team_id integer NOT NULL,
+  draft_year integer NOT NULL,
+  first_round text,
+  second_round text,
+  is_active boolean,
+  team_code text,
+  created_at timestamptz,
+  updated_at timestamptz,
+  record_changed_at timestamptz,
+  ingested_at timestamptz DEFAULT now(),
+  PRIMARY KEY (team_id, draft_year)
+);
+
+COMMENT ON TABLE pcms.draft_pick_summaries IS 'Per-team-per-year summary of NBA draft pick ownership with trade descriptions';
+COMMENT ON COLUMN pcms.draft_pick_summaries.first_round IS 'Description of 1st round pick status (e.g., "Own", "To SAS(58)", "May have MIL(202)")';
+COMMENT ON COLUMN pcms.draft_pick_summaries.second_round IS 'Description of 2nd round pick status';
+
+CREATE INDEX idx_draft_pick_summaries_team_code ON pcms.draft_pick_summaries(team_code);
+CREATE INDEX idx_draft_pick_summaries_draft_year ON pcms.draft_pick_summaries(draft_year);
+
+-- Backfill team_code for any existing data (if table already exists with data)
+UPDATE pcms.draft_pick_summaries dps SET team_code = t.team_code
+FROM pcms.teams t WHERE dps.team_id = t.team_id AND dps.team_code IS NULL;
+
+COMMIT;
+```
+
+### Import Script Required: `draft_pick_summaries.inline_script.ts`
+
+```typescript
+import { SQL } from "bun";
+import { readdir } from "node:fs/promises";
+
+const sql = new SQL({ url: Bun.env.POSTGRES_URL!, prepare: false });
+
+export async function main(dry_run = false, extract_dir = "./shared/pcms") {
+  const startedAt = new Date().toISOString();
+
+  // Find extract directory
+  const entries = await readdir(extract_dir, { withFileTypes: true });
+  const subDir = entries.find((e) => e.isDirectory());
+  const baseDir = subDir ? `${extract_dir}/${subDir.name}` : extract_dir;
+
+  // Build team_id → team_code lookup
+  const lookups = await Bun.file(`${baseDir}/lookups.json`).json();
+  const teamsData = lookups?.lk_teams?.lk_team || [];
+  const teamCodeMap = new Map<number, string>();
+  for (const t of teamsData) {
+    if (t.team_id && t.team_code) teamCodeMap.set(t.team_id, t.team_code);
+  }
+
+  // Read draft pick summaries
+  const summaries: any[] = await Bun.file(`${baseDir}/draft_pick_summaries.json`).json();
+  console.log(`Found ${summaries.length} draft pick summaries`);
+
+  const ingestedAt = new Date();
+
+  const rows = summaries.map((s) => ({
+    team_id: s.team_id,
+    draft_year: s.draft_year,
+    first_round: s.first_round ?? null,
+    second_round: s.second_round ?? null,
+    is_active: s.active_flg ?? null,
+    team_code: teamCodeMap.get(s.team_id) ?? null,
+    created_at: s.create_date ?? null,
+    updated_at: s.last_change_date ?? null,
+    record_changed_at: s.record_change_date ?? null,
+    ingested_at: ingestedAt,
+  }));
+
+  if (dry_run) {
+    console.log(`[DRY RUN] Would upsert ${rows.length} rows`);
+    return { dry_run: true, count: rows.length };
+  }
+
+  await sql`
+    INSERT INTO pcms.draft_pick_summaries ${sql(rows)}
+    ON CONFLICT (team_id, draft_year) DO UPDATE SET
+      first_round = EXCLUDED.first_round,
+      second_round = EXCLUDED.second_round,
+      is_active = EXCLUDED.is_active,
+      team_code = EXCLUDED.team_code,
+      updated_at = EXCLUDED.updated_at,
+      record_changed_at = EXCLUDED.record_changed_at,
+      ingested_at = EXCLUDED.ingested_at
+  `;
+
+  console.log(`Upserted ${rows.length} draft pick summaries`);
+  return { dry_run: false, count: rows.length };
+}
+```
+
+### Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `migrations/004_draft_pick_summaries.sql` | **CREATE** - New migration |
+| `import_pcms_data.flow/draft_pick_summaries.inline_script.ts` | **CREATE** - New import script |
+| `import_pcms_data.flow/flow.yaml` | **UPDATE** - Add step after draft_picks |
+
+### Why This Matters
+
+1. **Future draft picks** - The only source of NBA future pick data (2026-2032)
+2. **Trade descriptions** - Human-readable summary of complex pick trades
+3. **Pick protections** - References to protection conditions via trade IDs
+4. **Analytics** - Query which teams have the most/fewest future assets
 
 ---
 
@@ -273,8 +440,11 @@ These tables are empty because the PCMS extract doesn't contain this data:
 After fixes, verify:
 
 - [ ] Migration 003 runs successfully
-- [ ] `SELECT COUNT(*) FROM pcms.draft_picks WHERE league_lk = 'NBA'` ≈ 3,664
+- [ ] Migration 004 runs successfully (draft_pick_summaries table)
+- [ ] `SELECT COUNT(*) FROM pcms.draft_picks WHERE league_lk = 'NBA'` ≈ 2,411
 - [ ] `SELECT COUNT(*) FROM pcms.draft_picks WHERE league_lk IN ('DLG', 'WNBA')` ≈ 1,169
+- [ ] `SELECT COUNT(*) FROM pcms.draft_pick_summaries` = 450
+- [ ] `SELECT COUNT(*) FROM pcms.draft_pick_summaries WHERE draft_year >= 2026` = 210
 - [ ] `SELECT COUNT(*) FROM pcms.ledger_entries` ≈ 50,698
 - [ ] `SELECT COUNT(*) FROM pcms.two_way_daily_statuses` ≈ 28,000
 - [ ] All `team_code` columns are populated (no NULLs where team_id exists)
@@ -289,7 +459,9 @@ SELECT 'transactions', COUNT(*) FROM pcms.transactions WHERE to_team_id IS NOT N
 UNION ALL
 SELECT 'people', COUNT(*) FROM pcms.people WHERE team_id IS NOT NULL AND team_code IS NULL
 UNION ALL
-SELECT 'ledger_entries', COUNT(*) FROM pcms.ledger_entries WHERE team_id IS NOT NULL AND team_code IS NULL;
+SELECT 'ledger_entries', COUNT(*) FROM pcms.ledger_entries WHERE team_id IS NOT NULL AND team_code IS NULL
+UNION ALL
+SELECT 'draft_pick_summaries', COUNT(*) FROM pcms.draft_pick_summaries WHERE team_id IS NOT NULL AND team_code IS NULL;
 ```
 
 **Draft picks spot check:**
@@ -301,18 +473,30 @@ WHERE dp.draft_year = 2024 AND dp.round = 1 AND dp.league_lk = 'NBA'
 ORDER BY dp.pick_number_int;
 ```
 
+**Draft pick summaries spot check (future picks):**
+```sql
+-- Show all teams' 2027 draft pick situation
+SELECT t.team_code, dps.first_round, dps.second_round
+FROM pcms.draft_pick_summaries dps
+JOIN pcms.teams t ON dps.team_id = t.team_id
+WHERE dps.draft_year = 2027
+ORDER BY t.team_code;
+```
+
 ---
 
 ## 📋 File Reference
 
 | Issue | Primary File(s) |
 |-------|-----------------|
-| Schema migration | `migrations/003_team_code_and_draft_picks.sql` ✅ |
+| Schema migration (team_code) | `migrations/003_team_code_and_draft_picks.sql` ✅ |
+| **Schema migration (summaries)** | **CREATE:** `migrations/004_draft_pick_summaries.sql` |
 | People team_code | `players_&_people.inline_script.ts` |
 | Contracts team_code | `contracts,_versions,_bonuses_&_salaries.inline_script.ts` |
 | Trades/Txn/Ledger team_code | `trades,_transactions_&_ledger.inline_script.ts` |
 | Draft picks team_code + player_id | `draft_picks.inline_script.ts` |
 | **NBA draft picks** | **CREATE:** `generate_nba_draft_picks.inline_script.ts` |
+| **Draft pick summaries** | **CREATE:** `draft_pick_summaries.inline_script.ts` |
 | Team exceptions team_code | `team_exceptions_&_usage.inline_script.ts` |
 | Team budgets team_code | `team_budgets.inline_script.ts` |
 | NCA team_code | `system_values,_rookie_scale_&_nca.inline_script.ts` |
