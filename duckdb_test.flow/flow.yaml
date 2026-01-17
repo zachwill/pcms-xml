@@ -1,26 +1,135 @@
-summary: Ralph DuckDB test
+summary: PCMS import (DuckDB)
 description: ''
 value:
   modules:
     - id: a
-      summary: Simple DuckDB Test
+      summary: Lookups
       value:
         type: rawscript
-        content: '!inline simple_duckdb_test.inline_script.duckdb.sql'
-        input_transforms:
-          name:
-            type: static
-            value: Ben
-          age:
-            type: static
-            value: '20'
+        content: '!inline lookups.inline_script.duckdb.sql'
+        input_transforms: {}
         assets:
           - access_type: r
             alt_access_type: null
             kind: resource
-            path: f/env/postgres/pcms.lookups
+            path: f/env/postgres
         lock: ''
         language: duckdb
+
+    - id: b
+      summary: People & Identity
+      value:
+        type: rawscript
+        content: '!inline people_identity.inline_script.duckdb.sql'
+        input_transforms: {}
+        assets:
+          - access_type: r
+            alt_access_type: null
+            kind: resource
+            path: f/env/postgres
+        lock: ''
+        language: duckdb
+
+    - id: c
+      summary: Draft Assets
+      value:
+        type: rawscript
+        content: '!inline draft_assets.inline_script.duckdb.sql'
+        input_transforms: {}
+        assets:
+          - access_type: r
+            alt_access_type: null
+            kind: resource
+            path: f/env/postgres
+        lock: ''
+        language: duckdb
+
+    - id: d
+      summary: League Config
+      value:
+        type: rawscript
+        content: '!inline league_config.inline_script.duckdb.sql'
+        input_transforms: {}
+        assets:
+          - access_type: r
+            alt_access_type: null
+            kind: resource
+            path: f/env/postgres
+        lock: ''
+        language: duckdb
+
+    - id: e
+      summary: Contracts
+      value:
+        type: rawscript
+        content: '!inline contracts.inline_script.duckdb.sql'
+        input_transforms: {}
+        assets:
+          - access_type: r
+            alt_access_type: null
+            kind: resource
+            path: f/env/postgres
+        lock: ''
+        language: duckdb
+
+    - id: f
+      summary: Team Exceptions
+      value:
+        type: rawscript
+        content: '!inline team_exceptions.inline_script.duckdb.sql'
+        input_transforms: {}
+        assets:
+          - access_type: r
+            alt_access_type: null
+            kind: resource
+            path: f/env/postgres
+        lock: ''
+        language: duckdb
+
+    - id: g
+      summary: Transactions / Trades / Ledger
+      value:
+        type: rawscript
+        content: '!inline transactions.inline_script.duckdb.sql'
+        input_transforms: {}
+        assets:
+          - access_type: r
+            alt_access_type: null
+            kind: resource
+            path: f/env/postgres
+        lock: ''
+        language: duckdb
+
+    - id: h
+      summary: Team Financials
+      value:
+        type: rawscript
+        content: '!inline team_financials.inline_script.duckdb.sql'
+        input_transforms: {}
+        assets:
+          - access_type: r
+            alt_access_type: null
+            kind: resource
+            path: f/env/postgres
+        lock: ''
+        language: duckdb
+
+    - id: i
+      summary: Two-Way
+      value:
+        type: rawscript
+        content: '!inline two_way.inline_script.duckdb.sql'
+        input_transforms: {}
+        assets:
+          - access_type: r
+            alt_access_type: null
+            kind: resource
+            path: f/env/postgres
+        lock: ''
+        language: duckdb
+
+  same_worker: true
+
 schema:
   $schema: 'https://json-schema.org/draft/2020-12/schema'
   type: object

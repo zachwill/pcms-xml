@@ -371,7 +371,7 @@ Scripts organized by dependency order. Each should be 200-600 LOC (max 800 for c
 
 ### Phase 10: Flow Integration
 
-- [ ] **10. flow.yaml** — Create flow definition
+- [x] **10. flow.yaml** — Create flow definition
   
   Create `duckdb_test.flow/flow.yaml` with scripts in order:
   1. lookups → 2. people_identity → 3. draft_assets → 4. league_config
