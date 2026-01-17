@@ -105,7 +105,7 @@ pcms.team_transactions (
   }
   ```
 
-- [ ] Create lock file `import_pcms_data.flow/team_transactions.inline_script.lock`
+- [x] Create lock file `import_pcms_data.flow/team_transactions.inline_script.lock`
   
   **Exact content (no extra whitespace):**
   ```
