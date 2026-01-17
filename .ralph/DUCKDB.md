@@ -325,7 +325,7 @@ Scripts organized by dependency order. Each should be 200-600 LOC (max 800 for c
 
 ### Phase 8: Team Financials
 
-- [ ] **8. team_financials.duckdb.sql** — Budgets, tax, waiver priority
+- [x] **8. team_financials.duckdb.sql** — Budgets, tax, waiver priority
   
   **Tables:**
   - `pcms.team_budget_snapshots`
