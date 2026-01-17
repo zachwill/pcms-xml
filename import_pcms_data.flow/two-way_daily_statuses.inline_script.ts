@@ -53,7 +53,25 @@ export async function main(
 
     console.log(`Found ${statuses.length} two-way daily statuses`);
 
+    // Build team_id → team_code lookup map
+    const lookups: any = await Bun.file(`${baseDir}/lookups.json`).json();
+    const teamsData: any[] = lookups?.lk_teams?.lk_team || [];
+    const teamCodeMap = new Map<number, string>();
+    for (const t of teamsData) {
+      const teamId = t?.team_id;
+      const teamCode = t?.team_code ?? t?.team_name_short;
+      if (teamId && teamCode) {
+        teamCodeMap.set(Number(teamId), String(teamCode));
+      }
+    }
+
     const ingestedAt = new Date();
+
+    const toIntOrNull = (val: unknown): number | null => {
+      if (val === "" || val === null || val === undefined) return null;
+      const num = Number(val);
+      return Number.isNaN(num) ? null : num;
+    };
 
     const rows = statuses
       .map((s) => {
@@ -61,6 +79,10 @@ export async function main(
         const status_date = toDateOnly(s?.status_date);
         const salary_year = s?.season_year ?? (status_date ? Number(status_date.slice(0, 4)) : null);
         const status_lk = s?.two_way_daily_status_lk ?? null;
+
+        const status_team_id = toIntOrNull(s?.team_id ?? s?.status_team_id);
+        const contract_team_id = toIntOrNull(s?.contract_team_id);
+        const signing_team_id = toIntOrNull(s?.signing_team_id);
 
         // Required by schema
         if (!player_id || !status_date || !salary_year || !status_lk) return null;
@@ -73,10 +95,16 @@ export async function main(
           // Optional columns (only present in some extracts)
           day_of_season: s?.day_of_season ?? null,
           status_lk,
-          status_team_id: s?.team_id ?? s?.status_team_id ?? null,
+
+          status_team_id,
+          status_team_code: status_team_id ? (teamCodeMap.get(status_team_id) ?? null) : null,
+
           contract_id: s?.contract_id ?? null,
-          contract_team_id: s?.contract_team_id ?? null,
-          signing_team_id: s?.signing_team_id ?? null,
+          contract_team_id,
+          contract_team_code: contract_team_id ? (teamCodeMap.get(contract_team_id) ?? null) : null,
+
+          signing_team_id,
+          signing_team_code: signing_team_id ? (teamCodeMap.get(signing_team_id) ?? null) : null,
 
           nba_service_days: s?.nba_service_days ?? null,
           nba_service_limit: s?.nba_service_limit ?? null,
@@ -125,9 +153,12 @@ export async function main(
           day_of_season = EXCLUDED.day_of_season,
           status_lk = EXCLUDED.status_lk,
           status_team_id = EXCLUDED.status_team_id,
+          status_team_code = EXCLUDED.status_team_code,
           contract_id = EXCLUDED.contract_id,
           contract_team_id = EXCLUDED.contract_team_id,
+          contract_team_code = EXCLUDED.contract_team_code,
           signing_team_id = EXCLUDED.signing_team_id,
+          signing_team_code = EXCLUDED.signing_team_code,
           nba_service_days = EXCLUDED.nba_service_days,
           nba_service_limit = EXCLUDED.nba_service_limit,
           nba_days_remaining = EXCLUDED.nba_days_remaining,
