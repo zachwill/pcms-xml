@@ -8,9 +8,6 @@ agencies
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
  - agency_json jsonb
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 agents
@@ -27,9 +24,6 @@ agents
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
  - agent_json jsonb
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 apron_constraints
@@ -40,26 +34,7 @@ apron_constraints
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
-
-audit_logs
- - audit_log_id bigserial primary key
- - table_name text
- - record_id text
- - field_name text
- - old_value_text text
- - new_value_text text
- - change_type text
- - reason_code text
- - user_id text
- - source_drop_file text
- - source_hash text
- - parser_version text
- - created_at timestamp with time zone default now()
- - record_changed_at timestamp with time zone
 
 contract_bonus_criteria
  - bonus_criteria_id integer primary key
@@ -74,9 +49,6 @@ contract_bonus_criteria
  - value_2 numeric
  - date_1 date
  - date_2 date
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 contract_bonus_maximums
@@ -87,9 +59,6 @@ contract_bonus_maximums
  - max_amount bigint
  - bonus_type_lk text
  - is_likely boolean
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 contract_bonuses
@@ -105,9 +74,6 @@ contract_bonuses
  - clause_name text
  - criteria_description text
  - criteria_json jsonb
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 contract_protection_conditions
@@ -120,9 +86,6 @@ contract_protection_conditions
  - is_full_condition boolean
  - criteria_description text
  - criteria_json jsonb
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 contract_protections
@@ -136,9 +99,6 @@ contract_protections
  - is_conditional_protection boolean
  - conditional_protection_comments text
  - protection_types_json jsonb
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 contract_versions
@@ -173,9 +133,6 @@ contract_versions
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 contracts
@@ -198,9 +155,6 @@ contracts
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 depth_charts
@@ -220,10 +174,7 @@ depth_charts
  - estimated_return_date date
  - updated_at timestamp with time zone default now()
  - updated_by_user_id text
- - source_drop_file text
  - source_record_id text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 draft_picks
@@ -247,60 +198,9 @@ draft_picks
  - history_json jsonb
  - draft_json jsonb
  - summary_json jsonb
- - source_drop_file text
- - source_hash text
- - parser_version text
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - ingested_at timestamp with time zone default now()
-
-draft_rankings
- - id uuid primary key default gen_random_uuid()
- - scout_id text
- - draft_year integer
- - player_id text
- - player_name_raw text
- - ranking_position integer
- - tier text
- - evaluation_notes text
- - value_delimiter_rank integer
- - value_delimiter_label text
- - ranking_json jsonb
- - source_drop_file text
- - source_hash text
- - parser_version text
- - ingested_at timestamp with time zone default now()
- - updated_at timestamp with time zone default now()
-
-injury_reports
- - injury_report_id serial primary key
- - person_id integer
- - team_id integer
- - report_date date
- - salary_year integer
- - availability_status_lk text
- - participation_lk text
- - is_active_roster boolean
- - injury_description text
- - reason text
- - body_region_lk text
- - body_part_lk text
- - laterality_lk text
- - injury_type_lk text
- - is_covid_cardiac_clearance boolean
- - is_health_safety_protocol boolean
- - ps_games_missed_count integer default 0
- - rs_games_missed_count integer default 0
- - po_games_missed_count integer default 0
- - notes text
- - estimated_return_date date
- - author_id text
- - created_at timestamp with time zone default now()
- - updated_at timestamp with time zone default now()
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 league_salary_cap_projections
@@ -315,9 +215,6 @@ league_salary_cap_projections
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 league_salary_scales
@@ -329,9 +226,6 @@ league_salary_scales
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 league_system_values
@@ -412,9 +306,6 @@ league_system_values
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 league_tax_rates
@@ -430,9 +321,6 @@ league_tax_rates
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 ledger_entries
@@ -466,9 +354,6 @@ ledger_entries
  - apron_change bigint
  - apron_value bigint
  - trade_bonus_amount bigint
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 lk_subject_to_apron_reasons
@@ -478,9 +363,6 @@ lk_subject_to_apron_reasons
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 lookups
@@ -495,44 +377,6 @@ lookups
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
- - ingested_at timestamp with time zone default now()
-
-medical_intel
- - medical_intel_id uuid primary key default gen_random_uuid()
- - person_id integer
- - draft_year integer
- - is_medical_flag boolean default false
- - is_intel_flag boolean default false
- - red_flag_notes text
- - medical_history text
- - medical_history_finalized_at timestamp with time zone
- - medical_history_finalized_by_id text
- - internal_assessment text
- - internal_assessment_risk_lk text
- - internal_assessment_finalized_at timestamp with time zone
- - internal_assessment_finalized_by_id text
- - orthopedic_exam text
- - orthopedic_exam_risk_lk text
- - orthopedic_exam_finalized_at timestamp with time zone
- - orthopedic_exam_finalized_by_id text
- - movement_performance text
- - movement_performance_finalized_at timestamp with time zone
- - movement_performance_finalized_by_id text
- - scouting_review text
- - vaccination_status text
- - covid_history_json jsonb
- - intel_concerns_count integer default 0
- - medical_concerns_count integer default 0
- - imaging_requests_json jsonb
- - intel_reports_json jsonb
- - created_at timestamp with time zone default now()
- - updated_at timestamp with time zone default now()
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 non_contract_amounts
@@ -564,9 +408,6 @@ non_contract_amounts
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 payment_schedule_details
@@ -581,9 +422,6 @@ payment_schedule_details
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 payment_schedules
@@ -599,36 +437,6 @@ payment_schedules
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
- - ingested_at timestamp with time zone default now()
-
-pcms_lineage
- - lineage_id serial primary key
- - drop_filename text
- - source_extract_type text
- - source_extract_version text
- - as_of_date timestamp with time zone
- - run_date timestamp with time zone
- - record_count integer
- - source_hash text
- - parser_version text
- - s3_bucket text
- - s3_key text
- - ingested_at timestamp with time zone default now()
- - ingestion_status text default 'PENDING'::text
- - error_log text
-
-pcms_lineage_audit
- - audit_id bigserial primary key
- - lineage_id integer
- - table_name text
- - source_record_id text
- - record_hash text
- - parser_version text
- - operation_type text
- - source_data_json jsonb
  - ingested_at timestamp with time zone default now()
 
 people
@@ -707,9 +515,6 @@ people
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 rookie_scale_amounts
@@ -730,9 +535,6 @@ rookie_scale_amounts
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 salaries
@@ -771,74 +573,6 @@ salaries
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
- - ingested_at timestamp with time zone default now()
-
-scouting_report_rubrics
- - rubric_id serial primary key
- - rubric_name text
- - description text
- - report_type text
- - definition_json jsonb
- - is_active boolean default true
- - created_at timestamp with time zone default now()
- - updated_at timestamp with time zone default now()
-
-scouting_reports
- - scouting_report_id serial primary key
- - scout_id text
- - scout_name text
- - player_id integer
- - team_id integer
- - game_id text
- - event_id text
- - league_lk text
- - report_type text
- - vertical text
- - rubric_type text
- - evaluation_date date
- - overall_grade double precision
- - scout_rank integer
- - scouting_notes text
- - strengths text
- - weaknesses text
- - projected_role text
- - comparison_player_id integer
- - comparison_notes text
- - is_draft boolean default false
- - is_final boolean default true
- - grades_json jsonb
- - criteria_json jsonb
- - fields_json jsonb
- - source_system text
- - source_record_id text
- - created_at timestamp with time zone
- - updated_at timestamp with time zone
- - submitted_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
- - ingested_at timestamp with time zone default now()
-
-synergy_instat_links
- - link_id uuid primary key default gen_random_uuid()
- - pcms_id integer
- - entity_type_lk text
- - sportradar_id text
- - synergy_id text
- - instat_id text
- - league_id text
- - other_ids_json jsonb
- - match_confidence numeric(3,2) default 1.00
- - is_verified boolean default true
- - notes text
- - created_at timestamp with time zone default now()
- - updated_at timestamp with time zone default now()
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 tax_team_status
@@ -855,9 +589,6 @@ tax_team_status
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 team_budget_snapshots
@@ -888,9 +619,6 @@ team_budget_snapshots
  - is_fa_amount boolean
  - option_lk text
  - option_decision_lk text
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 team_exception_usage
@@ -912,9 +640,6 @@ team_exception_usage
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 team_exceptions
@@ -934,9 +659,6 @@ team_exceptions
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 team_tax_summary_snapshots
@@ -953,9 +675,6 @@ team_tax_summary_snapshots
  - record_changed_at timestamp with time zone
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 team_two_way_capacity
@@ -964,9 +683,6 @@ team_two_way_capacity
  - games_remaining integer
  - under_15_games_count integer
  - under_15_games_remaining integer
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 teams
@@ -987,9 +703,6 @@ teams
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
  - metadata_json jsonb
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 trade_groups
@@ -1054,9 +767,6 @@ trades
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 transaction_waiver_amounts
@@ -1085,9 +795,6 @@ transaction_waiver_amounts
  - option_decision_lk text
  - wnba_contract_id integer
  - wnba_version_number text
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 transactions
@@ -1141,9 +848,6 @@ transactions
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 two_way_contract_utility
@@ -1155,9 +859,6 @@ two_way_contract_utility
  - games_on_active_list integer
  - active_list_games_limit integer
  - remaining_active_list_games integer
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 two_way_daily_statuses
@@ -1187,9 +888,6 @@ two_way_daily_statuses
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 two_way_game_utility
@@ -1205,9 +903,6 @@ two_way_game_utility
  - games_on_active_list integer
  - active_list_games_limit integer
  - standard_nba_contracts_on_team integer
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 ui_projected_salaries
@@ -1268,9 +963,6 @@ waiver_priority
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
 
 waiver_priority_ranks
@@ -1287,7 +979,4 @@ waiver_priority_ranks
  - created_at timestamp with time zone
  - updated_at timestamp with time zone
  - record_changed_at timestamp with time zone
- - source_drop_file text
- - source_hash text
- - parser_version text
  - ingested_at timestamp with time zone default now()
