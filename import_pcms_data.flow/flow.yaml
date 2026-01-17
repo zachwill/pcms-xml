@@ -198,20 +198,6 @@ value:
             value: ./shared/pcms
         lock: '!inline agents_&_agencies.inline_script.lock'
         language: bun
-    - id: 'n'
-      summary: Transaction Waiver Amounts
-      value:
-        type: rawscript
-        content: '!inline transaction_waiver_amounts.inline_script.ts'
-        input_transforms:
-          dry_run:
-            type: javascript
-            expr: flow_input.dry_run
-          extract_dir:
-            type: static
-            value: ./shared/pcms
-        lock: '!inline transaction_waiver_amounts.inline_script.lock'
-        language: bun
     - id: o
       summary: League Salary Scales & Protections
       value:
@@ -268,7 +254,7 @@ value:
             expr: >-
               [results.b, results.r, results.c, results.d, results.e, results.f,
               results.g, results.h, results.q, results.i, results.j, results.k,
-              results.m, results.n, results.o, results.p, results.s]
+              results.m, results.o, results.p, results.s]
         lock: '!inline finalize_lineage.inline_script.lock'
         language: bun
   same_worker: true

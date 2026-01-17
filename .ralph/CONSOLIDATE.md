@@ -57,8 +57,8 @@ Each script remains **self-contained** (Windmill style) - helpers are inline, no
 
 ### Phase 1: Quick Wins
 
-- [ ] **Delete `transaction_waiver_amounts.inline_script.ts`** — already handled in `trades,_transactions_&_ledger`
-- [ ] **Update `flow.yaml`** — remove step for deleted script
+- [x] **Delete `transaction_waiver_amounts.inline_script.ts`** — already handled in `trades,_transactions_&_ledger`
+- [x] **Update `flow.yaml`** — remove step for deleted script
 
 ### Phase 2: Merge Scripts
 
