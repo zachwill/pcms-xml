@@ -113,7 +113,7 @@ pcms.team_transactions (
   //bun.lock
   ```
 
-- [ ] Update `import_pcms_data.flow/flow.yaml`
+- [x] Update `import_pcms_data.flow/flow.yaml`
   
   **Add step 's' before step 'l' (finalize).** Insert after step 'p':
   
