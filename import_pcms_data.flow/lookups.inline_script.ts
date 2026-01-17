@@ -159,7 +159,7 @@ export async function main(
 
     const ingestedAt = new Date();
 
-    const BATCH_SIZE = 10;
+    const BATCH_SIZE = 1;
     let attempted = 0;
 
     for (const [lookupType, container] of Object.entries(lookupGroups)) {

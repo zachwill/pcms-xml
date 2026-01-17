@@ -96,7 +96,7 @@ export async function main(
           first_round_summary: dp?.first_round_summary ?? null,
           second_round_summary: dp?.second_round_summary ?? null,
 
-          history_json: histories.length > 0 ? histories : null,
+          history_json: histories.length > 0 ? { "history": histories } : null,
           draft_json: dp ?? null,
           summary_json: dp?.summary_json ?? null,
 
