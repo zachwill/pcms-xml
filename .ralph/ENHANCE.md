@@ -38,7 +38,7 @@ team_code: teamCodeMap.get(record.team_id) ?? null,
 - [x] `two-way_daily_statuses.inline_script.ts` — add `status_team_code`, `contract_team_code`, `signing_team_code`
 - [x] `two-way_utility.inline_script.ts` — add `contract_team_code`, `signing_team_code` to two_way_contract_utility; `team_code`, `opposition_team_code` to two_way_game_utility
 - [x] `waiver_priority_&_ranks.inline_script.ts` — add `team_code`
-- [ ] `lookups.inline_script.ts` — for teams table, use `team_code` from source data (not `team_name_short`)
+- [x] `lookups.inline_script.ts` — for teams table, use `team_code` from source data (not `team_name_short`)
 
 ---
 

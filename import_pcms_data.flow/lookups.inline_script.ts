@@ -72,7 +72,12 @@ function inferDescription(record: Record<string, any>): { description: string | 
       null) as string | null;
 
   const short_description =
-    (record.short_description ?? record.abbreviation ?? record.team_name_short ?? null) as string | null;
+    (record.short_description ??
+      record.abbreviation ??
+      // Teams: prefer team_code (post-migration) over legacy team_name_short
+      record.team_code ??
+      record.team_name_short ??
+      null) as string | null;
 
   return {
     description: description ?? null,
@@ -93,6 +98,8 @@ function transformLookup(lookupType: string, record: unknown, ingestedAt: Date) 
     "short_description",
     "abbreviation",
     "name",
+    // Teams: keep team_code out of properties_json if present
+    "team_code",
     "active_flg",
     "seqno",
     "create_date",
