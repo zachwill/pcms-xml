@@ -100,6 +100,20 @@ value:
             expr: '''./shared/pcms'''
         lock: '!inline league_config.inline_script.lock'
         language: bun
+    - id: h
+      summary: Team Financials
+      value:
+        type: rawscript
+        content: '!inline team_financials.inline_script.ts'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          extract_dir:
+            type: javascript
+            expr: '''./shared/pcms'''
+        lock: '!inline team_financials.inline_script.lock'
+        language: bun
     - id: g
       summary: Two-Way Daily Statuses
       value:
@@ -113,34 +127,6 @@ value:
             type: javascript
             expr: '''./shared/pcms'''
         lock: '!inline two-way_daily_statuses.inline_script.lock'
-        language: bun
-    - id: i
-      summary: Team Budgets
-      value:
-        type: rawscript
-        content: '!inline team_budgets.inline_script.ts'
-        input_transforms:
-          dry_run:
-            type: javascript
-            expr: flow_input.dry_run
-          extract_dir:
-            type: javascript
-            expr: '''./shared/pcms'''
-        lock: '!inline team_budgets.inline_script.lock'
-        language: bun
-    - id: j
-      summary: Waiver Priority & Ranks
-      value:
-        type: rawscript
-        content: '!inline waiver_priority_&_ranks.inline_script.ts'
-        input_transforms:
-          dry_run:
-            type: javascript
-            expr: flow_input.dry_run
-          extract_dir:
-            type: javascript
-            expr: '''./shared/pcms'''
-        lock: '!inline waiver_priority_&_ranks.inline_script.lock'
         language: bun
     - id: k
       summary: Lookups
@@ -170,20 +156,6 @@ value:
             value: ./shared/pcms
         lock: '!inline two-way_utility.inline_script.lock'
         language: bun
-    - id: s
-      summary: Team Transactions
-      value:
-        type: rawscript
-        content: '!inline team_transactions.inline_script.ts'
-        input_transforms:
-          dry_run:
-            type: javascript
-            expr: flow_input.dry_run
-          extract_dir:
-            type: javascript
-            expr: '''./shared/pcms'''
-        lock: '!inline team_transactions.inline_script.lock'
-        language: bun
     - id: l
       summary: Finalize Lineage
       value:
@@ -197,7 +169,7 @@ value:
             type: javascript
             expr: >-
               [results.b, results.r, results.c, results.d, results.e, results.f,
-              results.g, results.i, results.j, results.k, results.p, results.s]
+              results.h, results.g, results.k, results.p]
         lock: '!inline finalize_lineage.inline_script.lock'
         language: bun
   same_worker: true

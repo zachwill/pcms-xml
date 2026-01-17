@@ -81,7 +81,7 @@ Each merged script should:
   - Merge: `system_values,_rookie_scale_&_nca` + `league_salary_scales_&_protections`
   - Tables: league_system_values, rookie_scale_amounts, non_contract_amounts, league_salary_scales, league_salary_cap_projections, league_tax_rates, apron_constraints
 
-- [ ] **2.4 `team_financials.inline_script.ts`**
+- [x] **2.4 `team_financials.inline_script.ts`**
   - Merge: `team_budgets` + `waiver_priority_&_ranks` + `team_transactions`
   - Tables: team_budget_snapshots, team_tax_summary_snapshots, tax_team_status, waiver_priority, waiver_priority_ranks, team_transactions
 
