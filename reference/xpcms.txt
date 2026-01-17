@@ -1,0 +1,2023 @@
+================================================================
+Directory Structure
+================================================================
+bin/
+  create_view_cap_projection_meta.sql
+  create_view_team_budget.sql
+  extract_info.py
+  initdb.py
+  load.py
+  parse.py
+  run_update.py
+sql/
+  00-xpcms-schema.sql
+  02-create-table-budget_team.sql
+  02-create-table-cap_projection.sql
+  02-create-table-contract.sql
+  02-create-table-draft_pick_summary.sql
+  02-create-table-exception_team.sql
+  02-create-table-non_contract_amount.sql
+  02-create-table-player.sql
+  02-create-table-rookie_scale_amount.sql
+  02-create-table-tax_rate.sql
+  02-create-table-tax_team.sql
+  02-create-table-team_transaction.sql
+  02-create-table-trade.sql
+  02-create-table-transaction_ledger_entry.sql
+  02-create-table-transaction_waiver_amount.sql
+  02-create-table-transaction.sql
+  02-create-table-yearly_salary_scale.sql
+  02-create-table-yearly_system_value.sql
+src/
+  xpcms/
+    __init__.py
+    extract.py
+    settings.py
+    utils.py
+.gitignore
+pyproject.toml
+README.md
+setup.cfg
+setup.py
+validate.py
+
+================================================================
+Files
+================================================================
+
+================
+File: bin/create_view_cap_projection_meta.sql
+================
+DROP VIEW IF EXISTS cap_projection_meta;
+CREATE VIEW cap_projection_meta AS
+select (c1.jdoc->>'seasonYear')::int as "seasonYear"
+    , c1.jdoc AS "capProjection"
+from cap_projections c1
+left join cap_projections c2
+    on c1.jdoc->>'seasonYear' = c2.jdoc->>'seasonYear'
+    and c1.jdoc->>'lastChangeDate' < c2.jdoc->>'lastChangeDate'
+where c2.id is null
+order by (c1.jdoc->>'seasonYear')::int ASC;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO web_anon;
+
+================
+File: bin/create_view_team_budget.sql
+================
+DROP VIEW IF EXISTS team_budget_meta;
+CREATE VIEW team_budget_meta AS
+SELECT tbe."teamId"
+    , l.jdoc AS team
+    , tbe.entries
+FROM (
+    SELECT tb.team_id AS "teamId"
+        , jsonb_agg(jsonb_set(tb.entry, '{player}', p.jdoc)) as entries
+    from (
+        select
+            (tb.jdoc->>'teamId')::int as team_id,
+            jsonb_array_elements(tb.jdoc->'budget-entries'->'budget-entry') as entry
+        from budget_team tb
+    ) tb
+    join player p on tb.entry->>'playerId' = p.jdoc->>'playerId'
+    group by tb.team_id
+) tbe
+join lk_team l on tbe."teamId" = (l.jdoc->>'teamId')::int;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO web_anon;
+
+================
+File: bin/extract_info.py
+================
+# Load PCMS data to database
+import argparse
+from collections import Counter
+from configparser import ConfigParser
+import logging
+import re
+import typing
+from sqlalchemy import create_engine
+from xpcms.extract import Extractor, get_xpath_for_extract
+from xpcms.settings import settings
+DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+DEFAULT_CFG_PATH = "config.ini"
+DEFAULT_CFG_SECTION = "DEFAULT"
+COMPACT_JSON_SEPARATORS = (",", ":")
+skip_list = {'two-way', 'two-way_2017', 'two-way_2018'}
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-c",
+        "--config",
+        nargs="?",
+        default=DEFAULT_CFG_PATH,
+        help="Config path",
+    )
+    parser.add_argument(
+        "-s", "--config-section", default=DEFAULT_CFG_SECTION, help="Config section"
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="count", default=0, help="Verbose logging"
+    )
+    args = parser.parse_args()
+    set_logging(vcount=args.verbose)
+    return args
+def set_logging(
+    vcount: typing.Optional[int] = None,
+    format: typing.Union[str, logging.Formatter] = DEFAULT_LOG_FORMAT,
+    **log_args: dict,
+) -> None:
+    """
+    Apply logging options to `logging.basicConfig`
+    """
+    if vcount >= 2:
+        log_args["level"] = logging.DEBUG
+    elif vcount == 1:
+        log_args["level"] = logging.INFO
+    log_args["format"] = format
+    logging.basicConfig(**log_args)
+if __name__ == "__main__":
+    args = parse_args()
+    cfg_parser = ConfigParser()
+    cfg_parser.read(args.config)
+    config = cfg_parser[args.config_section]
+    extractor = Extractor()
+    # extractor.pull("~/pcms/nba_pcms_incremental_extract_player.xml")
+    # extractor.pull("~/pcms/nba_pcms_incremental_extract_lookup.xml")
+    engine = create_engine(settings["database"]["url"])
+    schema = extractor.schema
+    extract_fields = {}
+    fields = []
+    for name in extractor.get_extract_names():
+        if name in skip_list:
+            continue
+        extract_xpath = get_xpath_for_extract(name)
+        extract_el = schema.find(f"{extract_xpath}")
+        fields = [e.tag for e in extract_el]
+        extract_fields[extract_el.tag] = fields
+    all_fields = []
+    for f in extract_fields.values():
+        all_fields.extend(f)
+    counter = Counter(all_fields)
+    print(counter)
+    for name, fields in extract_fields.items():
+        print(f"{name}: ", end="")
+        check_id = f"{name}Id"
+        if check_id in fields:
+            print(check_id)
+        else:
+            print()
+            for field in fields:
+                if re.match(r".*Id$", field, re.IGNORECASE):
+                    print(f"- {field}")
+                else:
+                    # print(f"- ({field})")
+                    pass
+    import pdb; pdb.set_trace()
+
+================
+File: bin/initdb.py
+================
+# Initialize PostgreSQL schema
+import argparse
+from configparser import ConfigParser
+import logging
+import typing
+from sqlalchemy import (
+    event,
+    Index,
+    Integer,
+    Table,
+    Column,
+    create_engine,
+    MetaData,
+    String,
+    TIMESTAMP,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import func
+from xpcms.extract import Extractor
+from xpcms.utils import snake_case
+DEFAULT_CFG_PATH = "config.ini"
+DEFAULT_CFG_SECTION = "xpcms"
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-c",
+        "--config",
+        nargs="?",
+        default=DEFAULT_CFG_PATH,
+        help="Config path",
+    )
+    parser.add_argument(
+        "-d", "--database-section", default="database", help="Database config section"
+    )
+    parser.add_argument(
+        "--api-views", action="store_true", help="Only reflect pcms tables as views in schema api",
+    )
+    parser.add_argument(
+        "-s", "--config-section", default=DEFAULT_CFG_SECTION, help="Config section"
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="count", default=0, help="Verbose logging"
+    )
+    args = parser.parse_args()
+    set_logging(vcount=args.verbose)
+    return args
+def set_logging(vcount: typing.Optional[int] = None, **log_args: dict) -> None:
+    """
+    Apply logging options to `logging.basicConfig`
+    """
+    if vcount >= 2:
+        log_args["level"] = logging.DEBUG
+    elif vcount == 1:
+        log_args["level"] = logging.INFO
+    logging.basicConfig(**log_args)
+if __name__ == "__main__":
+    args = parse_args()
+    cfg_parser = ConfigParser()
+    cfg_parser.read(args.config)
+    config = cfg_parser[args.config_section]
+    db_cfg = cfg_parser[args.database_section]
+    schema_path = config["schema_path"]
+    extractor = Extractor()
+    engine = create_engine(db_cfg["url"])
+    schema = "api" if args.api_views else "pcms"
+    @event.listens_for(engine, "connect", insert=True)
+    def set_search_path(dbapi_connection, connection_record):
+        existing_autocommit = dbapi_connection.autocommit
+        dbapi_connection.autocommit = True
+        cursor = dbapi_connection.cursor()
+        cursor.execute(f"SET SESSION search_path='{schema}'")
+        cursor.close()
+        dbapi_connection.autocommit = existing_autocommit
+    cx = engine.connect()
+    tables = {}
+    metadata = MetaData()
+    table_names = []
+    for extract_name in extractor.get_extract_names():
+        # old_extract_table_name = extract_name.replace("-", "_")
+        # logging.info(f"Dropping table (if exists): {old_extract_table_name}")
+        # cx.execute(f'drop table if exists "{old_extract_table_name}" cascade')
+        extract_xpath = extractor.get_xpath_for_extract(extract_name)
+        logging.info(f"Extract: {extract_name}")
+        for extract_type_name in extractor.get_extract_types(extract_name, extract_xpath):
+            table_name = snake_case(extract_type_name.replace("-", "_"))
+            table_names.append(table_name)
+            logging.info(f"Dropping table (if exists): {table_name}")
+            cx.execute(f'drop table if exists "{table_name}" cascade')
+            logging.info(f"Creating table: {table_name}")
+            tables[extract_name] = Table(
+                table_name,
+                metadata,
+                Column("id", Integer, primary_key=True),
+                Column("jdoc", JSONB, nullable=False),
+                Column("checksum", String(32)),
+                Column("created", TIMESTAMP, server_default=func.now()),
+                Column("modified", TIMESTAMP, onupdate=func.now()),
+                Index(f"{extract_type_name}_idxgin", "jdoc", postgresql_using="gin"),
+                schema="pcms",
+            )
+    metadata.create_all(engine)
+    cx.execute("SET SESSION search_path='api'")
+    for table_name in table_names:
+        cx.execute(f"CREATE VIEW {schema}.{table_name} AS SELECT id, jdoc FROM pcms.{table_name}")
+
+================
+File: bin/load.py
+================
+# Load PCMS data to database
+import argparse
+from configparser import ConfigParser
+import hashlib
+import json
+import logging
+import os
+import typing
+from sqlalchemy import create_engine
+from xpcms.extract import Extractor
+from xpcms.settings import settings
+from xpcms.utils import snake_case
+DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+DEFAULT_CFG_PATH = "config.ini"
+DEFAULT_CFG_SECTION = "DEFAULT"
+COMPACT_JSON_SEPARATORS = (",", ":")
+skip_list = {"two-way", "two-way_2017", "two-way_2018"}
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-k",
+        "--skip",
+        action="append",
+        help="Name of extract to skip. Only to be used with '--all'",
+    )
+    parser.add_argument(
+        "--all", action="store_true", help="Import all extracts",
+    )
+    parser.add_argument(
+        "-e", "--extract", action="append", help="Name of extracts to import",
+    )
+    parser.add_argument(
+        "-c", "--config", nargs="?", default=DEFAULT_CFG_PATH, help="Config path",
+    )
+    parser.add_argument(
+        "-i",
+        "--incremental",
+        action="store_true",
+        help="Use incremental instead of full extract",
+    )
+    parser.add_argument(
+        "-d", "--database-section", default="database", help="Database config section"
+    )
+    parser.add_argument(
+        "-s", "--config-section", default=DEFAULT_CFG_SECTION, help="Config section"
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="count", default=0, help="Verbose logging"
+    )
+    args = parser.parse_args()
+    set_logging(vcount=args.verbose)
+    return args
+def set_logging(
+    vcount: typing.Optional[int] = None,
+    format: typing.Union[str, logging.Formatter] = DEFAULT_LOG_FORMAT,
+    **log_args: dict,
+) -> None:
+    """
+    Apply logging options to `logging.basicConfig`
+    """
+    if vcount >= 2:
+        log_args["level"] = logging.DEBUG
+    elif vcount == 1:
+        log_args["level"] = logging.INFO
+    log_args["format"] = format
+    logging.basicConfig(**log_args)
+def main():
+    args = parse_args()
+    cfg_parser = ConfigParser()
+    cfg_parser.read(args.config)
+    # config = cfg_parser[args.config_section]
+    extractor = Extractor()
+    db_cfg = settings[args.database_section]
+    engine = create_engine(db_cfg["url"])
+    cx = engine.connect()
+    total_count = 0
+    if args.skip:
+        skip_list.extend(args.skip)
+    segment = "incremental" if args.incremental else "full"
+    for name in extractor.get_extract_names():
+        if args.all:
+            if name in skip_list:
+                logging.debug(f"Skipping: {name}")
+                continue
+        elif name not in args.extract:
+            logging.debug(f"Skipping: {name}")
+            continue
+        logging.info(f"Extracting: {name}")
+        extract_basename = f"nba_pcms_{segment}_extract_{name}.xml"
+        extract_path = os.path.join(settings["xpcms"]["pcms_path"], extract_basename)
+        logging.info(f"Extracting: {extract_path}")
+        with open(extract_path, "rb") as f:
+            extract_hash = hashlib.md5(f.read()).hexdigest()
+        logging.info(f"Hash for {extract_path}: {extract_hash}")
+        extract_count = 0
+        prev_table_name = None
+        for element_name, item, errs in extractor.pull(extract_path):
+            table_name = snake_case(element_name.replace("-", "_"))
+            if prev_table_name != table_name:
+                logging.info(f"Clearing: {table_name}")
+                cx.execute(f'delete from pcms."{table_name}"')
+                logging.info(f"Extracting: {extract_path}")
+            extract_count += 1
+            cx.execute(
+                f'insert into pcms."{table_name}" (jdoc, checksum) values (%s, %s)',
+                json.dumps(item, separators=COMPACT_JSON_SEPARATORS),
+                extract_hash,
+            )
+            prev_table_name = table_name
+        logging.info(f"Extracted {extract_count} from {extract_path}")
+        total_count += extract_count
+    logging.info(f"Completed: {total_count} total extractions")
+if __name__ == "__main__":
+    main()
+
+================
+File: bin/parse.py
+================
+# Load PCMS data to database
+import argparse
+from configparser import ConfigParser
+import hashlib
+import json
+import logging
+import os
+from time import time
+import typing
+from xpcms.extract import Extractor
+from xpcms.settings import settings
+from xpcms.utils import snake_case
+DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+DEFAULT_CFG_PATH = "config.ini"
+DEFAULT_CFG_SECTION = "DEFAULT"
+COMPACT_JSON_SEPARATORS = (",", ":")
+skip_list = {"two-way", "two-way_2017", "two-way_2018"}
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-k",
+        "--skip",
+        action="append",
+        help="Name of extract to skip. Only to be used with '--all'",
+    )
+    parser.add_argument(
+        "--all", action="store_true", help="Import all extracts",
+    )
+    parser.add_argument(
+        "-e", "--extract", action="append", help="Name of extracts to import",
+    )
+    parser.add_argument(
+        "-c", "--config", nargs="?", default=DEFAULT_CFG_PATH, help="Config path",
+    )
+    parser.add_argument(
+        "-i",
+        "--incremental",
+        action="store_true",
+        help="Use incremental instead of full extract",
+    )
+    parser.add_argument(
+        "-t", "--table", action="store_true", help="Emit table definition"
+    )
+    parser.add_argument(
+        "-d", "--database-section", default="database", help="Database config section"
+    )
+    parser.add_argument(
+        "-s", "--config-section", default=DEFAULT_CFG_SECTION, help="Config section"
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="count", default=0, help="Verbose logging"
+    )
+    args = parser.parse_args()
+    set_logging(vcount=args.verbose)
+    return args
+def set_logging(
+    vcount: typing.Optional[int] = None,
+    format: typing.Union[str, logging.Formatter] = DEFAULT_LOG_FORMAT,
+    **log_args: dict,
+) -> None:
+    """
+    Apply logging options to `logging.basicConfig`
+    """
+    if vcount >= 2:
+        log_args["level"] = logging.DEBUG
+    elif vcount == 1:
+        log_args["level"] = logging.INFO
+    log_args["format"] = format
+    logging.basicConfig(**log_args)
+def main():
+    args = parse_args()
+    cfg_parser = ConfigParser()
+    cfg_parser.read(args.config)
+    # config = cfg_parser[args.config_section]
+    extractor = Extractor()
+    total_count = 0
+    if args.skip:
+        skip_list.extend(args.skip)
+    segment = "incremental" if args.incremental else "full"
+    json_path = os.path.expanduser(settings["xpcms"]["json_path"])
+    start = time()
+    table_defs = {}
+    for name in extractor.get_extract_names():
+        if args.all:
+            if name in skip_list:
+                logging.info(f"Auto-skipping: {name}")
+                continue
+        elif name not in args.extract:
+            logging.info(f"Skipping: {name}")
+            continue
+        logging.info(f"Extracting: {name}")
+        extract_basename = f"nba_pcms_{segment}_extract_{name}.xml"
+        extract_path = os.path.join(os.path.expanduser(settings["xpcms"]["pcms_path"]), extract_basename)
+        logging.info(f"Extracting: {extract_path}")
+        with open(extract_path, "rb") as f:
+            extract_hash = hashlib.md5(f.read()).hexdigest()
+        logging.info(f"Hash for {extract_path}: {extract_hash}")
+        extract_count = 0
+        prev_table_name = None
+        if not os.path.exists(json_path):
+            os.mkdir(json_path)
+        output_path = f"{json_path}/{name}.{segment}.jsonl"
+        logging.info(f"Writing out to {output_path}")
+        with open(output_path, "w") as f:
+            for element_name, item, errs in extractor.pull(extract_path):
+                table_name = snake_case(element_name.replace("-", "_"))
+                if prev_table_name != table_name:
+                    logging.info(f"Clearing: {table_name}")
+                    logging.info(f"Extracting: {extract_path}")
+                extract_count += 1
+                payload = json.dumps(item, separators=COMPACT_JSON_SEPARATORS)
+                print(payload, file=f)
+                prev_table_name = table_name
+            logging.info(f"Extracted {extract_count} from {extract_path}")
+            total_count += extract_count
+        if args.table:
+            new_defs = extractor.get_table_def(extract_path)
+            logging.info(f"Updating table definitions: {new_defs.keys()}")
+            table_defs.update(new_defs)
+    if args.table:
+        for table_name, table_def in table_defs.items():
+            table_def_path = f"{table_name}.def.json"
+            logging.info(f"Writing table definition to {table_def_path}")
+            with open(table_def_path, "w") as f:
+                json.dump(table_def, f, indent=2)
+    duration = int(time() - start)
+    logging.info(f"Completed: {total_count} total extractions ({duration} seconds)")
+if __name__ == "__main__":
+    main()
+
+================
+File: bin/run_update.py
+================
+# This is the one true script
+import argparse
+from configparser import ConfigParser
+import hashlib
+import json
+import logging
+import os
+from pathlib import Path
+from time import time
+import typing
+from xpcms.extract import Extractor
+from xpcms.settings import settings
+from xpcms.utils import snake_case, to_sql_type, extract_file_name_incremental
+DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+DEFAULT_CFG_PATH = "config.ini"
+DEFAULT_CFG_SECTION = "DEFAULT"
+COMPACT_JSON_SEPARATORS = (",", ":")
+skip_list = {
+    "two-way",
+    "two-way_2017",
+    "two-way_2018",
+    "ledger_old",
+    "dp",
+    "two-way-utility",
+    "waiver-priority",
+}
+db_schema_name = "xpcms"
+jsonl_stage_name = "jsonl_stage"
+tmp_merge_path = "sql/tmp-merge"
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-k",
+        "--skip",
+        action="append",
+        help="Name of extract to skip. Only to be used with '--all'",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Import all extracts",
+    )
+    parser.add_argument(
+        "-e",
+        "--extract",
+        action="append",
+        help="Name of extracts to import",
+    )
+    parser.add_argument(
+        "-c",
+        "--config",
+        nargs="?",
+        default=DEFAULT_CFG_PATH,
+        help="Config path",
+    )
+    parser.add_argument(
+        "-i",
+        "--incremental",
+        action="store_true",
+        help="Use incremental instead of full extract",
+    )
+    parser.add_argument("-t", "--table", action="store_true", help="Emit table definition")
+    parser.add_argument("-m", "--merge", action="store_true", help="Create merge statements")
+    parser.add_argument(
+        "--insert-only",
+        action="store_true",
+        help="Set merge statements as insert-only on incremental extracts, no updates. Default is false on incremental (-i/--incremental), true on full extracts",
+    )
+    parser.add_argument(
+        "-d", "--database-section", default="database", help="Database config section"
+    )
+    parser.add_argument(
+        "-s", "--config-section", default=DEFAULT_CFG_SECTION, help="Config section"
+    )
+    parser.add_argument("-v", "--verbose", action="count", default=0, help="Verbose logging")
+    args = parser.parse_args()
+    set_logging(vcount=args.verbose)
+    return args
+def set_logging(
+    vcount: typing.Optional[int] = None,
+    format: typing.Union[str, logging.Formatter] = DEFAULT_LOG_FORMAT,
+    **log_args: dict,
+) -> None:
+    """
+    Apply logging options to `logging.basicConfig`
+    """
+    if vcount >= 2:
+        log_args["level"] = logging.DEBUG
+    elif vcount == 1:
+        log_args["level"] = logging.INFO
+    log_args["format"] = format
+    logging.basicConfig(**log_args)
+def create_merge_statement(
+    extract_name: str,
+    table_name: str,
+    extract_keys: str,
+    run_date: str,
+    source_file: str,
+    pk_types: dict,
+    *,
+    insert_only: bool = False,
+):
+    """
+    :param insert_only: skip merge update
+    """
+    if "_incremental_" in source_file:
+        extract_level = "incremental"
+    elif "_full_" in source_file:
+        extract_level = "full"
+    else:
+        raise ValueError(
+            f"Unknown extract level for {source_file}. Expected '_incremental_' or '_full_' in filename"
+        )
+    primary_keys = tuple(map(snake_case, extract_keys))
+    target_source_key_match = " and ".join(
+        [
+            f"target.{pk} = source.xdata:{ek}::{pk_types[ek]}"
+            for pk, ek in zip(primary_keys, extract_keys)
+        ]
+    )
+    source_pk_list = ", ".join([f"source.xdata:{ek}::{pk_types.get(ek)}" for ek in extract_keys])
+    pk_list = ", ".join(primary_keys)
+    matched_clause = """
+when matched
+-- and source.run_date > target.run_date
+and to_json(target.xdata) != to_json(source.xdata)
+then update set
+    target.run_date = source.run_date
+    , target.source_file = source.source_file
+    , target.xdata = source.xdata"""
+    stmt = f"""MERGE INTO {db_schema_name}.{table_name} AS target USING (
+    SELECT s.$1 as xdata
+    , '{run_date}' as run_date
+    , '{source_file}' as source_file
+    FROM @{db_schema_name}.{jsonl_stage_name} (pattern => 'json/{extract_name}[.]{extract_level}[.]jsonl') as s
+) source on {target_source_key_match}
+when not matched then insert (
+    {pk_list}, xdata, run_date, source_file
+) values (
+    {source_pk_list}, source.xdata, source.run_date, source.source_file
+){matched_clause if not insert_only else ""}
+;
+"""
+    with open(f"{tmp_merge_path}/10-merge-{table_name}.sql", "w") as f:
+        f.write(stmt)
+    return stmt
+def main():
+    args = parse_args()
+    cfg_parser = ConfigParser()
+    cfg_parser.read(args.config)
+    # config = cfg_parser[args.config_section]
+    extractor = Extractor()
+    total_count = 0
+    if args.skip:
+        skip_list.update(args.skip or [])
+    segment = "incremental" if args.incremental else "full"
+    json_path = os.path.expanduser(settings["xpcms"]["json_path"])
+    start = time()
+    table_defs = {}
+    merge_extracts = []
+    for name in extractor.get_extract_names():
+        if args.all:
+            if name in skip_list:
+                logging.info(f"Auto-skipping: {name}")
+                continue
+        elif name not in (args.extract or []):
+            logging.info(f"Skipping: {name}")
+            continue
+        logging.info(f"Extracting: {name}")
+        extract_basename = f"nba_pcms_{segment}_extract_{name}.xml"
+        extract_path = os.path.join(
+            os.path.expanduser(settings["xpcms"]["pcms_path"]), extract_basename
+        )
+        if not os.path.exists(extract_path):
+            extract_basename = f"nba_pcms_{segment}_extract_{name}-extract.xml"
+            extract_path = os.path.join(
+                os.path.expanduser(settings["xpcms"]["pcms_path"]), extract_basename
+            )
+        logging.info(f"Extracting: {extract_path}")
+        with open(extract_path, "rb") as f:
+            extract_hash = hashlib.md5(f.read()).hexdigest()
+        logging.info(f"Hash for {extract_path}: {extract_hash}")
+        extract_count = 0
+        prev_table_name = None
+        if not os.path.exists(json_path):
+            os.mkdir(json_path)
+        output_path = f"{json_path}/{name}.{segment}.jsonl"
+        logging.info(f"Writing out to {output_path}")
+        with open(output_path, "w") as f:
+            for element_name, item, errs in extractor.pull(extract_path):
+                table_name = snake_case(element_name.replace("-", "_"))
+                if prev_table_name != table_name:
+                    logging.info(f"Clearing: {table_name}")
+                    logging.info(f"Extracting: {extract_path}")
+                extract_count += 1
+                payload = json.dumps(item, separators=COMPACT_JSON_SEPARATORS)
+                print(payload, file=f)
+                prev_table_name = table_name
+            logging.info(f"Extracted {extract_count} from {extract_path}")
+            total_count += extract_count
+        if args.table:
+            new_defs = extractor.get_table_def(extract_path)
+            logging.info(f"Updating table definitions: {new_defs.keys()}")
+            table_defs.update(new_defs)
+        merge_extracts.append(
+            {
+                "name": name,
+                "file": extract_basename,
+                "hash": extract_hash,
+            }
+        )
+    if args.table:
+        def create_table_statement(element_name, coldefs):
+            """Writes it out to path"""
+            table_name = snake_case(element_name)
+            table_def_path = Path("sql") / f"02-create-table-{table_name}.sql"
+            column_terms = [
+                f"{snake_case(col['name'])} {to_sql_type(col['type'])} not null" for col in coldefs
+            ]
+            col_list = ",\n    ".join(column_terms)
+            primary_keys = ", ".join(snake_case(col["name"]) for col in coldefs)
+            with open(table_def_path, "w") as f:
+                logging.info(
+                    f"Writing table definition to {table_def_path} for {element_name} (keys: {len(coldefs)})"
+                )
+                stmt = f"""create table if not exists {db_schema_name}.{table_name} (
+    {col_list}
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key ({primary_keys})
+);
+"""
+                f.write(stmt)
+        for element_name, coldefs in table_defs.items():
+            create_table_statement(element_name, coldefs)
+        if not table_defs:
+            # No table defs from extraction, use the extract_elements
+            for extract_name, incr_basename in extract_file_name_incremental.items():
+                if extract_name in skip_list:
+                    continue
+                tdef = extractor.get_table_def(incr_basename)
+                for extract_name, columns in tdef.items():
+                    create_table_statement(extract_name, columns)
+    if args.merge:
+        insert_only = args.insert_only
+        # Set "insert only" default based on extract level
+        if args.insert_only is None:
+            if args.incremental:
+                insert_only = False
+            else:
+                insert_only = True
+        path_tmp_merge = Path(tmp_merge_path)
+        path_tmp_merge.mkdir(parents=True, exist_ok=True)
+        for merge_item in merge_extracts:
+            if (
+                not args.all
+                and merge_item["name"] not in (args.extract or [])
+                or merge_item["name"] in skip_list
+            ):
+                continue
+            run_date = cfg_parser.get("pcms-run-dates", merge_item["file"])
+            logging.info(f"Run date for {merge_item['file']}: {run_date}")
+            if not run_date:
+                raise ValueError(
+                    f"Run date not found for {merge_item['file']} - check section [pcms-run-dates]"
+                )
+            table_def = extractor.get_table_def(merge_item["file"])
+            extract_info = extractor.extract_elements[merge_item["name"]]
+            pk_types = dict(
+                [(col["name"], to_sql_type(col["type"])) for col in table_def[extract_info[0]]]
+            )
+            table_name = snake_case(extract_info[0])
+            merge_stmt = create_merge_statement(
+                merge_item["name"],
+                table_name,
+                extract_info[1],
+                run_date,
+                merge_item["file"],
+                pk_types,
+                insert_only=insert_only,
+            )
+            print(merge_stmt)
+        if not merge_extracts:
+            # If performing merge without extracting any
+            run_dates = dict(cfg_parser["pcms-run-dates"].items())
+            for extract_name, (el_name, el_keys) in extractor.extract_elements.items():
+                extract_basename = f"nba_pcms_{segment}_extract_{extract_name}.xml"
+                run_date = run_dates.get(extract_basename)
+                if not run_date:
+                    extract_basename = f"nba_pcms_{segment}_extract_{extract_name}-extract.xml"
+                    run_date = run_dates.get(extract_basename)
+                if not run_date:
+                    raise ValueError(
+                        f"Run date not found for {extract_name} - check section [pcms-run-dates]"
+                    )
+                extract_path = os.path.join(
+                    os.path.expanduser(settings["xpcms"]["pcms_path"]), extract_basename
+                )
+                table_def = extractor.get_table_def(extract_path)
+                extract_info = extractor.extract_elements[extract_name]
+                pk_types = dict(
+                    [(col["name"], to_sql_type(col["type"])) for col in table_def[extract_info[0]]]
+                )
+                logging.info(f"{extract_name} -> {el_name} ({', '.join(el_keys)}) -> {run_date}")
+                table_name = snake_case(extract_info[0])
+                merge_stmt = create_merge_statement(
+                    extract_name, table_name, extract_info[1], run_date, extract_basename, pk_types
+                )
+                print(merge_stmt)
+    duration = int(time() - start)
+    logging.info(f"Completed: {total_count} total extractions ({duration} seconds)")
+if __name__ == "__main__":
+    main()
+
+================
+File: sql/00-xpcms-schema.sql
+================
+create schema if not exists xpcms;
+
+================
+File: sql/02-create-table-budget_team.sql
+================
+create table if not exists xpcms.budget_team (
+    team_id INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (team_id)
+);
+
+================
+File: sql/02-create-table-cap_projection.sql
+================
+create table if not exists xpcms.cap_projection (
+    salary_cap_projection_id INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (salary_cap_projection_id)
+);
+
+================
+File: sql/02-create-table-contract.sql
+================
+create table if not exists xpcms.contract (
+    contract_id INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (contract_id)
+);
+
+================
+File: sql/02-create-table-draft_pick_summary.sql
+================
+create table if not exists xpcms.draft_pick_summary (
+    draft_year INTEGER not null,
+    team_id INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (draft_year, team_id)
+);
+
+================
+File: sql/02-create-table-exception_team.sql
+================
+create table if not exists xpcms.exception_team (
+    team_id INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (team_id)
+);
+
+================
+File: sql/02-create-table-non_contract_amount.sql
+================
+create table if not exists xpcms.non_contract_amount (
+    non_contract_amount_id INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (non_contract_amount_id)
+);
+
+================
+File: sql/02-create-table-player.sql
+================
+create table if not exists xpcms.player (
+    player_id INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (player_id)
+);
+
+================
+File: sql/02-create-table-rookie_scale_amount.sql
+================
+create table if not exists xpcms.rookie_scale_amount (
+    league_lk TEXT not null,
+    pick INTEGER not null,
+    season INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (league_lk, pick, season)
+);
+
+================
+File: sql/02-create-table-tax_rate.sql
+================
+create table if not exists xpcms.tax_rate (
+    lower_limit INTEGER not null,
+    salary_year INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (lower_limit, salary_year)
+);
+
+================
+File: sql/02-create-table-tax_team.sql
+================
+create table if not exists xpcms.tax_team (
+    salary_year INTEGER not null,
+    team_id INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (salary_year, team_id)
+);
+
+================
+File: sql/02-create-table-team_transaction.sql
+================
+create table if not exists xpcms.team_transaction (
+    team_transaction_id INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (team_transaction_id)
+);
+
+================
+File: sql/02-create-table-trade.sql
+================
+create table if not exists xpcms.trade (
+    trade_id INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (trade_id)
+);
+
+================
+File: sql/02-create-table-transaction_ledger_entry.sql
+================
+create table if not exists xpcms.transaction_ledger_entry (
+    transaction_ledger_entry_id INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (transaction_ledger_entry_id)
+);
+
+================
+File: sql/02-create-table-transaction_waiver_amount.sql
+================
+create table if not exists xpcms.transaction_waiver_amount (
+    transaction_waiver_amount_id INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (transaction_waiver_amount_id)
+);
+
+================
+File: sql/02-create-table-transaction.sql
+================
+create table if not exists xpcms.transaction (
+    transaction_id INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (transaction_id)
+);
+
+================
+File: sql/02-create-table-yearly_salary_scale.sql
+================
+create table if not exists xpcms.yearly_salary_scale (
+    league_lk TEXT not null,
+    salary_year INTEGER not null,
+    years_of_service INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (league_lk, salary_year, years_of_service)
+);
+
+================
+File: sql/02-create-table-yearly_system_value.sql
+================
+create table if not exists xpcms.yearly_system_value (
+    league_lk TEXT not null,
+    system_year INTEGER not null
+    , xdata VARIANT
+    , run_date TIMESTAMP_TZ
+    , source_file TEXT
+    , primary key (league_lk, system_year)
+);
+
+================
+File: src/xpcms/__init__.py
+================
+
+
+================
+File: src/xpcms/extract.py
+================
+import logging
+import os
+import re
+import typing
+import xmlschema
+from xpcms.settings import settings
+XSI_NIL_VAL = {"@xsi:nil": "true"}
+XMLNS_KEY = "@xmlns:xsi"
+XMLNS_KEY2 = "@xmlns"
+# Top-level extract xpaths
+# xpath_prefix = '/xml-extract/*[ends-with(name(), "-extract")]'
+xpath_prefix = "/xml-extract"
+xpath_suffixes = {
+    "team-budget": "/budgetTeams",
+    # "lookups": '/*[starts-with(name(), "lk")]',
+    "team-exception": "/*",
+    "team-tr": "/tt-extract",
+    "transactions-waiver-amount": "/twa-extract",
+}
+default_suffix = ""
+filter_leagues = {"WNBA", "2KL"}
+extract_key_map = {
+    "capProjection": "salaryCapProjectionId",
+    "contract": "contractId",
+    "draft-pick-summary": ("teamId", "draftYear"),
+    "transactionLedgerEntry": "transactionLedgerEntryId",
+    "player": "playerId",
+    "budgetTeam": "teamId",
+    "exceptionTeam": "teamId",
+    "trade": "tradeId",
+    "transaction": "transactionId",
+    "yearlySalaryScale ": None,
+    "yearlySystemValue": None,
+    "taxTeam": ("teamId", "salaryYear"),
+    "taxRate": None,
+    # "teamTransaction": None,
+}
+lookup_key_map = {
+    "lkTeam": "team_id",
+    "lkSchool": "school_id",
+}
+def get_key_for_extract(extract_name):
+    return extract_key_map.get(extract_name, f"{extract_name}Id")
+class PCMSSchemaConverter(xmlschema.converters.XMLSchemaConverter):
+    """
+    Bypass the default nil value attribute behavior in favor of None
+    - Convert nil value from namespaced-attribute to None
+    - Strip namespace attribute from elements
+    - Collapse sequence containers, e.g. in contract:
+        {
+            ...,
+            "versions": {
+                "version": [
+                    { version0 },
+                    { version1 },
+                    { version2 },
+                    ...
+                ]
+            }
+        }
+        becomes:
+        {
+            ...,
+            "versions": [
+                { version0 },
+                { version1 },
+                { version2 },
+                ...
+            ]
+        }
+    NOTE: `extract_container_levels`: 2 is necessary to maintain structure at
+    the top containers and the encapsulating type(s), namely lookups
+    """
+    default_extract_container_levels = 1  # See NOTE above
+    extract_container_levels = {
+        "lookups-extract": 3,
+    }
+    # Wipe these out as null if nillable
+    nullify_elements = {
+        "paymentSchedules",
+    }
+    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+        rval = super().element_decode(data, xsd_element, xsd_type=xsd_type, level=level)
+        if xsd_element.name in self.nullify_elements and xsd_element.nillable:
+            return None
+        if (
+            isinstance(rval, dict)
+            and len(rval.keys()) == 1
+            and isinstance(list(rval.values())[0], list)
+            and level
+            >= self.extract_container_levels.get(
+                xsd_element.name, self.default_extract_container_levels
+            )
+        ):
+            # Strictly sequence container
+            return list(rval.values())[0]
+        if isinstance(rval, dict):
+            # Drop namespace attribute(s)
+            if XMLNS_KEY in rval:
+                rval.pop(XMLNS_KEY)
+            if XMLNS_KEY2 in rval:
+                rval.pop(XMLNS_KEY2)
+        if rval == XSI_NIL_VAL:
+            return None
+        return rval
+class Extractor:
+    """
+    Tool to extract JSON from PCMS XML
+    """
+    pcms_extract_pattern = r"^nba_pcms_(full|incremental)_extract_(.*)\.xml$"
+    def __init__(
+        self,
+        schema: typing.Union[os.PathLike, xmlschema.XMLSchema, None] = None,
+        validation: str = "lax",
+    ):
+        if isinstance(schema, xmlschema.XMLSchema):
+            self.schema = schema
+        else:
+            if not schema:
+                schema_path = settings["xpcms"]["schema_path"]
+            else:
+                schema_path = schema
+            self.schema = xmlschema.XMLSchema(
+                os.path.expanduser(schema_path),
+                converter=PCMSSchemaConverter,
+                validation=validation,
+            )
+        self.validation = validation
+    extract_xpath_el_name_overrides = {
+        "lookup": "lookups",
+        "yearly-salary-scales-extract": "yearly-salary-scales",
+        "tax-rates-extract": "tax-rates",
+        "tax-teams-extract": "tax-teams",
+        "team-tr-extract": "tt",
+        "transactions-waiver-amounts": "twa",
+        "nca-extract": "nca",
+    }
+    @classmethod
+    def get_xpath_for_extract_legacy(cls, extract_name):
+        """
+        Get extract xpath - account for one-off cases
+        """
+        if extract_name in cls.extract_xpath_el_name_overrides:
+            extract_name = cls.extract_xpath_el_name_overrides[extract_name]
+        # if extract_name == "lookup":
+        #     # One-off
+        #     extract_name = "lookups"
+        # elif extract_name == "yearly-salary-scales-extract":
+        #     extract_name = "yearly-salary-scales"
+        # elif extract_name == "tax-rates-extract":
+        #     extract_name = "taxRate"
+        suffix = xpath_suffixes.get(extract_name, default_suffix)
+        return f"{xpath_prefix}/{extract_name}-extract{suffix}"
+    @classmethod
+    def get_name_from_extract(cls, path: typing.Optional[os.PathLike]) -> str:
+        basename = os.path.basename(path)
+        match = re.match(cls.pcms_extract_pattern, basename)
+        name = match.group(2)
+        if not name:
+            raise AttributeError(f"Invalid extract name from path: {basename}")
+        name = re.sub(r"-extract$", "", name)
+        return name
+    @classmethod
+    def get_extract_names(cls, pcms_path: typing.Optional[os.PathLike] = None):
+        if not pcms_path:
+            pcms_path = settings["xpcms"]["pcms_path"]
+        names = set()
+        for path in os.listdir(os.path.expanduser(pcms_path)):
+            try:
+                name = cls.get_name_from_extract(path)
+                names.add(name)
+            except AttributeError:
+                continue
+        return sorted(list(names))
+    def get_extract_types(self, extract_xpath: str):
+        """
+        Generator for top-level extract types within each extract
+        """
+        for extract_element in self.schema.findall(extract_xpath):
+            yield extract_element.name
+    # def get_lookups_table_defs(self) -> dict:
+    def get_lookups_table_name_keys(self) -> typing.List[typing.Tuple[str, str, typing.Tuple[str]]]:
+        """Special case for lookup types"""
+        table_name_keys = []
+        for el in self.schema.findall("/xml-extract/lookups-extract/*"):
+            print(el.name)
+            if not el.name.startswith("lk"):
+                continue
+            children = list(el.iterchildren())
+            if len(children) != 1:
+                logging.info(f"Unexpected number of children for {el.name}")
+                continue
+            lookup_el = children[0]
+            lookup_name_flip = lookup_el.name[2:]
+            lookup_name_flip = f"{lookup_name_flip[0].lower()}{lookup_name_flip[1:]}Lk"
+            target_el, target_keys = self.lookup_elements.get(
+                lookup_el.name, (lookup_el.name, (lookup_name_flip,))
+            )
+            key_exists = False
+            for grandchild in lookup_el.iterchildren():
+                if grandchild.name == target_keys[0]:
+                    key_exists = True
+            assert key_exists, f"Key {target_keys[0]} not found in {lookup_el.name}"
+            table_name_keys.append((lookup_name_flip, target_el, target_keys))
+        return table_name_keys
+    def get_table_def(self, extract_path: str):
+        tables = {}
+        extract_basename = os.path.basename(extract_path)
+        extract_name = self.get_name_from_extract(extract_path)
+        if extract_name == "lookup":
+            table_name_keys = self.get_lookups_table_name_keys()
+        else:
+            el_name, el_keys = self.extract_elements[extract_name]
+            table_name_keys = [(el_name, el_name, el_keys)]
+        for table_name, el_name, element_keys in table_name_keys:
+            # el_name, element_keys = self.extract_elements[extract_name]
+            for el in self.schema.findall(f".//{el_name}"):
+                if not el.name:
+                    continue
+                columns = []
+                for child in el.iterchildren():
+                    if child.name not in element_keys:
+                        continue
+                    type_name = None
+                    if isinstance(child.type, xmlschema.validators.complex_types.XsdComplexType):
+                        continue
+                    elif isinstance(child.type, xmlschema.validators.simple_types.XsdAtomicBuiltin):
+                        type_name = child.type.local_name
+                    columns.append(
+                        {
+                            "name": child.name,
+                            "type": type_name,
+                            "nullable": child.nillable,
+                            "file": extract_basename,
+                        }
+                    )
+                tables[table_name] = columns
+        return tables
+    def pull(
+        self, extract_path: os.PathLike
+    ) -> typing.Generator[typing.Tuple[str, dict, typing.List[Exception]], None, None]:
+        extract_name = self.get_name_from_extract(extract_path)
+        # if extract_name == "lookup":
+        #     # TODO
+        #     logging.warning("TODO: Skipping lookup extract")
+        #     return
+        el_name, _ = self.extract_elements[extract_name]
+        extract_xpath = f".//{el_name}"
+        extract_path = os.path.expanduser(extract_path)
+        errs = []
+        with open(extract_path, "r") as f:
+            for item in self.schema.iter_decode(
+                f,
+                path=extract_xpath,
+                validation=self.validation,
+                datetime_types=False,
+                decimal_type=float,
+            ):
+                if isinstance(item, Exception):
+                    logging.warn(item)
+                    errs.append(item)
+                    pass
+                elif isinstance(item, dict) and item.get("leagueLk") not in filter_leagues:
+                    yield el_name, item, errs
+                    errs = []
+    def pull_legacy(self, extract_path: os.PathLike):
+        """Not as old as pull_old"""
+        extract_name = self.get_name_from_extract(extract_path)
+        extract_xpath = self.get_xpath_for_extract_legacy(extract_name)
+        print(extract_xpath)
+        extract_path = os.path.expanduser(extract_path)
+        errs = []
+        for extract_type in self.get_extract_types(extract_xpath):
+            xpath = f"{extract_xpath}/{extract_type}"
+            with open(extract_path, "r") as f:
+                for item in self.schema.iter_decode(
+                    f,
+                    path=xpath,
+                    validation=self.validation,
+                    datetime_types=False,
+                    decimal_type=float,
+                ):
+                    if isinstance(item, Exception):
+                        logging.warn(item)
+                        errs.append(item)
+                        pass
+                    elif isinstance(item, dict):
+                        yield extract_type, item, errs
+                        errs = []
+    def pull_old(self, extract_path: os.PathLike):
+        """
+        Perform extract of particular extract type
+        """
+        extract_path = os.path.expanduser(extract_path)
+        data, errs = self.extract_from_source(extract_path)
+        extract_type = data["extractType"]
+        extract_container = data.pop(extract_type)
+        extract_meta = data
+        logging.info(extract_meta)
+        extract_items = []
+        for extract_name, items in extract_container.items():
+            logging.info(f"Extracting {extract_name}")
+            if items:
+                if isinstance(items, dict):
+                    for subc_name, sub_items in items.items():
+                        assert isinstance(sub_items, list)
+                        extract_items.extend(sub_items)
+                elif isinstance(items, list):
+                    extract_items.extend(items)
+                else:
+                    # likely extract submeta
+                    continue
+        return extract_items, extract_meta, errs
+    def extract_from_source(
+        self, extract_file_path: typing.Optional[os.PathLike], **decode_args
+    ) -> typing.Any:
+        if not extract_file_path:
+            extract_file_path = settings["xpcms"]["pcms"]
+        data, errs = self.schema.to_dict(
+            extract_file_path,
+            validation=self.validation,
+            datetime_types=False,
+            decimal_type=float,
+            **decode_args,
+        )
+        logging.info(f"Extraction completed for '{extract_file_path}' with {len(errs)} errors")
+        for i, err in enumerate(errs):
+            logging.warning(f"[Error {i + 1}] {err.message} - {err.reason} - {err.path}")
+        logging.info(f"Extract: {len(data)} items")
+        return data, errs
+    # extract name => (element name, (key names))
+    extract_elements = {
+        "cap-projections": (
+            "capProjection",
+            ("salaryCapProjectionId",),
+        ),
+        "contract": (
+            "contract",
+            ("contractId",),
+        ),
+        "dps": (
+            "draft-pick-summary",
+            (
+                "teamId",
+                "draftYear",
+            ),
+        ),
+        "ledger": (
+            "transactionLedgerEntry",
+            ("transactionLedgerEntryId",),
+        ),
+        "lookup": (
+            "lookups-extract/*",
+            tuple(),
+        ),
+        "nca": (
+            "nonContractAmount",
+            ("nonContractAmountId",),
+        ),
+        "player": (
+            "player",
+            ("playerId",),
+        ),
+        "rookie-scale-amounts": (
+            "rookieScaleAmount",
+            (
+                "leagueLk",
+                "season",
+                "pick",
+            ),
+        ),
+        "tax-rates": (
+            "taxRate",
+            (
+                "salaryYear",
+                "lowerLimit",
+            ),
+        ),
+        "tax-teams": (
+            "taxTeam",
+            (
+                "salaryYear",
+                "teamId",
+            ),
+        ),
+        "team-budget": (
+            "budgetTeam",
+            ("teamId",),
+        ),
+        "team-exception": (
+            "exceptionTeam",
+            ("teamId",),
+        ),
+        "team-tr": (
+            "teamTransaction",
+            ("teamTransactionId",),
+        ),
+        "trade": (
+            "trade",
+            ("tradeId",),
+        ),
+        "transaction": (
+            "transaction",
+            ("transactionId",),
+        ),
+        "transactions-waiver-amounts": (
+            "transactionWaiverAmount",
+            ("transactionWaiverAmountId",),
+        ),
+        "two-way": (
+            "two-way-season",
+            ("season",),
+        ),
+        "yearly-salary-scales": (
+            "yearlySalaryScale",
+            (
+                "leagueLk",
+                "salaryYear",
+                "yearsOfService",
+            ),
+        ),
+        "yearly-system-values": (
+            "yearlySystemValue",
+            (
+                "leagueLk",
+                "systemYear",
+            ),
+        ),
+    }
+    lookup_elements = {
+        "lkAgency": ("lkAgency", ("agencyId",)),
+        "lkWApronLevel": ("lkWApronLevel", ("apronLevelLk",)),
+        "lkCriterium": ("lkCriterium", ("criteriaLk",)),
+        "lkExclusivityStatus": ("lkExclusivityStatuses ", ("exclusivityStatusLk",)),
+        "lkSchool": (
+            "lkSchool",
+            ("schoolId",),
+        ),
+        "lkTeam": (
+            "lkTeam",
+            ("teamId",),
+        ),
+        "lkWithinDay": (
+            "lkWithinDay",
+            ("withinDaysLk",),
+        ),
+    }
+
+================
+File: src/xpcms/settings.py
+================
+# nbaxml.settings
+# Settings (aka configuration values) are determined by (a) an environment
+# variable or, failing that, (b) a config file.
+# The path to the config file, option (b), is determined by an environment
+# variable, as is its section
+# Default configuration values read from environment variables
+from configparser import ConfigParser
+import os
+NBAXML_CONFIG_PATH_VAR = "XPCMS_CONFIG_PATH"
+DEFAULT_CONFIG_BASENAME = "config.ini"
+class Settings(ConfigParser):
+    """
+    Settings (Configuration) that first checks environment variables before
+    config file
+    The environment variable is generated as "{section.upper()}_{options.upper()}"
+        settings['xpcms']['pcms_path'] => XPCMS_PCMS_PATH
+    """
+    def __init__(self, *args, **kwargs):
+        rv = super().__init__(*args, **kwargs)
+        nbaxml_config_path = os.getenv(NBAXML_CONFIG_PATH_VAR)
+        if nbaxml_config_path:
+            self.read(nbaxml_config_path)
+        if os.path.exists(DEFAULT_CONFIG_BASENAME):
+            self.read(DEFAULT_CONFIG_BASENAME)
+        return rv
+    @staticmethod
+    def get_env_varname(section: str, option: str):
+        return "_".join([section.upper(), option.upper()])
+    def get(self, section: str, option: str, **kwargs):
+        env_varname = self.get_env_varname(section, option)
+        env_val = os.getenv(env_varname)
+        if env_val:
+            return env_val
+        return super().get(section, option, **kwargs)
+settings = Settings()
+
+================
+File: src/xpcms/utils.py
+================
+import re
+def snake_case(text) -> str:
+    """
+    Convert PCMS resource names (largely camelCase) to snake_case.
+    """
+    text = re.sub(r"^([A-Z]+)", lambda s: s.group(0).lower(), text)
+    text = re.sub(r"\W", "_", text)
+    return re.sub(r"[A-Z]+", lambda s: "_{}".format(s.group(0).lower()), text)
+def to_sql_type(xsd_type: str) -> str:
+    """Convert an XSD type to a SQL type"""
+    if xsd_type in ("string", "normalizedString", "token", "language", "Name", "NCName", "NMTOKEN"):
+        return "TEXT"
+    if xsd_type in (
+        "integer",
+        "nonPositiveInteger",
+        "negativeInteger",
+        "long",
+        "int",
+        "short",
+        "byte",
+        "nonNegativeInteger",
+        "unsignedLong",
+        "unsignedInt",
+        "unsignedShort",
+        "unsignedByte",
+        "positiveInteger",
+    ):
+        return "INTEGER"
+    if xsd_type in ("decimal", "float", "double"):
+        return "DOUBLE"
+    if xsd_type in ("boolean",):
+        return "BOOLEAN"
+    else:
+        return "TEXT"
+extract_file_name_incremental = {
+    "cap-projections": "nba_pcms_incremental_extract_cap-projections.xml",
+    "contract": "nba_pcms_incremental_extract_contract.xml",
+    "dps": "nba_pcms_incremental_extract_dps.xml",
+    "ledger": "nba_pcms_incremental_extract_ledger.xml",
+    "ledger_old": "nba_pcms_incremental_extract_ledger_old.xml",
+    "lookup": "nba_pcms_incremental_extract_lookup.xml",
+    "nca": "nba_pcms_incremental_extract_nca-extract.xml",
+    "player": "nba_pcms_incremental_extract_player.xml",
+    "rookie-scale-amounts": "nba_pcms_incremental_extract_rookie-scale-amounts.xml",
+    "tax-rates": "nba_pcms_incremental_extract_tax-rates-extract.xml",
+    "tax-teams": "nba_pcms_incremental_extract_tax-teams-extract.xml",
+    "team-budget": "nba_pcms_incremental_extract_team-budget.xml",
+    "team-exception": "nba_pcms_incremental_extract_team-exception.xml",
+    "team-tr": "nba_pcms_incremental_extract_team-tr-extract.xml",
+    "trade": "nba_pcms_incremental_extract_trade.xml",
+    "transaction": "nba_pcms_incremental_extract_transaction.xml",
+    "transactions-waiver-amounts": "nba_pcms_incremental_extract_transactions-waiver-amounts.xml",
+    "two-way": "nba_pcms_incremental_extract_two-way.xml",
+    "yearly-salary-scales": "nba_pcms_incremental_extract_yearly-salary-scales-extract.xml",
+    "yearly-system-values": "nba_pcms_incremental_extract_yearly-system-values.xml",
+}
+
+================
+File: .gitignore
+================
+__pycache__
+*.pyc
+venv
+config.ini
+.eggs
+*.egg-info
+.session.vim
+data
+src/xpcms/version.py
+build
+dist
+
+sql/tmp-merge/*
+pcms-run-dates.config.ini
+sql/01-xpcms-stages.sql
+docker-build
+
+================
+File: pyproject.toml
+================
+[build-system]
+requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=3.4"]
+build-backend = "setuptools.build_meta"
+
+[tool.poetry]
+name = "xpcms"
+version = "0.1.0"
+description = "PCMS XML extraction tool"
+license = "Proprietary"
+authors = [
+    "Joe Lee <joseph.lee@trailblazers.com>",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.8"
+xmlschema = "^3.4.3"
+
+[tool.setuptools.packages.find]
+where = ["src/xpcms"]
+
+[tool.setuptools_scm]
+write_to = "src/xpcms/version.py"
+
+================
+File: README.md
+================
+# XPCMS
+
+Extraction tools for PCMS, converting XML extracts to JSON for JSONB storage in PostgreSQL.
+
+## Requirements
+
+- Python 3
+- [xmlschema](https://xmlschema.readthedocs.io/en/latest)
+- [SQLAlchemy](https://www.sqlalchemy.org/)
+- [Psycopg2](https://www.psycopg.org/)
+
+## Remaining extracts
+
+- two-way
+- two-way_2017
+- two-way_2018
+
+## Get update timstamps of files:
+
+```
+grep -o '<runDate>[0-9TZ:.-]\+</runDate>' nba_pcms_incremental_*.xml
+```
+
+Output:
+
+```
+nba_pcms_incremental_extract_cap-projections.xml:<runDate>2024-02-17T05:02:18.090-05:00</runDate>
+nba_pcms_incremental_extract_contract.xml:<runDate>2024-02-17T05:00:55.822-05:00</runDate>
+nba_pcms_incremental_extract_dps.xml:<runDate>2024-02-17T05:02:18.137-05:00</runDate>
+nba_pcms_incremental_extract_ledger.xml:<runDate>2024-02-17T05:00:02.860-05:00</runDate>
+nba_pcms_incremental_extract_lookup.xml:<runDate>2024-02-17T05:01:44.312-05:00</runDate>
+nba_pcms_incremental_extract_nca-extract.xml:<runDate>2024-02-17T05:02:18.246-05:00</runDate>
+nba_pcms_incremental_extract_player.xml:<runDate>2024-02-17T05:00:04.391-05:00</runDate>
+nba_pcms_incremental_extract_tax-rates-extract.xml:<runDate>2024-02-17T05:02:19.496-05:00</runDate>
+nba_pcms_incremental_extract_tax-teams-extract.xml:<runDate>2024-02-17T05:02:19.450-05:00</runDate>
+nba_pcms_incremental_extract_team-budget.xml:<runDate>2024-02-17T05:00:06.703-05:00</runDate>
+nba_pcms_incremental_extract_team-exception.xml:<runDate>2024-02-17T05:01:44.390-05:00</runDate>
+nba_pcms_incremental_extract_team-tr-extract.xml:<runDate>2024-02-17T05:02:18.371-05:00</runDate>
+nba_pcms_incremental_extract_trade.xml:<runDate>2024-02-17T05:01:44.562-05:00</runDate>
+nba_pcms_incremental_extract_transaction.xml:<runDate>2024-02-17T05:00:49.682-05:00</runDate>
+nba_pcms_incremental_extract_transactions-waiver-amounts.xml:<runDate>2024-02-17T05:02:19.559-05:00</runDate>
+nba_pcms_incremental_extract_two-way.xml:<runDate>2024-02-17T05:01:45-05:00</runDate>
+nba_pcms_incremental_extract_yearly-salary-scales-extract.xml:<runDate>2024-02-17T05:02:18.184-05:00</runDate>
+nba_pcms_incremental_extract_yearly-system-values.xml:<runDate>2024-02-17T05:02:18.043-05:00</runDate>
+```
+
+## Get extract types of files:
+
+```
+grep -o '<extractType>[A-Za-z0-9_-]\+</extractType>' nba_pcms_incremental_*.xml
+```
+
+Output:
+
+```
+nba_pcms_incremental_extract_cap-projections.xml:<extractType>cap-projections-extract</extractType>
+nba_pcms_incremental_extract_contract.xml:<extractType>contract-extract</extractType>
+nba_pcms_incremental_extract_dps.xml:<extractType>dps-extract</extractType>
+nba_pcms_incremental_extract_ledger.xml:<extractType>ledger-extract</extractType>
+nba_pcms_incremental_extract_ledger_old.xml:<extractType>ledger-extract</extractType>
+nba_pcms_incremental_extract_lookup.xml:<extractType>lookups-extract</extractType>
+nba_pcms_incremental_extract_nca-extract.xml:<extractType>nca-extract</extractType>
+nba_pcms_incremental_extract_player.xml:<extractType>player-extract</extractType>
+nba_pcms_incremental_extract_rookie-scale-amounts.xml:<extractType>rookie-scale-amounts-extract</extractType>
+nba_pcms_incremental_extract_tax-rates-extract.xml:<extractType>tax-rates-extract</extractType>
+nba_pcms_incremental_extract_tax-teams-extract.xml:<extractType>tax-teams-extract</extractType>
+nba_pcms_incremental_extract_team-budget.xml:<extractType>team-budget-extract</extractType>
+nba_pcms_incremental_extract_team-exception.xml:<extractType>team-exception-extract</extractType>
+nba_pcms_incremental_extract_team-tr-extract.xml:<extractType>tt-extract</extractType>
+nba_pcms_incremental_extract_trade.xml:<extractType>trade-extract</extractType>
+nba_pcms_incremental_extract_transaction.xml:<extractType>transaction-extract</extractType>
+nba_pcms_incremental_extract_transactions-waiver-amounts.xml:<extractType>twa-extract</extractType>
+nba_pcms_incremental_extract_two-way.xml:<extractType>two-way-extract</extractType>
+nba_pcms_incremental_extract_yearly-salary-scales-extract.xml:<extractType>yearly-salary-scales-extract</extractType>
+nba_pcms_incremental_extract_yearly-system-values.xml:<extractType>yearly-system-values-extract</extractType>
+```
+
+## ETL Flow
+
+1. Fetch and unzip the latest `nba_pcms_incremental_extract.zip`
+1. Grep the run dates and extract-type of each extract
+1. If run date has been updates, extract the type
+1. Parse extract, output to jsonl file
+1. Sync jsonl files to S3
+1. Merge from S3 stage to PCMS json tables
+
+================
+File: setup.cfg
+================
+[metadata]
+name = xpcms
+description = NBA PCMS XML extraction tools
+long_description = file: README.md
+long_description_content_type = text/markdown
+url = https://github.com/trailblazers/xpcms.git
+author = Joe Lee
+project_urls =
+    Source=https://github.com/trailblazers/xpcms
+    Tracker=https://github.com/trailblazers/xpcms/issues
+
+[options]
+    package_dir=
+        =src
+    packages=find:
+    install_requires =
+        # appdirs==1.4.3
+        # CacheControl==0.12.6
+        # certifi==2019.11.28
+        # chardet==3.0.4
+        # colorama==0.4.3
+        # contextlib2==0.6.0
+        # distlib==0.3.0
+        # distro==1.4.0
+        # elementpath
+        # html5lib==1.0.1
+        # idna==2.8
+        # ipaddr==2.2.0
+        # lockfile==0.12.2
+        # msgpack==0.6.2
+        # packaging==20.3
+        # pep517==0.8.2
+        # progress==1.5
+        # pyparsing==2.4.6
+        # pytoml==0.1.21
+        # requests==2.22.0
+        # retrying==1.3.3
+        # six==1.14.0
+        # urllib3==1.25.8
+        # webencodings==0.5.1
+        # xmlschema==1.3.1
+        elementpath==4.1.2
+        SQLAlchemy==2.0.16
+        typing_extensions==4.6.3
+        xmlschema==2.3.0
+    setup_requires =
+        setuptools_scm
+
+[options.packages.find]
+where=src
+
+[options.extras_require]
+dev =
+    pytest
+
+================
+File: setup.py
+================
+from setuptools import setup
+setup(
+    use_scm_version=True,
+)
+
+================
+File: validate.py
+================
+# Extract PCMS source and output data as JSON/JSONL
+import argparse
+from configparser import ConfigParser
+import gzip
+import json
+import logging
+import os
+import re
+from time import time
+from typing import Any, Dict, Iterable, Optional, Tuple
+import xmlschema
+DEFAULT_CFG_PATH = "config.ini"
+DEFAULT_CFG_SECTION = "DEFAULT"
+XSI_NIL_VAL = {"@xsi:nil": "true"}
+XMLNS_KEY = "@xmlns:xsi"
+COMPACT_JSON_SEPARATORS = (",", ":")
+class CustomXMLSchemaConverter(xmlschema.converters.XMLSchemaConverter):
+    """
+    Bypass the default nil value attribute behavior in favor of None
+    """
+    drop_tags = set()
+    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+        print(data.tag, self.drop_tags, self)
+        if data.tag in self.drop_tags:
+            breakpoint()
+            return None
+        rval = super().element_decode(data, xsd_element, xsd_type=xsd_type, level=level)
+        if (
+            isinstance(rval, dict)
+            and len(rval.keys()) == 1
+            and isinstance(list(rval.values())[0], list)
+        ):
+            # Strictly sequence container
+            return list(rval.values())[0]
+        if isinstance(rval, dict) and XMLNS_KEY in rval:
+            # Drop namespace attribute
+            rval.pop(XMLNS_KEY)
+        if rval == XSI_NIL_VAL:
+            return None
+        return rval
+def parse_args() -> Tuple[argparse.Namespace, ConfigParser]:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", "--drop-tag", action="append", help="Tag names to drop")
+    parser.add_argument(
+        "-p",
+        "--pcms-path",
+        help="Directory with unzipped XML extracts",
+    )
+    parser.add_argument(
+        "-d",
+        "--definition",
+        default="schema.xsd",
+        help="XML Schema Definition path",
+    )
+    parser.add_argument(
+        "-e",
+        "--extract",
+        action="append",
+        help=(
+            "Extract basename in `pcms_path` to validate, e.g."
+            " 'nba_pcms_full_extract_player.xml', defaults to all"
+        ),
+    )
+    parser.add_argument(
+        "-x",
+        "--xpath",
+        action="append",
+        help=(
+            "XPath for data to extract. If used, one must be specified for each"
+            " `extract` argument"
+        ),
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        action="append",
+        help=(
+            "Optional, file path to store JSON output. Each argument coincides with"
+            " `--extract` and `--xpath` options. Use '.jsonl' for JSON Lines format,"
+            " '.jsonl.gz' for gzipped JSON Lines format, and '.json' for JSON format"
+        ),
+    )
+    parser.add_argument(
+        "-c",
+        "--config",
+        action="append",
+        help="Config path(s)",
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="count", default=0, help="Verbose logging"
+    )
+    args = parser.parse_args()
+    config = ConfigParser()
+    for config_path in args.config or []:
+        config.read(config_path)
+    logging_args = (
+        config["logging"]
+        if "logging" in config
+        else {
+            "format": "%(asctime)s %(levelname)s %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
+        }
+    )
+    set_logging(vcount=args.verbose, **logging_args)
+    return args, config
+def set_logging(vcount: Optional[int] = 0, **log_args: Dict[str, Any]) -> None:
+    """
+    Apply logging options to `logging.basicConfig`
+    """
+    if vcount >= 2:
+        log_args["level"] = logging.DEBUG
+    elif vcount == 1:
+        log_args["level"] = logging.INFO
+    logging.basicConfig(**log_args)
+def load_from_extract(extract_file_path, schema, **extract_args) -> Any:
+    logging.info(f"Extracting '{extract_file_path}'")
+    data, errs = schema.to_dict(
+        extract_file_path,
+        # validation="lax",
+        # datetime_types=False,
+        decimal_type=float,
+        **extract_args,
+    )
+    logging.info(
+        f"Extraction completed for '{extract_file_path}' with {len(errs)} errors"
+    )
+    for i, err in enumerate(errs):
+        logging.warning(f"[Error {i + 1}] {err.message} - {err.reason} - {err.path}")
+    logging.info(f"Extract: {len(data)} items")
+    return data, errs
+def main():
+    args, config = parse_args()
+    with open(args.definition, "r") as f:
+        schema = xmlschema.XMLSchema(
+            f, converter=CustomXMLSchemaConverter, validation="lax",
+        )
+        schema.get_converter().drop_tags = set(args.drop_tag or [])
+        schema.converter.drop_tags = set(args.drop_tag or [])
+    if args.xpath:
+        assert len(args.xpath) == len(args.extract)
+        xpaths = args.xpath
+    else:
+        xpaths = [None] * len(args.extract)
+    if args.output:
+        assert len(args.output) == len(args.extract)
+        outputs = args.output
+    else:
+        outputs = [None] * len(args.extract)
+    if args.drop_tag:
+        schema.get_converter().drop_tags = set(args.drop_tag)
+    for extract_bname, xpath, output_path in zip(args.extract, xpaths, outputs):
+        extract_file_path = os.path.join(args.pcms_path, extract_bname)
+        extract_args = {}
+        if xpath:
+            extract_args["path"] = xpath
+        extract_data, errors = load_from_extract(
+            extract_file_path,
+            schema,
+            validation="lax",
+            datetime_types=False,
+            **extract_args,
+        )
+        # print(extract_data[0])
+        breakpoint()
+        if output_path:
+            logging.info(f"Writing output to '{output_path}'")
+            ext_ptn = f".+\.(jsonl?)(\.gz)?$"
+            match = re.match(ext_ptn, output_path)
+            newline = "\n"
+            is_gzipped = match.group(2) == ".gz"
+            if match.group(1) == "jsonl":
+                if is_gzipped:
+                    open_func = gzip.open
+                    open_mode = "wb"
+                    newline = b"\n"
+                else:
+                    open_func = open
+                    open_mode = "w"
+                with open_func(output_path, open_mode) as f:
+                    for item in extract_data:
+                        body = json.dumps(
+                            item,
+                            cls=json.JSONEncoder,
+                            separators=COMPACT_JSON_SEPARATORS,
+                        )
+                        if is_gzipped:
+                            body = body.encode("utf-8")
+                        f.write(body)
+                        f.write(newline)
+            else:
+                with open(output_path, "w") as f:
+                    json.dump(extract_data, f, cls=json.JSONEncoder)
+if __name__ == "__main__":
+    start = time()
+    caught_exc = None
+    try:
+        main()
+    except Exception as exc:
+        caught_exc = exc
+        raise
+    finally:
+        duration = time() - start
+        if caught_exc:
+            logging.exception(caught_exc)
+        prefix = "Failed" if caught_exc else "Completed"
+        logging.info(f"{prefix} running '{__file__}' in {duration:0.03f} seconds")
+
+
+
+
+
+================================================================
+End of Codebase
+================================================================
