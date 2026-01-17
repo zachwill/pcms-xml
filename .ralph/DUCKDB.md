@@ -163,7 +163,7 @@ Scripts organized by dependency order. Each should be 200-600 LOC (max 800 for c
 
 ### Phase 1: Foundation
 
-- [ ] **1. lookups.duckdb.sql** — Reference data (must run first)
+- [x] **1. lookups.duckdb.sql** — Reference data (must run first)
   
   **Tables:** `pcms.lookups`, `pcms.teams`
   
