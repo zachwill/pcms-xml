@@ -164,8 +164,8 @@ value:
           summaries:
             type: javascript
             expr: >-
-              [results.b, results.r, results.c, results.d, results.e, results.f,
-              results.h, results.g, results.k]
+              [results.t, results.k, results.b, results.r, results.c, results.d,
+              results.e, results.f, results.h, results.g]
         lock: '!inline finalize_lineage.inline_script.lock'
         language: bun
   same_worker: true

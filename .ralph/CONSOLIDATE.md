@@ -93,7 +93,7 @@ Each merged script should:
 
 - [x] Delete old scripts after each merge is tested
 - [x] Update `flow.yaml` with new script names and order
-- [ ] Update `finalize_lineage` summaries array to match new steps
+- [x] Update `finalize_lineage` summaries array to match new steps
 
 ---
 
