@@ -87,10 +87,10 @@ value:
         lock: '!inline trades,_transactions_&_ledger.inline_script.lock'
         language: bun
     - id: f
-      summary: 'System Values, Rookie Scale & NCA'
+      summary: League Config
       value:
         type: rawscript
-        content: '!inline system_values,_rookie_scale_&_nca.inline_script.ts'
+        content: '!inline league_config.inline_script.ts'
         input_transforms:
           dry_run:
             type: javascript
@@ -98,7 +98,7 @@ value:
           extract_dir:
             type: javascript
             expr: '''./shared/pcms'''
-        lock: '!inline system_values,_rookie_scale_&_nca.inline_script.lock'
+        lock: '!inline league_config.inline_script.lock'
         language: bun
     - id: g
       summary: Two-Way Daily Statuses
@@ -156,20 +156,6 @@ value:
             expr: '''./shared/pcms'''
         lock: '!inline lookups.inline_script.lock'
         language: bun
-    - id: o
-      summary: League Salary Scales & Protections
-      value:
-        type: rawscript
-        content: '!inline league_salary_scales_&_protections.inline_script.ts'
-        input_transforms:
-          dry_run:
-            type: javascript
-            expr: flow_input.dry_run
-          extract_dir:
-            type: static
-            value: ./shared/pcms
-        lock: '!inline league_salary_scales_&_protections.inline_script.lock'
-        language: bun
     - id: p
       summary: Two-Way Utility
       value:
@@ -211,8 +197,7 @@ value:
             type: javascript
             expr: >-
               [results.b, results.r, results.c, results.d, results.e, results.f,
-              results.g, results.i, results.j, results.k, results.o, results.p,
-              results.s]
+              results.g, results.i, results.j, results.k, results.p, results.s]
         lock: '!inline finalize_lineage.inline_script.lock'
         language: bun
   same_worker: true

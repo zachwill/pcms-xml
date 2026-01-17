@@ -1,10 +1,18 @@
 /**
- * System Values, Rookie Scale & Non-Contract Amounts Import
+ * League Config Import (consolidated)
  *
- * Reads clean JSON from lineage step and upserts into:
- * - pcms.league_system_values      (yearly_system_values.json)
- * - pcms.rookie_scale_amounts      (rookie_scale_amounts.json)
- * - pcms.non_contract_amounts      (non_contract_amounts.json)
+ * Merges:
+ *  - system_values,_rookie_scale_&_nca.inline_script.ts
+ *  - league_salary_scales_&_protections.inline_script.ts
+ *
+ * Upserts into:
+ *  - pcms.league_system_values          (yearly_system_values.json)
+ *  - pcms.rookie_scale_amounts          (rookie_scale_amounts.json)
+ *  - pcms.non_contract_amounts          (non_contract_amounts.json)
+ *  - pcms.league_salary_scales          (yearly_salary_scales.json)
+ *  - pcms.league_salary_cap_projections (cap_projections.json)
+ *  - pcms.league_tax_rates              (tax_rates.json)
+ *  - pcms.apron_constraints             (apron_constraints.json, if present)
  *
  * Clean JSON notes:
  * - snake_case keys
@@ -17,51 +25,98 @@ import { readdir } from "node:fs/promises";
 
 const sql = new SQL({ url: Bun.env.POSTGRES_URL!, prepare: false });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers (inline)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function toIntOrNull(val: unknown): number | null {
+  if (val === "" || val === null || val === undefined) return null;
+  const n = Number(val);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
+}
+
+function toNumOrNull(val: unknown): number | null {
+  if (val === "" || val === null || val === undefined) return null;
+  const n = Number(val);
+  return Number.isFinite(n) ? n : null;
+}
+
+function toBoolOrNull(val: unknown): boolean | null {
+  if (val === null || val === undefined || val === "") return null;
+  if (typeof val === "boolean") return val;
+  if (val === 0 || val === "0" || val === "false") return false;
+  if (val === 1 || val === "1" || val === "true") return true;
+  return null;
+}
+
 function firstScalar(val: any): any {
   if (val === null || val === undefined) return null;
   if (Array.isArray(val)) return val.length > 0 ? val[0] : null;
   return val;
 }
 
+async function resolveBaseDir(extractDir: string): Promise<string> {
+  const entries = await readdir(extractDir, { withFileTypes: true });
+  const subDir = entries.find((e) => e.isDirectory());
+  return subDir ? `${extractDir}/${subDir.name}` : extractDir;
+}
+
+function dedupeByKey<T>(rows: T[], keyFn: (row: T) => string): T[] {
+  const seen = new Map<string, T>();
+  for (const r of rows) seen.set(keyFn(r), r);
+  return [...seen.values()];
+}
+
+function buildTeamCodeMap(lookups: any): Map<number, string> {
+  const teamsData: any[] = lookups?.lk_teams?.lk_team || [];
+  const teamCodeMap = new Map<number, string>();
+  for (const t of teamsData) {
+    const teamId = t?.team_id;
+    const teamCode = t?.team_code ?? t?.team_name_short;
+    if (teamId && teamCode) teamCodeMap.set(Number(teamId), String(teamCode));
+  }
+  return teamCodeMap;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function main(
-  dry_run = false,
-  extract_dir = "./shared/pcms"
-) {
+export async function main(dry_run = false, extract_dir = "./shared/pcms") {
   const startedAt = new Date().toISOString();
+  const tables: { table: string; attempted: number; success: boolean }[] = [];
 
   try {
-    // Find extract directory
-    const entries = await readdir(extract_dir, { withFileTypes: true });
-    const subDir = entries.find((e) => e.isDirectory());
-    const baseDir = subDir ? `${extract_dir}/${subDir.name}` : extract_dir;
+    const baseDir = await resolveBaseDir(extract_dir);
 
+    // Build team_id → team_code lookup map (for non_contract_amounts)
+    const lookupsFile = Bun.file(`${baseDir}/lookups.json`);
+    const lookups: any = (await lookupsFile.exists()) ? await lookupsFile.json() : {};
+    const teamCodeMap = buildTeamCodeMap(lookups);
+
+    // Read clean JSON
     const ysvFile = Bun.file(`${baseDir}/yearly_system_values.json`);
     const rookieFile = Bun.file(`${baseDir}/rookie_scale_amounts.json`);
     const ncaFile = Bun.file(`${baseDir}/non_contract_amounts.json`);
+    const salaryScalesFile = Bun.file(`${baseDir}/yearly_salary_scales.json`);
+    const capProjectionsFile = Bun.file(`${baseDir}/cap_projections.json`);
+    const taxRatesFile = Bun.file(`${baseDir}/tax_rates.json`);
+    const apronConstraintsFile = Bun.file(`${baseDir}/apron_constraints.json`);
 
     const ysv: any[] = (await ysvFile.exists()) ? await ysvFile.json() : [];
     const rookieScale: any[] = (await rookieFile.exists()) ? await rookieFile.json() : [];
     const ncas: any[] = (await ncaFile.exists()) ? await ncaFile.json() : [];
+    const salaryScales: any[] = (await salaryScalesFile.exists()) ? await salaryScalesFile.json() : [];
+    const capProjections: any[] = (await capProjectionsFile.exists()) ? await capProjectionsFile.json() : [];
+    const taxRates: any[] = (await taxRatesFile.exists()) ? await taxRatesFile.json() : [];
+    const apronConstraints: any[] = (await apronConstraintsFile.exists()) ? await apronConstraintsFile.json() : [];
 
     console.log(
       `Found yearly_system_values=${ysv.length}, rookie_scale_amounts=${rookieScale.length}, non_contract_amounts=${ncas.length}`
     );
-
-    // Build team_id → team_code lookup map
-    const lookups: any = await Bun.file(`${baseDir}/lookups.json`).json();
-    const teamsData: any[] = lookups?.lk_teams?.lk_team || [];
-    const teamCodeMap = new Map<number, string>();
-    for (const t of teamsData) {
-      const teamId = t?.team_id;
-      const teamCode = t?.team_code ?? t?.team_name_short;
-      if (teamId && teamCode) {
-        teamCodeMap.set(Number(teamId), String(teamCode));
-      }
-    }
+    console.log(
+      `Found salary_scales=${salaryScales.length}, cap_projections=${capProjections.length}, tax_rates=${taxRates.length}, apron_constraints=${apronConstraints.length}`
+    );
 
     const ingestedAt = new Date();
 
@@ -241,29 +296,154 @@ export async function main(
       })
       .filter(Boolean) as Record<string, any>[];
 
+    const scaleRows = salaryScales
+      .map((s) => {
+        const salaryYear = toIntOrNull(s?.salary_year);
+        const league = s?.league_lk ?? null;
+        const yos = toIntOrNull(s?.years_of_service);
+
+        if (salaryYear === null || league === null || yos === null) return null;
+
+        // The extract provides minimum_salary_year1..year5; schema stores a single minimum.
+        // Store minimum_salary_year1 as the minimum salary amount for that season / YOS.
+        return {
+          salary_year: salaryYear,
+          league_lk: league,
+          years_of_service: yos,
+          minimum_salary_amount: toNumOrNull(s?.minimum_salary_year1),
+          created_at: s?.create_date ?? null,
+          updated_at: s?.last_change_date ?? null,
+          record_changed_at: s?.record_change_date ?? null,
+          ingested_at: ingestedAt,
+        };
+      })
+      .filter(Boolean) as Record<string, any>[];
+
+    const projectionRows = capProjections
+      .map((p) => {
+        const projectionId = toIntOrNull(p?.salary_cap_projection_id);
+        const salaryYear = toIntOrNull(p?.season_year);
+
+        if (projectionId === null || salaryYear === null) return null;
+
+        return {
+          projection_id: projectionId,
+          salary_year: salaryYear,
+          cap_amount: toNumOrNull(p?.cap_amount),
+          tax_level_amount: toNumOrNull(p?.tax_level),
+          estimated_average_player_salary: toNumOrNull(p?.estimated_average_player_salary),
+          growth_rate: toNumOrNull(p?.growth_rate),
+          effective_date: p?.effective_date ?? null,
+          is_generated: toBoolOrNull(p?.generated_flg),
+          created_at: p?.create_date ?? null,
+          updated_at: p?.last_change_date ?? null,
+          record_changed_at: p?.record_change_date ?? null,
+          ingested_at: ingestedAt,
+        };
+      })
+      .filter(Boolean) as Record<string, any>[];
+
+    const leagueTaxRateRows = taxRates
+      .map((tr) => {
+        const league_lk = tr?.league_lk ?? "NBA";
+        const salary_year = toIntOrNull(tr?.salary_year);
+        const lower_limit = toNumOrNull(tr?.lower_limit);
+
+        if (!league_lk || salary_year === null || lower_limit === null) return null;
+
+        return {
+          league_lk,
+          salary_year,
+          lower_limit,
+          upper_limit: toNumOrNull(tr?.upper_limit),
+          tax_rate_non_repeater: toNumOrNull(tr?.tax_rate_non_repeater),
+          tax_rate_repeater: toNumOrNull(tr?.tax_rate_repeater),
+          base_charge_non_repeater: toNumOrNull(tr?.base_charge_non_repeater),
+          base_charge_repeater: toNumOrNull(tr?.base_charge_repeater),
+          created_at: tr?.create_date ?? null,
+          updated_at: tr?.last_change_date ?? null,
+          record_changed_at: tr?.record_change_date ?? null,
+          ingested_at: ingestedAt,
+        };
+      })
+      .filter(Boolean) as Record<string, any>[];
+
+    const apronConstraintRows = apronConstraints
+      .map((ac) => {
+        const apron_level_lk = ac?.apron_level_lk ?? null;
+        const constraint_code = ac?.constraint_code ?? null;
+        const effective_salary_year = toIntOrNull(ac?.effective_salary_year);
+        if (!apron_level_lk || !constraint_code || effective_salary_year === null) return null;
+
+        return {
+          apron_level_lk,
+          constraint_code,
+          effective_salary_year,
+          description: ac?.description ?? null,
+          created_at: ac?.create_date ?? null,
+          updated_at: ac?.last_change_date ?? null,
+          record_changed_at: ac?.record_change_date ?? null,
+          ingested_at: ingestedAt,
+        };
+      })
+      .filter(Boolean) as Record<string, any>[];
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Upfront dedupe (entire dataset, then batch)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const leagueSystemValueDeduped = dedupeByKey(
+      leagueSystemValueRows,
+      (r) => `${r.league_lk}|${r.salary_year}`
+    );
+    const rookieScaleDeduped = dedupeByKey(
+      rookieScaleRows,
+      (r) => `${r.salary_year}|${r.pick_number}|${r.league_lk}`
+    );
+    const nonContractDeduped = dedupeByKey(
+      nonContractAmountRows,
+      (r) => String(r.non_contract_amount_id)
+    );
+    const scaleDeduped = dedupeByKey(
+      scaleRows,
+      (r) => `${r.salary_year}|${r.league_lk}|${r.years_of_service}`
+    );
+    const projectionDeduped = dedupeByKey(projectionRows, (r) => String(r.projection_id));
+    const taxRateDeduped = dedupeByKey(
+      leagueTaxRateRows,
+      (r) => `${r.league_lk}|${r.salary_year}|${r.lower_limit}`
+    );
+    const apronConstraintDeduped = dedupeByKey(
+      apronConstraintRows,
+      (r) => `${r.apron_level_lk}|${r.constraint_code}|${r.effective_salary_year}`
+    );
+
     if (dry_run) {
       return {
         dry_run: true,
         started_at: startedAt,
         finished_at: new Date().toISOString(),
         tables: [
-          { table: "pcms.league_system_values", attempted: leagueSystemValueRows.length, success: true },
-          { table: "pcms.rookie_scale_amounts", attempted: rookieScaleRows.length, success: true },
-          { table: "pcms.non_contract_amounts", attempted: nonContractAmountRows.length, success: true },
+          { table: "pcms.league_system_values", attempted: leagueSystemValueDeduped.length, success: true },
+          { table: "pcms.rookie_scale_amounts", attempted: rookieScaleDeduped.length, success: true },
+          { table: "pcms.non_contract_amounts", attempted: nonContractDeduped.length, success: true },
+          { table: "pcms.league_salary_scales", attempted: scaleDeduped.length, success: true },
+          { table: "pcms.league_salary_cap_projections", attempted: projectionDeduped.length, success: true },
+          { table: "pcms.league_tax_rates", attempted: taxRateDeduped.length, success: true },
+          { table: "pcms.apron_constraints", attempted: apronConstraintDeduped.length, success: true },
         ],
         errors: [],
       };
     }
 
-    const tables: any[] = [];
-
-    const BATCH_SIZE = 1000;
+    const BATCH_SIZE_SMALL = 500;
+    const BATCH_SIZE_LARGE = 200;
 
     // ── league_system_values ────────────────────────────────────────────────
 
-    if (leagueSystemValueRows.length > 0) {
-      for (let i = 0; i < leagueSystemValueRows.length; i += BATCH_SIZE) {
-        const batch = leagueSystemValueRows.slice(i, i + BATCH_SIZE);
+    if (leagueSystemValueDeduped.length > 0) {
+      for (let i = 0; i < leagueSystemValueDeduped.length; i += BATCH_SIZE_SMALL) {
+        const batch = leagueSystemValueDeduped.slice(i, i + BATCH_SIZE_SMALL);
 
         await sql`
           INSERT INTO pcms.league_system_values ${sql(batch)}
@@ -331,15 +511,14 @@ export async function main(
             ingested_at = EXCLUDED.ingested_at
         `;
       }
-
-      tables.push({ table: "pcms.league_system_values", attempted: leagueSystemValueRows.length, success: true });
+      tables.push({ table: "pcms.league_system_values", attempted: leagueSystemValueDeduped.length, success: true });
     }
 
     // ── rookie_scale_amounts ────────────────────────────────────────────────
 
-    if (rookieScaleRows.length > 0) {
-      for (let i = 0; i < rookieScaleRows.length; i += BATCH_SIZE) {
-        const batch = rookieScaleRows.slice(i, i + BATCH_SIZE);
+    if (rookieScaleDeduped.length > 0) {
+      for (let i = 0; i < rookieScaleDeduped.length; i += BATCH_SIZE_SMALL) {
+        const batch = rookieScaleDeduped.slice(i, i + BATCH_SIZE_SMALL);
 
         await sql`
           INSERT INTO pcms.rookie_scale_amounts ${sql(batch)}
@@ -360,15 +539,14 @@ export async function main(
             ingested_at = EXCLUDED.ingested_at
         `;
       }
-
-      tables.push({ table: "pcms.rookie_scale_amounts", attempted: rookieScaleRows.length, success: true });
+      tables.push({ table: "pcms.rookie_scale_amounts", attempted: rookieScaleDeduped.length, success: true });
     }
 
     // ── non_contract_amounts ────────────────────────────────────────────────
 
-    if (nonContractAmountRows.length > 0) {
-      for (let i = 0; i < nonContractAmountRows.length; i += BATCH_SIZE) {
-        const batch = nonContractAmountRows.slice(i, i + BATCH_SIZE);
+    if (nonContractDeduped.length > 0) {
+      for (let i = 0; i < nonContractDeduped.length; i += BATCH_SIZE_LARGE) {
+        const batch = nonContractDeduped.slice(i, i + BATCH_SIZE_LARGE);
 
         await sql`
           INSERT INTO pcms.non_contract_amounts ${sql(batch)}
@@ -404,8 +582,91 @@ export async function main(
             ingested_at = EXCLUDED.ingested_at
         `;
       }
+      tables.push({ table: "pcms.non_contract_amounts", attempted: nonContractDeduped.length, success: true });
+    }
 
-      tables.push({ table: "pcms.non_contract_amounts", attempted: nonContractAmountRows.length, success: true });
+    // ── league_salary_scales ────────────────────────────────────────────────
+
+    if (scaleDeduped.length > 0) {
+      for (let i = 0; i < scaleDeduped.length; i += BATCH_SIZE_SMALL) {
+        const batch = scaleDeduped.slice(i, i + BATCH_SIZE_SMALL);
+
+        await sql`
+          INSERT INTO pcms.league_salary_scales ${sql(batch)}
+          ON CONFLICT (salary_year, league_lk, years_of_service) DO UPDATE SET
+            minimum_salary_amount = EXCLUDED.minimum_salary_amount,
+            created_at = EXCLUDED.created_at,
+            updated_at = EXCLUDED.updated_at,
+            record_changed_at = EXCLUDED.record_changed_at,
+            ingested_at = EXCLUDED.ingested_at
+        `;
+      }
+      tables.push({ table: "pcms.league_salary_scales", attempted: scaleDeduped.length, success: true });
+    }
+
+    // ── league_salary_cap_projections ───────────────────────────────────────
+
+    if (projectionDeduped.length > 0) {
+      for (let i = 0; i < projectionDeduped.length; i += BATCH_SIZE_SMALL) {
+        const batch = projectionDeduped.slice(i, i + BATCH_SIZE_SMALL);
+
+        await sql`
+          INSERT INTO pcms.league_salary_cap_projections ${sql(batch)}
+          ON CONFLICT (projection_id) DO UPDATE SET
+            salary_year = EXCLUDED.salary_year,
+            cap_amount = EXCLUDED.cap_amount,
+            tax_level_amount = EXCLUDED.tax_level_amount,
+            estimated_average_player_salary = EXCLUDED.estimated_average_player_salary,
+            growth_rate = EXCLUDED.growth_rate,
+            effective_date = EXCLUDED.effective_date,
+            is_generated = EXCLUDED.is_generated,
+            created_at = EXCLUDED.created_at,
+            updated_at = EXCLUDED.updated_at,
+            record_changed_at = EXCLUDED.record_changed_at,
+            ingested_at = EXCLUDED.ingested_at
+        `;
+      }
+      tables.push({ table: "pcms.league_salary_cap_projections", attempted: projectionDeduped.length, success: true });
+    }
+
+    // ── league_tax_rates ────────────────────────────────────────────────────
+
+    if (taxRateDeduped.length > 0) {
+      for (let i = 0; i < taxRateDeduped.length; i += BATCH_SIZE_SMALL) {
+        const batch = taxRateDeduped.slice(i, i + BATCH_SIZE_SMALL);
+
+        await sql`
+          INSERT INTO pcms.league_tax_rates ${sql(batch)}
+          ON CONFLICT (league_lk, salary_year, lower_limit) DO UPDATE SET
+            upper_limit = EXCLUDED.upper_limit,
+            tax_rate_non_repeater = EXCLUDED.tax_rate_non_repeater,
+            tax_rate_repeater = EXCLUDED.tax_rate_repeater,
+            base_charge_non_repeater = EXCLUDED.base_charge_non_repeater,
+            base_charge_repeater = EXCLUDED.base_charge_repeater,
+            updated_at = EXCLUDED.updated_at,
+            record_changed_at = EXCLUDED.record_changed_at,
+            ingested_at = EXCLUDED.ingested_at
+        `;
+      }
+      tables.push({ table: "pcms.league_tax_rates", attempted: taxRateDeduped.length, success: true });
+    }
+
+    // ── apron_constraints ───────────────────────────────────────────────────
+
+    if (apronConstraintDeduped.length > 0) {
+      for (let i = 0; i < apronConstraintDeduped.length; i += BATCH_SIZE_SMALL) {
+        const batch = apronConstraintDeduped.slice(i, i + BATCH_SIZE_SMALL);
+
+        await sql`
+          INSERT INTO pcms.apron_constraints ${sql(batch)}
+          ON CONFLICT (apron_level_lk, constraint_code, effective_salary_year) DO UPDATE SET
+            description = EXCLUDED.description,
+            updated_at = EXCLUDED.updated_at,
+            record_changed_at = EXCLUDED.record_changed_at,
+            ingested_at = EXCLUDED.ingested_at
+        `;
+      }
+      tables.push({ table: "pcms.apron_constraints", attempted: apronConstraintDeduped.length, success: true });
     }
 
     return {

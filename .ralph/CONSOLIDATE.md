@@ -77,7 +77,7 @@ Each merged script should:
   - Tables: draft_picks, draft_pick_summaries
   - Logic: PCMS picks first, then generated NBA picks (dedupe by draft_year/round/pick/league)
 
-- [ ] **2.3 `league_config.inline_script.ts`**
+- [x] **2.3 `league_config.inline_script.ts`**
   - Merge: `system_values,_rookie_scale_&_nca` + `league_salary_scales_&_protections`
   - Tables: league_system_values, rookie_scale_amounts, non_contract_amounts, league_salary_scales, league_salary_cap_projections, league_tax_rates, apron_constraints
 
