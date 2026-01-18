@@ -25,10 +25,7 @@
 
 1. ~~**Regenerate all JSON files locally**~~ ✅ Done - 22 files regenerated, no empty objects
 
-2. **Deploy updated Windmill script** - The fix in `pcms_xml_to_json.inline_script.py` needs to be synced to Windmill
-   ```bash
-   wmill sync push
-   ```
+2. ~~**Deploy updated Windmill script** -~~ ✅ Done - The fix in `pcms_xml_to_json.inline_script.py` is synced to Windmill
 
 3. **Re-run Windmill flow** to confirm Contracts step passes
 
