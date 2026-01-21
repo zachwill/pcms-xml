@@ -2,7 +2,7 @@
 
 Windmill flow for importing NBA PCMS (Player Contract Management System) XML data into PostgreSQL.
 
-## Architecture (v3.0)
+## Architecture
 
 ```
 S3 ZIP → Extract → XML → Clean JSON → PostgreSQL
@@ -12,90 +12,108 @@ S3 ZIP → Extract → XML → Clean JSON → PostgreSQL
                     flat structure
 ```
 
-1. **Lineage step** downloads ZIP, extracts XML, parses to **clean JSON**
-2. **Import scripts** read clean JSON and insert directly to Postgres
-3. No transformation needed—JSON keys already match DB columns
+1. **Step A** downloads ZIP from S3, extracts XML, parses to **clean JSON**
+2. **Steps B-G** read clean JSON and upsert directly to Postgres
+3. No transformation needed in import scripts—JSON keys already match DB columns
 
 ## Quick Start
 
 ```bash
-# Install dependencies
-bun install
-
 # Generate clean JSON from XML (for local dev)
-bun run scripts/parse-xml-to-json.ts
+uv run scripts/xml-to-json.py
 
-# Run a step locally
-POSTGRES_URL="postgres://..." bun run import_pcms_data.flow/players_&_people.inline_script.ts
+# Test a single import script
+uv run scripts/test-import.py lookups --dry-run
+uv run scripts/test-import.py contracts
+
+# Run all import scripts
+uv run scripts/test-import.py all
 ```
+
+## Flow Steps (7 total)
+
+| ID | Step | Description |
+|----|------|-------------|
+| A | PCMS XML to JSON | S3 → extract → XML → clean JSON |
+| B | Lookups | Reference tables (43 lookup tables) |
+| C | People & Identity | Agencies, agents, people |
+| D | Contracts | Contracts, versions, salaries, bonuses |
+| E | Transactions & Exceptions | Trades, ledger, waiver amounts, team exceptions |
+| F | League Config & Draft | System values, rookie scale, salary scales, draft |
+| G | Team Financials & Two-Way | Team budgets, tax rates, cap projections, two-way |
 
 ## Clean JSON Files
 
-The lineage step produces these files in `.shared/nba_pcms_full_extract/`:
+The lineage step produces these files in `shared/pcms/nba_pcms_full_extract/`:
 
-| File | Records | Target Table |
-|------|---------|--------------|
-| `players.json` | 14,421 | `pcms.people` |
-| `contracts.json` | 8,071 | `pcms.contracts`, `contract_versions`, `salaries` |
-| `transactions.json` | 232,417 | `pcms.transactions` |
-| `ledger.json` | 50,713 | `pcms.ledger_entries` |
-| `trades.json` | 1,731 | `pcms.trades`, `trade_teams`, `trade_groups` |
-| `draft_picks.json` | 1,169 | `pcms.draft_picks` (DLG/WNBA) |
-| `draft_pick_summaries.json` | 450 | `pcms.draft_pick_summaries` |
-| `team_exceptions.json` | nested | `pcms.team_exceptions`, `team_exception_usage` |
-| `team_budgets.json` | nested | `pcms.team_budget_snapshots`, `tax_team_status` |
-| `team_transactions.json` | 80,130 | ⚠️ Not yet imported (see TODO.md) |
-| `two_way.json` | 28,659 | `pcms.two_way_daily_statuses` |
-| `two_way_utility.json` | nested | `pcms.two_way_contract_utility`, `two_way_game_utility` |
-| `lookups.json` | 43 tables | `pcms.lookups`, `pcms.teams` |
-| `yearly_system_values.json` | varies | `pcms.league_system_values` |
-| `cap_projections.json` | varies | `pcms.league_salary_cap_projections` |
+| File | Target Table |
+|------|--------------|
+| `players.json` | `pcms.people` |
+| `contracts.json` | `pcms.contracts`, `contract_versions`, `salaries` |
+| `transactions.json` | `pcms.transactions` |
+| `ledger.json` | `pcms.ledger_entries` |
+| `trades.json` | `pcms.trades`, `trade_teams`, `trade_groups` |
+| `draft_picks.json` | `pcms.draft_picks` (DLG/WNBA) |
+| `draft_pick_summaries.json` | `pcms.draft_pick_summaries` |
+| `team_exceptions.json` | `pcms.team_exceptions`, `team_exception_usage` |
+| `team_budgets.json` | `pcms.team_budget_snapshots`, `tax_team_status` |
+| `two_way.json` | `pcms.two_way_daily_statuses` |
+| `two_way_utility.json` | `pcms.two_way_contract_utility`, `two_way_game_utility` |
+| `lookups.json` | `pcms.lookups`, `pcms.teams` |
+| `yearly_system_values.json` | `pcms.league_system_values` |
+| `cap_projections.json` | `pcms.league_salary_cap_projections` |
 
 ## Directory Structure
 
 ```
 .
-├── import_pcms_data.flow/       # Windmill flow (18 steps)
+├── import_pcms_data.flow/       # Windmill flow (7 Python steps)
 │   ├── flow.yaml                # Flow definition
-│   ├── lineage_management_*.ts  # Step A: S3 → XML → clean JSON
-│   ├── players_&_people.*.ts    # Step B: Insert players
-│   ├── contracts,_versions_*.ts # Step C: Contracts, versions, salaries
-│   ├── ...                      # Steps D-P (see flow.yaml)
-│   └── finalize_lineage.*.ts    # Step L: Aggregate results
+│   ├── pcms_xml_to_json.*.py    # Step A: S3 → XML → clean JSON
+│   ├── lookups.*.py             # Step B: Lookup tables
+│   ├── people_&_identity.*.py   # Step C: People, agents, agencies
+│   ├── contracts.*.py           # Step D: Contracts
+│   ├── transactions.*.py        # Step E: Transactions & exceptions
+│   ├── league_config.*.py       # Step F: League config & draft
+│   └── team_financials.*.py     # Step G: Team financials & two-way
 ├── migrations/                  # SQL migrations for pcms schema
 ├── scripts/
-│   ├── parse-xml-to-json.ts     # Dev tool: XML → clean JSON
-│   ├── inspect-json-structure.ts
-│   └── show-all-paths.ts
-├── agents/                      # Autonomous coding agents
-│   ├── coverage.ts              # Fill coverage gaps (team_transactions, etc.)
-│   ├── enhance.ts               # Add team_code columns
+│   ├── xml-to-json.py           # Local XML → JSON (mirrors Step A)
+│   ├── test-import.py           # Test import scripts locally
 │   └── ...
-├── .ralph/                      # Agent task files
-├── .shared/
-│   ├── nba_pcms_full_extract/   # Clean JSON output
-│   └── nba_pcms_full_extract_xml/ # Source XML (local dev)
+├── agents/                      # Autonomous coding agents
 ├── AGENTS.md                    # Architecture details
 ├── SCHEMA.md                    # Target database schema
-└── TODO.md                      # Remaining work & coverage audit
+└── TODO.md                      # Remaining work
 ```
 
 ## Import Script Pattern
 
-Scripts are simple—just read and insert:
+All Python import scripts follow the same pattern:
 
-```typescript
-import { SQL } from "bun";
+```python
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["psycopg[binary]"]
+# ///
 
-const sql = new SQL({ url: Bun.env.POSTGRES_URL!, prepare: false });
+import os
+import json
+from pathlib import Path
+import psycopg
 
-export async function main(dry_run = false, ..., extract_dir = "./shared/pcms") {
-  // Read clean JSON
-  const players = await Bun.file(`${baseDir}/players.json`).json();
-
-  // Insert (keys already match columns)
-  await sql`INSERT INTO pcms.people ${sql(rows)} ON CONFLICT ...`;
-}
+def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
+    base_dir = find_extract_dir(extract_dir)
+    
+    # Read clean JSON
+    with open(base_dir / "players.json") as f:
+        players = json.load(f)
+    
+    # Upsert (keys already match columns)
+    if not dry_run:
+        conn = psycopg.connect(os.environ["POSTGRES_URL"])
+        upsert(conn, "pcms.people", rows, ["person_id"])
+        conn.close()
 ```
 
 ## Flow Inputs
@@ -107,7 +125,7 @@ export async function main(dry_run = false, ..., extract_dir = "./shared/pcms") 
 
 ## Key Design Decisions
 
-- **Clean once, use everywhere** — XML quirks handled in lineage step, not every script
+- **Python everywhere** — All flow steps use Python + psycopg
+- **Clean once, use everywhere** — XML quirks handled in Step A, not every script
 - **snake_case keys** — JSON keys match Postgres columns directly
-- **same_worker: true** — All steps share `.shared/` directory
-- **Bun runtime** — Native Postgres, fast file I/O, shell integration
+- **same_worker: true** — All steps share `./shared/` directory
