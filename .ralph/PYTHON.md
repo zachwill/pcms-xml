@@ -27,7 +27,7 @@ Convert the verbose TypeScript import scripts to concise Python/Polars.
 - [x] `people_&_identity.inline_script.py` — players, agencies, agents (265 lines vs 352 TS)
 
 ### Phase 2: Core Data
-- [ ] `contracts.inline_script.py` — contracts + all nested (versions, bonuses, salaries, payments, protections)
+- [x] `contracts.inline_script.py` — contracts + all nested (versions, bonuses, salaries, payments, protections) (327 lines vs 576 TS)
 - [ ] `transactions.inline_script.py` — trades, ledger, waiver_amounts, team_exceptions, exception_usage
 
 ### Phase 3: Config & Teams
