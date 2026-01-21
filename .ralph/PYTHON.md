@@ -35,7 +35,7 @@ Convert the verbose TypeScript import scripts to concise Python/Polars.
 - [x] `team_financials.inline_script.py` — budgets, tax status, waiver priority, two-way
 
 ### Phase 4: Finalize & Cleanup
-- [ ] `finalize_lineage.inline_script.py` — aggregate results, report errors
+- [x] `finalize_lineage.inline_script.py` — aggregate results, report errors
 - [ ] Update `flow.yaml` to use Python scripts instead of TypeScript
 - [ ] Delete old TypeScript scripts
 
