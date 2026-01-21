@@ -31,7 +31,7 @@ Convert the verbose TypeScript import scripts to concise Python/Polars.
 - [x] `transactions.inline_script.py` — trades, ledger, waiver_amounts, team_exceptions, exception_usage (599 lines vs 865 TS)
 
 ### Phase 3: Config & Teams
-- [ ] `league_config.inline_script.py` — system values, scales, projections, tax rates, apron constraints, draft picks, draft summaries
+- [x] `league_config.inline_script.py` — system values, scales, projections, tax rates, apron constraints, draft picks, draft summaries (625 lines vs 1054 TS)
 - [ ] `team_financials.inline_script.py` — budgets, tax status, waiver priority, two-way
 
 ### Phase 4: Finalize & Cleanup
