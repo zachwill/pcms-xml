@@ -34,9 +34,12 @@ def upsert(conn, table: str, rows: list[dict], conflict_keys: list[str]) -> int:
     placeholders = ", ".join(["%s"] * len(cols))
     col_list = ", ".join(cols)
     conflict = ", ".join(conflict_keys)
-    updates = ", ".join([f"{c} = EXCLUDED.{c}" for c in update_cols])
 
-    sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
+    if update_cols:
+        updates = ", ".join([f"{c} = EXCLUDED.{c}" for c in update_cols])
+        sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
+    else:
+        sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT ({conflict}) DO NOTHING"
 
     with conn.cursor() as cur:
         cur.executemany(sql, [tuple(r[c] for c in cols) for r in rows])

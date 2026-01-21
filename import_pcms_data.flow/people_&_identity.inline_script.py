@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["polars", "psycopg[binary]"]
+# dependencies = ["psycopg[binary]"]
 # ///
 """
 People & Identity Import
@@ -20,7 +20,6 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-import polars as pl
 import psycopg
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -37,9 +36,12 @@ def upsert(conn, table: str, rows: list[dict], conflict_keys: list[str]) -> int:
     placeholders = ", ".join(["%s"] * len(cols))
     col_list = ", ".join(cols)
     conflict = ", ".join(conflict_keys)
-    updates = ", ".join([f"{c} = EXCLUDED.{c}" for c in update_cols])
 
-    sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
+    if update_cols:
+        updates = ", ".join([f"{c} = EXCLUDED.{c}" for c in update_cols])
+        sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
+    else:
+        sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT ({conflict}) DO NOTHING"
 
     with conn.cursor() as cur:
         cur.executemany(sql, [tuple(r[c] for c in cols) for r in rows])
@@ -59,7 +61,8 @@ def to_int(val) -> int | None:
     if val is None or val == "":
         return None
     try:
-        return int(val)
+        n = float(val)
+        return int(n) if n == n else None  # NaN check
     except (ValueError, TypeError):
         return None
 
@@ -105,32 +108,33 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
         }
 
         # ─────────────────────────────────────────────────────────────────────
-        # Agencies (from lookups.json) - use Polars for clean transform
+        # Agencies (from lookups.json)
         # ─────────────────────────────────────────────────────────────────────
         agencies_raw = lookups.get("lk_agencies", {}).get("lk_agency", [])
-        agencies_df = pl.DataFrame(agencies_raw)
 
-        agencies = (
-            agencies_df
-            .filter(pl.col("agency_id").is_not_null())
-            .rename({"active_flg": "is_active"})
-            .with_columns([
-                pl.col("create_date").alias("created_at"),
-                pl.col("last_change_date").alias("updated_at"),
-                pl.col("record_change_date").alias("record_changed_at"),
-                pl.struct(pl.all()).map_elements(
-                    lambda x: json.dumps(dict(x), default=str), return_dtype=pl.Utf8
-                ).alias("agency_json"),
-                pl.lit(ingested_at).alias("ingested_at"),
-            ])
-            .select([
-                "agency_id", "agency_name", "is_active",
-                "created_at", "updated_at", "record_changed_at",
-                "agency_json", "ingested_at",
-            ])
-            .unique(subset=["agency_id"])
-            .to_dicts()
-        )
+        agencies = [
+            {
+                "agency_id": a["agency_id"],
+                "agency_name": a.get("agency_name"),
+                "is_active": a.get("active_flg"),
+                "created_at": a.get("create_date"),
+                "updated_at": a.get("last_change_date"),
+                "record_changed_at": a.get("record_change_date"),
+                "agency_json": json.dumps(a, default=str),
+                "ingested_at": ingested_at,
+            }
+            for a in agencies_raw
+            if a.get("agency_id") is not None
+        ]
+
+        # Dedupe by agency_id
+        seen_agency_ids = set()
+        unique_agencies = []
+        for a in agencies:
+            if a["agency_id"] not in seen_agency_ids:
+                seen_agency_ids.add(a["agency_id"])
+                unique_agencies.append(a)
+        agencies = unique_agencies
 
         # Build agency name map for agents
         agency_name_map = {a["agency_id"]: a["agency_name"] for a in agencies if a.get("agency_name")}
