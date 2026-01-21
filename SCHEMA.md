@@ -37,8 +37,10 @@ apron_constraints
  - ingested_at timestamp with time zone default now()
 
 contract_bonus_criteria
- - bonus_criteria_id integer primary key
- - bonus_id integer
+ - contract_id integer (pk)
+ - version_number integer (pk)
+ - bonus_id integer (pk)
+ - bonus_criteria_id integer (pk)
  - criteria_lk text
  - criteria_operator_lk text
  - modifier_lk text
@@ -50,11 +52,12 @@ contract_bonus_criteria
  - date_1 date
  - date_2 date
  - ingested_at timestamp with time zone default now()
+ - FK: (contract_id, version_number, bonus_id) → contract_bonuses
 
 contract_bonus_maximums
- - bonus_max_id integer primary key
- - contract_id integer
- - version_number integer
+ - contract_id integer (pk)
+ - version_number integer (pk)
+ - bonus_max_id integer (pk)
  - salary_year integer
  - max_amount bigint
  - bonus_type_lk text
@@ -62,9 +65,9 @@ contract_bonus_maximums
  - ingested_at timestamp with time zone default now()
 
 contract_bonuses
- - bonus_id integer primary key
- - contract_id integer
- - version_number integer
+ - contract_id integer (pk)
+ - version_number integer (pk)
+ - bonus_id integer (pk)
  - salary_year integer
  - bonus_amount bigint
  - bonus_type_lk text
@@ -77,8 +80,10 @@ contract_bonuses
  - ingested_at timestamp with time zone default now()
 
 contract_protection_conditions
- - condition_id integer primary key
- - protection_id integer
+ - contract_id integer (pk)
+ - version_number integer (pk)
+ - protection_id integer (pk)
+ - condition_id integer (pk)
  - amount bigint
  - clause_name text
  - earned_date date
@@ -87,11 +92,12 @@ contract_protection_conditions
  - criteria_description text
  - criteria_json jsonb
  - ingested_at timestamp with time zone default now()
+ - FK: (contract_id, version_number, protection_id) → contract_protections
 
 contract_protections
- - protection_id integer primary key
- - contract_id integer
- - version_number integer
+ - contract_id integer (pk)
+ - version_number integer (pk)
+ - protection_id integer (pk)
  - salary_year integer
  - protection_amount bigint
  - effective_protection_amount bigint

@@ -3,15 +3,19 @@ Contracts Import
 
 Imports contracts and all nested structures from PCMS extract.
 
-Order (FK-safe): contracts → versions → salaries → bonuses → payment_schedules → protections
+Order (FK-safe): contracts → versions → salaries → bonuses → bonus_criteria →
+                 bonus_maximums → payment_schedules → protections → protection_conditions
 
 Upserts into:
 - pcms.contracts
 - pcms.contract_versions
 - pcms.salaries
 - pcms.contract_bonuses
+- pcms.contract_bonus_criteria
+- pcms.contract_bonus_maximums
 - pcms.payment_schedules
 - pcms.contract_protections
+- pcms.contract_protection_conditions
 """
 import os
 import json
@@ -125,9 +129,12 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
         contracts_seen = {}
         versions_seen = {}
         salaries_seen = {}
-        bonuses_seen = {}
+        bonuses_seen = {}          # Key: (contract_id, version_number, bonus_id)
+        bonus_criteria_seen = {}   # Key: (contract_id, version_number, bonus_id, bonus_criteria_id)
+        bonus_maximums_seen = {}   # Key: (contract_id, version_number, bonus_max_id)
         payments_seen = {}
-        protections_seen = {}
+        protections_seen = {}      # Key: (contract_id, version_number, protection_id)
+        protection_conditions_seen = {}  # Key: (contract_id, version_number, protection_id, condition_id)
 
         for c in contracts_raw:
             contract_id = to_int(c.get("contract_id"))
@@ -237,13 +244,15 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
                     if protection_id is None:
                         continue
 
+                    protection_key = (contract_id, version_number, protection_id)
+
                     protection_types = as_list(
                         p.get("protection_types", {}).get("protection_type")
                         if p.get("protection_types") else None
                     )
                     has_conditions = p.get("protection_conditions") is not None
 
-                    protections_seen[protection_id] = {
+                    protections_seen[protection_key] = {
                         "protection_id": protection_id,
                         "contract_id": contract_id,
                         "version_number": version_number,
@@ -257,6 +266,33 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
                         "ingested_at": ingested_at,
                     }
 
+                    # ─────────────────────────────────────────────────────────
+                    # Protection Conditions (nested under protection)
+                    # ─────────────────────────────────────────────────────────
+                    if has_conditions:
+                        conditions = as_list(p["protection_conditions"].get("protection_condition"))
+                        for cond in conditions:
+                            condition_id = to_int(cond.get("contract_protection_condition_id"))
+                            if condition_id is None:
+                                continue
+
+                            condition_key = (contract_id, version_number, protection_id, condition_id)
+
+                            protection_conditions_seen[condition_key] = {
+                                "condition_id": condition_id,
+                                "protection_id": protection_id,
+                                "contract_id": contract_id,
+                                "version_number": version_number,
+                                "amount": to_int(cond.get("amount")),
+                                "clause_name": cond.get("clause_name"),
+                                "earned_date": cond.get("earned_date"),
+                                "earned_type_lk": cond.get("earned_type_lk"),
+                                "is_full_condition": cond.get("full_flg") or None,
+                                "criteria_description": cond.get("criteria_description"),
+                                "criteria_json": json.dumps(cond.get("criteria"), default=str) if cond.get("criteria") else None,
+                                "ingested_at": ingested_at,
+                            }
+
                 # ─────────────────────────────────────────────────────────────
                 # Bonuses (nested under version)
                 # ─────────────────────────────────────────────────────────────
@@ -266,7 +302,9 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
                     if bonus_id is None:
                         continue
 
-                    bonuses_seen[bonus_id] = {
+                    bonus_key = (contract_id, version_number, bonus_id)
+
+                    bonuses_seen[bonus_key] = {
                         "bonus_id": bonus_id,
                         "contract_id": contract_id,
                         "version_number": version_number,
@@ -279,6 +317,61 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
                         "clause_name": b.get("clause_name"),
                         "criteria_description": b.get("criteria_description"),
                         "criteria_json": json.dumps(b.get("bonus_criteria"), default=str) if b.get("bonus_criteria") else None,
+                        "ingested_at": ingested_at,
+                    }
+
+                    # ─────────────────────────────────────────────────────────
+                    # Bonus Criteria (nested under bonus)
+                    # ─────────────────────────────────────────────────────────
+                    criteria_groups = as_list(b.get("bonus_criteria"))
+                    for group in criteria_groups:
+                        if group is None:
+                            continue
+                        criteria_items = as_list(group.get("bonus_criterium") if isinstance(group, dict) else None)
+                        for cri in criteria_items:
+                            criteria_id = to_int(cri.get("bonus_criteria_id"))
+                            if criteria_id is None:
+                                continue
+
+                            criteria_key = (contract_id, version_number, bonus_id, criteria_id)
+
+                            bonus_criteria_seen[criteria_key] = {
+                                "bonus_criteria_id": criteria_id,
+                                "bonus_id": bonus_id,
+                                "contract_id": contract_id,
+                                "version_number": version_number,
+                                "criteria_lk": cri.get("criteria_lk"),
+                                "criteria_operator_lk": cri.get("criteria_operator_lk"),
+                                "modifier_lk": cri.get("modifier_lk"),
+                                "season_type_lk": cri.get("season_type_lk"),
+                                "is_player_criteria": cri.get("player_criteria_flg") or None,
+                                "is_team_criteria": cri.get("team_criteria_flg") or None,
+                                "value_1": cri.get("value1"),
+                                "value_2": cri.get("value2"),
+                                "date_1": cri.get("date1"),
+                                "date_2": cri.get("date2"),
+                                "ingested_at": ingested_at,
+                            }
+
+                # ─────────────────────────────────────────────────────────────
+                # Bonus Maximums (nested under version)
+                # ─────────────────────────────────────────────────────────────
+                bonus_maxes = as_list(v.get("bonus_maximums", {}).get("bonus_maximum") if v.get("bonus_maximums") else None)
+                for bm in bonus_maxes:
+                    bonus_max_id = to_int(bm.get("bonus_max_id"))
+                    if bonus_max_id is None:
+                        continue
+
+                    max_key = (contract_id, version_number, bonus_max_id)
+
+                    bonus_maximums_seen[max_key] = {
+                        "bonus_max_id": bonus_max_id,
+                        "contract_id": contract_id,
+                        "version_number": version_number,
+                        "salary_year": to_int(bm.get("salary_year")),
+                        "max_amount": to_int(bm.get("bonus_max_amount")),
+                        "bonus_type_lk": None,  # Not in source data
+                        "is_likely": bm.get("greater_of_max_flg") or None,
                         "ingested_at": ingested_at,
                     }
 
@@ -362,12 +455,17 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
         versions = list(versions_seen.values())
         salaries = list(salaries_seen.values())
         bonuses = list(bonuses_seen.values())
+        bonus_criteria = list(bonus_criteria_seen.values())
+        bonus_maximums = list(bonus_maximums_seen.values())
         payments = list(payments_seen.values())
         protections = list(protections_seen.values())
+        protection_conditions = list(protection_conditions_seen.values())
 
         print(f"Prepared: contracts={len(contracts)}, versions={len(versions)}, "
               f"salaries={len(salaries)}, bonuses={len(bonuses)}, "
-              f"payments={len(payments)}, protections={len(protections)}")
+              f"bonus_criteria={len(bonus_criteria)}, bonus_maximums={len(bonus_maximums)}, "
+              f"payments={len(payments)}, protections={len(protections)}, "
+              f"protection_conditions={len(protection_conditions)}")
 
         if not dry_run:
             conn = psycopg.connect(os.environ["POSTGRES_URL"])
@@ -382,14 +480,33 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
                 count = upsert(conn, "pcms.salaries", salaries, ["contract_id", "version_number", "salary_year"])
                 tables.append({"table": "pcms.salaries", "attempted": count, "success": True})
 
-                count = upsert(conn, "pcms.contract_bonuses", bonuses, ["bonus_id"])
+                # Bonuses - composite key: (contract_id, version_number, bonus_id)
+                count = upsert(conn, "pcms.contract_bonuses", bonuses, ["contract_id", "version_number", "bonus_id"])
                 tables.append({"table": "pcms.contract_bonuses", "attempted": count, "success": True})
+
+                # Bonus Criteria - composite key: (contract_id, version_number, bonus_id, bonus_criteria_id)
+                count = upsert(conn, "pcms.contract_bonus_criteria", bonus_criteria,
+                               ["contract_id", "version_number", "bonus_id", "bonus_criteria_id"])
+                tables.append({"table": "pcms.contract_bonus_criteria", "attempted": count, "success": True})
+
+                # Bonus Maximums - composite key: (contract_id, version_number, bonus_max_id)
+                count = upsert(conn, "pcms.contract_bonus_maximums", bonus_maximums,
+                               ["contract_id", "version_number", "bonus_max_id"])
+                tables.append({"table": "pcms.contract_bonus_maximums", "attempted": count, "success": True})
 
                 count = upsert(conn, "pcms.payment_schedules", payments, ["payment_schedule_id"])
                 tables.append({"table": "pcms.payment_schedules", "attempted": count, "success": True})
 
-                count = upsert(conn, "pcms.contract_protections", protections, ["protection_id"])
+                # Protections - composite key: (contract_id, version_number, protection_id)
+                count = upsert(conn, "pcms.contract_protections", protections,
+                               ["contract_id", "version_number", "protection_id"])
                 tables.append({"table": "pcms.contract_protections", "attempted": count, "success": True})
+
+                # Protection Conditions - composite key: (contract_id, version_number, protection_id, condition_id)
+                count = upsert(conn, "pcms.contract_protection_conditions", protection_conditions,
+                               ["contract_id", "version_number", "protection_id", "condition_id"])
+                tables.append({"table": "pcms.contract_protection_conditions", "attempted": count, "success": True})
+
             finally:
                 conn.close()
         else:
@@ -397,8 +514,11 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
             tables.append({"table": "pcms.contract_versions", "attempted": len(versions), "success": True})
             tables.append({"table": "pcms.salaries", "attempted": len(salaries), "success": True})
             tables.append({"table": "pcms.contract_bonuses", "attempted": len(bonuses), "success": True})
+            tables.append({"table": "pcms.contract_bonus_criteria", "attempted": len(bonus_criteria), "success": True})
+            tables.append({"table": "pcms.contract_bonus_maximums", "attempted": len(bonus_maximums), "success": True})
             tables.append({"table": "pcms.payment_schedules", "attempted": len(payments), "success": True})
             tables.append({"table": "pcms.contract_protections", "attempted": len(protections), "success": True})
+            tables.append({"table": "pcms.contract_protection_conditions", "attempted": len(protection_conditions), "success": True})
 
     except Exception as e:
         import traceback
