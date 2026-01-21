@@ -24,7 +24,7 @@ Convert the verbose TypeScript import scripts to concise Python/Polars.
 
 ### Phase 1: Simple Scripts
 - [x] `lookups.inline_script.py` — normalize 43 lookup tables into pcms.lookups (204 lines vs 244 TS)
-- [ ] `people_&_identity.inline_script.py` — players, agencies, agents
+- [x] `people_&_identity.inline_script.py` — players, agencies, agents (265 lines vs 352 TS)
 
 ### Phase 2: Core Data
 - [ ] `contracts.inline_script.py` — contracts + all nested (versions, bonuses, salaries, payments, protections)
