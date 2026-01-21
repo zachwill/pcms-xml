@@ -36,7 +36,7 @@ Convert the verbose TypeScript import scripts to concise Python/Polars.
 
 ### Phase 4: Finalize & Cleanup
 - [x] `finalize_lineage.inline_script.py` — aggregate results, report errors
-- [ ] Update `flow.yaml` to use Python scripts instead of TypeScript
+- [x] Update `flow.yaml` to use Python scripts instead of TypeScript
 - [ ] Delete old TypeScript scripts
 
 ---
