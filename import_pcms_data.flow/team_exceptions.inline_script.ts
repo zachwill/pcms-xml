@@ -11,6 +11,7 @@
  * - this extract still contains a small amount of XML-style nesting and
  *   hyphenated keys (e.g. "team-exceptions"), which we flatten here.
  */
+
 import { SQL } from "bun";
 import { readdir } from "node:fs/promises";
 

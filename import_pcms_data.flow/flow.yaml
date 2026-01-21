@@ -2,7 +2,7 @@ summary: Ralph import PCMS data
 description: ''
 value:
   modules:
-    - id: t
+    - id: a
       summary: PCMS XML to JSON
       value:
         type: rawscript
@@ -16,7 +16,7 @@ value:
             expr: flow_input.s3_key
         lock: '!inline pcms_xml_to_json.inline_script.lock'
         language: python3
-    - id: k
+    - id: b
       summary: Lookups
       value:
         type: rawscript
@@ -30,7 +30,7 @@ value:
             expr: '''./shared/pcms'''
         lock: '!inline lookups.inline_script.lock'
         language: bun
-    - id: b
+    - id: c
       summary: People & Identity
       value:
         type: rawscript
@@ -44,7 +44,7 @@ value:
             expr: '''./shared/pcms'''
         lock: '!inline people_&_identity.inline_script.lock'
         language: bun
-    - id: r
+    - id: d
       summary: Draft
       value:
         type: rawscript
@@ -58,7 +58,7 @@ value:
             expr: '''./shared/pcms'''
         lock: '!inline draft.inline_script.lock'
         language: bun
-    - id: c
+    - id: e
       summary: Contracts
       value:
         type: rawscript
@@ -72,7 +72,7 @@ value:
             expr: '''./shared/pcms'''
         lock: '!inline contracts.inline_script.lock'
         language: bun
-    - id: d
+    - id: f
       summary: Team Exceptions
       value:
         type: rawscript
@@ -86,7 +86,7 @@ value:
             expr: '''./shared/pcms'''
         lock: '!inline team_exceptions.inline_script.lock'
         language: bun
-    - id: e
+    - id: g
       summary: 'Transactions (Trades, Ledger, Waiver Amounts)'
       value:
         type: rawscript
@@ -102,7 +102,7 @@ value:
           !inline
           transactions_(trades,_ledger,_waiver_amounts).inline_script.lock
         language: bun
-    - id: f
+    - id: h
       summary: League Config
       value:
         type: rawscript
@@ -116,7 +116,7 @@ value:
             expr: '''./shared/pcms'''
         lock: '!inline league_config.inline_script.lock'
         language: bun
-    - id: h
+    - id: i
       summary: Team Financials
       value:
         type: rawscript
@@ -130,7 +130,7 @@ value:
             expr: '''./shared/pcms'''
         lock: '!inline team_financials.inline_script.lock'
         language: bun
-    - id: g
+    - id: j
       summary: Two-Way
       value:
         type: rawscript
@@ -144,7 +144,7 @@ value:
             expr: '''./shared/pcms'''
         lock: '!inline two-way.inline_script.lock'
         language: bun
-    - id: l
+    - id: k
       summary: Finalize Lineage
       value:
         type: rawscript
@@ -156,8 +156,8 @@ value:
           summaries:
             type: javascript
             expr: >-
-              [results.t, results.k, results.b, results.r, results.c, results.d,
-              results.e, results.f, results.h, results.g]
+              [results.a, results.b, results.c, results.d, results.e, results.f,
+              results.g, results.h, results.i, results.j]
         lock: '!inline finalize_lineage.inline_script.lock'
         language: bun
   same_worker: true

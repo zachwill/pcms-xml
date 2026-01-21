@@ -10,15 +10,7 @@ from typing import Any
 
 import wmill
 from lxml import etree
-
-# Try orjson for speed, fall back to standard json
-try:
-    import orjson
-    def dump_json(obj: Any, path: Path):
-        path.write_bytes(orjson.dumps(obj, option=orjson.OPT_INDENT_2))
-except ImportError:
-    def dump_json(obj: Any, path: Path):
-        path.write_text(json.dumps(obj, indent=2))
+import orjson
 
 
 DEFAULT_S3_KEY = "pcms/nba_pcms_full_extract.zip"
@@ -33,6 +25,8 @@ CAMEL_TO_SNAKE_RE = re.compile(r'(?<!^)(?=[A-Z])')
 def camel_to_snake(name: str) -> str:
     return CAMEL_TO_SNAKE_RE.sub('_', name).lower()
 
+def dump_json(obj: Any, path: Path):
+    path.write_bytes(orjson.dumps(obj, option=orjson.OPT_INDENT_2))
 
 def clean(obj: Any) -> Any:
     """Transform messy XML-parsed data into clean, usable Python dicts."""
@@ -53,7 +47,6 @@ def clean(obj: Any) -> Any:
             if k.startswith('@') or k.startswith('?'):
                 continue
             result[camel_to_snake(k)] = clean(v)
-        # If all keys were skipped (only @ attributes), return None
         return result if result else None
     return obj
 

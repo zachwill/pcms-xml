@@ -110,8 +110,8 @@ export async function main(dry_run = false, extract_dir = "./shared/pcms") {
     // two_way_daily_statuses (two_way.json)
     const statuses = asArray<any>(
       twoWay?.daily_statuses?.["daily-status"] ??
-        twoWay?.daily_statuses?.daily_status ??
-        twoWay?.daily_statuses
+      twoWay?.daily_statuses?.daily_status ??
+      twoWay?.daily_statuses
     );
 
     const statusRowsRaw = statuses
@@ -252,8 +252,8 @@ export async function main(dry_run = false, extract_dir = "./shared/pcms") {
     // two_way_contract_utility (two_way.json)
     const seasons = asArray<any>(
       twoWay?.two_way_seasons?.["two-way-season"] ??
-        twoWay?.two_way_seasons?.two_way_season ??
-        twoWay?.two_way_seasons
+      twoWay?.two_way_seasons?.two_way_season ??
+      twoWay?.two_way_seasons
     );
 
     const contractRowsRaw: Record<string, any>[] = [];
