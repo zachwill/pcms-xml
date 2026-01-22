@@ -1,180 +1,141 @@
-# PCMS XML Flow
+# PCMS XML Flow (Windmill) — Agent Handoff
 
-Windmill flow: imports NBA PCMS XML → PostgreSQL. Python only.
+Imports **NBA PCMS XML → Postgres**. **Python only**.
 
-## Architecture
+If you are working on **Sean-style tooling** (Salary Book / Team Master / Trade Machine), start with:
 
-**Step A** (pcms_xml_to_json): S3 ZIP → XML → clean JSON files  
-**Steps B-G**: Read JSON, upsert to `pcms.*` tables
+- `TODO.md` (roadmap + what we’re building next)
+- `SEAN.md` (current state + roadmap; reference specs are directional)
+- `SALARY_BOOK.md` (how to interpret contracts/salaries; canonical table)
+- `queries/AGENTS.md` (tool/query handoff)
+- `SCHEMA.md` (authoritative schema/column names)
 
-Key: Clean data ONCE in Step A. Import scripts just read JSON and upsert.
+---
 
-## Project Structure
+## Architecture (flow steps)
+
+**Step A**: `pcms_xml_to_json` — S3 ZIP → XML → **clean JSON** in `shared/pcms/nba_pcms_full_extract/`
+
+**Steps B–G**: read JSON → upsert to `pcms.*` tables
+
+Key principle: **clean data once in Step A**. Import scripts should be deterministic: read JSON, normalize lightly, upsert.
+
+---
+
+## Project structure
 
 ```
-import_pcms_data.flow/          # Windmill flow scripts (7 steps)
-├── pcms_xml_to_json.inline_script.py   # Step A: XML → JSON
-├── lookups.inline_script.py            # Step B: 43 lookup tables
-├── people.inline_script.py             # Step C: agencies, agents, people
-├── contracts.inline_script.py          # Step D: contracts, versions, salaries, bonuses
-├── transactions.inline_script.py       # Step E: trades, ledger, waivers, exceptions
-├── league_config.inline_script.py      # Step F: system values, scales, draft
-└── team_financials.inline_script.py    # Step G: budgets, tax, cap projections, two-way
+import_pcms_data.flow/
+  pcms_xml_to_json.inline_script.py    # A: XML → JSON
+  lookups.inline_script.py             # B
+  people.inline_script.py              # C
+  contracts.inline_script.py           # D
+  transactions.inline_script.py        # E
+  league_config.inline_script.py       # F
+  team_financials.inline_script.py     # G
 
-shared/pcms/nba_pcms_full_extract/      # Clean JSON files (source data)
+shared/pcms/nba_pcms_full_extract/     # cleaned JSON outputs
+migrations/                            # schema + cache tables/functions
 scripts/
-├── xml-to-json.py              # Local XML→JSON (mirrors Step A)
-└── test-import.py              # Test import scripts locally
-migrations/                     # SQL migrations for pcms schema
-SCHEMA.md                       # Target database schema (READ THIS for column names!)
+  xml-to-json.py                       # local XML→JSON (mirrors Step A)
+  test-import.py                       # local runner (dry-run by default)
+SCHEMA.md                              # schema reference
 ```
 
-## Running Import Scripts
+---
 
-**Always use `uv run` for Python scripts.**
+## Running imports locally
+
+Always use `uv run`.
 
 ```bash
-# Test runner has TWO modes - dry-run (default) vs write
-uv run scripts/test-import.py transactions --dry-run  # Preview only, NO DB writes
-uv run scripts/test-import.py transactions --write    # Actually commits to database
+# dry-run is default (NO DB writes)
+uv run scripts/test-import.py transactions --dry-run
 
-# Available script names:
-#   lookups, people, contracts, transactions, league_config, team_financials
+# commit to DB
+uv run scripts/test-import.py transactions --write
 
-# Run all steps
+# run everything
 uv run scripts/test-import.py all --write
 ```
 
-**IMPORTANT**: `--dry-run` is the DEFAULT. You MUST use `--write` to commit changes!
-
 ---
 
-## Debugging Methodology
+## Debugging checklist (when data is missing / NULL)
 
-When columns are NULL or data is missing after import:
-
-### Step 1: Check Current DB State
-
+1) **Confirm DB state**
 ```bash
-# See which columns are populated vs NULL
-psql "$POSTGRES_URL" -c "SELECT 
-  COUNT(*) as total,
-  COUNT(column1) as col1_populated,
-  COUNT(column2) as col2_populated
-FROM pcms.some_table;"
-
-# Sample a few rows
+psql "$POSTGRES_URL" -c "SELECT COUNT(*), COUNT(some_column) FROM pcms.some_table;"
 psql "$POSTGRES_URL" -c "SELECT * FROM pcms.some_table LIMIT 3;"
 ```
 
-### Step 2: Find the Import Script
-
+2) **Find the script + JSON input**
 ```bash
-# Which script handles this table?
-grep -n "table_name" import_pcms_data.flow/*.py
-
-# What JSON file does it read?
-grep -n "\.json" import_pcms_data.flow/some.inline_script.py | head -10
+grep -n "pcms.some_table" import_pcms_data.flow/*.py
+grep -n "\.json" import_pcms_data.flow/some.inline_script.py | head
 ```
 
-### Step 3: Explore JSON Structure (use jq, don't read full files!)
-
+3) **Inspect JSON structure (use jq)**
 ```bash
-# Check top-level structure
-jq 'keys' shared/pcms/nba_pcms_full_extract/something.json
 jq 'type' shared/pcms/nba_pcms_full_extract/something.json
-
-# Get first record to see available fields
 jq '.[0]' shared/pcms/nba_pcms_full_extract/something.json
-jq '.some_container[0]' shared/pcms/nba_pcms_full_extract/something.json
-
-# Handle nested structures (VERY COMMON!)
-jq '.container["nested-key"][0]' shared/pcms/nba_pcms_full_extract/something.json
-
-# Count records
-jq '. | length' shared/pcms/nba_pcms_full_extract/something.json
-
-# Find a specific field across nested structure
-jq '.. | .field_name? // empty' shared/pcms/nba_pcms_full_extract/something.json | head
+jq '.. | .some_field? // empty' shared/pcms/nba_pcms_full_extract/something.json | head
 ```
 
-### Step 4: Compare JSON Fields to Script
+4) **Fix pattern**: if the field lives elsewhere, build an enrichment lookup and merge during import.
 
-Look for common issues:
-- **Field name mismatches**: `season_year` vs `salary_year`
-- **Nested data not extracted**: Container has `["sub-key"][]` that script doesn't traverse
-- **Data in different JSON file**: Field exists but lives in a separate JSON structure
-
-### Step 5: Fix Pattern - Enrichment Lookup
-
-When data lives in a different structure, build a lookup dict:
-
-```python
-# Build lookup from related data
-enrichment = {}
-for item in related_data:
-    key = (item["id"], item["date"])  # composite key
-    enrichment[key] = {"extra_field": item["extra_field"]}
-
-# Merge when processing main data
-for record in main_data:
-    lookup_key = (record["id"], record["date"])
-    extra = enrichment.get(lookup_key, {})
-    record["extra_field"] = extra.get("extra_field")
-```
-
-### Step 6: Test Changes
-
+5) **Re-test**
 ```bash
-# Clear pycache first!
 rm -rf import_pcms_data.flow/__pycache__
-
-# Dry-run to verify no errors
-uv run scripts/test-import.py transactions --dry-run
-
-# If good, write to DB
-uv run scripts/test-import.py transactions --write
-
-# Verify fix
-psql "$POSTGRES_URL" -c "SELECT COUNT(*), COUNT(fixed_column) FROM pcms.transactions;"
+uv run scripts/test-import.py <step> --dry-run
+uv run scripts/test-import.py <step> --write
 ```
 
 ---
 
-## Common Gotchas
+## Common gotchas
 
-1. **Nested JSON keys with hyphens**: Access via `data["hyphen-key"]` not `data.hyphen_key`
-2. **Data lives elsewhere**: Sometimes a column's data is in a completely different JSON file/structure - build enrichment lookups
-3. **Column doesn't exist in source**: Some schema columns were aggregates or calculated values that don't exist in raw XML - may need to drop from schema
-4. **pycache stale**: Always `rm -rf import_pcms_data.flow/__pycache__` before re-testing
-5. **Forgot --write**: Dry-run is default - changes won't persist without `--write`!
+- JSON keys can contain hyphens → use `data["hyphen-key"]`.
+- Data may live in a different JSON file/branch → build enrichment lookups.
+- Some schema columns may not exist in source → verify in JSON before chasing.
+- Pycache can mask changes → `rm -rf import_pcms_data.flow/__pycache__`.
+- You probably forgot `--write` → dry-run is default.
 
 ---
 
-## JSON Format
+## Tooling caches: source-of-truth hierarchy (Team Master / Trade tools)
 
-All JSON: snake_case keys, null values (not xsi:nil), flat arrays.
+When building Sean-style tooling, distinguish **"what exists"** from **"what counts"**.
 
-## Import Script Pattern
+### What counts (authoritative cap sheet totals)
+- **`pcms.team_budget_snapshots`** is the canonical source for team-year amounts that actually count toward:
+  - cap (`cap_amount`)
+  - tax (`tax_amount`)
+  - apron (`apron_amount`)
+  - MTS (`mts_amount`)
+- This is the source for `pcms.team_salary_warehouse`.
 
-Each script has inline `upsert()` and `find_extract_dir()` helpers (no shared imports in Windmill).
+### Detail tables (often include "phantom" rows)
+Some tables represent a superset of possibilities (rights/holds/history) and may include rows that *do not currently count*.
 
-```python
-# /// script
-# dependencies = ["psycopg[binary]"]
-# ///
-import json, psycopg, os
-from pathlib import Path
+- **`pcms.non_contract_amounts`** (cap holds / rights) can include holds for a team even if the team renounced them or the player signed elsewhere.
+  - Example: a player may appear as a cap hold for Team A, while `salary_book_warehouse` shows they signed with Team B.
+  - For tool correctness, `pcms.cap_holds_warehouse` is filtered to **only rows that appear in** `team_budget_snapshots` FA buckets.
 
-def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
-    base_dir = find_extract_dir(extract_dir)
-    with open(base_dir / "players.json") as f:
-        players = json.load(f)
-    if not dry_run:
-        conn = psycopg.connect(os.environ["POSTGRES_URL"])
-        upsert(conn, "pcms.people", players, ["person_id"])
-```
+- **`pcms.transaction_waiver_amounts`** (waiver/dead money detail) should be treated as drilldown detail.
+  - For our ingests, `transaction_waiver_amounts.team_code` can be NULL; resolve via `pcms.teams` using `team_id`.
 
-## Flow Config
+### Warehouse tables (tool-facing caches)
+- Player cache: `pcms.salary_book_warehouse`
+- Team totals cache: `pcms.team_salary_warehouse`
+- Exceptions cache: `pcms.exceptions_warehouse`
+- Dead money drilldown: `pcms.dead_money_warehouse`
+- Cap holds drilldown: `pcms.cap_holds_warehouse`
 
-`flow.yaml`: `same_worker: true` so all steps share `./shared/` directory.
+Rule of thumb: if you’re showing tool output, prefer a `*_warehouse` table first; if you need detail, join a detail table but scope it to what `team_budget_snapshots` says counts.
+
+---
+
+## Windmill notes
+
+`flow.yaml` uses `same_worker: true`, so all steps share the `./shared/` directory.

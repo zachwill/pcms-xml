@@ -1,4 +1,4 @@
--- 017_remove_unused_two_way_daily_statuses_columns.sql
+-- 018_remove_unused_two_way_daily_statuses_columns.sql
 --
 -- Remove unused columns from pcms.two_way_daily_statuses.
 -- These columns don't exist in the source data (they were season-level aggregates from player_day_counts).

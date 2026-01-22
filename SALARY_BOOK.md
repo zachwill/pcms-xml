@@ -1,249 +1,100 @@
-# Salary Book Query Guide
+# Salary Book / Playground Data Guide
 
-Reference for querying PCMS contract/salary data to produce the Salary Book view.
+Status: **2026-01-22**
 
----
+This repo is moving toward **Sean-style tooling powered by Postgres tables** (fast, indexed, refreshable) rather than giant ad-hoc pivots.
 
-## Data Model
+## Canonical source for tooling
+
+### `pcms.salary_book_warehouse` (table)
+
+For almost all “Salary Book / Playground” style queries, use:
+
+- **Table:** `pcms.salary_book_warehouse`
+- **Refresh function:** `SELECT pcms.refresh_salary_book_warehouse();`
+- **Grids:** cap/tax/apron 2025–2030 (today)
+- **Normalized fields:**
+  - `age` is **decimal years** (numeric(4,1))
+  - `option_20xx`: `'NONE'` is normalized to `NULL`
+
+This table is intentionally **wide** and **one-row-per-active-player** so it can back UI queries directly.
+
+Example (team roster):
+```sql
+SELECT player_name, cap_2025, cap_2026, trade_kicker_display, agent_name
+FROM pcms.salary_book_warehouse
+WHERE team_code = 'BOS'
+ORDER BY cap_2025 DESC NULLS LAST;
+```
+
+Example (name search):
+```sql
+SELECT player_name, team_code, cap_2025
+FROM pcms.salary_book_warehouse
+WHERE lower(player_name) LIKE '%curry%'
+ORDER BY cap_2025 DESC NULLS LAST;
+```
+
+### How “active player” is chosen (warehouse refresh logic)
+
+The refresh function selects **one contract per player** from `pcms.contracts` where:
+
+- `contracts.record_status_lk IN ('APPR','FUTR')`
+- prefer `APPR` over `FUTR`, then newest `signing_date`, then newest `contract_id`
+- choose latest `contract_versions.version_number` within that contract
+
+Important:
+- Team assignment prefers `contracts.team_code` (falls back to `people.team_code`).
+- Population includes `people.league_lk IN ('NBA','DLG')` (two-way / G League-linked players are often `DLG`).
+
+## Raw model (for debugging / extending the warehouse)
+
+If you need to validate a number or add a new derived column, these are the underlying tables:
 
 ```
 pcms.contracts (1 per contract)
-  └── pcms.contract_versions (1+ per contract, tracks amendments)
+  └── pcms.contract_versions (1+ per contract, amendments)
         └── pcms.salaries (1 per version per year)
-              └── pcms.payment_schedules (optional, payment timing)
-                    └── pcms.payment_schedule_details (individual payment dates)
+pcms.people (player identity)
+pcms.agents (agent identity)
+pcms.league_system_values (cap/tax constants by year)
 ```
 
-### Key Tables
+### Key salary fields (from `pcms.salaries`)
 
-| Table | Primary Key | Purpose |
-|-------|-------------|---------|
-| `pcms.contracts` | `contract_id` | Contract header (signing team, dates, status) |
-| `pcms.contract_versions` | `(contract_id, version_number)` | Amendments, extensions, option decisions |
-| `pcms.salaries` | `(contract_id, version_number, salary_year)` | Year-by-year salary figures |
-| `pcms.people` | `person_id` | Player names (joins via `player_id`) |
+| Field | Meaning |
+|------|---------|
+| `contract_cap_salary` | cap hit (Salary Book “cap” grid) |
+| `contract_tax_salary` | tax salary |
+| `contract_tax_apron_salary` | apron salary |
+| `total_salary` | actual paid salary |
+| `likely_bonus` / `unlikely_bonus` | incentives |
+| `option_lk` | option type (PLYR/TEAM/etc; warehouse normalizes NONE→NULL) |
+| `option_decision_lk` | option decision (picked up/declined/pending) |
 
----
+### Contract / version flags (from `pcms.contract_versions`)
 
-## Contract Status Codes
+| Field | Meaning |
+|------|---------|
+| `is_two_way` | two-way contract flag |
+| `is_poison_pill` / `poison_pill_amount` | poison pill mechanics |
+| `is_no_trade` | no-trade clause |
+| `is_trade_bonus` / `trade_bonus_percent` | trade kicker |
 
-The `record_status_lk` field determines if a contract is active:
+## Notes on views
 
-| Status | Count | Meaning | Include in Salary Book? |
-|--------|-------|---------|-------------------------|
-| **APPR** | ~528 | Approved/Active | ✅ Yes |
-| **FUTR** | ~29 | Future (signed extension not yet active) | ✅ Yes |
-| **COMP** | ~2,529 | Completed (expired naturally) | ❌ No |
-| **TERM** | ~3,632 | Terminated (buyout, waived) | ❌ No |
-| **REL** | ~1,063 | Released | ❌ No |
-| **REPL** | ~131 | Replaced (superseded by new contract) | ❌ No |
-| **MATCH** | ~23 | RFA match in progress | ❌ No (transient) |
-| **NMTCH** | ~38 | RFA offer not matched | ❌ No |
-| **VOID** | ~98 | Voided (never valid) | ❌ No |
+There are also “warehouse-ish” views used as scaffolding / debugging:
 
-**Filter for active contracts:**
-```sql
-WHERE c.record_status_lk IN ('APPR', 'FUTR')
-```
+- `migrations/012_analyst_views.sql` creates:
+  - `pcms.vw_active_contract_versions`
+  - `pcms.vw_salary_pivot_2024_2030`
+  - `pcms.vw_y_warehouse`
 
----
+The current direction is **table-first** (use `salary_book_warehouse`), so treat views as optional.
 
-## Version Numbers
+## Related docs
 
-Contracts can have multiple versions (amendments, option decisions). The `version_number` field uses a decimal format that gets normalized:
-
-- `1.0` → `100` (original)
-- `1.01` → `101` (first amendment)
-- `2.0` → `200` (major revision)
-- `2.01` → `201` (amendment to v2)
-
-**Always use the latest version** for current salary display:
-```sql
-WHERE v.version_number = (
-  SELECT MAX(version_number) 
-  FROM pcms.contract_versions cv
-  WHERE cv.contract_id = c.contract_id
-)
-```
-
----
-
-## Key Salary Fields
-
-From `pcms.salaries`:
-
-| Field | Use For | Description |
-|-------|---------|-------------|
-| `contract_cap_salary` | **Cap Hit** | The number shown in Salary Book columns |
-| `total_salary` | Actual pay | What player receives (can differ from cap) |
-| `contract_tax_salary` | Luxury tax | Salary for tax calculations |
-| `contract_tax_apron_salary` | Apron | Salary for apron calculations |
-| `likely_bonus` | Cap | Likely incentives (count against cap) |
-| `unlikely_bonus` | Info | Unlikely incentives (don't count) |
-| `option_lk` | Display | `PLYR`=Player Option, `TEAM`=Team Option, `NONE`=Guaranteed |
-| `option_decision_lk` | Display | `POD`=Picked up, `POW`=Declined, null=Pending |
-
-From `pcms.contract_versions`:
-
-| Field | Use For | Description |
-|-------|---------|-------------|
-| `trade_bonus_percent` | TK column | Trade kicker percentage (e.g., `15.0`) |
-| `is_trade_bonus` | Filter | Boolean if trade bonus exists |
-| `contract_type_lk` | Info | `REGCT`, `ROOK`, `TWOWAY`, `10DAY`, etc. |
-
----
-
-## Salary Book Query
-
-The canonical query to produce the spreadsheet-style view:
-
-```sql
-SELECT 
-  p.first_name || ' ' || p.last_name AS player,
-  c.signing_team_id,
-  t.team_code,
-  MAX(CASE WHEN s.salary_year = 2025 THEN s.contract_cap_salary END) AS "2025",
-  MAX(CASE WHEN s.salary_year = 2026 THEN s.contract_cap_salary END) AS "2026",
-  MAX(CASE WHEN s.salary_year = 2027 THEN s.contract_cap_salary END) AS "2027",
-  MAX(CASE WHEN s.salary_year = 2028 THEN s.contract_cap_salary END) AS "2028",
-  MAX(CASE WHEN s.salary_year = 2029 THEN s.contract_cap_salary END) AS "2029",
-  MAX(CASE WHEN s.salary_year = 2030 THEN s.contract_cap_salary END) AS "2030",
-  v.trade_bonus_percent AS tk,
-  -- For option display suffix
-  MAX(CASE WHEN s.salary_year = 2025 THEN s.option_lk END) AS "2025_option",
-  MAX(CASE WHEN s.salary_year = 2026 THEN s.option_lk END) AS "2026_option"
-FROM pcms.contracts c
-JOIN pcms.contract_versions v USING (contract_id)
-JOIN pcms.salaries s 
-  ON s.contract_id = c.contract_id 
-  AND s.version_number = v.version_number
-JOIN pcms.people p ON p.person_id = c.player_id
-LEFT JOIN pcms.lk_teams t ON t.team_id = c.signing_team_id
-WHERE c.record_status_lk IN ('APPR', 'FUTR')
-  AND v.version_number = (
-    SELECT MAX(version_number) 
-    FROM pcms.contract_versions cv
-    WHERE cv.contract_id = c.contract_id
-  )
-GROUP BY 
-  p.first_name, p.last_name, 
-  c.signing_team_id, t.team_code,
-  v.trade_bonus_percent
-ORDER BY "2025" DESC NULLS LAST;
-```
-
-### For a Single Team
-
-Add team filter:
-```sql
-WHERE c.record_status_lk IN ('APPR', 'FUTR')
-  AND c.signing_team_id = 1610612747  -- LAL
-```
-
-Or by team code:
-```sql
-  AND t.team_code = 'LAL'
-```
-
----
-
-## Display Formatting
-
-### Option Suffixes
-
-Show option type in the cell:
-
-| `option_lk` | Display |
-|-------------|---------|
-| `PLYR` | `$48.9M (PO)` |
-| `TEAM` | `$48.9M (TO)` |
-| `NONE` | `$48.9M` |
-
-If `option_decision_lk = 'POD'`, the option was exercised (show as guaranteed).
-If `option_decision_lk = 'POW'`, the option was declined (don't show that year).
-
-### Trade Kicker
-
-Display as percentage: `15%` or `—` if null.
-
-### Money Formatting
-
-- Millions with 1 decimal: `$43.0M`
-- Or full: `$43,031,940`
-
----
-
-## Example: Player with Multiple Contracts
-
-**Deandre Ayton** (player_id: 1629028) has 5 contracts in the system:
-
-| contract_id | team | status | Include? |
-|-------------|------|--------|----------|
-| 75288 | PHX | COMP | ❌ Rookie deal completed |
-| 77761 | IND | MATCH | ❌ RFA offer sheet |
-| 77762 | PHX | MATCH | ❌ Match process |
-| 77773 | PHX | TERM | ❌ Terminated (buyout) |
-| **99554** | **LAL** | **APPR** | ✅ Current contract |
-
-Only contract 99554 appears in Salary Book with `record_status_lk = 'APPR'`.
-
----
-
-## Example: Contract with Option
-
-**Luka Dončić** (player_id: 1629029, contract_id: 76984):
-
-```
-2024: $43.0M (NONE)  - Guaranteed
-2025: $46.0M (NONE)  - Guaranteed  
-2026: $49.0M (PLYR)  - Player Option (exercised: POD)
-```
-
-Trade kicker: 15% (earned 2025-02-02 in trade to LAL)
-
----
-
-## jq Recipes for Local Testing
-
-### Get player's active contract salaries
-```bash
-jq -r '
-  .[] | select(.player_id == 1629029 and .record_status_lk == "APPR") |
-  .versions.version | sort_by(.version_number) | last |
-  .salaries.salary[] | 
-  "\(.salary_year): $\(.contract_cap_salary / 1000000 | . * 100 | round / 100)M \(.option_lk)"
-' shared/pcms/nba_pcms_full_extract/contracts.json
-```
-
-### List all active contracts for a team
-```bash
-jq -r '
-  .[] | select(.signing_team_id == 1610612747 and .record_status_lk == "APPR") |
-  "\(.contract_id): player \(.player_id)"
-' shared/pcms/nba_pcms_full_extract/contracts.json
-```
-
-### Pivot salaries to object by year
-```bash
-jq '
-  .[] | select(.contract_id == 76984) |
-  .versions.version | sort_by(.version_number) | last |
-  .salaries.salary | 
-  map({(.salary_year | tostring): .contract_cap_salary}) | add
-' shared/pcms/nba_pcms_full_extract/contracts.json
-```
-
----
-
-## Dead Money / Cap Holds
-
-Not covered here—dead money comes from terminated contracts that still count against the cap. See `transaction_waiver_amounts.json` and the transactions import for stretched/waived salary obligations.
-
----
-
-## Related Files
-
-- `SCHEMA.md` — Full database schema
-- `AGENTS.md` — Flow architecture overview
-- `reference/sean/specs/playground.txt` — Original Salary Book spreadsheet spec
-- `import_pcms_data.flow/contracts.inline_script.py` — How contracts are imported
+- `TODO.md` — current roadmap toward Team Master / Trade Machine / Give-Get
+- `queries/AGENTS.md` — handoff doc for agents working in `queries/`
+- `SCHEMA.md` — schema reference
+- `import_pcms_data.flow/contracts.inline_script.py` — how contracts/salaries are imported

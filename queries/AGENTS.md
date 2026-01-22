@@ -66,6 +66,9 @@ Migrations:
   - replaces `pcms.refresh_salary_book_warehouse()` with a **view-independent** implementation
   - computes everything via CTEs (contracts+versions selector + salary pivot + cap constants)
   - sets `statement_timeout=0` inside the function and `lock_timeout=5s`
+- `migrations/017_salary_book_age_and_option_normalization.sql`
+  - changes `age` to decimal years (numeric(4,1))
+  - normalizes option columns (`'NONE'` → `NULL`) in the refresh
 
 Why the view-independent refresh matters:
 
