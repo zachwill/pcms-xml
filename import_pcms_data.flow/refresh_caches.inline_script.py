@@ -12,6 +12,8 @@ Caches refreshed:
 - pcms.exceptions_warehouse
 - pcms.dead_money_warehouse
 - pcms.cap_holds_warehouse
+- pcms.draft_pick_slots_warehouse
+- pcms.draft_picks_warehouse
 
 Notes:
 - These refresh functions use TRUNCATE/INSERT.
@@ -61,8 +63,8 @@ def main(dry_run: bool = False):
             cur.execute("SELECT pcms.refresh_player_rights_warehouse();")
             refreshed.append("pcms.refresh_player_rights_warehouse")
 
-            cur.execute("SELECT pcms.refresh_draft_pick_slots_warehouse();")
-            refreshed.append("pcms.refresh_draft_pick_slots_warehouse")
+            cur.execute("SELECT pcms.refresh_draft_pick_trade_claims_warehouse();")
+            refreshed.append("pcms.refresh_draft_pick_trade_claims_warehouse")
 
             cur.execute("SELECT pcms.refresh_draft_picks_warehouse();")
             refreshed.append("pcms.refresh_draft_picks_warehouse")

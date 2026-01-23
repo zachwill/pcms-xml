@@ -11,19 +11,8 @@ BEGIN
     RAISE EXCEPTION 'missing relation: pcms.draft_picks_warehouse';
   END IF;
 
-  IF to_regclass('pcms.draft_pick_slots_warehouse') IS NULL THEN
-    RAISE EXCEPTION 'missing relation: pcms.draft_pick_slots_warehouse';
-  END IF;
-
-  -- Ensure new outcomes JSON exists (added in 039)
-  IF NOT EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema='pcms'
-      AND table_name='draft_pick_slots_warehouse'
-      AND column_name='ownership_outcomes_json'
-  ) THEN
-    RAISE EXCEPTION 'pcms.draft_pick_slots_warehouse missing ownership_outcomes_json (run migration 039)';
+  IF to_regclass('pcms.draft_pick_trade_claims_warehouse') IS NULL THEN
+    RAISE EXCEPTION 'missing relation: pcms.draft_pick_trade_claims_warehouse';
   END IF;
 
   -- Non-empty
@@ -32,9 +21,9 @@ BEGIN
     RAISE EXCEPTION 'pcms.draft_picks_warehouse is empty';
   END IF;
 
-  SELECT COUNT(*) INTO c FROM pcms.draft_pick_slots_warehouse;
+  SELECT COUNT(*) INTO c FROM pcms.draft_pick_trade_claims_warehouse;
   IF c = 0 THEN
-    RAISE EXCEPTION 'pcms.draft_pick_slots_warehouse is empty';
+    RAISE EXCEPTION 'pcms.draft_pick_trade_claims_warehouse is empty';
   END IF;
 
   -- No blank team codes
@@ -43,10 +32,10 @@ BEGIN
     RAISE EXCEPTION 'pcms.draft_picks_warehouse has % blank team_code values', c;
   END IF;
 
-  SELECT COUNT(*) INTO c FROM pcms.draft_pick_slots_warehouse
-   WHERE coalesce(current_team_code,'') = '' OR coalesce(original_team_code,'') = '';
+  SELECT COUNT(*) INTO c FROM pcms.draft_pick_trade_claims_warehouse
+   WHERE coalesce(original_team_code,'') = '';
   IF c > 0 THEN
-    RAISE EXCEPTION 'pcms.draft_pick_slots_warehouse has % blank team code values', c;
+    RAISE EXCEPTION 'pcms.draft_pick_trade_claims_warehouse has % blank original_team_code values', c;
   END IF;
 
   -- Year bounds sanity (matches summaries: 2018-2032)

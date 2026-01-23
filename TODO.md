@@ -180,34 +180,29 @@ We likely want **two different shapes** because “Sean-style pick grids” mix:
 - `SELECT pcms.refresh_draft_picks_warehouse();`
 - Wired into `import_pcms_data.flow/refresh_caches.inline_script.py`.
 
-### 3.2 Implemented (2026-01-23): `pcms.draft_pick_slots_warehouse` (slot/provenance-derived)
+### 3.2 Implemented (2026-01-23): `pcms.draft_pick_trade_claims_warehouse` (trade-derived, evidence/claims)
 
-**Status:** implemented via `migrations/038_draft_picks_warehouses.sql` + improved via `migrations/039_draft_pick_slots_warehouse_outcomes.sql`.
+**Status:** implemented via `migrations/040_draft_pick_trade_claims_warehouse.sql`.
 
-**Purpose:** "who owns which original pick slot" queries with provenance, while preserving ambiguity.
+**Purpose:** capture trade-derived pick *claims* per original slot (debug/provenance), without pretending we can deterministically compute ownership.
+
+**Why:** `pcms.draft_pick_trades` is derived from `pcms.trade_team_details` (`trade_entry_lk='DRPCK'`) and encodes conditional branches / constructions. This is not a clean ownership ledger, and it can contain rows that look like "to_team == original_team" as part of how PCMS models obligations.
 
 **Grain:** `(draft_year, draft_round, original_team_id)`
 
 **Inputs:**
 - `pcms.draft_pick_trades`
 
-**Behavior (post-039):**
-- Stores *all* trade-derived candidate outcomes per slot in:
-  - `ownership_outcomes_json jsonb` (ordered newest-first)
-  - `outcomes_count`
-  - `distinct_to_teams_count`
-- Computes a scalar `current_team_*` via heuristic:
-  1) prefer `is_conditional=false`
-  2) then newest by `trade_date desc, trade_id desc, id desc`
-- `needs_review=true` if:
-  - any outcome is swap/conditional, **or**
-  - multiple outcomes exist, **or**
-  - outcomes disagree on destination team
-
-**Why:** the raw pick movement table contains conditional/swap branches that cannot be flattened to a single deterministic owner without endnote/outcome resolution.
+**Behavior:**
+- Stores all trade-derived rows per slot in `trade_claims_json` (newest-first).
+- Scalars for quick filtering:
+  - `claims_count`, `distinct_to_teams_count`
+  - `has_conditional_claims`, `has_swap_claims`
+  - `latest_trade_id`, `latest_trade_date`
+  - `needs_review` if conditional/swap/multi-claim/conflicting destinations
 
 **Refresh:**
-- `SELECT pcms.refresh_draft_pick_slots_warehouse();`
+- `SELECT pcms.refresh_draft_pick_trade_claims_warehouse();`
 - Wired into `import_pcms_data.flow/refresh_caches.inline_script.py`.
 
 ### 3.3 Future / optional: richer `draft_assets_warehouse` (endnotes-enriched)
@@ -334,7 +329,7 @@ Add `queries/sql/052_player_rights_warehouse_assertions.sql`:
 Update: `import_pcms_data.flow/refresh_caches.inline_script.py`
 
 Implemented refresh wiring:
-- `SELECT pcms.refresh_draft_pick_slots_warehouse();`
+- `SELECT pcms.refresh_draft_pick_trade_claims_warehouse();`
 - `SELECT pcms.refresh_draft_picks_warehouse();`
 - `SELECT pcms.refresh_player_rights_warehouse();`
 
