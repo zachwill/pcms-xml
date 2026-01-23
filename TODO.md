@@ -1,12 +1,12 @@
 # TODO — Draft Assets (Picks + Rights) + Endnotes Integration
 
-Status: **2026-01-23**
+Status: **2026-01-22**
 
 This repo is already strong on **Salary Book / Team totals / Exceptions / Trade TPE math**.
 
-The biggest gap vs “Sean-style” tooling is **draft assets**:
+The biggest gap vs "Sean-style" tooling is **draft assets**:
 - **Draft picks** (owned/owed, protections, swaps, conditional branches)
-- **Draft rights / returning rights** (who controls a player’s rights)
+- **Draft rights / returning rights** (who controls a player's rights)
 - A human-auditable **endnotes layer** that explains and powers those draft assets
 
 The goal is the same pattern as existing tooling:
@@ -22,9 +22,9 @@ The goal is the same pattern as existing tooling:
 - Tooling reads `pcms.*_warehouse` (not JSON, not ad-hoc parsing at runtime).
 
 2) **Preserve missingness**
-- Tool-friendly booleans are OK, but keep `has_*` / `*_source` / `*_id` fields so we can distinguish “false” from “unknown / absent in source”.
+- Tool-friendly booleans are OK, but keep `has_*` / `*_source` / `*_id` fields so we can distinguish "false" from "unknown / absent in source".
 
-3) **Keep “raw fidelity” alongside derived fields**
+3) **Keep "raw fidelity" alongside derived fields**
 - For draft assets, *raw text* is often the only authoritative representation of protections / conditionals.
 - Warehouses should retain `raw_text`, `raw_fragment`, `endnote_refs[]`, etc. for debugging.
 
@@ -43,12 +43,14 @@ The goal is the same pattern as existing tooling:
 
 ### Rights signals
 - `pcms.transactions.rights_team_id` / `rights_team_code`
-  - Populated heavily (primarily DLG “returning rights” patterns show up via `transaction_type_lk='TRDRR'`, `to_player_status_lk='URETP'`, etc.).
+  - Populated heavily (primarily DLG "returning rights" patterns show up via `transaction_type_lk='TRDRR'`, `to_player_status_lk='URETP'`, etc.).
 - `pcms.people.dlg_returning_rights_team_id/team_code` and `dlg_returning_rights_salary_year`
 
-### Endnotes scaffold
-- `pcms.endnotes` table exists but is currently **empty**.
-  - Columns include: `original_note`, `revised_note`, `explanation`, `conditions_json`, `metadata_json`, pick-ish columns, etc.
+### Endnotes
+- `pcms.endnotes` — **323 rows imported** from curated source
+  - Columns: `original_note`, `revised_note`, `explanation`, `conditions_json`, `metadata_json`, etc.
+  - Flags: `is_swap` (47), `is_conditional` (108)
+  - `conditions_json.depends_on_endnotes` tracks cross-references (168 endnotes reference others)
 
 External curated source:
 - `~/blazers/cba-docs/endnotes/revised/*.txt`
@@ -56,290 +58,206 @@ External curated source:
 Important observation:
 - The draft-pick summary strings include parenthetical endnote refs like `(194)`.
 - The curated endnote files are keyed by the same IDs (e.g. `194_*.txt`).
-- This gives us a clean bridge: **summary refs → `pcms.endnotes.endnote_id`**.
+- This gives us a clean bridge: **summary refs → `pcms.endnotes.endnote_id`** (97.2% match rate).
 
 ---
 
-## 2) P0 — Ingest curated endnotes into `pcms.endnotes`
+## 2) ✅ DONE — Ingest curated endnotes into `pcms.endnotes`
 
-### Why
-To reach Sean-level fidelity, we need to model constructs like:
-- “less favorable of …”
-- “swap right deemed exercised / extinguished”
-- “Result Pick” definitions
-- conditional substitutions based on other endnotes (dependency graph)
-
-These are present in curated endnotes and are not reliably derivable from PCMS event tables alone.
+**Completed 2026-01-22**
 
 ### Deliverables
 
-#### 2.1 Script: `scripts/import-endnotes.py` (or `.ts` on Bun, but Python is fine)
+#### 2.1 ✅ Script: `scripts/import-endnotes.py`
 - Reads `~/blazers/cba-docs/endnotes/revised/*.txt`
-- Extracts fields (best-effort):
-  - `endnote_id` (required)
-  - `trade_date`
-  - `status`
-  - `trade_summary` (if present)
-  - `conveyance` section (if present)
-  - `original_text` (the “ORIGINAL TEXT:” or “VERBATIM ORIGINAL:” block)
-- Upserts into `pcms.endnotes`.
+- Extracts fields:
+  - `endnote_id` (from header or filename)
+  - `trade_date` (parsed from "TRADE DATE:" line)
+  - `status`, `trade_summary`, `conveyance`, `protections`, `contingency`, `exercise`
+  - `original_text` (the "ORIGINAL TEXT:" or "VERBATIM ORIGINAL:" block)
+- Detects: `is_swap`, `is_conditional`, `referenced_endnotes`
+- Dedupes by `endnote_id` (keeps most recently modified file)
+- Upserts into `pcms.endnotes`
 
-Storage strategy:
-- Put the raw file + parsed fields into:
-  - `revised_note` (verbatim “ORIGINAL TEXT”)
-  - `explanation` (structured bullets if present)
-  - `metadata_json` (everything else, including source file, parse_version)
-  - `conditions_json` (optional JSON schema below)
-
-#### 2.2 JSON schema (incremental) for `pcms.endnotes.conditions_json`
-We should not try to solve “full CBA logic engine” immediately.
-Start with a small vocabulary that covers real cases:
-
-```json
-{
-  "assets": [
-    {
-      "kind": "PICK" | "SWAP_RIGHT",
-      "year": 2031,
-      "round": 2,
-      "team": "MIA",
-      "label": "Miami Pick",
-      "via_endnote": 219,
-      "selection": {
-        "type": "DIRECT" | "LESS_FAVORABLE_OF" | "MORE_FAVORABLE_OF",
-        "options": [
-          {"team": "IND", "year": 2031, "round": 2, "label": "Indiana Pick"},
-          {"team": "MIA", "year": 2031, "round": 2, "label": "Miami Pick"}
-        ]
-      },
-      "conditions": [
-        {
-          "if": "IND pick more favorable than MIA pick",
-          "then": [
-            {"action": "EXERCISE_SWAP", "via_endnote": 219},
-            {"action": "CONVEY", "pick": "Indiana Pick"}
-          ]
-        }
-      ],
-      "exercise_window": {
-        "deadline_text": "11:59 p.m. (ET) two days prior to the 2029 NBA Draft",
-        "notice_to": ["BKN", "League Office"]
-      }
-    }
-  ],
-  "depends_on_endnotes": [219, 193]
-}
+Usage:
+```bash
+uv run scripts/import-endnotes.py --dry-run   # parse + show stats
+uv run scripts/import-endnotes.py --write     # upsert to DB
 ```
 
-It’s fine if early versions store these fields sparsely.
+Storage:
+- `revised_note`: full raw file content
+- `original_note`: verbatim PCMS endnote text
+- `explanation`: conveyance section
+- `metadata_json`: source_file, parse_version, parsed sections, team_codes_mentioned, etc.
+- `conditions_json`: `is_swap`, `is_conditional`, `depends_on_endnotes[]`
 
-#### 2.3 SQL checks
-Add `queries/sql/050_endnotes_assertions.sql`:
-- table exists
-- not empty (after import)
+#### 2.2 ✅ SQL checks: `queries/sql/050_endnotes_assertions.sql`
+- Table not empty
 - `endnote_id` unique
-- `metadata_json->>'source_file'` present
+- `metadata_json->>'source_file'` present for all rows
+- Rowcount >= 300
+- Fixture: endnote 65 is swap + conditional
+- Join test: 97%+ of `draft_picks_warehouse.endnote_refs` match `pcms.endnotes`
+
+Included in `queries/sql/run_all.sql`.
+
+#### 2.3 Stats (post-import)
+| Metric | Value |
+|--------|-------|
+| Total endnotes | 323 |
+| Swap rights | 47 |
+| Conditional | 108 |
+| References other endnotes | 168 |
+| Unmatched refs in draft_picks_warehouse | 9 (very recent trades) |
 
 ---
 
-## 3) P1 — Draft picks warehouses (tool-facing)
+## 3) ✅ DONE — Draft picks warehouses (tool-facing)
 
-We likely want **two different shapes** because “Sean-style pick grids” mix:
-- deterministic “pick slots” (original team / year / round) + provenance
-- non-deterministic “assets / claims” (conditional branches, swaps, less favorable sets) + human text
+### 3.1 ✅ `pcms.draft_picks_warehouse` (team-facing, summary-derived)
 
-### 3.1 Implemented (2026-01-23): `pcms.draft_picks_warehouse` (team-facing, summary-derived)
-
-**Status:** implemented via `migrations/038_draft_picks_warehouses.sql`.
+**Implemented:** `migrations/038_draft_picks_warehouses.sql`
 
 **Purpose:** Sean-style team/year pick grid, preserving raw fidelity while extracting endnote refs.
 
 **Grain:** `(team_code, draft_year, draft_round, asset_slot)`
 
-**Inputs:**
-- `pcms.draft_pick_summaries.first_round` / `second_round`
-
 **Behavior:**
-- Explodes each round string on literal `|` into per-fragment rows.
-- Preserves `raw_round_text` (full string) and `raw_fragment` (exact fragment for row).
-- Extracts numeric ids in parentheses into:
-  - `numeric_paren_refs int[]`: all ids found
-  - `endnote_refs int[]`: ids filtered to `1..999` (heuristic for curated endnote corpus)
-- Flags:
-  - `is_forfeited` (fragment contains "forfeit")
-  - `is_conditional_text` (keyword scan)
-  - `is_swap_text` (keyword scan)
-  - `needs_review` (any of the above)
+- Explodes each round string on literal `|` into per-fragment rows
+- Preserves `raw_round_text` and `raw_fragment`
+- Extracts `endnote_refs int[]` (ids 1–999)
+- Flags: `is_forfeited`, `is_conditional_text`, `is_swap_text`, `needs_review`
 
-**Important implementation note:**
-- `pcms.refresh_draft_picks_warehouse()` is a **LANGUAGE SQL** function.
-  - We hit a nasty bug where PL/pgSQL + CTE + correlated regexp extraction yielded empty arrays.
-  - The SQL function version (with `CROSS JOIN LATERAL regexp_matches`) behaves correctly.
+**Refresh:** `SELECT pcms.refresh_draft_picks_warehouse();`
 
-**Refresh:**
-- `SELECT pcms.refresh_draft_picks_warehouse();`
-- Wired into `import_pcms_data.flow/refresh_caches.inline_script.py`.
+**Rows:** 1,248
 
-### 3.2 Implemented (2026-01-23): `pcms.draft_pick_trade_claims_warehouse` (trade-derived, evidence/claims)
+### 3.2 ✅ `pcms.draft_pick_trade_claims_warehouse` (trade-derived, evidence/claims)
 
-**Status:** implemented via `migrations/040_draft_pick_trade_claims_warehouse.sql`.
+**Implemented:** `migrations/040_draft_pick_trade_claims_warehouse.sql`
 
-**Purpose:** capture trade-derived pick *claims* per original slot (debug/provenance), without pretending we can deterministically compute ownership.
-
-**Why:** `pcms.draft_pick_trades` is derived from `pcms.trade_team_details` (`trade_entry_lk='DRPCK'`) and encodes conditional branches / constructions. This is not a clean ownership ledger, and it can contain rows that look like "to_team == original_team" as part of how PCMS models obligations.
+**Purpose:** trade-derived pick *claims* per original slot (debug/provenance).
 
 **Grain:** `(draft_year, draft_round, original_team_id)`
 
-**Inputs:**
-- `pcms.draft_pick_trades`
-
 **Behavior:**
-- Stores all trade-derived rows per slot in `trade_claims_json` (newest-first).
-- Scalars for quick filtering:
-  - `claims_count`, `distinct_to_teams_count`
-  - `has_conditional_claims`, `has_swap_claims`
-  - `latest_trade_id`, `latest_trade_date`
-  - `needs_review` if conditional/swap/multi-claim/conflicting destinations
+- Stores all trade-derived rows per slot in `trade_claims_json` (newest-first)
+- Scalars: `claims_count`, `distinct_to_teams_count`, `has_conditional_claims`, `has_swap_claims`, `needs_review`
 
-**Refresh:**
-- `SELECT pcms.refresh_draft_pick_trade_claims_warehouse();`
-- Wired into `import_pcms_data.flow/refresh_caches.inline_script.py`.
+**Refresh:** `SELECT pcms.refresh_draft_pick_trade_claims_warehouse();`
 
-### 3.3 Future / optional: richer `draft_assets_warehouse` (endnotes-enriched)
+**Rows:** 658
 
-**Purpose:** make Team Master / Give-Get trivial.
+### 3.3 SQL checks: `queries/sql/051_draft_picks_warehouses_assertions.sql`
+- Table existence + non-empty
+- Year bounds sanity
+- Regression fixtures for splitter + endnote extraction
 
-**Grain:** `(team_code, draft_year, draft_round, asset_slot)`
-- `asset_slot` is the Nth asset described for that team/year/round.
-- Because a single summary field can contain multiple assets separated by `|` and `;`.
+---
+
+## 4) ✅ DONE — Draft rights / returning rights warehouse
+
+### 4.1 ✅ `pcms.player_rights_warehouse`
+
+**Implemented:** `migrations/035_player_rights_warehouse.sql` + fixes in 036, 037
+
+**Purpose:** Team Master "Rights" section + Give/Get inputs.
+
+**Grain:** one row per `player_id` where a team controls rights.
 
 **Inputs:**
-- `pcms.draft_pick_summaries.first_round` / `second_round`
-- Optional enrichment: join `pcms.endnotes` via endnote refs found in text
+- NBA draft rights: `pcms.people` (CDL status) + `pcms.trade_team_details` (DRLST)
+- DLG returning rights: `pcms.people.dlg_returning_rights_*`
 
-**Required columns (minimum):**
-- identity:
-  - `team_id`, `team_code`, `draft_year`, `draft_round`, `asset_slot`
-- classification:
-  - `asset_type` (OWN / HAS / TO / MAY_HAVE / SWAP_RIGHT / OTHER)
-  - `is_conditional` boolean
-  - `is_swap` boolean
-- counterparties / provenance:
-  - `counterparty_team_code` (if parseable)
-  - `via_team_codes text[]` (from “via …” chains)
-  - `endnote_refs int[]`
-  - `primary_endnote_id int` (nullable)
-- raw fidelity:
-  - `raw_round_text` (full `first_round`/`second_round` string)
-  - `raw_fragment` (exact fragment for this row)
-- derived text:
-  - `protection_text` (nullable)
-  - `condition_text` (nullable)
-- missingness flags:
-  - `has_endnote_match` boolean
-  - `has_counterparty_team_code` boolean
-- metadata:
-  - `confidence` (`high|medium|low`)
-  - `needs_review` boolean
-  - `refreshed_at`
+**Key columns:**
+- `rights_team_id`, `rights_team_code`, `rights_kind`, `rights_source`
+- `source_trade_id`, `source_trade_date` (for trade-derived)
+- `draft_year`, `draft_round`, `draft_pick`, `draft_team_id`
 
-**Refresh:**
-- `pcms.refresh_draft_assets_warehouse()`
-- Called from `refresh_caches.inline_script.py`.
+**Refresh:** `SELECT pcms.refresh_player_rights_warehouse();`
 
-**Parsing strategy (safe + incremental):**
-- Split by `|` into major fragments.
-- Within each fragment, split conditional branches by `;`.
-- Extract:
-  - keywords: `Own`, `To XXX(n)`, `Has XXX(n)`, `May have XXX(n)`, `or to XXX(n)`
-  - endnote refs: `\((\d+)\)`
-  - via chain: repeated `(via XXX(n))`
-- Keep raw strings always; never discard.
+**Rows:** 453
 
-### 3.4 SQL checks (implemented)
-
-Added: `queries/sql/051_draft_picks_warehouses_assertions.sql`
-- table existence + non-empty
-- year bounds sanity
-- regression fixtures:
-  - **splitter regression**: POR 2025 round-2 should be exactly one fragment and match `To TOR(259) (via SAC(15))`
-  - **endnote extraction regression**: CHI 2023 round-1 `To ORL(96)` must yield `endnote_refs={96}`
-
-Included in `queries/sql/run_all.sql`.
-
----
-
-## 4) P2 — Draft rights / returning rights warehouse
-
-### 4.1 Warehouse: `pcms.player_rights_warehouse`
-
-**Purpose:** Team Master “Rights” section + Give/Get inputs.
-
-**Grain:** one row per `player_id` where we believe a team controls rights.
-
-**Critical discovery (2026-01-23):**
-- `transactions.rights_team_id` is **DLG-only** in this dataset (not NBA draft rights).
-- NBA “draft rights list” movement is represented in **trade details**: `pcms.trade_team_details.trade_entry_lk='DRLST'`.
-- `lookups.json` in this extract does **not** include NBA `team_code` abbreviations; backfill `team_code` from `pcms.teams` after upsert.
-
-**Inputs (current implementation):**
-- NBA draft rights:
-  - base set: `pcms.people` filtered to `league_lk='NBA'`, `record_status_lk='ACT'`, `player_status_lk='CDL'`
-  - rights holder: latest `pcms.trade_team_details` DRLST row for that player (see below)
-  - fallback: `pcms.people.team_id` then `pcms.people.draft_team_id`
-- DLG returning rights:
-  - `pcms.people.dlg_returning_rights_team_id/team_code` (when present)
-
-**Required columns (implemented + recommended):**
-- identity:
-  - `player_id`, `player_name`, `league_lk`
-- rights:
-  - `rights_team_id`, `rights_team_code`
-  - `rights_kind` (`NBA_DRAFT_RIGHTS` | `DLG_RETURNING_RIGHTS`)
-  - `rights_source` (`trade_team_details` vs `people`)
-- provenance (for NBA draft rights via trades):
-  - `source_trade_id`, `source_trade_date`, `source_trade_team_detail_id`
-- draft metadata:
-  - `draft_year`, `draft_round`, `draft_pick`, `draft_team_id`, `draft_team_code`
-- UI helpers:
-  - `has_active_nba_contract` (optional; for our CDL-filtered set it should generally be false)
-  - `needs_review` boolean
-- `refreshed_at`
-
-**Refresh:**
-- `pcms.refresh_player_rights_warehouse()`
-- Called from `import_pcms_data.flow/refresh_caches.inline_script.py`.
-
-**Implementation notes:**
-- Use `pcms.trade_team_details` rows with `trade_entry_lk='DRLST'`.
-- Empirical semantics: for DRLST, the *controlling rights team* corresponds to the **sender** row (`is_sent=true`).
-  - Regression fixture: Daniel Díez (`player_id=1626229`) → `rights_team_code='NYK'` via `trade_id=2023055`.
-
-### 4.2 SQL checks
-Add `queries/sql/052_player_rights_warehouse_assertions.sql`:
+### 4.2 SQL checks: `queries/sql/052_player_rights_warehouse_assertions.sql`
 - `player_id` unique
-- rowcount sanity (>0)
-- for `rights_kind='NBA_DRAFT_RIGHTS'`, ensure `rights_team_code` is usually populated (track blanks)
-- fixture spot-check: `player_id=1626229` (Díez) returns NYK (post-refresh)
+- Rowcount > 0
+- Fixture: Daniel Díez → NYK via trade 2023055
 
 ---
 
-## 5) Wiring into the flow (post-import refresh)
+## 5) ✅ DONE — Wiring into the flow
 
-Update: `import_pcms_data.flow/refresh_caches.inline_script.py`
-
-Implemented refresh wiring:
+`import_pcms_data.flow/refresh_caches.inline_script.py` calls:
 - `SELECT pcms.refresh_draft_pick_trade_claims_warehouse();`
 - `SELECT pcms.refresh_draft_picks_warehouse();`
 - `SELECT pcms.refresh_player_rights_warehouse();`
 
-Endnotes are not from PCMS, so they may be refreshed separately:
-- Option A: keep endnotes import as a manual/local step (`scripts/import-endnotes.py`).
-- Option B: add a Windmill step (with an input for `endnotes_dir`) that runs the importer.
+Endnotes import is a **separate manual step** (`scripts/import-endnotes.py`) since the source is not from PCMS.
 
 ---
 
-## 6) Stretch goals / hard problems (explicitly acknowledged)
+## 6) P1 — Next: Richer `draft_assets_warehouse` (endnotes-enriched)
+
+**Status:** Not started
+
+**Purpose:** make Team Master / Give-Get trivial by joining `draft_picks_warehouse` with `pcms.endnotes`.
+
+**Grain:** `(team_code, draft_year, draft_round, asset_slot)`
+
+**Proposed columns:**
+- identity: `team_id`, `team_code`, `draft_year`, `draft_round`, `asset_slot`
+- classification:
+  - `asset_type` (OWN / HAS / TO / MAY_HAVE / SWAP_RIGHT / OTHER)
+  - `is_conditional`, `is_swap`
+- counterparties / provenance:
+  - `counterparty_team_code`, `via_team_codes text[]`
+  - `endnote_refs int[]`, `primary_endnote_id int`
+- from endnotes join:
+  - `endnote_trade_date`
+  - `endnote_explanation` (conveyance text)
+  - `endnote_is_swap`, `endnote_is_conditional`
+  - `endnote_depends_on int[]`
+- raw fidelity: `raw_round_text`, `raw_fragment`
+- derived text: `protection_text`, `condition_text`
+- missingness: `has_endnote_match`, `has_counterparty_team_code`
+- metadata: `confidence`, `needs_review`, `refreshed_at`
+
+**Parsing strategy:**
+- Split by `|` into major fragments
+- Extract keywords: `Own`, `To XXX(n)`, `Has XXX(n)`, `May have XXX(n)`
+- Extract via chain: `(via XXX(n))`
+- Join `pcms.endnotes` on first endnote ref
+
+---
+
+## 7) P2 — Trade planner expansion
+
+**Status:** Not started
+
+The current planner is **TPE-only** and single-team-centric.
+
+Next layers:
+- Multi-team plans (two+ team proposals, still legged)
+- Aggregation constraint windows (Dec 15 → deadline rules)
+- MLE-as-vehicle + apron hard-cap restrictions
+
+---
+
+## 8) P3 — Fidelity / reconciliation artifact
+
+**Status:** Not started
+
+Add one canonical query/view to reconcile:
+- `team_salary_warehouse` totals
+- vs roster sums from `salary_book_warehouse`
+- explained by `team_budget_snapshots.budget_group_lk`
+
+This becomes the debugging hammer for Team Master + trade tooling.
+
+---
+
+## 9) Stretch goals / hard problems (explicitly acknowledged)
 
 1) **Outcome resolution engine**
 - Determining the *actual* conveyed pick in swap/less-favorable constructs requires standings/lottery outcomes.
@@ -350,29 +268,29 @@ Endnotes are not from PCMS, so they may be refreshed separately:
 - Endnote IDs already provide a stable handle and match summary refs.
 - If we later infer `trade_id`, store it in `pcms.endnotes.trade_id` with `metadata_json.source='inferred'`.
 
-3) **First-class “asset expressions”**
-- e.g. “Result Pick = less favorable of (OKC 2027 1st, DEN 2027 1st)”
+3) **First-class "asset expressions"**
+- e.g. "Result Pick = less favorable of (OKC 2027 1st, DEN 2027 1st)"
 - We can model as JSON in `endnotes.conditions_json`, and optionally materialize to a warehouse view.
 
 ---
 
-## 7) Acceptance examples (use these as regression fixtures)
+## 10) Acceptance examples (regression fixtures)
 
 From curated endnotes (examples that should be representable):
 - Simple pick conveyance: `21`, `204`, `245`
 - Less favorable set: `129`
 - Swap right with auto exercise/extinguish: `212`
 - Result pick dependent on entitlement to another pick: `152`
-- Conditional substitution based on another endnote’s swap: `241`, `258`
+- Conditional substitution based on another endnote's swap: `241`, `258`
 
 At minimum, these should appear in `draft_assets_warehouse` with:
 - correct `endnote_refs` / `primary_endnote_id`
 - correct `draft_year` / `round`
-- `condition_text` capturing the “provided however…” logic (even if not parsed into structured JSON yet)
+- `condition_text` capturing the "provided however…" logic
 
 ---
 
-## 8) Notes
+## 11) Notes
 
 - Keep migrations append-only.
 - Prefer `TRUNCATE/INSERT` refresh functions for warehouses.
