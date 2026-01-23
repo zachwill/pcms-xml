@@ -7,6 +7,7 @@
 -- Warehouse invariants
 \ir 010_salary_book_warehouse_multi_contract_assertions.sql
 \ir 020_exceptions_warehouse_assertions.sql
+\ir 054_exceptions_warehouse_proration_assertions.sql
 
 -- Trade primitives invariants
 \ir 030_trade_primitives_assertions.sql

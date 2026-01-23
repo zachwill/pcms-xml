@@ -197,36 +197,44 @@ Endnotes import is a **separate manual step** (`scripts/import-endnotes.py`) sin
 
 ---
 
-## 6) P1 — Next: Richer `draft_assets_warehouse` (endnotes-enriched)
+## 6) ✅ DONE — `draft_assets_warehouse` (endnotes-enriched)
 
-**Status:** Not started
+**Implemented:** `migrations/044_draft_assets_warehouse_v3_fix_backslashes.sql`
 
 **Purpose:** make Team Master / Give-Get trivial by joining `draft_picks_warehouse` with `pcms.endnotes`.
 
-**Grain:** `(team_code, draft_year, draft_round, asset_slot)`
+**Grain:** `(team_code, draft_year, draft_round, asset_slot, sub_asset_slot)`
+- `asset_slot` comes from splitting `draft_pick_summaries` round strings on `|` (via `draft_picks_warehouse`)
+- `sub_asset_slot` comes from additionally splitting each fragment on `;` to produce atomic clauses
 
-**Proposed columns:**
-- identity: `team_id`, `team_code`, `draft_year`, `draft_round`, `asset_slot`
+**Key columns (current):**
+- identity: `team_id`, `team_code`, `draft_year`, `draft_round`, `asset_slot`, `sub_asset_slot`
 - classification:
-  - `asset_type` (OWN / HAS / TO / MAY_HAVE / SWAP_RIGHT / OTHER)
+  - `asset_type` (OWN / HAS / TO / MAY_HAVE / OTHER)
   - `is_conditional`, `is_swap`
 - counterparties / provenance:
-  - `counterparty_team_code`, `via_team_codes text[]`
-  - `endnote_refs int[]`, `primary_endnote_id int`
-- from endnotes join:
-  - `endnote_trade_date`
-  - `endnote_explanation` (conveyance text)
-  - `endnote_is_swap`, `endnote_is_conditional`
-  - `endnote_depends_on int[]`
-- raw fidelity: `raw_round_text`, `raw_fragment`
-- derived text: `protection_text`, `condition_text`
-- missingness: `has_endnote_match`, `has_counterparty_team_code`
-- metadata: `confidence`, `needs_review`, `refreshed_at`
+  - `counterparty_team_code` (first recipient)
+  - `counterparty_team_codes text[]` (all recipients mentioned)
+  - `via_team_codes text[]`
+  - `endnote_refs int[]`, `primary_endnote_id int`, `has_endnote_match`
+- endnotes join:
+  - `endnote_trade_date`, `endnote_explanation`, `endnote_is_swap`, `endnote_is_conditional`, `endnote_depends_on int[]`
+- raw fidelity: `raw_round_text`, `raw_fragment`, `raw_part`
+- metadata: `needs_review`, `refreshed_at`
+
+**Refresh:** `SELECT pcms.refresh_draft_assets_warehouse();`
+
+**Notes / gotchas:**
+- `LANGUAGE sql` functions using `$$...$$` bodies treat backslashes as literal.
+  - Regex escapes should use single backslashes (e.g. `\s`, `\b`, `\d`) inside the function body.
+  - Double-escaping caused all rows to fall through to `asset_type='OTHER'` until fixed.
 
 **Parsing strategy:**
-- Split by `|` into major fragments
-- Extract keywords: `Own`, `To XXX(n)`, `Has XXX(n)`, `May have XXX(n)`
-- Extract via chain: `(via XXX(n))`
+- Split by `|` (already done in `draft_picks_warehouse`)
+- Then split by `;` into `raw_part` clauses
+- Extract:
+  - `Own`, `To XXX(n)`, `Has XXX(n)`, `May have XXX(n)`
+  - `via XXX(n)` chains
 - Join `pcms.endnotes` on first endnote ref
 
 ---
