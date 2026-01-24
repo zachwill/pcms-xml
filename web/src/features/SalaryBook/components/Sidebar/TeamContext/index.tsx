@@ -86,6 +86,7 @@ export function TeamContext({ teamCode: teamCodeProp, className }: TeamContextPr
       {/* Team Header */}
       <TeamContextHeader
         teamCode={teamCode}
+        teamId={team?.team_id ?? null}
         teamName={team?.name ?? `Team ${teamCode}`}
         conference={team?.conference ?? "EAST"}
       />

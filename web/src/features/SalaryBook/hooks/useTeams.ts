@@ -1,10 +1,13 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
+import useSWR from "swr";
+import { NBA_TEAMS } from "../data";
 import type { Team, Conference } from "../data";
 
 /**
  * Teams API response shape (from /api/salary-book/teams)
  */
 interface TeamApiResponse {
+  team_id: number;
   team_code: string;
   name: string;
   nickname: string;
@@ -33,64 +36,62 @@ export interface UseTeamsReturn {
   refetch: () => Promise<void>;
 }
 
+function sortTeams(teams: Team[]): Team[] {
+  return [...teams].sort((a, b) => {
+    if (a.conference !== b.conference) {
+      return a.conference === "EAST" ? -1 : 1;
+    }
+    return a.team_code.localeCompare(b.team_code);
+  });
+}
+
 /**
- * Hook to fetch and memoize NBA teams from the API
+ * SWR fetcher for teams API
+ */
+async function fetcher(url: string): Promise<Team[]> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch teams: ${response.status}`);
+  }
+
+  const data: TeamApiResponse[] = await response.json();
+
+  // Normalize + sort
+  const normalized: Team[] = data.map((t) => ({
+    team_id: Number(t.team_id),
+    team_code: t.team_code,
+    name: t.name,
+    nickname: t.nickname,
+    city: t.city,
+    conference: t.conference,
+  }));
+
+  return sortTeams(normalized);
+}
+
+/**
+ * Hook to fetch and memoize NBA teams.
  *
- * Fetches from /api/salary-book/teams and provides:
- * - All teams sorted by conference, then by team code (tricode)
- * - Teams grouped by conference (for Team Selector Grid)
- * - Lookup function by team code
- *
- * @example
- * ```tsx
- * const { teams, teamsByConference, isLoading, getTeam } = useTeams();
- *
- * // Render conference grids
- * teamsByConference.EAST.map(team => <TeamPill key={team.team_code} {...team} />)
- * teamsByConference.WEST.map(team => <TeamPill key={team.team_code} {...team} />)
- *
- * // Look up a specific team
- * const celtics = getTeam("BOS");
- * ```
+ * Important: We provide static `NBA_TEAMS` as `fallbackData` so the UI (TeamSelectorGrid)
+ * can render instantly without waiting on the database/API.
  */
 export function useTeams(): UseTeamsReturn {
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const fallback = useMemo(() => sortTeams(NBA_TEAMS), []);
 
-  const fetchTeams = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/salary-book/teams");
-      if (!response.ok) {
-        throw new Error(`Failed to fetch teams: ${response.status}`);
-      }
-
-      const data: TeamApiResponse[] = await response.json();
-
-      // Sort by conference, then by team code (tricode)
-      const sorted = data.sort((a, b) => {
-        if (a.conference !== b.conference) {
-          return a.conference === "EAST" ? -1 : 1;
-        }
-        return a.team_code.localeCompare(b.team_code);
-      });
-
-      setTeams(sorted);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
-    } finally {
-      setIsLoading(false);
+  const { data, error, isLoading, mutate } = useSWR<Team[], Error>(
+    "/api/salary-book/teams",
+    fetcher,
+    {
+      fallbackData: fallback,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      dedupingInterval: 60_000,
+      keepPreviousData: true,
     }
-  };
+  );
 
-  useEffect(() => {
-    fetchTeams();
-  }, []);
+  const teams = data ?? fallback;
 
-  // Memoize teams grouped by conference
   const teamsByConference = useMemo(() => {
     return {
       EAST: teams.filter((t) => t.conference === "EAST"),
@@ -98,12 +99,10 @@ export function useTeams(): UseTeamsReturn {
     };
   }, [teams]);
 
-  // Memoize team lookup map
   const teamMap = useMemo(() => {
-    return new Map(teams.map((t) => [t.team_code, t]));
+    return new Map(teams.map((t) => [t.team_code, t] as const));
   }, [teams]);
 
-  // Memoize lookup function
   const getTeam = useMemo(() => {
     return (code: string) => teamMap.get(code);
   }, [teamMap]);
@@ -111,9 +110,12 @@ export function useTeams(): UseTeamsReturn {
   return {
     teams,
     teamsByConference,
-    isLoading,
-    error,
+    // Only treat it as loading if we *don't* already have fallback data.
+    isLoading: isLoading && !data,
+    error: error ?? null,
     getTeam,
-    refetch: fetchTeams,
+    refetch: async () => {
+      await mutate();
+    },
   };
 }

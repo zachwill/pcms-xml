@@ -25,6 +25,8 @@ import type { TeamEntity } from "../../hooks";
 export interface TeamHeaderProps {
   /** 3-letter team code (e.g., "BOS", "LAL") */
   teamCode: string;
+  /** NBA team_id used by official CDN assets (logos, etc.) */
+  teamId?: number | null;
   /** Full team name (e.g., "Boston Celtics") */
   teamName: string;
   /** Conference display text (e.g., "Eastern Conference") */
@@ -43,6 +45,7 @@ export interface TeamHeaderProps {
 
 export function TeamHeader({
   teamCode,
+  teamId,
   teamName,
   conference,
   currentYearTotal,
@@ -50,6 +53,17 @@ export function TeamHeader({
   isActive = false,
 }: TeamHeaderProps) {
   const { pushEntity } = useSalaryBookContext();
+
+  const [logoErrored, setLogoErrored] = React.useState(false);
+
+  const logoUrl = teamId
+    ? `https://cdn.nba.com/logos/nba/${teamId}/primary/L/logo.svg`
+    : null;
+
+  React.useEffect(() => {
+    // Reset error state when switching teams so we retry loading the logo.
+    setLogoErrored(false);
+  }, [teamId]);
 
   // Handle team name click → push Team entity to sidebar
   const handleTeamClick = () => {
@@ -71,17 +85,32 @@ export function TeamHeader({
       )}
       style={{ backgroundColor: "var(--muted, #f4f4f5)" }}
     >
-      {/* Team logo placeholder */}
+      {/* Team logo */}
       <div
         className={cx(
           // Match player headshot size (w-8 h-8)
           "w-8 h-8 rounded flex items-center justify-center flex-shrink-0",
-          "text-[10px] font-mono font-bold uppercase tracking-tight",
-          "bg-background border border-border"
+          "bg-background border border-border",
+          // Prevent SVGs from overflowing and keep things centered
+          "overflow-hidden"
         )}
-        aria-hidden="true"
       >
-        {teamCode}
+        {logoUrl && !logoErrored ? (
+          <img
+            src={logoUrl}
+            alt={`${teamName} logo`}
+            className="w-full h-full object-contain"
+            onError={() => setLogoErrored(true)}
+          />
+        ) : (
+          <span
+            className="text-[10px] font-mono font-bold uppercase tracking-tight"
+            aria-hidden="true"
+            title="Team logo unavailable"
+          >
+            {teamCode}
+          </span>
+        )}
       </div>
 
       {/* Team name + Conference (aligned on baseline) */}

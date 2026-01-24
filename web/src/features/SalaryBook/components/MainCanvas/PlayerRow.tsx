@@ -229,7 +229,7 @@ function PlayerRowInner({
               <span className="tabular-nums">
                 {player.age !== null && <>{Number(player.age).toFixed(1)} YRS</>}
                 {player.age !== null && player.experience !== null && player.experience !== undefined && " · "}
-                {player.experience !== null && player.experience !== undefined && <>{player.experience} YOS</>}
+                {player.experience !== null && player.experience !== undefined && <>{player.experience === 0 ? "Rookie" : `${player.experience} YOS`}</>}
               </span>
             </div>
           </div>
@@ -304,15 +304,16 @@ function PlayerRowInner({
 
           {/* Agent + Agency column */}
           <div className="w-40 shrink-0 flex flex-col pr-4">
-            {/* Row A: Agent name */}
-            <div className="h-7 flex items-end justify-end">
+            {/* Row A: Agent name (baseline-aligned with player name + total) */}
+            <div className="h-7 flex items-end justify-start min-w-0">
               {player.agent_name ? (
                 <button
                   onClick={onAgentClick}
                   className={cx(
-                    "text-xs text-muted-foreground truncate",
-                    "hover:text-primary hover:underline",
-                    "focus:outline-none focus-visible:underline focus-visible:text-primary",
+                    "text-xs truncate mb-px",
+                    "text-gray-400 dark:text-gray-500",
+                    "hover:text-muted-foreground hover:underline",
+                    "focus:outline-none focus-visible:underline focus-visible:text-muted-foreground",
                     "transition-colors"
                   )}
                 >
@@ -322,19 +323,19 @@ function PlayerRowInner({
                 <span className="text-xs text-muted-foreground/50">—</span>
               )}
             </div>
-            {/* Row B: Bird rights + Free agency + Agency */}
-            <div className="h-5 -mt-0.5 flex items-start justify-end gap-1.5 text-xs text-muted-foreground">
+            {/* Row B: Agency + Bird rights + Free agency */}
+            <div className="h-5 -mt-0.5 flex items-start justify-start gap-1.5 leading-none text-xs text-muted-foreground min-w-0">
+              {player.agency_name && (
+                <span className="text-gray-400 dark:text-gray-500 truncate italic">
+                  {player.agency_name}
+                </span>
+              )}
               {player.bird_rights && <BirdRightsBadge birdRights={player.bird_rights} />}
               {player.free_agency_type && (
                 <FreeAgencyBadge
                   type={player.free_agency_type}
                   year={player.free_agency_year}
                 />
-              )}
-              {player.agency_name && (
-                <span className="text-muted-foreground/70 truncate max-w-[80px]">
-                  {player.agency_name}
-                </span>
               )}
             </div>
           </div>

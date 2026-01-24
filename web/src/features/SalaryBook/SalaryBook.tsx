@@ -166,7 +166,7 @@ function SalaryBookProvider({ children, topOffset = 130 }: SalaryBookProviderPro
  */
 export function SalaryBook() {
   return (
-    <SalaryBookProvider topOffset={130}>
+    <SalaryBookProvider topOffset={140}>
       <div className="h-screen w-screen flex flex-col overflow-hidden bg-background">
         {/* Fixed top bar - MUST be above everything */}
         <TopCommandBar />

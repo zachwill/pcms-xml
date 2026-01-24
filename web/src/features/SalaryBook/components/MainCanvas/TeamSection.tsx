@@ -190,6 +190,7 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
         teamHeader={
           <TeamHeader
             teamCode={teamCode}
+            teamId={team?.team_id ?? null}
             teamName={team?.name || teamCode}
             conference={
               team?.conference === "EAST"

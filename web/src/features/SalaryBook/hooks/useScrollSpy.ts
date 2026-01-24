@@ -48,6 +48,10 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
   // Pending update timeout for debouncing
   const pendingUpdateRef = useRef<number | null>(null);
 
+  // Flag to suppress scroll-spy during programmatic scrolling
+  const isScrollingProgrammaticallyRef = useRef<boolean>(false);
+  const scrollTimeoutRef = useRef<number | null>(null);
+
   /**
    * Calculate which team should be active based on current scroll position
    * Priority: team whose section top is at or just below the sticky threshold
@@ -104,6 +108,11 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
    * Update active team with debouncing to prevent flicker during fast scrolling
    */
   const updateActiveTeam = useCallback(() => {
+    // Skip updates during programmatic scrolling to prevent buttons lighting up along the way
+    if (isScrollingProgrammaticallyRef.current) {
+      return;
+    }
+
     // Cancel any pending update
     if (pendingUpdateRef.current !== null) {
       cancelAnimationFrame(pendingUpdateRef.current);
@@ -162,6 +171,17 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
       const element = sectionsRef.current.get(teamCode);
       if (!element) return;
 
+      // Immediately set active team to prevent lag
+      setActiveTeam(teamCode);
+
+      // Suppress scroll-spy updates during programmatic scrolling
+      isScrollingProgrammaticallyRef.current = true;
+      
+      // Clear any existing timeout
+      if (scrollTimeoutRef.current !== null) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
       const container = containerRef?.current ?? window;
 
       if (container === window) {
@@ -176,8 +196,13 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
         containerRef.current.scrollTo({ top: scrollTop, behavior });
       }
 
-      // Immediately set active team to prevent lag
-      setActiveTeam(teamCode);
+      // Re-enable scroll-spy after scroll animation completes
+      // Use a timeout since there's no reliable scroll-end event for smooth scrolling
+      const scrollDuration = behavior === "smooth" ? 500 : 50;
+      scrollTimeoutRef.current = window.setTimeout(() => {
+        isScrollingProgrammaticallyRef.current = false;
+        scrollTimeoutRef.current = null;
+      }, scrollDuration);
     },
     [containerRef, topOffset]
   );
@@ -241,6 +266,11 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
       // Cancel pending update
       if (pendingUpdateRef.current !== null) {
         cancelAnimationFrame(pendingUpdateRef.current);
+      }
+
+      // Cancel scroll timeout
+      if (scrollTimeoutRef.current !== null) {
+        clearTimeout(scrollTimeoutRef.current);
       }
     };
   }, [containerRef, topOffset, updateActiveTeam]);

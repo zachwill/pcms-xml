@@ -36,3 +36,10 @@ export {
   type AgentDetail,
   type AgentClientPlayer,
 } from "./useAgent";
+export { usePlayer, type UsePlayerReturn, type PlayerDetailResponse } from "./usePlayer";
+export {
+  usePickDetail,
+  type UsePickDetailReturn,
+  type PickDetailParams,
+  type PickDetailResponse,
+} from "./usePickDetail";

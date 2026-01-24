@@ -10,7 +10,7 @@
  * - Alt+Click: Isolate single team view
  */
 
-import { cx, focusRing } from "@/lib/utils";
+import { cx } from "@/lib/utils";
 import { useSalaryBookContext } from "../../SalaryBook";
 import { useTeams } from "../../hooks";
 import type { Team } from "../../data";
@@ -40,13 +40,12 @@ function TeamPill({ team, isActive, isLoaded, onClick }: TeamPillProps) {
         "relative h-7 px-2 rounded text-xs font-medium",
         "transition-all duration-150",
         "border",
-        focusRing(),
+        "outline-none",
 
         // Active state (scroll-spy highlight)
         isActive && [
           "bg-primary text-primary-foreground border-primary",
           "shadow-sm",
-          "ring-2 ring-primary/30 ring-offset-1 ring-offset-background",
         ],
 
         // Loaded but not active
@@ -65,18 +64,6 @@ function TeamPill({ team, isActive, isLoaded, onClick }: TeamPillProps) {
       title={`${team.name}${isActive ? ' (active)' : isLoaded ? ' (loaded)' : ' (not loaded)'}`}
     >
       {team.team_code}
-      {/* Loaded indicator dot — visible when loaded but not active */}
-      {isLoaded && !isActive && (
-        <span
-          className={cx(
-            "absolute -top-0.5 -right-0.5",
-            "w-1.5 h-1.5 rounded-full",
-            "bg-primary/70",
-            "ring-1 ring-background"
-          )}
-          aria-hidden="true"
-        />
-      )}
     </button>
   );
 }

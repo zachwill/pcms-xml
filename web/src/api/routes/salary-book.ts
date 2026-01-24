@@ -27,6 +27,7 @@ salaryBookRouter.get("/teams", async () => {
   const sql = getSql();
   const teams = await sql`
     SELECT
+      team_id,
       team_code,
       team_name,
       team_nickname,
@@ -40,6 +41,7 @@ salaryBookRouter.get("/teams", async () => {
 
   // Map to frontend format
   const result = teams.map((t: any) => ({
+    team_id: Number(t.team_id),
     team_code: t.team_code,
     name: t.team_name,
     nickname: t.team_nickname,

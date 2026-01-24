@@ -8,6 +8,9 @@
 // Type definitions
 export * from "./types";
 
+// Static team metadata (instant render; used as a fallback for API latency)
+export * from "./teams";
+
 // Re-export commonly used types for convenience
 export type {
   // Core entities

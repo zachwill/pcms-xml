@@ -237,7 +237,8 @@ export function SalaryTable({
           "overflow-x-auto",
           "overscroll-x-contain",
           "relative",
-          "scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
+          // Hide scrollbar
+          "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         )}
       >
         <div className="min-w-max" style={{ minWidth: MIN_TABLE_WIDTH }}>

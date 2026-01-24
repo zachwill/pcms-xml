@@ -118,6 +118,7 @@ export interface SalaryBookPlayer {
  * Used because pcms.teams table is empty - we maintain this statically
  */
 export interface Team {
+  team_id: number; // NBA team_id used by official CDN assets (e.g., 1610612745)
   team_code: string; // 3-letter abbreviation (e.g., "BOS", "LAL")
   name: string; // Full name (e.g., "Boston Celtics")
   nickname: string; // Short name (e.g., "Celtics")

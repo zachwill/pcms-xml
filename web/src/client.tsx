@@ -1,23 +1,35 @@
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { SWRConfig } from "swr";
 import { SalaryBook } from "@/features/SalaryBook";
 import { ToastProvider } from "@/components/ui";
 
 function App() {
   return (
     <ToastProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Salary Book is the app */}
-          <Route path="/" element={<SalaryBook />} />
+      <SWRConfig
+        value={{
+          revalidateOnFocus: false,
+          revalidateOnReconnect: true,
+          dedupingInterval: 5000,
+        }}
+      >
+        <BrowserRouter>
+          <Routes>
+            {/* Salary Book is the app */}
+            <Route path="/" element={<SalaryBook />} />
 
-          {/* Backwards-compatible alias */}
-          <Route path="/salary-book" element={<Navigate to="/" replace />} />
+            {/* Backwards-compatible alias */}
+            <Route
+              path="/salary-book"
+              element={<Navigate to="/" replace />}
+            />
 
-          {/* Everything else redirects to the app */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+            {/* Everything else redirects to the app */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </SWRConfig>
     </ToastProvider>
   );
 }

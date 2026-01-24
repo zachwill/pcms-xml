@@ -48,35 +48,29 @@ export function TableHeader({ years = DEFAULT_YEARS }: TableHeaderProps) {
         {/* Player column (STICKY LEFT COLUMN) */}
         <div
           className={cx(
-            "w-52 shrink-0 pl-4",
+            "w-52 shrink-0",
             "sticky left-0 z-[2]",
             "bg-background",
             // Visual separator shadow on right edge
             "after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px",
             "after:bg-border/50",
-            "relative"
+            "relative",
+            "text-center"
           )}
         >
-          <div className="grid grid-cols-[40px_1fr] items-center h-full">
-            <div />
-            <div className="pl-1">Player Info</div>
-          </div>
+          Player Info
         </div>
 
-        {/* Contract Years group - spans all year columns */}
-        <div className="flex-1 flex">
-          {years.map((year, index) => (
-            <div key={year} className="w-24 text-center">
-              {/* Only show group label on first year column */}
-              {index === 0 ? "Contract Years" : ""}
-            </div>
-          ))}
-          {/* Total column header space */}
-          <div className="w-24 text-center" />
+        {/* Contract Years group - spans all year columns + Total */}
+        <div
+          className="text-center"
+          style={{ width: `${(years.length + 1) * 96}px` }}
+        >
+          Contract Years
         </div>
 
         {/* Management group */}
-        <div className="w-40 pr-4 text-right">Management</div>
+        <div className="w-40 text-center">Management</div>
       </div>
 
       {/* Row 2: Column labels */}
@@ -107,16 +101,16 @@ export function TableHeader({ years = DEFAULT_YEARS }: TableHeaderProps) {
 
         {/* Year columns */}
         {years.map((year) => (
-          <div key={year} className="w-24 font-mono text-center">
+          <div key={year} className="w-24 tabular-nums text-center">
             {formatYearLabel(year)}
           </div>
         ))}
 
         {/* Total column */}
-        <div className="w-24 font-mono text-center font-semibold">Total</div>
+        <div className="w-24 tabular-nums text-center font-semibold">Total</div>
 
         {/* Agent column */}
-        <div className="w-40 pr-4 text-right">Agent</div>
+        <div className="w-40 text-center">Agent</div>
       </div>
     </div>
   );
