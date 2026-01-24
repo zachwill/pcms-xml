@@ -1,0 +1,60 @@
+/**
+ * SalaryBook Feature Barrel Export
+ *
+ * Exports the main SalaryBook component, all hooks, and all types.
+ * This is the single entry point for consuming the Salary Book feature.
+ *
+ * Usage:
+ *   import { SalaryBook } from "@/features/SalaryBook";
+ *   import { useScrollSpy, useSidebarStack } from "@/features/SalaryBook";
+ *   import type { SalaryBookPlayer, Team } from "@/features/SalaryBook";
+ */
+
+// Main component
+export { SalaryBook, useSalaryBookContext } from "./SalaryBook";
+
+// Hooks
+export {
+  useScrollSpy,
+  useSidebarStack,
+  useFilterState,
+  type EntityType,
+  type SidebarEntity,
+  type SidebarMode,
+  type PlayerEntity,
+  type AgentEntity,
+  type PickEntity,
+  type TeamEntity,
+  type DisplayFilter,
+  type FinancialsFilter,
+  type ContractsFilter,
+  type FilterKey,
+  type FilterState,
+  type FilterMeta,
+  type UseFilterStateReturn,
+  FILTER_METADATA,
+} from "./hooks";
+
+// Data types
+export type {
+  // Core entities
+  SalaryBookPlayer,
+  Team,
+  TeamSalary,
+  DraftPick,
+  DraftPickSummary,
+  Agent,
+  Agency,
+
+  // Contract types
+  ContractOption,
+  GuaranteeType,
+  BirdRights,
+  FreeAgencyType,
+
+  // UI state types
+  Conference,
+  EntityRef,
+  SalaryBookFilters,
+  LoadedTeamsState,
+} from "./data";

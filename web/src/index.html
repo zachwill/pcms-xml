@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bun Template</title>
+    <meta name="theme-color" content="#09090b" />
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+              mono: ['Geist Mono', 'Fira Mono', 'ui-monospace', 'monospace'],
+            },
+            colors: {
+              border: 'var(--border)',
+              background: 'var(--background)',
+              foreground: 'var(--foreground)',
+              muted: {
+                DEFAULT: 'var(--muted)',
+                foreground: 'var(--muted-foreground)',
+              },
+              primary: {
+                DEFAULT: 'var(--primary)',
+                foreground: 'var(--primary-foreground)',
+              },
+              destructive: {
+                DEFAULT: 'var(--destructive)',
+                foreground: 'var(--destructive-foreground)',
+              },
+            },
+            keyframes: {
+              "slide-down-fade": {
+                from: { opacity: "0", transform: "translateY(-26px)" },
+                to: { opacity: "1", transform: "translateY(0px)" },
+              },
+              shimmer: {
+                '100%': {
+                  transform: 'translateX(100%)',
+                },
+              },
+              "progress-indeterminate": {
+                '0%': { transform: 'translateX(-100%)' },
+                '100%': { transform: 'translateX(400%)' },
+              },
+            },
+            animation: {
+              "slide-down-fade": "slide-down-fade 0.3s ease-in-out",
+              shimmer: 'shimmer 2s ease-in-out infinite',
+              "progress-indeterminate": 'progress-indeterminate 1.5s ease-in-out infinite',
+            },
+          }
+        }
+      }
+    </script>
+    <style>
+      .backdrop-blur-nav {
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+      }
+      /* Light mode (default) - Vercel-inspired */
+      :root {
+        --background: #ffffff;
+        --foreground: #171717;
+        --muted: #f0f0f0;
+        --muted-foreground: #737373;
+        --border: #e5e5e5;
+        --primary: #171717;
+        --primary-foreground: #ffffff;
+        --destructive: #dc2626;
+        --destructive-foreground: #ffffff;
+      }
+
+      /* Dark mode - Vercel-inspired */
+      .dark {
+        --background: #0a0a0a;
+        --foreground: #ededed;
+        --muted: #262626;
+        --muted-foreground: #a3a3a3;
+        --border: #262626;
+        --primary: #ededed;
+        --primary-foreground: #0a0a0a;
+        --destructive: #dc2626;
+        --destructive-foreground: #ffffff;
+      }
+
+      body {
+        background-color: var(--background);
+        color: var(--foreground);
+        margin: 0;
+        height: 100%;
+        font-family: 'Inter', system-ui, sans-serif;
+      }
+
+      body { overflow-x: hidden; }
+
+      /* Base UI Dialog/AlertDialog animations */
+      /* Backdrop */
+      [data-backdrop] {
+        transition: opacity 150ms;
+      }
+      @starting-style {
+        [data-backdrop][data-open] {
+          opacity: 0;
+        }
+      }
+      [data-backdrop][data-ending-style] {
+        opacity: 0;
+      }
+
+      /* Centered Popup (Dialog/AlertDialog) */
+      [data-popup][data-dialog] {
+        transition: opacity 150ms, transform 150ms;
+      }
+      @starting-style {
+        [data-popup][data-dialog][data-open] {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.95);
+        }
+      }
+      [data-popup][data-dialog][data-ending-style] {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.95);
+      }
+
+      /* Sheet animations */
+      [data-popup][data-sheet] {
+        transition: transform 300ms ease-out;
+      }
+      @starting-style {
+        [data-popup][data-sheet="right"][data-open] {
+          transform: translateX(100%);
+        }
+        [data-popup][data-sheet="left"][data-open] {
+          transform: translateX(-100%);
+        }
+        [data-popup][data-sheet="top"][data-open] {
+          transform: translateY(-100%);
+        }
+        [data-popup][data-sheet="bottom"][data-open] {
+          transform: translateY(100%);
+        }
+      }
+      [data-popup][data-sheet="right"][data-ending-style] {
+        transform: translateX(100%);
+      }
+      [data-popup][data-sheet="left"][data-ending-style] {
+        transform: translateX(-100%);
+      }
+      [data-popup][data-sheet="top"][data-ending-style] {
+        transform: translateY(-100%);
+      }
+      [data-popup][data-sheet="bottom"][data-ending-style] {
+        transform: translateY(100%);
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+    </style>
+  </head>
+  <body class="h-full">
+    <div id="root"></div>
+    <script type="module" src="./client.tsx"></script>
+  </body>
+</html>
