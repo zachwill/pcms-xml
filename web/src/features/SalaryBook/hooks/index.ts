@@ -30,6 +30,9 @@ export { useTeams, type UseTeamsReturn } from "./useTeams";
 export { usePlayers, type UsePlayersReturn } from "./usePlayers";
 export { useTeamSalary, type UseTeamSalaryReturn } from "./useTeamSalary";
 export { usePicks, type UsePicksReturn } from "./usePicks";
+export { useCapHolds, type UseCapHoldsReturn } from "./useCapHolds";
+export { useExceptions, type UseExceptionsReturn } from "./useExceptions";
+export { useDeadMoney, type UseDeadMoneyReturn } from "./useDeadMoney";
 export {
   useAgent,
   type UseAgentReturn,

@@ -11,7 +11,15 @@
 import React, { useCallback } from "react";
 import { cx } from "@/lib/utils";
 import { useSalaryBookContext } from "../../SalaryBook";
-import { usePlayers, useTeamSalary, usePicks, useTeams } from "../../hooks";
+import {
+  usePlayers,
+  useTeamSalary,
+  usePicks,
+  useCapHolds,
+  useExceptions,
+  useDeadMoney,
+  useTeams,
+} from "../../hooks";
 import type { SalaryBookPlayer, DraftPick } from "../../data";
 import type { PlayerEntity, AgentEntity, PickEntity } from "../../hooks";
 import { TeamHeader } from "./TeamHeader";
@@ -107,9 +115,30 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
 
   const { picks, isLoading: picksLoading } = usePicks(teamCode);
 
+  const { capHolds, isLoading: capHoldsLoading } = useCapHolds(
+    teamCode,
+    filters.display.capHolds
+  );
+
+  const { exceptions, isLoading: exceptionsLoading } = useExceptions(
+    teamCode,
+    filters.display.exceptions
+  );
+
+  const { deadMoney, isLoading: deadMoneyLoading } = useDeadMoney(
+    teamCode,
+    filters.display.deadMoney
+  );
+
   const team = getTeam(teamCode);
   const isActive = activeTeam === teamCode;
-  const isLoading = playersLoading || salaryLoading || picksLoading;
+  const isLoading =
+    playersLoading ||
+    salaryLoading ||
+    picksLoading ||
+    capHoldsLoading ||
+    exceptionsLoading ||
+    deadMoneyLoading;
 
   // ========================================================================
   // Sidebar navigation handlers (memoized to prevent PlayerRow re-renders)
@@ -204,6 +233,9 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
         }
         players={players}
         picks={picks}
+        capHolds={capHolds}
+        exceptions={exceptions}
+        deadMoney={deadMoney}
         salaryByYear={salaryByYear}
         filters={filters}
         onPlayerClick={handlePlayerClick}

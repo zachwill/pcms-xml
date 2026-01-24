@@ -10,8 +10,10 @@
  * - Back returns to the team context in a single step (except when a team is pinned).
  */
 
+import React from "react";
 import { cx, focusRing } from "@/lib/utils";
 import { useSalaryBookContext } from "../../SalaryBook";
+import { useTeams } from "../../hooks";
 import type { SidebarEntity } from "../../hooks";
 import { TeamContext } from "./TeamContext";
 import { PlayerDetail } from "./PlayerDetail";
@@ -123,7 +125,26 @@ export function SidebarPanel({ className }: SidebarPanelProps) {
     currentEntity,
     popEntity,
     canGoBack,
+    activeTeam,
   } = useSalaryBookContext();
+
+  const { getTeam } = useTeams();
+
+  // Get team info for the back button
+  const team = activeTeam ? getTeam(activeTeam) : null;
+  const teamId = team?.team_id;
+  const logoUrl = teamId
+    ? `https://cdn.nba.com/logos/nba/${teamId}/primary/L/logo.svg`
+    : null;
+
+  // Track logo load errors
+  const [logoErrored, setLogoErrored] = React.useState(false);
+  React.useEffect(() => {
+    setLogoErrored(false);
+  }, [activeTeam]);
+
+  // Use the active team code for the back button, fallback to "Back"
+  const backLabel = activeTeam || "Back";
 
   return (
     <div
@@ -143,14 +164,38 @@ export function SidebarPanel({ className }: SidebarPanelProps) {
             type="button"
             onClick={popEntity}
             className={cx(
-              "flex items-center gap-1 text-sm",
+              "flex items-center gap-1.5 text-sm",
               "text-muted-foreground hover:text-foreground",
               "transition-colors duration-150",
               focusRing()
             )}
           >
             <ChevronLeftIcon className="w-4 h-4" />
-            <span>Back</span>
+            {/* Team logo avatar */}
+            <div
+              className={cx(
+                "w-5 h-5 rounded flex items-center justify-center flex-shrink-0",
+                "bg-background border border-border",
+                "overflow-hidden"
+              )}
+            >
+              {logoUrl && !logoErrored ? (
+                <img
+                  src={logoUrl}
+                  alt=""
+                  className="w-full h-full object-contain"
+                  onError={() => setLogoErrored(true)}
+                />
+              ) : activeTeam ? (
+                <span
+                  className="text-[6px] font-mono font-bold uppercase tracking-tight"
+                  aria-hidden="true"
+                >
+                  {activeTeam}
+                </span>
+              ) : null}
+            </div>
+            <span>{backLabel}</span>
           </button>
         </div>
       )}

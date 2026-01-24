@@ -15,12 +15,22 @@
 
 import React, { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { cx } from "@/lib/utils";
-import type { SalaryBookPlayer, DraftPick, TeamSalary } from "../../data";
+import type {
+  SalaryBookPlayer,
+  DraftPick,
+  TeamSalary,
+  CapHold,
+  TeamException,
+  DeadMoney,
+} from "../../data";
 import type { FilterState } from "../../hooks";
 import { TableHeader } from "./TableHeader";
 import { PlayerRow } from "./PlayerRow";
 import { DraftAssetsRow } from "./DraftAssetsRow";
 import { TotalsFooter } from "./TotalsFooter";
+import { CapHoldsSection } from "./CapHoldsSection";
+import { ExceptionsSection } from "./ExceptionsSection";
+import { DeadMoneySection } from "./DeadMoneySection";
 
 // ============================================================================
 // Types
@@ -33,6 +43,12 @@ export interface SalaryTableProps {
   players: SalaryBookPlayer[];
   /** Draft picks for the team */
   picks: DraftPick[];
+  /** Cap holds (warehouse-backed) */
+  capHolds: CapHold[];
+  /** Exceptions (warehouse-backed) */
+  exceptions: TeamException[];
+  /** Dead money (warehouse-backed) */
+  deadMoney: DeadMoney[];
   /** Team salary data by year (2025-2030) */
   salaryByYear: Map<number, TeamSalary>;
   /** Active filter state */
@@ -119,6 +135,9 @@ export function SalaryTable({
   teamHeader,
   players,
   picks,
+  capHolds,
+  exceptions,
+  deadMoney,
   salaryByYear,
   filters,
   onPlayerClick,
@@ -264,9 +283,23 @@ export function SalaryTable({
           )}
 
           {/* Supplementary rows (visibility controlled by Display filters) */}
-          {showCapHolds && <PlaceholderSectionRow label="Cap Holds" />}
-          {showExceptions && <PlaceholderSectionRow label="Exceptions" />}
-          {showDeadMoney && <PlaceholderSectionRow label="Dead Money" />}
+          {showCapHolds && (capHolds.length > 0 ? (
+            <CapHoldsSection capHolds={capHolds} />
+          ) : (
+            <PlaceholderSectionRow label="Cap Holds" />
+          ))}
+
+          {showExceptions && (exceptions.length > 0 ? (
+            <ExceptionsSection exceptions={exceptions} />
+          ) : (
+            <PlaceholderSectionRow label="Exceptions" />
+          ))}
+
+          {showDeadMoney && (deadMoney.length > 0 ? (
+            <DeadMoneySection deadMoney={deadMoney} />
+          ) : (
+            <PlaceholderSectionRow label="Dead Money" />
+          ))}
 
           {/* Draft assets row */}
           {showDraftPicks && <DraftAssetsRow picks={picks} onPickClick={onPickClick} />}

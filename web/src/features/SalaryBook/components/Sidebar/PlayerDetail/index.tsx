@@ -9,14 +9,12 @@
  * 2. Contract summary (total value, years, bird rights)
  * 3. Year-by-year breakdown (salary, guarantee, option per year)
  * 4. Trade restrictions (if any)
- * 5. AI insights placeholder
  */
 
 import { cx } from "@/lib/utils";
 import { useSalaryBookContext } from "../../../SalaryBook";
 import { usePlayer, useTeams } from "../../../hooks";
 import type { PlayerEntity } from "../../../hooks";
-import { AIInsightsPlaceholder } from "../../shared";
 import { PlayerHeader } from "./PlayerHeader";
 import { ContractSummary } from "./ContractSummary";
 import { YearByYearBreakdown, type YearData } from "./YearByYearBreakdown";
@@ -122,11 +120,10 @@ export function PlayerDetail({ entity, className }: PlayerDetailProps) {
       <TradeRestrictions
         isNoTrade={player.is_no_trade}
         isTradeBonus={player.is_trade_bonus}
+        tradeBonusPercent={player.trade_bonus_percent}
         isConsentRequired={player.is_trade_consent_required_now}
         isPreconsented={player.is_trade_preconsented}
       />
-
-      <AIInsightsPlaceholder description="AI-powered contract analysis, extension eligibility, trade value assessment, and cap impact projections coming soon." />
     </div>
   );
 }

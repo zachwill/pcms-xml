@@ -6,7 +6,7 @@
  * - FilterToggles: Display/Financial/Contract filter checkboxes
  *
  * Positioned fixed at viewport top with highest z-index.
- * Height: 130px (matches topOffset in SalaryBook provider)
+ * Height: 130px (main content area is offset by this height)
  */
 
 import { cx } from "@/lib/utils";

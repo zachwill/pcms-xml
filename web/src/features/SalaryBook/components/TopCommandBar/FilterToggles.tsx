@@ -7,7 +7,7 @@
  * Per spec:
  * - Display: Cap Holds, Exceptions, Draft Picks, Dead Money
  * - Financials: Tax/Aprons, Cash vs Cap, Luxury Tax
- * - Contracts: Options, Incentives, Kickers, Two-Way
+ * - Contracts: Options, Incentives, Two-Way
  */
 
 import { cx, focusRing } from "@/lib/utils";

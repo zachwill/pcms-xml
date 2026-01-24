@@ -33,8 +33,11 @@ export interface PlayerDetailResponse {
   agency_name: string | null;
 
   is_two_way: boolean;
+  is_poison_pill: boolean;
+  poison_pill_amount: number | null;
   is_no_trade: boolean;
   is_trade_bonus: boolean;
+  trade_bonus_percent: number | null;
   is_trade_consent_required_now: boolean;
   is_trade_preconsented: boolean;
   player_consent_lk: string | null;
@@ -81,8 +84,11 @@ function normalizePlayer(data: any): PlayerDetailResponse {
     agency_name: data.agency_name ?? null,
 
     is_two_way: !!data.is_two_way,
+    is_poison_pill: !!data.is_poison_pill,
+    poison_pill_amount: asNumberOrNull(data.poison_pill_amount),
     is_no_trade: !!data.is_no_trade,
     is_trade_bonus: !!data.is_trade_bonus,
+    trade_bonus_percent: asNumberOrNull(data.trade_bonus_percent),
     is_trade_consent_required_now: !!data.is_trade_consent_required_now,
     is_trade_preconsented: !!data.is_trade_preconsented,
     player_consent_lk: data.player_consent_lk ?? null,

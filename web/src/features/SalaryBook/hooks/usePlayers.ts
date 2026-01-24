@@ -37,10 +37,13 @@ interface PlayerApiResponse {
   agency_id: string | null;
   agency_name: string | null;
   is_two_way: boolean;
+  is_poison_pill: boolean;
+  poison_pill_amount: number | null;
 
   // Trade restriction flags (from salary_book_warehouse)
   is_no_trade: boolean;
   is_trade_bonus: boolean;
+  trade_bonus_percent: number | null;
   is_trade_consent_required_now: boolean;
   is_trade_preconsented: boolean;
   player_consent_lk: string | null;
@@ -124,8 +127,11 @@ function mapApiToPlayer(data: PlayerApiResponse): SalaryBookPlayer {
     agency_id: data.agency_id,
     agency_name: data.agency_name,
     is_two_way: data.is_two_way,
+    is_poison_pill: data.is_poison_pill,
+    poison_pill_amount: data.poison_pill_amount,
     is_no_trade: data.is_no_trade,
     is_trade_bonus: data.is_trade_bonus,
+    trade_bonus_percent: data.trade_bonus_percent,
     is_trade_consent_required_now: data.is_trade_consent_required_now,
     is_trade_preconsented: data.is_trade_preconsented,
     player_consent_lk: data.player_consent_lk,

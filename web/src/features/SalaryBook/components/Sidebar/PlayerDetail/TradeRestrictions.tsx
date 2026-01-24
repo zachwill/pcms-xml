@@ -6,17 +6,28 @@ import { cx } from "@/lib/utils";
 export function TradeRestrictions({
   isNoTrade,
   isTradeBonus,
+  tradeBonusPercent,
   isConsentRequired,
   isPreconsented,
 }: {
   isNoTrade: boolean;
   isTradeBonus: boolean;
+  tradeBonusPercent: number | null;
   isConsentRequired: boolean;
   isPreconsented: boolean;
 }) {
+  const tradeKickerLabel = (() => {
+    const pct = tradeBonusPercent === null ? null : Number(tradeBonusPercent);
+    if (pct !== null && Number.isFinite(pct) && pct > 0) {
+      const pctLabel = pct % 1 === 0 ? pct.toFixed(0) : String(pct);
+      return `${pctLabel}% Trade Kicker`;
+    }
+    return "Trade Kicker";
+  })();
+
   const restrictions: { label: string; active: boolean }[] = [
     { label: "No-Trade Clause", active: isNoTrade },
-    { label: "Trade Bonus", active: isTradeBonus },
+    { label: tradeKickerLabel, active: isTradeBonus },
     { label: "Consent Required", active: isConsentRequired },
     { label: "Pre-consented", active: isPreconsented },
   ];

@@ -39,6 +39,12 @@ export function MainCanvas({ className }: MainCanvasProps) {
             {loadedTeams.map((teamCode) => (
               <TeamSection key={teamCode} teamCode={teamCode} />
             ))}
+
+            {/*
+              Scroll spacer so the last team can always "handoff" and own the sticky header.
+              This mirrors iOS Contacts behavior near the end of the list.
+            */}
+            <div aria-hidden className="h-[calc(100vh-130px)]" />
           </div>
         )}
       </div>

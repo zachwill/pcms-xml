@@ -39,6 +39,8 @@ import {
 interface SalaryCellStyle {
   bgClass: string;
   textClass: string;
+  /** Italicize the salary number (not the pct-cap line) */
+  salaryItalic: boolean;
   tooltip: React.ReactNode | null;
 }
 
@@ -46,11 +48,70 @@ function getSalaryCellStyle(
   guarantee: GuaranteeType,
   option: ContractOption,
   isCurrentSeason: boolean,
-  isConsentRequired: boolean
+  isConsentRequired: boolean,
+  isNoTrade: boolean,
+  isPoisonPill: boolean,
+  isTradeBonus: boolean,
+  tradeBonusPercent: number | null,
+  salary: number,
+  pctCap: number | null,
+  yosThisYear: number | null,
+  priorYearSalary: number | null
 ): SalaryCellStyle {
   const tooltips: string[] = [];
   let bgClass = "";
   let textClass = "";
+  let salaryItalic = false;
+
+  // --------------------------------------------------------------------------
+  // Helpers
+  // --------------------------------------------------------------------------
+
+  const tradeKickerLabel = (() => {
+    const pct = tradeBonusPercent === null ? null : Number(tradeBonusPercent);
+    if (pct !== null && Number.isFinite(pct) && pct > 0) {
+      const pctLabel = pct % 1 === 0 ? pct.toFixed(0) : String(pct);
+      return `${pctLabel}% Trade Kicker`;
+    }
+    return "Trade Kicker";
+  })();
+
+  const maxPctForYos = (yos: number): number => {
+    if (yos <= 6) return 0.25;
+    if (yos <= 9) return 0.30;
+    return 0.35;
+  };
+
+  // Returns whether the trade bonus has *any* room to apply for this year.
+  // (If the player's salary is already at/over their max salary threshold,
+  // the trade kicker effectively cannot be paid.)
+  const tradeBonusHasRoom = (() => {
+    if (!isTradeBonus) return null;
+
+    if (pctCap === null || !Number.isFinite(Number(pctCap)) || Number(pctCap) <= 0) return null;
+    if (yosThisYear === null || !Number.isFinite(Number(yosThisYear))) return null;
+
+    const yosMaxPct = maxPctForYos(Number(yosThisYear));
+
+    // Derive the implied cap for this year from salary + pct_cap.
+    // cap = salary / pctCap
+    const capThisYear = salary > 0 ? salary / Number(pctCap) : null;
+
+    // 105% fallback (uses prior year's salary, if available).
+    const fallbackPct =
+      priorYearSalary !== null && capThisYear && Number.isFinite(capThisYear) && capThisYear > 0
+        ? (1.05 * Number(priorYearSalary)) / capThisYear
+        : null;
+
+    const maxAllowedPct = Math.max(yosMaxPct, fallbackPct ?? 0);
+
+    // If salary is already at/over max, trade bonus can't add anything.
+    return Number(pctCap) < maxAllowedPct;
+  })();
+
+  // --------------------------------------------------------------------------
+  // Base layers: guarantee + option
+  // --------------------------------------------------------------------------
 
   // Guarantee colors (base layer)
   if (guarantee === "GTD") {
@@ -68,6 +129,7 @@ function getSalaryCellStyle(
   }
 
   // Option colors (override guarantee if present, except current season)
+  // (Options take precedence visually over trade bonus in future years.)
   if (option && !isCurrentSeason) {
     if (option === "PO") {
       bgClass = "bg-blue-100/60 dark:bg-blue-900/30";
@@ -84,16 +146,59 @@ function getSalaryCellStyle(
     }
   }
 
-  // Consent (current season only, overrides all)
-  if (isCurrentSeason && isConsentRequired) {
-    bgClass = "bg-red-100/60 dark:bg-red-900/30";
-    textClass = "text-red-700 dark:text-red-300";
-    tooltips.push("Player Consent Required");
+  // --------------------------------------------------------------------------
+  // Trade bonus styling
+  // --------------------------------------------------------------------------
+
+  if (isTradeBonus) {
+    tooltips.push(tradeKickerLabel);
+
+    const optionTakesPrecedence = !!option && !isCurrentSeason;
+
+    // Only style cells that would otherwise be "plain" (no guarantee/option tint).
+    const isVisuallyPlain = !bgClass && !textClass;
+
+    if (!optionTakesPrecedence && isVisuallyPlain) {
+      if (tradeBonusHasRoom === false) {
+        // Trade bonus exists, but salary is already at/over max threshold → show orange text only.
+        textClass = "text-orange-700 dark:text-orange-300";
+      } else {
+        // Unknown or has room → show orange background.
+        bgClass = "bg-orange-100/60 dark:bg-orange-900/30";
+        textClass = "text-orange-700 dark:text-orange-300";
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Current-season trade restrictions (override all other coloring)
+  // --------------------------------------------------------------------------
+
+  if (isCurrentSeason) {
+    if (isNoTrade) {
+      bgClass = "bg-red-100/60 dark:bg-red-900/30";
+      textClass = "text-red-700 dark:text-red-300";
+      tooltips.push("No-Trade Clause");
+    }
+
+    if (isConsentRequired) {
+      bgClass = "bg-red-100/60 dark:bg-red-900/30";
+      textClass = "text-red-700 dark:text-red-300";
+      tooltips.push("Player Consent Required");
+    }
+
+    if (isPoisonPill) {
+      bgClass = "bg-red-100/60 dark:bg-red-900/30";
+      textClass = "text-red-700 dark:text-red-300";
+      salaryItalic = true;
+      tooltips.push("Poison Pill");
+    }
   }
 
   return {
     bgClass,
     textClass,
+    salaryItalic,
     tooltip:
       tooltips.length > 0 ? (
         <div className="flex flex-col gap-0.5">
@@ -155,8 +260,8 @@ function PlayerRowInner({
         "group cursor-pointer",
         // Border between rows
         "border-b border-border/50",
-        // Hover highlights BOTH rows as one unit
-        "hover:bg-muted/40 dark:hover:bg-muted/20",
+        // Hover highlights BOTH rows as one unit (subtle yellow)
+        "hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10",
         // Smooth transition for hover
         "transition-colors duration-75"
       )}
@@ -184,8 +289,8 @@ function PlayerRowInner({
             "relative",
             // Opaque background to prevent bleed-through while scrolling
             "bg-background",
-            // Match row hover/transition
-            "group-hover:bg-muted/40 dark:group-hover:bg-muted/20",
+            // Match row hover/transition (subtle yellow)
+            "group-hover:bg-yellow-50/70 dark:group-hover:bg-yellow-900/10",
             "transition-colors duration-75",
             // Separator on the right edge of the sticky column
             "after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px",
@@ -246,9 +351,37 @@ function PlayerRowInner({
             const isCurrentSeason = year === SALARY_YEARS[0];
             const pctCap = getPctCap(player, year);
             
+            const yosThisYear =
+              player.experience !== null && player.experience !== undefined
+                ? Number(player.experience) + (year - SALARY_YEARS[0])
+                : null;
+
+            // Poison Pill only meaningfully applies in the current season and only for 3 YOS players.
+            // (Warehouse flag can be historically true even when it's no longer relevant.)
+            const isPoisonPillNow =
+              isCurrentSeason &&
+              player.is_poison_pill &&
+              yosThisYear !== null &&
+              Number(yosThisYear) === 3;
+
+            const priorYearSalary = getSalary(player, year - 1);
+
             const cellStyle = salary !== null
-              ? getSalaryCellStyle(guarantee, option, isCurrentSeason, player.is_trade_consent_required_now)
-              : { bgClass: "", textClass: "", tooltip: null };
+              ? getSalaryCellStyle(
+                  guarantee,
+                  option,
+                  isCurrentSeason,
+                  player.is_trade_consent_required_now,
+                  player.is_no_trade,
+                  isPoisonPillNow,
+                  player.is_trade_bonus,
+                  player.trade_bonus_percent,
+                  Number(salary) || 0,
+                  pctCap,
+                  yosThisYear,
+                  priorYearSalary
+                )
+              : { bgClass: "", textClass: "", salaryItalic: false, tooltip: null };
 
             // Format pct cap as rounded percentage (e.g., "32%")
             const pctCapLabel = pctCap !== null ? `${Math.round(pctCap * 100)}%` : null;
@@ -257,26 +390,38 @@ function PlayerRowInner({
               <div
                 key={year}
                 className={cx(
-                  "w-24 shrink-0 flex flex-col",
+                  "w-24 shrink-0",
+                  showTwoWayBadge
+                    ? "grid place-items-center h-[calc(1.75rem+1.25rem-0.125rem)]"
+                    : "flex flex-col",
                   cellStyle.bgClass,
                   cellStyle.textClass
                 )}
               >
-                {/* Row A: Salary */}
-                <div
-                  className={cx(
-                    "h-7 flex items-end justify-center text-sm",
-                    !showTwoWayBadge && salary === null && "text-muted-foreground/50"
-                  )}
-                >
-                  <PlayerSalary amount={salary} showTwoWayBadge={showTwoWayBadge} />
-                </div>
-                {/* Row B: Percent of cap (non-two-way only) */}
-                <div className="h-5 -mt-0.5 flex items-start justify-center">
-                  {!player.is_two_way && pctCapLabel && (
-                    <span className="text-[10px] tabular-nums italic opacity-70">{pctCapLabel}</span>
-                  )}
-                </div>
+                {showTwoWayBadge ? (
+                  <PlayerSalary amount={salary} showTwoWayBadge />
+                ) : (
+                  <>
+                    {/* Row A: Salary */}
+                    <div
+                      className={cx(
+                        "h-7 flex items-end justify-center text-sm",
+                        salary === null && "text-muted-foreground/50"
+                      )}
+                    >
+                      <PlayerSalary
+                        amount={salary}
+                        className={cellStyle.salaryItalic ? "italic" : undefined}
+                      />
+                    </div>
+                    {/* Row B: Percent of cap */}
+                    <div className="h-5 -mt-0.5 flex items-start justify-center">
+                      {pctCapLabel && (
+                        <span className="text-[10px] tabular-nums italic opacity-70">{pctCapLabel}</span>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             );
 
@@ -290,17 +435,35 @@ function PlayerRowInner({
           })}
 
           {/* Total salary column */}
-          <div className="w-24 shrink-0 flex flex-col">
-            <div className="h-7 flex items-end justify-center text-sm">
-              <PlayerSalary
-                amount={getTotalSalary(player)}
-                showTwoWayBadge={showTwoWay && player.is_two_way && getTotalSalary(player) === 0}
-                slotWidth="7ch"
-                className="font-semibold"
-              />
-            </div>
-            <div className="h-5" />
-          </div>
+          {(() => {
+            const totalSalary = getTotalSalary(player);
+            const showTotalTwoWay = showTwoWay && player.is_two_way && totalSalary === 0;
+            return (
+              <div
+                className={cx(
+                  "w-24 shrink-0",
+                  showTotalTwoWay
+                    ? "grid place-items-center h-[calc(1.75rem+1.25rem-0.125rem)]"
+                    : "flex flex-col"
+                )}
+              >
+                {showTotalTwoWay ? (
+                  <PlayerSalary amount={totalSalary} showTwoWayBadge slotWidth="7ch" className="font-semibold" />
+                ) : (
+                  <>
+                    <div className="h-7 flex items-end justify-center text-sm">
+                      <PlayerSalary
+                        amount={totalSalary}
+                        slotWidth="7ch"
+                        className="font-semibold"
+                      />
+                    </div>
+                    <div className="h-5" />
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Agent + Agency column */}
           <div className="w-40 shrink-0 flex flex-col pr-4">
@@ -371,7 +534,11 @@ export const PlayerRow = memo(PlayerRowInner, (prevProps, nextProps) => {
     p1.cap_2029 === p2.cap_2029 &&
     p1.player_name === p2.player_name &&
     p1.agent_name === p2.agent_name &&
-    p1.is_two_way === p2.is_two_way
+    p1.is_two_way === p2.is_two_way &&
+    p1.is_trade_consent_required_now === p2.is_trade_consent_required_now &&
+    p1.is_no_trade === p2.is_no_trade &&
+    p1.is_trade_bonus === p2.is_trade_bonus &&
+    p1.trade_bonus_percent === p2.trade_bonus_percent
   );
 });
 

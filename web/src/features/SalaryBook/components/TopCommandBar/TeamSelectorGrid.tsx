@@ -31,6 +31,8 @@ interface TeamPillProps {
  * - Unloaded: Muted/dimmed — team not currently loaded
  */
 function TeamPill({ team, isActive, isLoaded, onClick }: TeamPillProps) {
+  const isPortland = team.team_code === "POR";
+
   return (
     <button
       type="button"
@@ -42,20 +44,32 @@ function TeamPill({ team, isActive, isLoaded, onClick }: TeamPillProps) {
         "border",
         "outline-none",
 
-        // Active state (scroll-spy highlight)
+        // Active state (scroll-spy highlight) — same for all teams
         isActive && [
           "bg-primary text-primary-foreground border-primary",
           "shadow-sm",
         ],
 
-        // Loaded but not active
-        !isActive && isLoaded && [
+        // Portland special styling when not active
+        !isActive && isPortland && isLoaded && [
+          "bg-muted/50 text-red-600 dark:text-red-400 border-red-400 dark:border-red-500",
+          "hover:bg-red-100 dark:hover:bg-red-900/40 hover:border-red-500 dark:hover:border-red-400",
+        ],
+
+        !isActive && isPortland && !isLoaded && [
+          "bg-transparent text-red-400 dark:text-red-500 border-red-300 dark:border-red-700",
+          "hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-500 dark:hover:text-red-400 hover:border-red-400 dark:hover:border-red-600",
+          "opacity-70",
+        ],
+
+        // Loaded but not active (non-Portland)
+        !isActive && !isPortland && isLoaded && [
           "bg-muted/50 text-foreground border-border",
           "hover:bg-muted hover:border-foreground/20",
         ],
 
-        // Unloaded (dimmed)
-        !isActive && !isLoaded && [
+        // Unloaded (dimmed, non-Portland)
+        !isActive && !isPortland && !isLoaded && [
           "bg-transparent text-muted-foreground/50 border-transparent",
           "hover:bg-muted/30 hover:text-muted-foreground hover:border-border/50",
           "opacity-60",

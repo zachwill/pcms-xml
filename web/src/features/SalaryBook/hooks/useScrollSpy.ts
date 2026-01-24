@@ -15,6 +15,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 interface ScrollSpyOptions {
   /** Offset from top where sticky headers attach (accounts for fixed TopCommandBar) */
   topOffset?: number;
+
+  /**
+   * Extra pixels BELOW the sticky threshold to switch the active team a bit sooner.
+   *
+   * This is useful when a team header is approaching the top ("push-off" zone) and
+   * we want sidebar/context to update slightly earlier than the exact sticky handoff.
+   */
+  activationOffset?: number;
+
   /** Scroll container ref - defaults to document if not provided */
   containerRef?: React.RefObject<HTMLElement | null>;
 }
@@ -31,7 +40,7 @@ interface ScrollSpyResult {
 }
 
 export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
-  const { topOffset = 0, containerRef } = options;
+  const { topOffset = 0, activationOffset = 0, containerRef } = options;
 
   // Track active team state
   const [activeTeam, setActiveTeam] = useState<string | null>(null);
@@ -50,7 +59,11 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
 
   // Flag to suppress scroll-spy during programmatic scrolling
   const isScrollingProgrammaticallyRef = useRef<boolean>(false);
-  const scrollTimeoutRef = useRef<number | null>(null);
+
+  // Programmatic scroll settle detection (avoids guessing durations for smooth scroll)
+  const programmaticScrollSettleTimeoutRef = useRef<number | null>(null);
+  const programmaticScrollMaxTimeoutRef = useRef<number | null>(null);
+  const removeProgrammaticScrollListenerRef = useRef<(() => void) | null>(null);
 
   /**
    * Calculate which team should be active based on current scroll position
@@ -60,7 +73,7 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
     const container = containerRef?.current ?? document.documentElement;
     const scrollTop =
       containerRef?.current?.scrollTop ?? window.scrollY ?? document.documentElement.scrollTop;
-    const threshold = scrollTop + topOffset + 1; // +1 to handle edge case
+    const threshold = scrollTop + topOffset + activationOffset + 1; // +1 to handle edge case
 
     let activeCode: string | null = null;
     let closestDistance = Infinity;
@@ -102,7 +115,7 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
     }
 
     return activeCode;
-  }, [containerRef, topOffset]);
+  }, [containerRef, topOffset, activationOffset]);
 
   /**
    * Update active team with debouncing to prevent flicker during fast scrolling
@@ -171,40 +184,98 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
       const element = sectionsRef.current.get(teamCode);
       if (!element) return;
 
-      // Immediately set active team to prevent lag
+      // Reflect the click immediately (nav highlight / sidebar context)
       setActiveTeam(teamCode);
 
-      // Suppress scroll-spy updates during programmatic scrolling
+      // Suppress scroll-spy updates during programmatic scrolling (prevents oscillation)
       isScrollingProgrammaticallyRef.current = true;
-      
-      // Clear any existing timeout
-      if (scrollTimeoutRef.current !== null) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
 
-      const container = containerRef?.current ?? window;
+      // Clean up any prior programmatic scroll listeners/timers
+      removeProgrammaticScrollListenerRef.current?.();
+      removeProgrammaticScrollListenerRef.current = null;
 
-      if (container === window) {
-        const rect = element.getBoundingClientRect();
-        const scrollTop = window.scrollY + rect.top - topOffset;
-        window.scrollTo({ top: scrollTop, behavior });
-      } else if (containerRef?.current) {
-        const containerRect = containerRef.current.getBoundingClientRect();
-        const rect = element.getBoundingClientRect();
-        const scrollTop =
-          containerRef.current.scrollTop + (rect.top - containerRect.top) - topOffset;
-        containerRef.current.scrollTo({ top: scrollTop, behavior });
-      }
+      const scrollTarget: HTMLElement | Window = containerRef?.current ?? window;
 
-      // Re-enable scroll-spy after scroll animation completes
-      // Use a timeout since there's no reliable scroll-end event for smooth scrolling
-      const scrollDuration = behavior === "smooth" ? 500 : 50;
-      scrollTimeoutRef.current = window.setTimeout(() => {
+      const clearTimers = () => {
+        if (programmaticScrollSettleTimeoutRef.current !== null) {
+          clearTimeout(programmaticScrollSettleTimeoutRef.current);
+          programmaticScrollSettleTimeoutRef.current = null;
+        }
+        if (programmaticScrollMaxTimeoutRef.current !== null) {
+          clearTimeout(programmaticScrollMaxTimeoutRef.current);
+          programmaticScrollMaxTimeoutRef.current = null;
+        }
+      };
+
+      const finish = () => {
+        // Idempotent
+        if (!isScrollingProgrammaticallyRef.current) return;
+
         isScrollingProgrammaticallyRef.current = false;
-        scrollTimeoutRef.current = null;
-      }, scrollDuration);
+
+        removeProgrammaticScrollListenerRef.current?.();
+        removeProgrammaticScrollListenerRef.current = null;
+
+        clearTimers();
+
+        // Re-sync active team to the actual sticky owner at the end of the scroll.
+        updateActiveTeam();
+      };
+
+      const scheduleSettleCheck = () => {
+        if (programmaticScrollSettleTimeoutRef.current !== null) {
+          clearTimeout(programmaticScrollSettleTimeoutRef.current);
+        }
+        programmaticScrollSettleTimeoutRef.current = window.setTimeout(finish, 120);
+      };
+
+      const onProgrammaticScroll = () => {
+        scheduleSettleCheck();
+      };
+
+      // Listen for scroll events until the scroll settles
+      scrollTarget.addEventListener("scroll", onProgrammaticScroll, { passive: true } as any);
+      removeProgrammaticScrollListenerRef.current = () => {
+        scrollTarget.removeEventListener("scroll", onProgrammaticScroll as any);
+        clearTimers();
+      };
+
+      // Scroll to the "handoff point": make this section the sticky-header owner.
+      // We bias by +1px (unless we're already at the very top) to guarantee the handoff.
+      const nudgePx = 1;
+
+      if (scrollTarget === window) {
+        const rect = element.getBoundingClientRect();
+        const rawBase = window.scrollY + rect.top - topOffset;
+        const rawTarget = rawBase <= 0 ? rawBase : rawBase + nudgePx;
+        const maxScrollTop = Math.max(
+          0,
+          document.documentElement.scrollHeight - window.innerHeight
+        );
+        const target = Math.min(Math.max(0, rawTarget), maxScrollTop);
+        window.scrollTo({ top: target, behavior });
+      } else if (containerRef?.current) {
+        const containerEl = containerRef.current;
+        const containerRect = containerEl.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
+        const rawBase =
+          containerEl.scrollTop + (rect.top - containerRect.top) - topOffset;
+        const rawTarget = rawBase <= 0 ? rawBase : rawBase + nudgePx;
+        const maxScrollTop = Math.max(0, containerEl.scrollHeight - containerEl.clientHeight);
+        const target = Math.min(Math.max(0, rawTarget), maxScrollTop);
+        containerEl.scrollTo({ top: target, behavior });
+      }
+
+      // Kick off settle detection in case the scroll doesn't emit events (rare, but possible)
+      scheduleSettleCheck();
+
+      // Safety max timeout so we don't get stuck in "programmatic" mode.
+      programmaticScrollMaxTimeoutRef.current = window.setTimeout(
+        finish,
+        behavior === "smooth" ? 2000 : 250
+      );
     },
-    [containerRef, topOffset]
+    [containerRef, topOffset, updateActiveTeam]
   );
 
   /**
@@ -232,8 +303,8 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
       },
       {
         root: containerRef?.current ?? null,
-        // Root margin: negative top margin to create a "trigger zone" at the sticky position
-        rootMargin: `-${topOffset}px 0px 0px 0px`,
+        // Root margin: negative top margin to create a "trigger zone" near the activation threshold
+        rootMargin: `-${topOffset + activationOffset}px 0px 0px 0px`,
         threshold: [0, 0.1, 0.5, 0.9, 1],
       }
     );
@@ -268,12 +339,23 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
         cancelAnimationFrame(pendingUpdateRef.current);
       }
 
-      // Cancel scroll timeout
-      if (scrollTimeoutRef.current !== null) {
-        clearTimeout(scrollTimeoutRef.current);
+      // Cleanup any programmatic-scroll suppression state
+      isScrollingProgrammaticallyRef.current = false;
+
+      removeProgrammaticScrollListenerRef.current?.();
+      removeProgrammaticScrollListenerRef.current = null;
+
+      if (programmaticScrollSettleTimeoutRef.current !== null) {
+        clearTimeout(programmaticScrollSettleTimeoutRef.current);
+        programmaticScrollSettleTimeoutRef.current = null;
+      }
+
+      if (programmaticScrollMaxTimeoutRef.current !== null) {
+        clearTimeout(programmaticScrollMaxTimeoutRef.current);
+        programmaticScrollMaxTimeoutRef.current = null;
       }
     };
-  }, [containerRef, topOffset, updateActiveTeam]);
+  }, [containerRef, topOffset, activationOffset, updateActiveTeam]);
 
   return {
     activeTeam,

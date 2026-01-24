@@ -71,17 +71,33 @@ export function useSalaryBookContext() {
 
 interface SalaryBookProviderProps {
   children: ReactNode;
-  /** Height of the fixed TopCommandBar in pixels */
+  /**
+   * Sticky threshold offset INSIDE the MainCanvas scroll container.
+   *
+   * NOTE: MainCanvas already sits below TopCommandBar (via layout margin), and
+   * team headers use `sticky top-0`, so the correct threshold here is 0.
+   */
   topOffset?: number;
+
+  /**
+   * Switch sidebar / scroll-spy context a bit sooner than the exact sticky handoff.
+   * Tune this to taste.
+   */
+  activationOffset?: number;
 }
 
-function SalaryBookProvider({ children, topOffset = 130 }: SalaryBookProviderProps) {
+function SalaryBookProvider({
+  children,
+  topOffset = 0,
+  activationOffset = 160,
+}: SalaryBookProviderProps) {
   // Ref for the main canvas scroll container
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Scroll-spy for tracking active team
   const { activeTeam, registerSection, scrollToTeam } = useScrollSpy({
     topOffset,
+    activationOffset,
     containerRef: canvasRef,
   });
 
@@ -166,7 +182,7 @@ function SalaryBookProvider({ children, topOffset = 130 }: SalaryBookProviderPro
  */
 export function SalaryBook() {
   return (
-    <SalaryBookProvider topOffset={140}>
+    <SalaryBookProvider topOffset={0}>
       <div className="h-screen w-screen flex flex-col overflow-hidden bg-background">
         {/* Fixed top bar - MUST be above everything */}
         <TopCommandBar />

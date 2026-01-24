@@ -100,8 +100,11 @@ salaryBookRouter.get("/players", async (req) => {
       a.agency_id,
       a.agency_name,
       COALESCE(s.is_two_way, false)::boolean as is_two_way,
+      COALESCE(s.is_poison_pill, false)::boolean as is_poison_pill,
+      s.poison_pill_amount::numeric as poison_pill_amount,
       COALESCE(s.is_no_trade, false)::boolean as is_no_trade,
       COALESCE(s.is_trade_bonus, false)::boolean as is_trade_bonus,
+      s.trade_bonus_percent::numeric as trade_bonus_percent,
       COALESCE(s.is_trade_consent_required_now, false)::boolean as is_trade_consent_required_now,
       COALESCE(s.is_trade_preconsented, false)::boolean as is_trade_preconsented,
       s.player_consent_lk
@@ -118,6 +121,123 @@ salaryBookRouter.get("/players", async (req) => {
   `;
 
   return Response.json(players);
+});
+
+// GET /api/salary-book/cap-holds?team=:teamCode
+// Fetch cap holds from pcms.cap_holds_warehouse for the current season only (2025)
+salaryBookRouter.get("/cap-holds", async (req) => {
+  const url = new URL(req.url);
+  const teamCode = url.searchParams.get("team");
+
+  if (!teamCode) {
+    return Response.json({ error: "team parameter required" }, { status: 400 });
+  }
+
+  const sql = getSql();
+
+  const holds = await sql`
+    SELECT
+      non_contract_amount_id as id,
+      team_code,
+      player_id,
+      player_name,
+      amount_type_lk,
+
+      MAX(cap_amount) FILTER (WHERE salary_year = 2025)::numeric as cap_2025,
+      NULL::numeric as cap_2026,
+      NULL::numeric as cap_2027,
+      NULL::numeric as cap_2028,
+      NULL::numeric as cap_2029
+    FROM pcms.cap_holds_warehouse
+    WHERE team_code = ${teamCode}
+      AND salary_year = 2025
+    GROUP BY non_contract_amount_id, team_code, player_id, player_name, amount_type_lk
+    ORDER BY cap_2025 DESC NULLS LAST, player_name ASC NULLS LAST
+  `;
+
+  return Response.json(holds);
+});
+
+// GET /api/salary-book/exceptions?team=:teamCode
+// Fetch exceptions from pcms.exceptions_warehouse for years 2025-2029
+salaryBookRouter.get("/exceptions", async (req) => {
+  const url = new URL(req.url);
+  const teamCode = url.searchParams.get("team");
+
+  if (!teamCode) {
+    return Response.json({ error: "team parameter required" }, { status: 400 });
+  }
+
+  const sql = getSql();
+
+  const exceptions = await sql`
+    SELECT
+      team_exception_id as id,
+      team_code,
+      exception_type_lk,
+      exception_type_name,
+      trade_exception_player_id,
+      trade_exception_player_name,
+      expiration_date,
+      is_expired,
+
+      MAX(remaining_amount) FILTER (WHERE salary_year = 2025)::numeric as remaining_2025,
+      MAX(remaining_amount) FILTER (WHERE salary_year = 2026)::numeric as remaining_2026,
+      MAX(remaining_amount) FILTER (WHERE salary_year = 2027)::numeric as remaining_2027,
+      MAX(remaining_amount) FILTER (WHERE salary_year = 2028)::numeric as remaining_2028,
+      MAX(remaining_amount) FILTER (WHERE salary_year = 2029)::numeric as remaining_2029
+    FROM pcms.exceptions_warehouse
+    WHERE team_code = ${teamCode}
+      AND salary_year BETWEEN 2025 AND 2029
+      AND COALESCE(is_expired, false) = false
+    GROUP BY
+      team_exception_id,
+      team_code,
+      exception_type_lk,
+      exception_type_name,
+      trade_exception_player_id,
+      trade_exception_player_name,
+      expiration_date,
+      is_expired
+    ORDER BY remaining_2025 DESC NULLS LAST, exception_type_name ASC NULLS LAST
+  `;
+
+  return Response.json(exceptions);
+});
+
+// GET /api/salary-book/dead-money?team=:teamCode
+// Fetch dead money from pcms.dead_money_warehouse for years 2025-2029
+salaryBookRouter.get("/dead-money", async (req) => {
+  const url = new URL(req.url);
+  const teamCode = url.searchParams.get("team");
+
+  if (!teamCode) {
+    return Response.json({ error: "team parameter required" }, { status: 400 });
+  }
+
+  const sql = getSql();
+
+  const deadMoney = await sql`
+    SELECT
+      transaction_waiver_amount_id as id,
+      team_code,
+      player_id,
+      player_name,
+      waive_date,
+
+      MAX(cap_value) FILTER (WHERE salary_year = 2025)::numeric as cap_2025,
+      MAX(cap_value) FILTER (WHERE salary_year = 2026)::numeric as cap_2026,
+      MAX(cap_value) FILTER (WHERE salary_year = 2027)::numeric as cap_2027,
+      MAX(cap_value) FILTER (WHERE salary_year = 2028)::numeric as cap_2028,
+      MAX(cap_value) FILTER (WHERE salary_year = 2029)::numeric as cap_2029
+    FROM pcms.dead_money_warehouse
+    WHERE team_code = ${teamCode}
+      AND salary_year BETWEEN 2025 AND 2029
+    GROUP BY transaction_waiver_amount_id, team_code, player_id, player_name, waive_date
+    ORDER BY cap_2025 DESC NULLS LAST, player_name ASC NULLS LAST
+  `;
+
+  return Response.json(deadMoney);
 });
 
 // GET /api/salary-book/team-salary?team=:teamCode
@@ -312,8 +432,11 @@ salaryBookRouter.get("/player/:playerId", async (req) => {
       a.agency_id,
       a.agency_name,
       COALESCE(s.is_two_way, false)::boolean as is_two_way,
+      COALESCE(s.is_poison_pill, false)::boolean as is_poison_pill,
+      s.poison_pill_amount::numeric as poison_pill_amount,
       COALESCE(s.is_no_trade, false)::boolean as is_no_trade,
       COALESCE(s.is_trade_bonus, false)::boolean as is_trade_bonus,
+      s.trade_bonus_percent::numeric as trade_bonus_percent,
       COALESCE(s.is_trade_consent_required_now, false)::boolean as is_trade_consent_required_now,
       COALESCE(s.is_trade_preconsented, false)::boolean as is_trade_preconsented,
       s.player_consent_lk

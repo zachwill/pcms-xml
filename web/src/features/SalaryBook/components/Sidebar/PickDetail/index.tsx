@@ -8,13 +8,11 @@
  * 2. Pick metadata (asset type, origin/destination)
  * 3. Protections (if any)
  * 4. Conveyance history (timeline of how pick moved)
- * 5. AI insights placeholder
  */
 
 import { cx } from "@/lib/utils";
 import { usePickDetail, useTeams } from "../../../hooks";
 import type { PickEntity } from "../../../hooks";
-import { AIInsightsPlaceholder } from "../../shared";
 import { PickHeader } from "./PickHeader";
 import { PickTransfer } from "./PickTransfer";
 import { AssetTypeBadge, ProtectionsSection, PickDescription } from "./PickMeta";
@@ -130,8 +128,6 @@ export function PickDetail({ entity, className }: PickDetailProps) {
       {pick.description && <PickDescription description={pick.description} />}
 
       <ConveyanceHistory />
-
-      <AIInsightsPlaceholder description="AI-powered pick valuation, protection analysis, and trade scenario modeling coming soon." />
     </div>
   );
 }

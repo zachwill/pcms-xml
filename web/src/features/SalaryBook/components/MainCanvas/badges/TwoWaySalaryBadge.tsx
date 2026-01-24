@@ -7,8 +7,8 @@ export function TwoWaySalaryBadge() {
       className={cx(
         "inline-flex items-center justify-center",
         "text-[10px] px-1.5 py-0.5 rounded",
-        "bg-amber-100 dark:bg-amber-900/50",
-        "text-amber-700 dark:text-amber-300",
+        "bg-gray-200 dark:bg-gray-700",
+        "text-gray-600 dark:text-gray-300",
         "font-medium"
       )}
     >

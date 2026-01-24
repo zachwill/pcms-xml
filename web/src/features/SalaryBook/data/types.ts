@@ -91,8 +91,11 @@ export interface SalaryBookPlayer {
 
   // Contract metadata
   is_two_way: boolean;
+  is_poison_pill: boolean;
+  poison_pill_amount: number | null;
   is_no_trade: boolean;
   is_trade_bonus: boolean;
+  trade_bonus_percent: number | null;
 
   /**
    * Player trade-consent restriction (derived from contract version_json).
@@ -223,6 +226,60 @@ export interface DraftPick {
 }
 
 /**
+ * Cap hold rows from pcms.cap_holds_warehouse (pivoted to year columns)
+ */
+export interface CapHold {
+  id: string; // non_contract_amount_id
+  team_code: string;
+  player_id: number | null;
+  player_name: string | null;
+  amount_type_lk: string | null;
+
+  cap_2025: number | null;
+  cap_2026: number | null;
+  cap_2027: number | null;
+  cap_2028: number | null;
+  cap_2029: number | null;
+}
+
+/**
+ * Exception rows from pcms.exceptions_warehouse (pivoted to year columns)
+ */
+export interface TeamException {
+  id: string; // team_exception_id
+  team_code: string;
+  exception_type_lk: string | null;
+  exception_type_name: string | null;
+  trade_exception_player_id: number | null;
+  trade_exception_player_name: string | null;
+  expiration_date: string | null;
+  is_expired: boolean | null;
+
+  remaining_2025: number | null;
+  remaining_2026: number | null;
+  remaining_2027: number | null;
+  remaining_2028: number | null;
+  remaining_2029: number | null;
+}
+
+/**
+ * Dead money rows from pcms.dead_money_warehouse (pivoted to year columns)
+ */
+export interface DeadMoney {
+  id: string; // transaction_waiver_amount_id
+  team_code: string;
+  player_id: number | null;
+  player_name: string | null;
+  waive_date: string | null;
+
+  cap_2025: number | null;
+  cap_2026: number | null;
+  cap_2027: number | null;
+  cap_2028: number | null;
+  cap_2029: number | null;
+}
+
+/**
  * Agent data from pcms.agents
  */
 export interface Agent {
@@ -276,7 +333,6 @@ export interface SalaryBookFilters {
   // Contract filters
   showOptions: boolean;
   showIncentives: boolean;
-  showKickers: boolean;
   showTwoWay: boolean;
 }
 

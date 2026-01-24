@@ -4,7 +4,7 @@
  * Three filter groups per spec:
  * - Display: controls which rows/sections appear
  * - Financials: controls tax/cap-related columns/data
- * - Contracts: controls option badges, incentives, kickers, two-way indicators
+ * - Contracts: controls option badges, incentives, two-way indicators
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -22,7 +22,7 @@ export type FinancialsFilter = "taxAprons" | "cashVsCap" | "luxuryTax";
 /**
  * Contracts filter keys
  */
-export type ContractsFilter = "options" | "incentives" | "kickers" | "twoWay";
+export type ContractsFilter = "options" | "incentives" | "twoWay";
 
 /**
  * All possible filter keys
@@ -40,13 +40,13 @@ export interface FilterState {
 
 /**
  * Default filter state (matches spec defaults)
- * Display: Cap Holds ✓, Exceptions ✓, Draft Picks ✓, Dead Money ✗
+ * Display: Cap Holds ✗, Exceptions ✓, Draft Picks ✓, Dead Money ✗
  * Financials: Tax/Aprons ✓, Cash vs Cap ✗, Luxury Tax ✗
- * Contracts: Options ✓, Incentives ✓, Kickers ✗, Two-Way ✓
+ * Contracts: Options ✓, Incentives ✓, Two-Way ✓
  */
 const DEFAULT_FILTER_STATE: FilterState = {
   display: {
-    capHolds: true,
+    capHolds: false,
     exceptions: true,
     draftPicks: true,
     deadMoney: false,
@@ -59,7 +59,6 @@ const DEFAULT_FILTER_STATE: FilterState = {
   contracts: {
     options: true,
     incentives: true,
-    kickers: false,
     twoWay: true,
   },
 };
@@ -91,7 +90,6 @@ export const FILTER_METADATA: Record<keyof FilterState, FilterMeta[]> = {
   contracts: [
     { key: "options", label: "Options", group: "contracts" },
     { key: "incentives", label: "Incentives", group: "contracts" },
-    { key: "kickers", label: "Kickers", group: "contracts" },
     { key: "twoWay", label: "Two-Way", group: "contracts" },
   ],
 };

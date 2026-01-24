@@ -19,6 +19,9 @@ export type {
   TeamSalary,
   DraftPick,
   DraftPickSummary,
+  CapHold,
+  TeamException,
+  DeadMoney,
   Agent,
   Agency,
 
