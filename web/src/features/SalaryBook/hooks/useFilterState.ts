@@ -95,6 +95,18 @@ export const FILTER_METADATA: Record<keyof FilterState, FilterMeta[]> = {
 };
 
 /**
+ * Options for useFilterState hook
+ */
+export interface UseFilterStateOptions {
+  /** Initial filter state (defaults to spec defaults) */
+  initialState?: FilterState;
+  /** Callback invoked BEFORE a filter change is applied (for scroll preservation) */
+  onBeforeChange?: () => void;
+  /** Callback invoked AFTER a filter change is applied (for scroll restoration) */
+  onAfterChange?: () => void;
+}
+
+/**
  * Hook return type
  */
 export interface UseFilterStateReturn {
@@ -115,12 +127,15 @@ export interface UseFilterStateReturn {
 /**
  * Hook to manage filter toggle state for the Salary Book
  *
- * @param initialState - Optional initial filter state (defaults to spec defaults)
+ * @param options - Optional configuration including initial state and change callbacks
  * @returns Filter state and control functions
  *
  * @example
  * ```tsx
- * const { filters, toggleFilter, isFilterActive } = useFilterState();
+ * const { filters, toggleFilter, isFilterActive } = useFilterState({
+ *   onBeforeChange: () => captureActiveTeam(),
+ *   onAfterChange: () => restoreScrollPosition(),
+ * });
  *
  * // Check if draft picks should be shown
  * if (filters.display.draftPicks) {
@@ -135,15 +150,24 @@ export interface UseFilterStateReturn {
  * ```
  */
 export function useFilterState(
-  initialState: FilterState = DEFAULT_FILTER_STATE
+  options: UseFilterStateOptions = {}
 ): UseFilterStateReturn {
+  const {
+    initialState = DEFAULT_FILTER_STATE,
+    onBeforeChange,
+    onAfterChange,
+  } = options;
   const [filters, setFilters] = useState<FilterState>(initialState);
 
   /**
    * Toggle a single filter value
+   * Invokes onBeforeChange/onAfterChange callbacks for scroll preservation
    */
   const toggleFilter = useCallback(
     (group: keyof FilterState, key: FilterKey) => {
+      // Notify before change (for capturing scroll position)
+      onBeforeChange?.();
+
       setFilters((prev) => ({
         ...prev,
         [group]: {
@@ -151,8 +175,18 @@ export function useFilterState(
           [key]: !prev[group][key as keyof typeof prev[typeof group]],
         },
       }));
+
+      // Schedule after-change callback for next frame (after React re-render)
+      if (onAfterChange) {
+        requestAnimationFrame(() => {
+          // Double-RAF to ensure DOM has updated after state change
+          requestAnimationFrame(() => {
+            onAfterChange();
+          });
+        });
+      }
     },
-    []
+    [onBeforeChange, onAfterChange]
   );
 
   /**
@@ -167,16 +201,29 @@ export function useFilterState(
 
   /**
    * Reset all filters to default state
+   * Invokes onBeforeChange/onAfterChange callbacks for scroll preservation
    */
   const resetFilters = useCallback(() => {
+    onBeforeChange?.();
     setFilters(DEFAULT_FILTER_STATE);
-  }, []);
+
+    if (onAfterChange) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          onAfterChange();
+        });
+      });
+    }
+  }, [onBeforeChange, onAfterChange]);
 
   /**
    * Set all filters in a group to the same value
+   * Invokes onBeforeChange/onAfterChange callbacks for scroll preservation
    */
   const setGroupFilters = useCallback(
     (group: keyof FilterState, value: boolean) => {
+      onBeforeChange?.();
+
       setFilters((prev) => {
         const groupFilters = prev[group];
         const newGroupFilters = Object.keys(groupFilters).reduce(
@@ -188,8 +235,16 @@ export function useFilterState(
           [group]: newGroupFilters,
         };
       });
+
+      if (onAfterChange) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            onAfterChange();
+          });
+        });
+      }
     },
-    []
+    [onBeforeChange, onAfterChange]
   );
 
   const result = useMemo(

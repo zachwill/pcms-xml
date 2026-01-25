@@ -23,6 +23,7 @@ export {
   type FilterKey,
   type FilterState,
   type FilterMeta,
+  type UseFilterStateOptions,
   type UseFilterStateReturn,
   FILTER_METADATA,
 } from "./useFilterState";

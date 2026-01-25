@@ -8,7 +8,7 @@
  * The sidebar has independent scroll and responds to scroll-spy active team.
  */
 
-import React, { createContext, useContext, useRef, useState, type ReactNode } from "react";
+import React, { createContext, useContext, useRef, useState, useCallback, type ReactNode } from "react";
 import { cx } from "@/lib/utils";
 import {
   useScrollSpy,
@@ -101,11 +101,58 @@ function SalaryBookProvider({
     containerRef: canvasRef,
   });
 
+  // Ref to capture active team before filter changes (for scroll preservation)
+  const activeTeamBeforeFilterChangeRef = useRef<string | null>(null);
+
+  // Map of registered section elements (mirrors sectionsRef in useScrollSpy)
+  // We need this to scroll back to the active team after filter changes
+  const sectionElementsRef = useRef<Map<string, HTMLElement>>(new Map());
+
+  // Wrapper around registerSection that also tracks elements locally
+  const registerSectionWithTracking = useCallback(
+    (teamCode: string, element: HTMLElement | null) => {
+      if (element) {
+        sectionElementsRef.current.set(teamCode, element);
+      } else {
+        sectionElementsRef.current.delete(teamCode);
+      }
+      registerSection(teamCode, element);
+    },
+    [registerSection]
+  );
+
+  // Callback before filter change: capture current active team
+  const handleBeforeFilterChange = useCallback(() => {
+    activeTeamBeforeFilterChangeRef.current = activeTeam;
+  }, [activeTeam]);
+
+  // Callback after filter change: scroll back to the captured active team
+  const handleAfterFilterChange = useCallback(() => {
+    const teamToRestore = activeTeamBeforeFilterChangeRef.current;
+    if (!teamToRestore) return;
+
+    // Check if the team section still exists (might be filtered out)
+    const element = sectionElementsRef.current.get(teamToRestore);
+    if (!element) {
+      // Team section no longer exists after filtering
+      // Stay at current scroll position (don't do anything)
+      activeTeamBeforeFilterChangeRef.current = null;
+      return;
+    }
+
+    // Use instant scroll to avoid animation during filter toggle
+    scrollToTeam(teamToRestore, "instant");
+    activeTeamBeforeFilterChangeRef.current = null;
+  }, [scrollToTeam]);
+
   // Sidebar entity navigation stack
   const { mode: sidebarMode, currentEntity, push, pop, clear, canGoBack } = useSidebarStack();
 
-  // Filter toggle state
-  const { filters, toggleFilter, isFilterActive, resetFilters } = useFilterState();
+  // Filter toggle state with scroll preservation callbacks
+  const { filters, toggleFilter, isFilterActive, resetFilters } = useFilterState({
+    onBeforeChange: handleBeforeFilterChange,
+    onAfterChange: handleAfterFilterChange,
+  });
 
   // Loaded teams state (which teams are rendered in the canvas)
   // Default to all 30 teams in alphabetical order
@@ -145,7 +192,7 @@ function SalaryBookProvider({
   const value: SalaryBookContextValue = {
     canvasRef,
     activeTeam,
-    registerSection,
+    registerSection: registerSectionWithTracking,
     scrollToTeam,
     sidebarMode,
     currentEntity,

@@ -110,8 +110,12 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
     salaryByYear,
     currentYearTotal,
     currentYearCapSpace,
+    getSalaryForYear,
     isLoading: salaryLoading,
   } = useTeamSalary(teamCode);
+
+  // Get current year (2025) salary data for KPIs
+  const currentYearSalary = getSalaryForYear(2025);
 
   const { picks, isLoading: picksLoading } = usePicks(teamCode);
 
@@ -228,6 +232,10 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
             }
             currentYearTotal={currentYearTotal}
             currentYearCapSpace={currentYearCapSpace}
+            roomUnderTax={currentYearSalary?.room_under_tax ?? null}
+            roomUnderFirstApron={currentYearSalary?.room_under_first_apron ?? null}
+            roomUnderSecondApron={currentYearSalary?.room_under_second_apron ?? null}
+            rosterCount={currentYearSalary?.roster_row_count ?? null}
             isActive={isActive}
           />
         }
