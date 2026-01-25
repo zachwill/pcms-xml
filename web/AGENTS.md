@@ -1,23 +1,60 @@
 # web/AGENTS.md
 
 > Notes for AI coding agents working in **web/**.
+> This file is the fastest way to get oriented before making changes.
 
-## What this is
+## What `web/` is
 
-`web/` is a **Bun + React + TypeScript** web app that lives alongside the Python PCMS ingest pipeline.
+`web/` is a **Bun + React + TypeScript** app that consumes the repo’s Postgres warehouses.
 
 It exists to provide:
 
-- A UI (currently: **Salary Book**) for browsing NBA PCMS-derived "warehouse" tables.
-- A small Bun API layer under `/api/*` (currently: `/api/salary-book/*`) that reads from Postgres (`pcms` schema).
+- A UI (currently: **Salary Book**) for browsing NBA PCMS-derived `pcms.*_warehouse` tables.
+- A small Bun API layer under `/api/*` (currently: `/api/salary-book/*`) that queries Postgres (`pcms` schema).
 
-This directory is intentionally isolated from the repo's Python code. Avoid introducing JS/TS build artifacts or Node dependencies outside of `web/`.
+This directory is intentionally isolated from the repo’s Python code.
+
+## Mental model (read this first)
+
+### The product is Postgres
+
+- Warehouses + SQL functions are the stable API.
+- The web app should remain a thin consumer.
+- Prefer implementing derived fields / rule logic in SQL migrations & refreshes.
+
+### The UI is not documentation
+
+Do **not** add long prose / “rule cards” / content blocks.
+
+Rules should surface as:
+- derived attributes
+- constraint flags
+- badges / glyphs / cell tints
+- short tooltips
+- sidebar intel modules (timeline + constraint report)
+
+See: `web/specs/00-ui-philosophy.md`.
+
+### Interaction invariants
+
+- **Scroll-driven context**: scroll position determines active team.
+- **Sticky iOS-contacts headers**: team header + table header push off between teams.
+- **Sidebar is 2-level**:
+  - base = team context (from scroll)
+  - overlay = single entity detail (player/agent/pick/team/…)
+  - clicking a new entity replaces overlay (no stacking)
+  - Back returns to **current viewport** team
+- **Filters are lenses**: they reshape content without changing navigation state.
+
+Authoritative interaction spec: `web/specs/01-salary-book.md`.
+
+---
 
 ## Dependencies / prerequisites
 
 - **Bun** installed.
 - A reachable Postgres instance with the `pcms` schema populated (run the Python import flow in the repo root).
-- `POSTGRES_URL` set in the environment (used by `src/api/routes/salary-book.ts`).
+- `POSTGRES_URL` set in the environment (used by Bun API routes).
 
 ## Running locally
 
@@ -37,6 +74,8 @@ Notes:
 - `src/server.ts` defaults to **port 3002** if `PORT` is not set.
 - `web/tests/api.test.ts` expects the server to be running on **http://localhost:3001**.
 
+---
+
 ## Project structure
 
 ```
@@ -54,93 +93,53 @@ src/
       router.ts   # Route registry + Bun.serve route compilation
       utils.ts    # Error handling helpers
     utils.ts      # Client utilities
+specs/
+  00-ui-philosophy.md
+  01-salary-book.md
+  02-team-header-and-draft-assets.md
+  03-trade-machine.md
 tests/
   api.test.ts     # API endpoint tests (expects PORT=3001)
 ```
 
+---
+
 ## Key conventions
 
 - **API routes** are registered via `RouteRegistry` in `src/lib/server/router.ts` and merged in `src/server.ts`.
-- Prefer pulling tool-facing UI data from `pcms.*_warehouse` tables.
-- Keep this app read-only unless there's a strong reason to add writes.
-
-## Common pitfalls
-
-- If `/api/salary-book/*` errors on startup, you likely forgot `POSTGRES_URL`.
-- If `bun test` fails with connection refused, start the server first with `PORT=3001`.
+- Prefer reading tool-facing UI data from `pcms.*_warehouse` tables.
+- Keep the app **read-only** unless there’s a strong reason to add writes.
+- Don’t re-implement cap/trade rules in React if they can live in SQL.
 
 ---
 
-## Performance optimizations (Jan 2026)
+## Performance notes (Jan 2026 state)
 
-The following optimizations have been applied to address React performance issues:
+Optimizations applied:
 
-### 1. **Memoization**
+- **Memoization**
+  - `PlayerRow`: `React.memo()` + custom comparator (player id + key fields + filter toggles)
+  - `SalaryTable`: `filteredPlayers` in `useMemo()`
+  - `TeamSection`: click handlers in `useCallback()`
 
-- **`PlayerRow`**: Wrapped in `React.memo()` with custom comparison function (checks player ID + key salary fields + filter toggles). Prevents re-renders when scrolling or toggling unrelated filters.
+- **SWR**
+  - hooks migrated from ad-hoc fetches to SWR
+  - global config: `revalidateOnFocus: false`, `dedupingInterval: 5000`
 
-- **`SalaryTable`**: `filteredPlayers` is now wrapped in `useMemo()` to avoid re-filtering on every render.
+Future (only if needed): virtualization (`@tanstack/react-virtual`) with care around sticky headers.
 
-- **`CapOutlookTab` → `SalaryProjections`**: Bar chart calculations (max value, height percentages) are memoized. Chart uses CSS transitions instead of re-animating from zero.
+---
 
-- **`TeamSection`**: Click handlers (`handlePlayerClick`, `handleAgentClick`, `handlePickClick`) are wrapped in `useCallback()` to maintain stable references for memoized child components.
+## When adding new capability (draft assets / trade machine)
 
-### 2. **Data fetching with SWR**
+Before changing React:
 
-Hooks have been migrated from raw `useState/useEffect` to **SWR**:
+1) Identify missing **derived fields** → implement in SQL/warehouses.
+2) Add/extend Bun API endpoints to return structured results.
+3) Keep UI changes minimal and aligned with the scroll + sidebar model.
 
-- **`usePlayers`**: Global cache by team. When switching teams, cached data shows instantly while revalidating. Agent view can reuse player data without re-fetching.
-
-- **`useTeamSalary`**: Same caching strategy. Deduplicates requests when multiple TeamSections mount.
-
-SWR config:
-```ts
-{
-  revalidateOnFocus: false,
-  dedupingInterval: 5000,
-  keepPreviousData: true,  // Show previous team while loading new
-}
-```
-
-### 3. **Future: Virtualization**
-
-The current implementation renders all 30 teams × ~15 players into the DOM at once (~450 rows). For smoother scrolling with large lists, consider adding virtualization:
-
-**Recommended approach:**
-1. Install `@tanstack/react-virtual` (preferred) or `react-window`
-2. Virtualize the `MainCanvas` scroll container
-3. Keep sticky headers working by using a fixed header + virtualized body pattern
-
-**Implementation sketch:**
-```tsx
-// In MainCanvas.tsx
-import { useVirtualizer } from '@tanstack/react-virtual';
-
-function MainCanvas() {
-  const parentRef = useRef<HTMLDivElement>(null);
-  
-  // Flatten all teams into rows with estimated heights
-  const rows = useMemo(() => {
-    return loadedTeams.flatMap(team => [
-      { type: 'header', team },
-      ...playersForTeam[team].map(p => ({ type: 'player', player: p })),
-      { type: 'footer', team },
-    ]);
-  }, [loadedTeams, playersForTeam]);
-
-  const virtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: (i) => rows[i].type === 'header' ? 56 : 72,
-    overscan: 5,
-  });
-
-  // Render only visible rows...
-}
-```
-
-**Caveats:**
-- Sticky team headers require extra work (absolute positioning + scroll listeners)
-- Horizontal scroll sync between header/body must be preserved
-- Consider deferring until performance profiling shows it's needed
-
+Specs to read in order:
+- `web/specs/00-ui-philosophy.md`
+- `web/specs/01-salary-book.md`
+- `web/specs/02-team-header-and-draft-assets.md`
+- `web/specs/03-trade-machine.md`

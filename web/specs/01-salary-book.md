@@ -1,18 +1,58 @@
-# NBA Salary Book — Unified Interface Specification (Revised)
+# NBA Salary Book — Interface Specification
+
+> Updated Jan 2026 to reflect actual implementation state.
 
 ## Core Thesis
 
-A front-office tool where **scroll position drives context**. The main view is a continuous scroll of team salary tables; a contextual sidebar responds to both viewport position and explicit entity selection. The top bar serves as navigation, filtering, and scroll-spy indicator.
+A scroll-driven front-office tool where **scroll position drives context**. The main view is a continuous scroll of team salary tables; a contextual sidebar responds to both viewport position and explicit entity selection.
 
 ### Three Pillars
 
-1. **Rows are the product** — The salary table is the primary surface: dense, scannable, spreadsheet-like with thoughtful UX affordances (sticky headers, grouping, sub-rows, tags)
+1. **Rows are the product** — The salary table is the primary surface: dense, scannable, spreadsheet-like with thoughtful UX affordances (sticky headers, grouping, badges, tooltips)
 2. **Context follows the user** — The system always knows which team you're "in" based on scroll position; the sidebar reflects this automatically
-3. **Navigation is never modal** — You can keep scrolling while viewing entity details; Back returns to *current* context, not where you started
+3. **Navigation is intentionally shallow** — Clicking entities swaps the detail view; Back returns to team context in one step
 
 ### The Job To Be Done
 
-Enable a front office user to **scan multi-team cap sheets quickly**, then **drill into any entity** (player/pick/agent/team) without losing their place.
+Enable a front office user to **scan multi-team cap sheets quickly**, then **drill into any entity** (player/agent/pick/team) without losing their place.
+
+---
+
+## Architecture
+
+### Data Flow
+
+```
+PostgreSQL (pcms.* warehouses)
+        │
+        ▼
+   Bun API routes (/api/salary-book/*)
+        │
+        ▼
+   SWR hooks (cached, deduped)
+        │
+        ▼
+   React components
+```
+
+The web app is a **thin consumer** of Postgres warehouse tables. API routes map nearly 1:1 to database queries. The real logic lives in SQL (migrations, refresh functions, warehouse tables).
+
+### Key Hooks
+
+| Hook | Purpose | Cache Strategy |
+|------|---------|----------------|
+| `useTeams` | All NBA teams | Global, revalidate on focus |
+| `usePlayers(teamCode)` | Players for a team | Per-team cache |
+| `useTeamSalary(teamCode)` | Team totals by year | Per-team cache |
+| `usePicks(teamCode)` | Draft picks | Per-team cache |
+| `useCapHolds(teamCode)` | Cap holds | Per-team cache |
+| `useExceptions(teamCode)` | Trade/salary exceptions | Per-team cache |
+| `useDeadMoney(teamCode)` | Waiver/dead money | Per-team cache |
+| `usePlayer(playerId)` | Single player detail | Per-player cache |
+| `useAgent(agentId)` | Agent + clients | Per-agent cache |
+| `usePickDetail(params)` | Single pick detail | Per-pick cache |
+
+All hooks use SWR with global config: `revalidateOnFocus: false`, `dedupingInterval: 5000`.
 
 ---
 
@@ -20,249 +60,205 @@ Enable a front office user to **scan multi-team cap sheets quickly**, then **dri
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                       TOP COMMAND BAR (Fixed)                           │
+│                       TOP COMMAND BAR (Fixed, ~130px)                   │
 │  ┌───────────────────────────────┐  ┌─────────────────────────────────┐ │
 │  │   Team Selector Grid          │  │   Filter Toggles                │ │
-│  │   (Nav + Scroll-spy status)   │  │   (Display / Financial / Etc)   │ │
+│  │   (Nav + Scroll-spy status)   │  │   (Display / Financials / etc)  │ │
 │  └───────────────────────────────┘  └─────────────────────────────────┘ │
 ├─────────────────────────────────────────────┬───────────────────────────┤
 │                                             │                           │
 │      MAIN CANVAS (~70%)                     │    SIDEBAR (~30%)         │
 │      Single vertical scroll                 │    Independent scroll     │
+│                                             │    min-w-[320px]          │
+│                                             │    max-w-[480px]          │
 │                                             │                           │
 │  ┌───────────────────────────────────────┐  │  ┌─────────────────────┐  │
 │  │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │  │  │                     │  │
-│  │ ┃ TEAM A HEADER (sticky)            ┃ │  │  │  DEFAULT MODE:      │  │
+│  │ ┃ TEAM HEADER (sticky, with KPIs)   ┃ │  │  │  DEFAULT MODE:      │  │
 │  │ ┃ ┌───────────────────────────────┐ ┃ │  │  │  Team context from  │  │
-│  │ ┃ │ Table Header Row 1 (groups)   │ ┃ │  │  │  scroll position    │  │
-│  │ ┃ │ Table Header Row 2 (columns)  │ ┃ │  │  │                     │  │
-│  │ ┃ └───────────────────────────────┘ ┃ │  │  │  ─────────────────  │  │
-│  │ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ │  │  │                     │  │
-│  │   │ Player Row (double-height)    │   │  │  │  ENTITY MODE:       │  │
-│  │   │ Player Row (double-height)    │   │  │  │  Pushed detail view │  │
-│  │   │ ...                           │   │  │  │  with [Back] button │  │
+│  │ ┃ │ Table Header (column labels)  │ ┃ │  │  │  scroll position    │  │
+│  │ ┃ └───────────────────────────────┘ ┃ │  │  │                     │  │
+│  │ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ │  │  │  ─────────────────  │  │
+│  │   │ Player Row (double-height)    │   │  │  │                     │  │
+│  │   │ Player Row                    │   │  │  │  ENTITY MODE:       │  │
+│  │   │ ...                           │   │  │  │  Pushed detail view │  │
+│  │   │ Cap Holds Section             │   │  │  │  with [Back] button │  │
+│  │   │ Exceptions Section            │   │  │  │                     │  │
+│  │   │ Dead Money Section            │   │  │  │                     │  │
 │  │   │ Draft Assets Row              │   │  │  │                     │  │
-│  │   │ Totals Footer                 │   │  │  │  Back → returns to  │  │
-│  │   └───────────────────────────────┘   │  │  │  CURRENT team, not  │  │
-│  │                                       │  │  │  where you started  │  │
-│  │  ┌────────────────────────────────┐   │  │  │                     │  │
-│  │  │ TEAM B HEADER (pushes A off)   │   │  │  └─────────────────────┘  │
-│  │  │ ...                            │   │  │                           │
+│  │   │ Totals Footer                 │   │  │  │                     │  │
+│  │   └───────────────────────────────┘   │  │  └─────────────────────┘  │
+│  │                                       │  │                           │
+│  │  ┌────────────────────────────────┐   │  │                           │
+│  │  │ TEAM B HEADER (pushes A off)   │   │  │                           │
 │  └──┴────────────────────────────────┴───┘  │                           │
-│                                             │                           │
 └─────────────────────────────────────────────┴───────────────────────────┘
 ```
 
-**Key constraint:** One primary vertical scroll for all teams in the main canvas. No nested vertical scroll areas.
+**Key constraint:** One primary vertical scroll for all teams in the main canvas.
 
 ---
 
 ## 1. Top Command Bar
 
+Fixed position, ~130px height, sits above everything.
+
 ### 1.1 Team Selector Grid
 
 **Purpose:** Navigate to teams + see current scroll position at a glance
 
-**Layout:** Two conference blocks, each with **3 rows of 5 teams, sorted alphabetically**
-
-```
-EASTERN                                        WESTERN
-┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐        ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐
-│ ATL │ │ BKN │ │ BOS │ │ CHA │ │ CHI │        │ DAL │ │ DEN │ │ GSW │ │ HOU │ │ LAC │
-└─────┘ └─────┘ └─────┘ └─────┘ └─────┘        └─────┘ └─────┘ └─────┘ └─────┘ └─────┘
-┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐        ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐
-│ CLE │ │ DET │ │ IND │ │ MIA │ │ MIL │        │ LAL │ │ MEM │ │ MIN │ │ NOP │ │ OKC │
-└─────┘ └─────┘ └─────┘ └─────┘ └─────┘        └─────┘ └─────┘ └─────┘ └─────┘ └─────┘
-┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐        ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐
-│ NYK │ │ ORL │ │ PHI │ │ TOR │ │ WAS │        │ PHX │ │ POR │ │ SAC │ │ SAS │ │ UTA │
-└─────┘ └─────┘ └─────┘ └─────┘ └─────┘        └─────┘ └─────┘ └─────┘ └─────┘ └─────┘
-```
+**Layout:** Two conference blocks (Eastern/Western), teams arranged in a grid, sorted alphabetically within each conference.
 
 **Visual States:**
 
 | State | Visual Treatment | Meaning |
 |-------|------------------|---------|
 | **Active** | Strong highlight (filled background) | Currently in viewport (scroll-spy) |
-| **Unloaded** | Muted/dimmed | Team not currently loaded |
+| **Inactive** | Standard styling | Team loaded but not active |
 
 **Interactions:**
 
 | Action | Result |
 |--------|--------|
-| **Click** | Jump/scroll to team (adds to canvas if not loaded) |
-| **Shift+Click** | Toggle team in/out of loaded canvas without scrolling |
-
-**Acceptance Criteria:**
-- Clicking a team always results in that team becoming visible and the active section
-- Active team highlight updates smoothly during scroll (no flicker)
-- Alphabetical order is consistent: reading left-to-right, top-to-bottom spells out teams A→Z within each conference
+| **Click** | Smooth scroll to team section |
 
 ### 1.2 Filter Toggles
 
 **Purpose:** Shape table content without changing navigation state
 
-**Filter Groups:**
+Three filter groups control visibility/display:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  Display           │  Financials        │  Contracts         │
-│  ☑ Cap Holds       │  ☑ Tax/Aprons      │  ☑ Options         │
+│  ☐ Cap Holds       │  ☑ Tax/Aprons      │  ☑ Options         │
 │  ☑ Exceptions      │  ☐ Cash vs Cap     │  ☑ Incentives      │
-│  ☑ Draft Picks     │  ☐ Luxury Tax      │  ☐ Kickers         │
-│  ☐ Dead Money      │                    │  ☑ Two-Way         │
+│  ☑ Draft Picks     │  ☐ Luxury Tax      │  ☑ Two-Way         │
+│  ☐ Dead Money      │                    │                    │
 └──────────────────────────────────────────────────────────────┘
 ```
 
+**Default State:**
+- Display: Cap Holds OFF, Exceptions ON, Draft Picks ON, Dead Money OFF
+- Financials: Tax/Aprons ON, Cash vs Cap OFF, Luxury Tax OFF
+- Contracts: Options ON, Incentives ON, Two-Way ON
+
 **Behavior:**
-- Filters affect:
-  - Which rows appear (e.g., show/hide cap holds)
-  - Which tags/metadata are displayed (e.g., option badges)
-  - Which table sections appear (e.g., draft picks row)
+- Filters affect which sections/rows appear and which badges are displayed
 - Filters do **NOT** change sidebar state or navigation
-- Future: Presets ("Trade Deadline View", "Offseason View") + Save/Reset
+- Toggling a filter preserves scroll position (scrolls back to current active team after re-render)
 
 ---
 
-## 2. Main Canvas — Team Salary Books
+## 2. Main Canvas — Team Sections
 
 Each team renders as a **section** containing:
-1. Team Header (sticky)
+1. Team Header (sticky) with KPI cards
 2. Table Header (sticky, attached to team header)
 3. Player Rows (double-height)
-4. Draft Assets Row
-5. Totals Footer
+4. Cap Holds Section (toggle-controlled)
+5. Exceptions Section (toggle-controlled)
+6. Dead Money Section (toggle-controlled)
+7. Draft Assets Row (toggle-controlled)
+8. Totals Footer
 
-### 2.1 Section Header Sticky Behavior (iOS Contacts Pattern)
+### 2.1 Team Header
 
-**Goal:** The team header behaves like iOS Contacts letter headers—it "sticks" to the top while you're within that team's section. When the next team arrives, it **pushes the previous header off**.
+**Components:**
+- Team logo (from NBA CDN, fallback to 3-letter code)
+- Team name (clickable to push Team entity)
+- Conference label
+- **KPI Cards:** Room under Tax, Room under First Apron, Room under Second Apron, Roster count
 
-```
-SCROLLING DOWN...
+KPI cards are compact (w-24 = 96px), using color to indicate positive (green) vs negative (red) room.
 
-┌─────────────────────────────┐
-│ ████ CELTICS ██████████████ │ ← Team A header stuck at top
-│ ┌─────────────────────────┐ │
-│ │ Player Info │ Contract  │ │ ← Table header stuck below
-│ └─────────────────────────┘ │
-│   Marcus Smart  │ $12M ...  │
-│   Jaylen Brown  │ $28M ...  │
-│                             │
-│ ████ LAKERS ███████████████ │ ← Team B header PUSHES Team A off
-│ ┌─────────────────────────┐ │
-│ │ Player Info │ Contract  │ │
-└─────────────────────────────┘
-```
+### 2.2 Section Header Sticky Behavior (iOS Contacts Pattern)
 
-**The Sticky Stack (while viewing a team section):**
-1. Team Header
-2. Table Header Row 1 (category band)
-3. Table Header Row 2 (column labels)
+Team header + table header behave as **one sticky group**. When the next team arrives, it pushes the previous header off.
 
 **Critical Requirements:**
-- Team header + table header are **ONE sticky group** (not separate layers)
-- Headers have opaque backgrounds — no content visible "behind" them
-- No dead space/gap appears when headers become sticky
-- Transition between teams is smooth push (outgoing slides up as incoming arrives)
-- No remnants of the previous team's header left on screen
+- Headers have opaque backgrounds (no content bleed-through)
+- No phantom spacing when headers become sticky
+- Smooth push transition between teams
 
-### 2.2 Table Structure
+### 2.3 Table Structure
 
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                              TABLE HEADER                                │
-├────────────────────┬─────────────────────────────────┬───────────────────┤
-│   PLAYER INFO      │        CONTRACT YEARS           │    MANAGEMENT     │  ← Row 1: Groups
-├──────┬─────┬───────┼───────┬───────┬───────┬─────────┼─────────┬─────────┤
-│ Name │ Pos │ Exp   │ 25-26 │ 26-27 │ 27-28 │ 28-29   │  Agent  │ Agency  │  ← Row 2: Columns
-├──────┴─────┴───────┼───────┴───────┴───────┴─────────┼─────────┴─────────┤
-│      STICKY        │       SCROLLS HORIZONTALLY      │      SCROLLS      │
-│     (left edge)    │                                 │                   │
-└────────────────────┴─────────────────────────────────┴───────────────────┘
-```
+**Column Layout:**
+- **Sticky left:** Player name/info (w-52 = 208px)
+- **Scrollable center:** 5-year salary horizon (2025–2029), each column 96px
+- **Scrollable right:** Total column, Agent column
 
-**Column Groups:**
+Horizontal scroll syncs between header and body.
 
-| Group | Columns | Behavior |
-|-------|---------|----------|
-| **Player Info** | Name, Pos, Exp/Age | Sticky on left during horizontal scroll |
-| **Contract Years** | 5-year horizon (e.g., 24-25 through 28-29) | Scrollable center |
-| **Management** | Agent, Agency | Scrollable right |
+### 2.4 Double-Row Player Design
 
-**Horizontal Scroll:**
-- Left columns remain fixed during horizontal scroll
-- Visual separator (shadow or border) indicates sticky edge
-- Sticky left columns remain aligned across both sub-rows of each player
+Each player occupies **two visual rows** that behave as one unit:
 
-### 2.3 The Double-Row Player Design
+**Row A (Primary):** Name, salary per year (monospace), total
+**Row B (Metadata):** Position chip, experience, age, guarantee badges, option badges, bird rights, free agency type
 
-Each player occupies **TWO visual rows that behave as ONE unit**:
+**Salary Cell Styling (color-coded):**
 
-```
-┌────────────────────┬─────────────────────────────────────┬─────────────────┐
-│ LeBron James       │  $47.6M  │  $50.4M  │   —    │   —  │ Rich Paul       │  ← PRIMARY ROW
-│ SF · 39.1 · 21 YOS │  GTD     │  PO      │        │      │ Klutch Sports   │  ← METADATA ROW
-├────────────────────┼─────────────────────────────────────┼─────────────────┤
-│ Anthony Davis      │  $40.6M  │  $43.2M  │ $46.7M │   —  │ Rich Paul       │
-│ PF · 32.3 · 12 YOS │  GTD     │  GTD     │  ETO   │      │ Klutch Sports   │
-└────────────────────┴─────────────────────────────────────┴─────────────────┘
-```
+| Condition | Background | Text Style |
+|-----------|------------|------------|
+| Fully Guaranteed | None (default) | Normal |
+| Non-Guaranteed | Yellow tint | Yellow text |
+| Player Option | Blue tint | Blue text |
+| Team Option | Purple tint | Purple text |
+| Early Termination Option | Orange tint | Orange text |
 
-**Primary Row (Row A) — High contrast, primary scan:**
-- Player name (prominent weight)
-- Salary figures per year (monospace for alignment)
-- Agent name (clickable)
-
-**Metadata Row (Row B) — Lower contrast, supporting info:**
-- Position chip + Experience + Age
-- Guarantee structure per year (GTD, partial %, non-gtd)
-- Free agency type + year (UFA, RFA)
-- Option flags per year (PO = Player Option, TO = Team Option, ETO = Early Termination)
-- Bird rights status (Bird / Early Bird / Non-Bird)
-- Agency name (clickable, may differ from agent if needed)
+**Additional indicators (via tooltips):**
+- Trade Kicker (with percentage if applicable)
+- 15% Trade Bonus (for rookie scale contracts)
+- Poison Pill provisions
+- No-Trade Clause
+- Consent Required
 
 **Interaction:**
-- Hover highlights **BOTH rows** as one unit
-- Click anywhere on either row → opens Player entity in sidebar
-- Click agent/agency name specifically → opens Agent entity (stop propagation)
+- Hover highlights BOTH rows as one unit
+- Click anywhere → opens Player entity in sidebar
+- Click agent name → opens Agent entity (stopPropagation)
 
-**Acceptance Criteria:**
-- The double-row reads as a single unit visually
-- Horizontal sticky columns remain perfectly aligned across both sub-rows
+### 2.5 Cap Holds Section
 
-### 2.4 Draft Assets Row
+Displays cap holds from `pcms.cap_holds_warehouse`. Each hold shows:
+- Name (player name or hold type)
+- Cap amount for current year
+- Type badge (Bird, Early Bird, 1st Round, etc.)
 
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│  DRAFT ASSETS                                                            │
-├────────────────────┬───────────────────────────────────┬─────────────────┤
-│                    │  2025   │  2026   │  2027  │ 2028 │                 │
-│  Incoming Picks    │ [LAL 1] │  [--]   │ [BOS 2]│ [--] │                 │
-│                    │ [MIA 2] │         │        │      │                 │
-└────────────────────┴───────────────────────────────────┴─────────────────┘
-```
+Toggle-controlled via "Cap Holds" filter.
 
-**Spec:**
-- Pick "pills" aligned under corresponding year columns
-- Each pill shows origin team + round (e.g., "LAL 1" = Lakers 1st round pick)
-- Each pill is clickable → opens Pick entity in sidebar
-- Visibility controlled by "Draft Picks" filter toggle
-- Can show multiple picks per year (stacked vertically within the cell)
+### 2.6 Exceptions Section
 
-### 2.5 Totals Footer
+Displays trade exceptions and salary exceptions from `pcms.exceptions_warehouse`. Each shows:
+- Exception type
+- Amount
+- Expiration date
 
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│  TOTALS            │ $142.3M │ $138.7M │ $89.2M │ $45M │                 │
-│  Cap Space         │   -$12M │  +$2.1M │ +$51M  │      │                 │
-│  Tax Line          │  $17.8M │   $8.2M │ UNDER  │      │                 │
-└──────────────────────────────────────────────────────────────────────────┘
-```
+Toggle-controlled via "Exceptions" filter.
 
-**Design Decision:** Non-sticky totals row at section bottom.
+### 2.7 Dead Money Section
 
-**Rationale:** Sticky footers create significant complexity when combined with sticky headers and the section-pushing behavior. Instead:
-- Non-sticky totals row always visible at the end of each team section
-- **Optional:** Mini-totals line in the team header (current year salary + cap space) for at-a-glance reference while scrolling through players
+Displays waived player amounts from `pcms.dead_money_warehouse`. Each shows:
+- Player name
+- Amount(s) by year
+
+Toggle-controlled via "Dead Money" filter.
+
+### 2.8 Draft Assets Row
+
+Pick pills aligned under corresponding year columns. Each pill shows:
+- Origin team + round (e.g., "LAL 1" = Lakers 1st round pick)
+- Clickable → opens Pick entity in sidebar
+
+Toggle-controlled via "Draft Picks" filter.
+
+### 2.9 Totals Footer
+
+Non-sticky footer at section bottom showing:
+- Total salary by year
+- Cap space by year
+- Tax line status (over/under)
 
 ---
 
@@ -270,27 +266,22 @@ Each player occupies **TWO visual rows that behave as ONE unit**:
 
 ### Definition: "Active Team"
 
-The team whose section header is currently stuck at the top, OR (if no header is stuck) whose section top is closest to the viewport top.
-
-**Recommended Rule:** Active = the team whose section header is currently in the "sticky" position. This is more stable than intersection ratio sorting.
+The team whose section header is currently in the sticky position, OR (if no header is stuck) whose section top is closest to the viewport top.
 
 ### Scroll-Spy Outputs
 
 | Output | Behavior |
 |--------|----------|
-| **Top Bar** | Active team is highlighted in selector grid |
+| **Top Bar** | Active team highlighted in selector grid |
 | **Sidebar** | If in default mode, shows active team's context |
 
 ### Rules
 
-- Active team updates during scroll with **no flicker**
+- Active team updates during scroll with no flicker
 - When multiple teams partially visible, prioritize the one whose header is stuck
-- Jump-to-team (via top bar click) triggers immediate active team update once scroll settles
 - Scroll-spy does **not** change sidebar state if an entity detail view is open
 
-**Acceptance Criteria:**
-- Active team changes predictably during scroll
-- Jumping to a team updates active team and sidebar base context accordingly
+**Implementation:** Uses `IntersectionObserver` with configurable `topOffset` (0) and `activationOffset` (160px) to determine active team. The `useScrollSpy` hook manages section registration and active state.
 
 ---
 
@@ -298,31 +289,26 @@ The team whose section header is currently stuck at the top, OR (if no header is
 
 ### State Machine (2-Level Model)
 
-The sidebar uses a simple **base + overlay** model, NOT a deep iOS-style navigation stack:
+The sidebar uses a simple **base + overlay** model:
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│   LEVEL 0 (BASE)              LEVEL 1 (OVERLAY)                     │
-│   ┌──────────────────┐        ┌──────────────────┐                  │
-│   │   TEAM CONTEXT   │        │  ENTITY DETAIL   │                  │
-│   │  (from scroll)   │───────▶│  (one at a time) │                  │
-│   └──────────────────┘  push  └────────┬─────────┘                  │
-│          ▲                             │                            │
-│          │                             │ [Back]                     │
-│          │            ┌────────────────┘                            │
-│          │            ▼                                             │
-│          └────────────────────────────────────────────────────────  │
-│                                                                     │
-│   Clicking another entity while in ENTITY MODE → REPLACES overlay   │
-│   (does not push deeper)                                            │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+LEVEL 0 (BASE)              LEVEL 1 (OVERLAY)
+┌──────────────────┐        ┌──────────────────┐
+│   TEAM CONTEXT   │        │  ENTITY DETAIL   │
+│  (from scroll)   │───────▶│  (one at a time) │
+└──────────────────┘  push  └────────┬─────────┘
+       ▲                             │
+       │            ┌────────────────┘
+       │ [Back]     ▼
+       └─────────────
+
+Clicking another entity while in ENTITY MODE → REPLACES overlay
+(does not push deeper)
 ```
 
 **Key behaviors:**
-- **Click entity from team view** → pushes entity detail as overlay
-- **Click different entity while viewing entity** → replaces current overlay (no nesting)
+- **Click entity** → pushes entity detail as overlay
+- **Click different entity while viewing entity** → replaces current overlay
 - **Click Back** → pops overlay, returns to team context (current scroll position)
 - **Scroll while entity open** → team context underneath updates silently; Back returns to *new* team
 
@@ -330,90 +316,43 @@ The sidebar uses a simple **base + overlay** model, NOT a deep iOS-style navigat
 
 When no entity is selected, sidebar shows the **active team from scroll-spy**:
 
-```
-┌───────────────────────────────────┐
-│  [LOGO]  BOSTON CELTICS           │
-│  Eastern Conference               │
-│                                   │
-│  ┌─────────────┬─────────────┐    │
-│  │ Cap Outlook │ Team Stats  │    │  ← Tab toggle
-│  └─────────────┴─────────────┘    │
-│                                   │
-│  ┌─────────────────────────────┐  │
-│  │ Total Salary    $192.4M     │  │
-│  │ Cap Space       -$22.1M     │  │
-│  │ Tax Apron       $11.2M over │  │
-│  │ Luxury Tax Bill $48.3M      │  │
-│  │ ...                         │  │
-│  └─────────────────────────────┘  │
-│                                   │
-└───────────────────────────────────┘
-```
+**Components:**
+- Team header (logo, name, conference)
+- Tab toggle: **Cap Outlook** / **Team Stats**
 
-**Tabs:**
-- **Cap Outlook:** Financial health, cap space projections, tax thresholds, exception availability
-- **Team Stats:** Record, standings, efficiency metrics (future)
+**Cap Outlook Tab:**
+- Total salary
+- Cap space
+- Room under thresholds (Tax, First Apron, Second Apron)
+- Salary projections bar chart (5-year horizon)
+- Two-way player capacity (games remaining based on roster count)
+
+**Team Stats Tab:**
+- Placeholder for future phase (record, standings, efficiency)
 
 ### 4.2 Entity Mode (Pushed Detail)
 
-When user clicks an entity, detail view **pushes** onto sidebar stack:
+**Back Button:** Shows team logo + team code, returns to current viewport team (not where you started).
 
-```
-┌─────────────────────────────────┐
-│  ← Back                         │  ← Returns to CURRENT viewport team
-├─────────────────────────────────┤
-│                                 │
-│  [PLAYER PHOTO]                 │
-│                                 │
-│  JAYLEN BROWN                   │
-│  SG/SF • Boston Celtics         │
-│                                 │
-│  Contract: 5yr / $285M          │
-│  Through: 2028-29               │
-│  Bird Rights: Yes               │
-│                                 │
-│  ┌───────────────────────────┐  │
-│  │ Year-by-Year Breakdown    │  │
-│  │ 24-25: $49.2M (GTD)       │  │
-│  │ 25-26: $52.4M (GTD)       │  │
-│  │ ...                       │  │
-│  └───────────────────────────┘  │
-│                                 │
-└─────────────────────────────────┘
-```
-
-### 4.3 Entity Types
+**Entity Types:**
 
 | Entity | Triggered By | Detail Content |
 |--------|--------------|----------------|
-| **PLAYER** | Click player row | Photo, contract breakdown, guarantee structure, extension eligibility, insights |
-| **TEAM** | Click team name in section header | Same as default view, but "pinned" — doesn't change on scroll. Header should indicate "TEAM REPORT" vs default mode |
-| **AGENT** | Click agent/agency name | Agency info, client list with links back to players |
-| **PICK** | Click draft pick pill | Pick metadata, protections, origin team, destination team, conveyance history |
+| **PLAYER** | Click player row | Contract breakdown by year, guarantee structure, option details, extension eligibility, trade kicker info |
+| **TEAM** | Click team name | Same as default view but "pinned" (won't change on scroll) |
+| **AGENT** | Click agent name | Agency info, client list grouped by team with salary totals |
+| **PICK** | Click draft pick pill | Pick metadata, protections, origin/destination teams |
 
-### 4.4 Back Navigation (Critical Behavior)
+### 4.3 Back Navigation
 
-**The key insight:** Back returns to the *current* viewport team, not where you started.
+**Critical behavior:** Back returns to the *current* viewport team, not where you started.
 
-**Scenario:**
-1. User scrolled to Celtics, clicks Jaylen Brown
+**Example:**
+1. User at Celtics, clicks Jaylen Brown
 2. Sidebar shows Jaylen Brown detail
-3. While viewing, user scrolls main canvas to Lakers
+3. User scrolls canvas to Lakers
 4. User clicks Back
-5. **Result:** Sidebar shows Lakers team context (not Celtics)
-
-**Rationale:** The sidebar should stay grounded in what you're currently looking at. If you've scrolled away, you care about your new position, not your origin.
-
-**2-Level Behavior:**
-- Clicking entity → **pushes** entity as overlay
-- Clicking different entity while viewing one → **replaces** current overlay
-- Back button → **pops** overlay, returns to team context
-- Team context = current active team from scroll-spy
-
-**Acceptance Criteria:**
-- You can open Player A, scroll to another team, press Back → you land in default mode for the *new* active team
-- Clicking Player A then Agent B → shows Agent B (replaced, not stacked)
-- Back from Agent B → team context (not Player A)
+5. **Result:** Sidebar shows Lakers team context
 
 ---
 
@@ -421,40 +360,56 @@ When user clicks an entity, detail view **pushes** onto sidebar stack:
 
 | Surface | Click Action | Sidebar Result |
 |---------|--------------|----------------|
-| **Team name** in section header | Push Team entity | Entity mode: team pinned (won't change on scroll) |
+| **Team name** in section header | Push Team entity | Entity mode: team pinned |
 | **Player row** (either sub-row) | Push Player entity | Entity mode: player detail |
 | **Agent name** | Push Agent entity | Entity mode: agent detail |
-| **Agency name** | Push Agent entity | Entity mode: agency/agent detail |
 | **Draft pick pill** | Push Pick entity | Entity mode: pick detail |
-| **Top bar team abbreviation** | Jump scroll to team | No sidebar change if entity mode; updates default view via scroll-spy |
-| **Sidebar Back button** | Pop entity stack | Previous entity, or default mode (current team) |
+| **Top bar team abbreviation** | Scroll to team | No sidebar change if entity mode |
+| **Sidebar Back button** | Pop entity | Returns to current team context |
 
 ---
 
-## 6. Sticky Behavior Requirements
+## 6. Performance Considerations
 
-Because sticky headers are the hardest part to get right:
+### Memoization
 
-### Sticky Layers (Z-Order, top to bottom)
+- **`PlayerRow`**: Wrapped in `React.memo()` with custom comparison (checks player ID + key fields + filter toggles)
+- **`SalaryTable`**: `filteredPlayers` wrapped in `useMemo()`
+- **Click handlers**: Wrapped in `useCallback()` for stable references
 
-1. **Top Command Bar** — Fixed to viewport top, highest z-index
-2. **Team Header + Table Header** — Sticky to main canvas scroll container top, ONE combined group
-3. **Sticky Left Columns** — Sticky horizontally, below headers in z-order
-4. **Regular table cells** — Lowest z-order
+### SWR Caching
 
-### Visual Requirements
+All data fetching uses SWR with:
+- Global deduplication (concurrent requests for same key = single fetch)
+- Stale-while-revalidate (cached data renders immediately)
+- Per-key caching (switching teams shows cached data while revalidating)
 
-| Requirement | Acceptance Criteria |
-|-------------|---------------------|
-| **Opaque backgrounds** | Table rows never visible "through" sticky elements |
-| **No phantom spacing** | When header becomes sticky, no blank strip appears above |
-| **Clean transitions** | Next team's header pushes previous smoothly off-screen |
-| **Horizontal alignment** | Sticky left columns align perfectly across both sub-rows |
-| **Correct z-order** | Sticky left columns appear above scrolling cells but below sticky headers and top command bar |
+### Future: Virtualization
 
-### Implementation Guidance
+Current implementation renders all teams into the DOM. For larger datasets, consider:
+- `@tanstack/react-virtual` for row virtualization
+- Fixed header + virtualized body pattern to preserve sticky behavior
 
-Treat team header + table header as a **single sticky unit**. Splitting them into separate sticky layers is the source of most gap/bleed-through bugs. The "sticky stack" for a team section should behave as one cohesive block.
+---
+
+## 7. Design System Notes
+
+The UI follows a **Vercel-inspired aesthetic**:
+
+- **Dark mode default** with proper light mode support
+- **Monospace accent** for numbers, labels, metadata
+- **Information-dense** layouts (tight spacing, small text sizes)
+- **Minimal decoration** (no gradients, subtle shadows)
+- **Color for semantics only** (guarantee status, option types, positive/negative values)
+
+Typography:
+- Sans: Geist Sans (fallback: Inter, system-ui)
+- Mono: Geist Mono (for salaries, codes, metadata)
+
+Interactive states:
+- `transition-colors duration-100` for color changes
+- Border-only focus (not ring)
+- Subtle hover backgrounds (`bg-muted/30`)
 
 ---
 
@@ -462,11 +417,11 @@ Treat team header + table header as a **single sticky unit**. Splitting them int
 
 | Concept | Description |
 |---------|-------------|
-| **Scroll-Driven Context** | Sidebar reflects what's visible; active team determined by scroll-spy |
-| **Alphabetical Team Grid** | 3 rows × 5 teams per conference, sorted A→Z |
-| **2-Level Entity Details** | Clicking entity pushes overlay; clicking another entity replaces it (no nesting) |
+| **Scroll-Driven Context** | Sidebar reflects what's visible; active team from scroll-spy |
+| **2-Level Entity Details** | Click entity pushes overlay; click another replaces it |
 | **Smart Back Navigation** | Returns to current viewport team, not origin |
-| **Contact-Style Headers** | Team + table header stick together, pushed off by next team |
-| **Double-Row Players** | Two rows per player for density without sacrificing information |
-| **Top Bar Dual Purpose** | Team grid shows scroll position AND enables navigation |
-| **Filters Without Navigation** | Toggles shape content but don't affect sidebar state |
+| **iOS-Style Headers** | Team + table header stick together, pushed off by next team |
+| **Double-Row Players** | Two rows per player for density without sacrificing info |
+| **Filter Toggles** | Shape content without affecting navigation |
+| **SWR Data Layer** | All fetches cached/deduped via SWR hooks |
+| **Postgres is the Product** | UI is a thin consumer of warehouse tables |
