@@ -262,7 +262,7 @@ export function SalaryTable({
       >
         <div className="min-w-max" style={{ minWidth: MIN_TABLE_WIDTH }}>
           {/* Player rows */}
-          <div>
+          <div className="[&>*:first-child]:mt-1">
             {filteredPlayers.map((player) => (
               <PlayerRow
                 key={player.id}
