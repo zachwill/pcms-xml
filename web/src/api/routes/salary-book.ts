@@ -89,6 +89,12 @@ salaryBookRouter.get("/players", async (req) => {
       s.pct_cap_2028::numeric,
       s.pct_cap_2029::numeric,
       s.pct_cap_2030::numeric,
+      s.pct_cap_percentile_2025::numeric,
+      s.pct_cap_percentile_2026::numeric,
+      s.pct_cap_percentile_2027::numeric,
+      s.pct_cap_percentile_2028::numeric,
+      s.pct_cap_percentile_2029::numeric,
+      s.pct_cap_percentile_2030::numeric,
       s.option_2025,
       s.option_2026,
       s.option_2027,
@@ -148,6 +154,10 @@ salaryBookRouter.get("/players", async (req) => {
       COALESCE(s.is_no_trade, false)::boolean as is_no_trade,
       COALESCE(s.is_trade_bonus, false)::boolean as is_trade_bonus,
       s.trade_bonus_percent::numeric as trade_bonus_percent,
+
+      s.contract_type_code,
+      s.contract_type_lookup_value,
+
       COALESCE(s.is_trade_consent_required_now, false)::boolean as is_trade_consent_required_now,
       COALESCE(s.is_trade_preconsented, false)::boolean as is_trade_preconsented,
       s.player_consent_lk
@@ -523,6 +533,10 @@ salaryBookRouter.get("/player/:playerId", async (req) => {
       COALESCE(s.is_no_trade, false)::boolean as is_no_trade,
       COALESCE(s.is_trade_bonus, false)::boolean as is_trade_bonus,
       s.trade_bonus_percent::numeric as trade_bonus_percent,
+
+      s.contract_type_code,
+      s.contract_type_lookup_value,
+
       COALESCE(s.is_trade_consent_required_now, false)::boolean as is_trade_consent_required_now,
       COALESCE(s.is_trade_preconsented, false)::boolean as is_trade_preconsented,
       s.player_consent_lk
@@ -659,4 +673,36 @@ salaryBookRouter.get("/pick", async (req) => {
       description: p.description,
     })),
   });
+});
+
+// GET /api/salary-book/two-way-capacity?team=:teamCode
+// Fetch two-way player capacity data from pcms.team_two_way_capacity
+salaryBookRouter.get("/two-way-capacity", async (req) => {
+  const url = new URL(req.url);
+  const teamCode = url.searchParams.get("team");
+
+  if (!teamCode) {
+    return Response.json({ error: "team parameter required" }, { status: 400 });
+  }
+
+  const sql = getSql();
+
+  const capacity = await sql`
+    SELECT
+      team_id,
+      team_code,
+      current_contract_count,
+      games_remaining,
+      under_15_games_count,
+      under_15_games_remaining
+    FROM pcms.team_two_way_capacity
+    WHERE team_code = ${teamCode}
+    LIMIT 1
+  `;
+
+  if (capacity.length === 0) {
+    return Response.json({ error: "Team not found" }, { status: 404 });
+  }
+
+  return Response.json(capacity[0]);
 });

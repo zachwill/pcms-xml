@@ -47,3 +47,8 @@ export {
   type PickDetailParams,
   type PickDetailResponse,
 } from "./usePickDetail";
+export {
+  useTwoWayCapacity,
+  type UseTwoWayCapacityReturn,
+  type TwoWayCapacity,
+} from "./useTwoWayCapacity";

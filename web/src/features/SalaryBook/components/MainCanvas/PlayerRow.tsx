@@ -17,11 +17,7 @@ import { Tooltip } from "@/components/ui/Tooltip";
 import type { SalaryBookPlayer } from "../../data";
 import type { ContractOption, GuaranteeType } from "../../data";
 import { PlayerSalary } from "./PlayerSalary";
-import {
-  PositionChip,
-  BirdRightsBadge,
-  FreeAgencyBadge,
-} from "./badges";
+import { PositionChip, BirdRightsBadge, FreeAgencyBadge } from "./badges";
 import {
   SALARY_YEARS,
   getSalary,
@@ -29,6 +25,8 @@ import {
   getOption,
   getGuarantee,
   getPctCap,
+  getPctCapPercentile,
+  formatPctCapWithBlocks,
   getPlayerRowName,
 } from "./playerRowHelpers";
 
@@ -78,7 +76,7 @@ function getSalaryCellStyle(
 
   const maxPctForYos = (yos: number): number => {
     if (yos <= 6) return 0.25;
-    if (yos <= 9) return 0.30;
+    if (yos <= 9) return 0.3;
     return 0.35;
   };
 
@@ -88,7 +86,8 @@ function getSalaryCellStyle(
   const tradeBonusHasRoom = (() => {
     if (!isTradeBonus) return null;
 
-    if (pctCap === null || !Number.isFinite(Number(pctCap)) || Number(pctCap) <= 0) return null;
+    if (pctCap === null || !Number.isFinite(Number(pctCap)) || Number(pctCap) <= 0)
+      return null;
     if (yosThisYear === null || !Number.isFinite(Number(yosThisYear))) return null;
 
     const yosMaxPct = maxPctForYos(Number(yosThisYear));
@@ -118,7 +117,7 @@ function getSalaryCellStyle(
   // PARTIAL has no special styling for now
   // For option years, only show guarantee tooltip if it's notable (PARTIAL/NON-GTD)
   const hasOption = !!option && !isCurrentSeason;
-  
+
   if (guarantee === "GTD") {
     // Only show "Fully Guaranteed" tooltip if there's no option taking precedence
     if (!hasOption) {
@@ -243,29 +242,32 @@ export interface PlayerRowProps {
 }
 
 // ============================================================================
-// Main Component
+// Subcomponents (kept colocated for readability)
 // ============================================================================
 
-function PlayerRowInner({
-  player,
-  onClick,
-  onAgentClick,
-  showOptions = true,
-  showTwoWay = true,
-}: PlayerRowProps) {
-  const headshotUrl = `https://cdn.nba.com/headshots/nba/latest/1040x760/${player.player_id}.png`;
-  // Simple inline SVG fallback so we don't collapse layout on 404s.
-  const fallbackHeadshot =
-    "data:image/svg+xml;utf8," +
-    "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'>" +
-    "<rect width='100%25' height='100%25' fill='%23e5e7eb'/>" +
-    "<text x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' " +
-    "fill='%239ca3af' font-family='ui-sans-serif,system-ui' font-size='10'>" +
-    "NBA" +
-    "</text>" +
-    "</svg>";
+const FALLBACK_HEADSHOT_DATA_URI =
+  "data:image/svg+xml;utf8," +
+  "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'>" +
+  "<rect width='100%25' height='100%25' fill='%23e5e7eb'/>" +
+  "<text x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' " +
+  "fill='%239ca3af' font-family='ui-sans-serif,system-ui' font-size='10'>" +
+  "NBA" +
+  "</text>" +
+  "</svg>";
 
-  const rowName = getPlayerRowName(player);
+function PlayerRowContainer({
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick();
+    }
+  };
 
   return (
     <div
@@ -282,13 +284,330 @@ function PlayerRowInner({
       )}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClick();
-        }
-      }}
+      onKeyDown={handleKeyDown}
     >
+      {children}
+    </div>
+  );
+}
+
+function PlayerHeadshot({ headshotUrl, alt }: { headshotUrl: string; alt: string }) {
+  return (
+    <div className="w-7 h-7 rounded border border-border bg-background overflow-hidden">
+      <img
+        src={headshotUrl}
+        alt={alt}
+        className="w-full h-full object-cover object-top bg-muted"
+        loading="lazy"
+        decoding="async"
+        onError={(e) => {
+          // Avoid infinite loop if fallback fails for some reason
+          if (e.currentTarget.src !== FALLBACK_HEADSHOT_DATA_URI) {
+            e.currentTarget.src = FALLBACK_HEADSHOT_DATA_URI;
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+function PlayerStickyColumn({
+  player,
+  rowName,
+}: {
+  player: SalaryBookPlayer;
+  rowName: string;
+}) {
+  const headshotUrl = `https://cdn.nba.com/headshots/nba/latest/1040x760/${player.player_id}.png`;
+
+  return (
+    <div
+      className={cx(
+        "w-52 shrink-0 pl-4",
+        "sticky left-0 z-20",
+        "relative",
+        // Opaque background to prevent bleed-through while scrolling
+        "bg-background",
+        // Match row hover/transition (subtle yellow)
+        "group-hover:bg-yellow-50/70 dark:group-hover:bg-yellow-900/10",
+        "transition-colors duration-75",
+        // Separator on the right edge of the sticky column
+        "after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px",
+        "after:bg-border/30"
+      )}
+    >
+      <div
+        className="grid grid-cols-[40px_1fr] grid-rows-[28px_20px]"
+        aria-label={`${rowName} player info`}
+      >
+        {/* Headshot spans both sub-rows */}
+        <div className="row-span-2 flex items-center justify-start">
+          <PlayerHeadshot headshotUrl={headshotUrl} alt={rowName} />
+        </div>
+
+        {/* Row A: Name */}
+        <div className="h-7 flex items-end min-w-0 pl-1 pr-2">
+          <span className="truncate font-medium text-[14px] group-hover:text-primary transition-colors">
+            {rowName}
+          </span>
+        </div>
+
+        {/* Row B: Details */}
+        <div className="h-5 -mt-0.5 flex items-start gap-2 min-w-0 pl-1 pr-2 leading-none text-xs text-muted-foreground">
+          {player.position && <PositionChip position={player.position} />}
+          <span className="tabular-nums">
+            {player.age !== null && <>{Number(player.age).toFixed(1)} YRS</>}
+            {player.age !== null &&
+              player.experience !== null &&
+              player.experience !== undefined &&
+              " · "}
+            {player.experience !== null && player.experience !== undefined && (
+              <>
+                {player.experience === 0
+                  ? "Rookie"
+                  : `${player.experience} YOS`}
+              </>
+            )}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SalaryYearCell({
+  player,
+  year,
+  showOptions,
+  showTwoWay,
+}: {
+  player: SalaryBookPlayer;
+  year: (typeof SALARY_YEARS)[number];
+  showOptions: boolean;
+  showTwoWay: boolean;
+}) {
+  const salary = getSalary(player, year);
+  const showTwoWayBadge = showTwoWay && player.is_two_way && salary == 0;
+  const option = showOptions ? getOption(player, year) : null;
+  const guarantee = getGuarantee(player, year);
+  const isCurrentSeason = year === SALARY_YEARS[0];
+  const pctCap = getPctCap(player, year);
+
+  const yosThisYear =
+    player.experience !== null && player.experience !== undefined
+      ? Number(player.experience) + (year - SALARY_YEARS[0])
+      : null;
+
+  // Poison Pill only meaningfully applies in the current season and only for 3 YOS players.
+  // (Warehouse flag can be historically true even when it's no longer relevant.)
+  const isPoisonPillNow =
+    isCurrentSeason &&
+    player.is_poison_pill &&
+    yosThisYear !== null &&
+    Number(yosThisYear) === 3;
+
+  const priorYearSalary = getSalary(player, year - 1);
+
+  const cellStyle =
+    salary !== null
+      ? getSalaryCellStyle(
+          guarantee,
+          option,
+          isCurrentSeason,
+          player.is_trade_consent_required_now,
+          player.is_no_trade,
+          isPoisonPillNow,
+          player.is_trade_bonus,
+          player.trade_bonus_percent,
+          Number(salary) || 0,
+          pctCap,
+          yosThisYear,
+          priorYearSalary
+        )
+      : { bgClass: "", textClass: "", salaryItalic: false, tooltip: null };
+
+  // Get percentile and format pct cap with blocks
+  const pctCapPercentile = getPctCapPercentile(player, year);
+  const pctCapDisplay = formatPctCapWithBlocks(pctCap, pctCapPercentile);
+
+  const cell = (
+    <div
+      className={cx(
+        "w-24 shrink-0",
+        showTwoWayBadge
+          ? "grid place-items-center h-[calc(1.75rem+1.25rem-0.125rem)]"
+          : "flex flex-col",
+        cellStyle.bgClass,
+        cellStyle.textClass
+      )}
+    >
+      {showTwoWayBadge ? (
+        <PlayerSalary amount={salary} showTwoWayBadge />
+      ) : (
+        <>
+          {/* Row A: Salary */}
+          <div
+            className={cx(
+              "h-7 flex items-end justify-center text-sm",
+              salary === null && "text-muted-foreground/50"
+            )}
+          >
+            <PlayerSalary
+              amount={salary}
+              className={cellStyle.salaryItalic ? "italic" : undefined}
+            />
+          </div>
+          {/* Row B: Percent of cap with percentile blocks */}
+          <div className="h-5 -mt-0.5 flex items-start justify-center">
+            {pctCapDisplay && (
+              <span className="text-[10px] tabular-nums italic opacity-70 whitespace-nowrap">
+                {pctCapDisplay.label}
+                {pctCapDisplay.blocks && (
+                  <span className="ml-0.5 not-italic opacity-60">
+                    {pctCapDisplay.blocks}
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  return cellStyle.tooltip ? (
+    <Tooltip
+      triggerAsChild
+      content={cellStyle.tooltip}
+      side="top"
+      sideOffset={6}
+    >
+      {cell}
+    </Tooltip>
+  ) : (
+    cell
+  );
+}
+
+function TotalSalaryCell({
+  player,
+  showTwoWay,
+}: {
+  player: SalaryBookPlayer;
+  showTwoWay: boolean;
+}) {
+  const totalSalary = getTotalSalary(player);
+  const showTotalTwoWay = showTwoWay && player.is_two_way && totalSalary === 0;
+
+  const contractTypeCode = player.contract_type_code;
+  const contractTypeLabel = player.contract_type_lookup_value;
+
+  const cell = (
+    <div
+      className={cx(
+        "w-24 shrink-0",
+        showTotalTwoWay
+          ? "grid place-items-center h-[calc(1.75rem+1.25rem-0.125rem)]"
+          : "flex flex-col"
+      )}
+    >
+      {showTotalTwoWay ? (
+        <PlayerSalary
+          amount={totalSalary}
+          showTwoWayBadge
+          slotWidth="7ch"
+          className="font-semibold"
+        />
+      ) : (
+        <>
+          <div className="h-7 flex items-end justify-center text-sm">
+            <PlayerSalary
+              amount={totalSalary}
+              slotWidth="7ch"
+              className="font-semibold"
+            />
+          </div>
+          <div className="h-5 -mt-0.5 flex items-start justify-center">
+            <span className="text-[10px] tabular-nums italic opacity-70 whitespace-nowrap">
+              {contractTypeCode ?? "—"}
+            </span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  return contractTypeLabel ? (
+    <Tooltip triggerAsChild content={contractTypeLabel} side="top" sideOffset={6}>
+      {cell}
+    </Tooltip>
+  ) : (
+    cell
+  );
+}
+
+function AgentAgencyColumn({
+  player,
+  onAgentClick,
+}: {
+  player: SalaryBookPlayer;
+  onAgentClick: (e: React.MouseEvent) => void;
+}) {
+  return (
+    <div className="w-40 shrink-0 flex flex-col pr-4">
+      {/* Row A: Agent name (baseline-aligned with player name + total) */}
+      <div className="h-7 flex items-end justify-start min-w-0">
+        {player.agent_name ? (
+          <button
+            onClick={onAgentClick}
+            className={cx(
+              "text-xs truncate mb-px",
+              "text-gray-400 dark:text-gray-500",
+              "hover:text-muted-foreground hover:underline",
+              "focus:outline-none focus-visible:underline focus-visible:text-muted-foreground",
+              "transition-colors"
+            )}
+          >
+            {player.agent_name}
+          </button>
+        ) : (
+          <span className="text-xs text-muted-foreground/50">—</span>
+        )}
+      </div>
+      {/* Row B: Agency + Bird rights + Free agency */}
+      <div className="h-5 -mt-0.5 flex items-start justify-start gap-1.5 leading-none text-xs text-muted-foreground min-w-0">
+        {player.agency_name && (
+          <span className="text-gray-400 dark:text-gray-500 truncate italic">
+            {player.agency_name}
+          </span>
+        )}
+        {player.bird_rights && <BirdRightsBadge birdRights={player.bird_rights} />}
+        {player.free_agency_type && (
+          <FreeAgencyBadge
+            type={player.free_agency_type}
+            year={player.free_agency_year}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
+function PlayerRowInner({
+  player,
+  onClick,
+  onAgentClick,
+  showOptions = true,
+  showTwoWay = true,
+}: PlayerRowProps) {
+  const rowName = getPlayerRowName(player);
+
+  return (
+    <PlayerRowContainer onClick={onClick}>
       {/*
         Layout note:
         Keep the entire "Player" area as ONE sticky column (w-52).
@@ -297,246 +616,46 @@ function PlayerRowInner({
       */}
       <div className="flex">
         {/* Sticky Player column (Headshot + Name + Details) */}
-        <div
-          className={cx(
-            "w-52 shrink-0 pl-4",
-            "sticky left-0 z-20",
-            "relative",
-            // Opaque background to prevent bleed-through while scrolling
-            "bg-background",
-            // Match row hover/transition (subtle yellow)
-            "group-hover:bg-yellow-50/70 dark:group-hover:bg-yellow-900/10",
-            "transition-colors duration-75",
-            // Separator on the right edge of the sticky column
-            "after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px",
-            "after:bg-border/30"
-          )}
-        >
-          <div
-            className="grid grid-cols-[40px_1fr] grid-rows-[28px_20px]"
-            aria-label={`${rowName} player info`}
-          >
-            {/* Headshot spans both sub-rows */}
-            <div className="row-span-2 flex items-center justify-start">
-              <div className="w-7 h-7 rounded border border-border bg-background overflow-hidden">
-                <img
-                  src={headshotUrl}
-                  alt={rowName}
-                  className="w-full h-full object-cover object-top bg-muted"
-                  loading="lazy"
-                  decoding="async"
-                  onError={(e) => {
-                    // Avoid infinite loop if fallback fails for some reason
-                    if (e.currentTarget.src !== fallbackHeadshot) {
-                      e.currentTarget.src = fallbackHeadshot;
-                    }
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Row A: Name */}
-            <div className="h-7 flex items-end min-w-0 pl-1 pr-2">
-              <span className="truncate font-medium text-[14px] group-hover:text-primary transition-colors">
-                {rowName}
-              </span>
-
-            </div>
-
-            {/* Row B: Details */}
-            <div className="h-5 -mt-0.5 flex items-start gap-2 min-w-0 pl-1 pr-2 leading-none text-xs text-muted-foreground">
-              {player.position && <PositionChip position={player.position} />}
-              <span className="tabular-nums">
-                {player.age !== null && <>{Number(player.age).toFixed(1)} YRS</>}
-                {player.age !== null && player.experience !== null && player.experience !== undefined && " · "}
-                {player.experience !== null && player.experience !== undefined && <>{player.experience === 0 ? "Rookie" : `${player.experience} YOS`}</>}
-              </span>
-            </div>
-          </div>
-        </div>
+        <PlayerStickyColumn player={player} rowName={rowName} />
 
         {/* Non-sticky columns (Contract Years + Management) */}
         <div className="min-w-0 flex">
           {/* Salary year columns — each spans both rows */}
-          {SALARY_YEARS.map((year) => {
-            const salary = getSalary(player, year);
-            const showTwoWayBadge = showTwoWay && player.is_two_way && salary == 0;
-            const option = showOptions ? getOption(player, year) : null;
-            const guarantee = getGuarantee(player, year);
-            const isCurrentSeason = year === SALARY_YEARS[0];
-            const pctCap = getPctCap(player, year);
-            
-            const yosThisYear =
-              player.experience !== null && player.experience !== undefined
-                ? Number(player.experience) + (year - SALARY_YEARS[0])
-                : null;
-
-            // Poison Pill only meaningfully applies in the current season and only for 3 YOS players.
-            // (Warehouse flag can be historically true even when it's no longer relevant.)
-            const isPoisonPillNow =
-              isCurrentSeason &&
-              player.is_poison_pill &&
-              yosThisYear !== null &&
-              Number(yosThisYear) === 3;
-
-            const priorYearSalary = getSalary(player, year - 1);
-
-            const cellStyle = salary !== null
-              ? getSalaryCellStyle(
-                  guarantee,
-                  option,
-                  isCurrentSeason,
-                  player.is_trade_consent_required_now,
-                  player.is_no_trade,
-                  isPoisonPillNow,
-                  player.is_trade_bonus,
-                  player.trade_bonus_percent,
-                  Number(salary) || 0,
-                  pctCap,
-                  yosThisYear,
-                  priorYearSalary
-                )
-              : { bgClass: "", textClass: "", salaryItalic: false, tooltip: null };
-
-            // Format pct cap as rounded percentage (e.g., "32%")
-            const pctCapLabel = pctCap !== null ? `${Math.round(pctCap * 100)}%` : null;
-
-            const cell = (
-              <div
-                key={year}
-                className={cx(
-                  "w-24 shrink-0",
-                  showTwoWayBadge
-                    ? "grid place-items-center h-[calc(1.75rem+1.25rem-0.125rem)]"
-                    : "flex flex-col",
-                  cellStyle.bgClass,
-                  cellStyle.textClass
-                )}
-              >
-                {showTwoWayBadge ? (
-                  <PlayerSalary amount={salary} showTwoWayBadge />
-                ) : (
-                  <>
-                    {/* Row A: Salary */}
-                    <div
-                      className={cx(
-                        "h-7 flex items-end justify-center text-sm",
-                        salary === null && "text-muted-foreground/50"
-                      )}
-                    >
-                      <PlayerSalary
-                        amount={salary}
-                        className={cellStyle.salaryItalic ? "italic" : undefined}
-                      />
-                    </div>
-                    {/* Row B: Percent of cap */}
-                    <div className="h-5 -mt-0.5 flex items-start justify-center">
-                      {pctCapLabel && (
-                        <span className="text-[10px] tabular-nums italic opacity-70">{pctCapLabel}</span>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-
-            return cellStyle.tooltip ? (
-              <Tooltip triggerAsChild content={cellStyle.tooltip} side="top" sideOffset={6}>
-                {cell}
-              </Tooltip>
-            ) : (
-              cell
-            );
-          })}
+          {SALARY_YEARS.map((year) => (
+            <SalaryYearCell
+              key={year}
+              player={player}
+              year={year}
+              showOptions={showOptions}
+              showTwoWay={showTwoWay}
+            />
+          ))}
 
           {/* Total salary column */}
-          {(() => {
-            const totalSalary = getTotalSalary(player);
-            const showTotalTwoWay = showTwoWay && player.is_two_way && totalSalary === 0;
-            return (
-              <div
-                className={cx(
-                  "w-24 shrink-0",
-                  showTotalTwoWay
-                    ? "grid place-items-center h-[calc(1.75rem+1.25rem-0.125rem)]"
-                    : "flex flex-col"
-                )}
-              >
-                {showTotalTwoWay ? (
-                  <PlayerSalary amount={totalSalary} showTwoWayBadge slotWidth="7ch" className="font-semibold" />
-                ) : (
-                  <>
-                    <div className="h-7 flex items-end justify-center text-sm">
-                      <PlayerSalary
-                        amount={totalSalary}
-                        slotWidth="7ch"
-                        className="font-semibold"
-                      />
-                    </div>
-                    <div className="h-5" />
-                  </>
-                )}
-              </div>
-            );
-          })()}
+          <TotalSalaryCell player={player} showTwoWay={showTwoWay} />
 
           {/* Agent + Agency column */}
-          <div className="w-40 shrink-0 flex flex-col pr-4">
-            {/* Row A: Agent name (baseline-aligned with player name + total) */}
-            <div className="h-7 flex items-end justify-start min-w-0">
-              {player.agent_name ? (
-                <button
-                  onClick={onAgentClick}
-                  className={cx(
-                    "text-xs truncate mb-px",
-                    "text-gray-400 dark:text-gray-500",
-                    "hover:text-muted-foreground hover:underline",
-                    "focus:outline-none focus-visible:underline focus-visible:text-muted-foreground",
-                    "transition-colors"
-                  )}
-                >
-                  {player.agent_name}
-                </button>
-              ) : (
-                <span className="text-xs text-muted-foreground/50">—</span>
-              )}
-            </div>
-            {/* Row B: Agency + Bird rights + Free agency */}
-            <div className="h-5 -mt-0.5 flex items-start justify-start gap-1.5 leading-none text-xs text-muted-foreground min-w-0">
-              {player.agency_name && (
-                <span className="text-gray-400 dark:text-gray-500 truncate italic">
-                  {player.agency_name}
-                </span>
-              )}
-              {player.bird_rights && <BirdRightsBadge birdRights={player.bird_rights} />}
-              {player.free_agency_type && (
-                <FreeAgencyBadge
-                  type={player.free_agency_type}
-                  year={player.free_agency_year}
-                />
-              )}
-            </div>
-          </div>
+          <AgentAgencyColumn player={player} onAgentClick={onAgentClick} />
         </div>
       </div>
-    </div>
+    </PlayerRowContainer>
   );
 }
 
 /**
  * Memoized PlayerRow - only re-renders when player data or callbacks change
- * 
+ *
  * Performance note: We use a custom comparison that checks player.id + showOptions/showTwoWay.
  * Callbacks (onClick, onAgentClick) are expected to be stable from the parent.
  */
 export const PlayerRow = memo(PlayerRowInner, (prevProps, nextProps) => {
   // Quick bailout: if player ID changed, definitely re-render
   if (prevProps.player.id !== nextProps.player.id) return false;
-  
+
   // Check filter toggles
   if (prevProps.showOptions !== nextProps.showOptions) return false;
   if (prevProps.showTwoWay !== nextProps.showTwoWay) return false;
-  
+
   // Shallow compare the player object by checking key salary fields
   // (Deep compare is expensive, so we check the fields that affect rendering)
   const p1 = prevProps.player;

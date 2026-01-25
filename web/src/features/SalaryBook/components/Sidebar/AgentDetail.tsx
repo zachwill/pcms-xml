@@ -92,6 +92,17 @@ function AgentHeader({
   );
 }
 
+/** Fallback headshot for when NBA CDN image fails */
+const FALLBACK_HEADSHOT_DATA_URI =
+  "data:image/svg+xml;utf8," +
+  "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'>" +
+  "<rect width='100%25' height='100%25' fill='%23e5e7eb'/>" +
+  "<text x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' " +
+  "fill='%239ca3af' font-family='ui-sans-serif,system-ui' font-size='10'>" +
+  "NBA" +
+  "</text>" +
+  "</svg>";
+
 /**
  * Client row — single player in the client list
  */
@@ -104,6 +115,9 @@ function ClientRow({
   teamName: string;
   onClick: () => void;
 }) {
+  // Build headshot URL from player id
+  const headshotUrl = `https://cdn.nba.com/headshots/nba/latest/1040x760/${client.id}.png`;
+
   // Calculate current year salary (2025)
   const currentSalary = client.cap_2025;
 
@@ -124,19 +138,35 @@ function ClientRow({
       className={cx(
         "w-full text-left",
         "flex items-center justify-between gap-3",
-        "py-3 px-3 rounded-lg",
+        "py-2.5 px-2 rounded-lg",
         "hover:bg-muted/50 transition-colors",
         focusRing()
       )}
     >
+      {/* Player headshot */}
+      <div className="w-8 h-8 rounded border border-border bg-background overflow-hidden flex-shrink-0">
+        <img
+          src={headshotUrl}
+          alt={client.player_name}
+          className="w-full h-full object-cover object-top bg-muted"
+          loading="lazy"
+          decoding="async"
+          onError={(e) => {
+            if (e.currentTarget.src !== FALLBACK_HEADSHOT_DATA_URI) {
+              e.currentTarget.src = FALLBACK_HEADSHOT_DATA_URI;
+            }
+          }}
+        />
+      </div>
+
       <div className="flex-1 min-w-0">
         {/* Player name */}
         <div className="font-medium text-sm truncate">{client.player_name}</div>
 
         {/* Team + position */}
         <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-          <span className="font-mono">{client.team_code}</span>
-          <span>•</span>
+          <span>{client.team_code}</span>
+          <span>·</span>
           <span>{teamName}</span>
         </div>
       </div>

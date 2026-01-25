@@ -67,6 +67,14 @@ export interface SalaryBookPlayer {
   pct_cap_2029: number | null;
   pct_cap_2030: number | null;
 
+  // Percentile rank of pct_cap (0.0 = lowest, 1.0 = highest among all players)
+  pct_cap_percentile_2025: number | null;
+  pct_cap_percentile_2026: number | null;
+  pct_cap_percentile_2027: number | null;
+  pct_cap_percentile_2028: number | null;
+  pct_cap_percentile_2029: number | null;
+  pct_cap_percentile_2030: number | null;
+
   // Option flags per year (option_2025..option_2030)
   option_2025: ContractOption;
   option_2026: ContractOption;
@@ -132,6 +140,13 @@ export interface SalaryBookPlayer {
   is_no_trade: boolean;
   is_trade_bonus: boolean;
   trade_bonus_percent: number | null;
+
+  /**
+   * Contract type metadata (from salary_book_warehouse, sourced from
+   * pcms.contract_versions.contract_type_lk joined to pcms.lookups).
+   */
+  contract_type_code: string | null;
+  contract_type_lookup_value: string | null;
 
   /**
    * Player trade-consent restriction (derived from contract version_json).

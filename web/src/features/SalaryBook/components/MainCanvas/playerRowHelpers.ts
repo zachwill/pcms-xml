@@ -175,3 +175,85 @@ export function getPlayerRowName(player: SalaryBookPlayer): string {
   if (first) return first;
   return player.player_name;
 }
+
+/**
+ * Get percentile rank for pct_cap for a specific year from player data
+ * Returns a value between 0.0 (lowest) and 1.0 (highest) among all players
+ */
+export function getPctCapPercentile(player: SalaryBookPlayer, year: number): number | null {
+  switch (year) {
+    case 2025:
+      return player.pct_cap_percentile_2025;
+    case 2026:
+      return player.pct_cap_percentile_2026;
+    case 2027:
+      return player.pct_cap_percentile_2027;
+    case 2028:
+      return player.pct_cap_percentile_2028;
+    case 2029:
+      return player.pct_cap_percentile_2029;
+    case 2030:
+      return player.pct_cap_percentile_2030;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Convert a percentile (0-1) to a bucket index (0-4)
+ * Used for the visual block indicator
+ *
+ * Buckets:
+ * - 0: 0-20th percentile (0 filled blocks)
+ * - 1: 20-40th percentile (1 filled block)
+ * - 2: 40-60th percentile (2 filled blocks)
+ * - 3: 60-80th percentile (3 filled blocks)
+ * - 4: 80-100th percentile (4 filled blocks)
+ */
+export function getPercentileBucket(percentile: number | null): number {
+  if (percentile === null || percentile < 0) return 0;
+  if (percentile >= 1) return 4;
+  // Each bucket is 20%, so multiply by 5 and floor
+  return Math.floor(percentile * 5);
+}
+
+/**
+ * Render percentile as unicode block indicator
+ * 
+ * @param percentile - Value between 0-1
+ * @returns String like "▪︎▪︎▫︎▫︎" representing the percentile bucket
+ */
+export function renderPercentileBlocks(percentile: number | null): string {
+  const FILLED = "▪︎";  // U+25AA small black square
+  const EMPTY = "▫︎";   // U+25AB small white square
+  
+  if (percentile === null) return "";
+  
+  const bucket = getPercentileBucket(percentile);
+  const filled = FILLED.repeat(bucket);
+  const empty = EMPTY.repeat(4 - bucket);
+  
+  return filled + empty;
+}
+
+/**
+ * Format pct cap with optional percentile blocks
+ * Handles single-digit padding for alignment
+ * 
+ * @param pctCap - Percent of cap as decimal (e.g., 0.30 for 30%)
+ * @param percentile - Percentile rank (0-1)
+ * @returns Formatted string like "30% ▪︎▪︎▫︎▫︎" or " 2% ▫︎▫︎▫︎▫︎"
+ */
+export function formatPctCapWithBlocks(
+  pctCap: number | null,
+  percentile: number | null
+): { label: string; blocks: string } | null {
+  if (pctCap === null) return null;
+  
+  const pctValue = Math.round(pctCap * 100);
+  // Pad single-digit percentages with a non-breaking space for alignment
+  const label = pctValue < 10 ? `\u00A0${pctValue}%` : `${pctValue}%`;
+  const blocks = renderPercentileBlocks(percentile);
+  
+  return { label, blocks };
+}

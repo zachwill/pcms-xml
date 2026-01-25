@@ -26,6 +26,12 @@ interface PlayerApiResponse {
   pct_cap_2028: number | null;
   pct_cap_2029: number | null;
   pct_cap_2030: number | null;
+  pct_cap_percentile_2025: number | null;
+  pct_cap_percentile_2026: number | null;
+  pct_cap_percentile_2027: number | null;
+  pct_cap_percentile_2028: number | null;
+  pct_cap_percentile_2029: number | null;
+  pct_cap_percentile_2030: number | null;
   option_2025: string | null;
   option_2026: string | null;
   option_2027: string | null;
@@ -89,6 +95,11 @@ interface PlayerApiResponse {
   is_no_trade: boolean;
   is_trade_bonus: boolean;
   trade_bonus_percent: number | null;
+
+  // Contract type metadata (from salary_book_warehouse)
+  contract_type_code: string | null;
+  contract_type_lookup_value: string | null;
+
   is_trade_consent_required_now: boolean;
   is_trade_preconsented: boolean;
   player_consent_lk: string | null;
@@ -155,6 +166,12 @@ function mapApiToPlayer(data: PlayerApiResponse): SalaryBookPlayer {
     pct_cap_2028: data.pct_cap_2028,
     pct_cap_2029: data.pct_cap_2029,
     pct_cap_2030: data.pct_cap_2030,
+    pct_cap_percentile_2025: data.pct_cap_percentile_2025,
+    pct_cap_percentile_2026: data.pct_cap_percentile_2026,
+    pct_cap_percentile_2027: data.pct_cap_percentile_2027,
+    pct_cap_percentile_2028: data.pct_cap_percentile_2028,
+    pct_cap_percentile_2029: data.pct_cap_percentile_2029,
+    pct_cap_percentile_2030: data.pct_cap_percentile_2030,
     option_2025: normalizeOption(data.option_2025),
     option_2026: normalizeOption(data.option_2026),
     option_2027: normalizeOption(data.option_2027),
@@ -214,6 +231,10 @@ function mapApiToPlayer(data: PlayerApiResponse): SalaryBookPlayer {
     is_no_trade: data.is_no_trade,
     is_trade_bonus: data.is_trade_bonus,
     trade_bonus_percent: data.trade_bonus_percent,
+
+    contract_type_code: data.contract_type_code,
+    contract_type_lookup_value: data.contract_type_lookup_value,
+
     is_trade_consent_required_now: data.is_trade_consent_required_now,
     is_trade_preconsented: data.is_trade_preconsented,
     player_consent_lk: data.player_consent_lk,

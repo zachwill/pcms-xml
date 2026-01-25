@@ -51,6 +51,188 @@ export interface DrilldownComboboxProps {
 }
 
 // ============================================================================
+// Subcomponents (kept colocated to keep TSX shallow + editable)
+// ============================================================================
+
+function DrilldownComboboxTrigger({
+  selectedValue,
+  placeholder,
+  renderSelectedIcon,
+}: {
+  selectedValue: DrilldownComboboxItem | null
+  placeholder: string
+  renderSelectedIcon: () => React.ReactNode
+}) {
+  return (
+    <div
+      className={cx(
+        "relative flex items-center",
+        "[&>input]:pr-[calc(0.5rem+3rem)]",
+        "has-[[data-combobox-clear]]:[&>input]:pr-[calc(0.5rem+4.5rem)]"
+      )}
+    >
+      <div className="pointer-events-none absolute left-3 z-10 flex items-center">
+        {renderSelectedIcon()}
+      </div>
+
+      <Combobox.Input
+        placeholder={selectedValue ? selectedValue.label : placeholder}
+        className={cx(
+          "h-10 w-full rounded-lg border pl-10 pr-12 text-sm outline-none transition-colors",
+          "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900",
+          "text-gray-900 dark:text-gray-50",
+          "placeholder:text-gray-500 dark:placeholder:text-gray-400",
+          "hover:border-gray-300 dark:hover:border-gray-600",
+          ...focusInput
+        )}
+      />
+
+      <div className="absolute right-2 flex items-center gap-0.5">
+        <Combobox.Clear
+          className={cx(
+            "flex size-6 items-center justify-center rounded",
+            "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300",
+            "transition-colors outline-none",
+            focusRing()
+          )}
+          aria-label="Clear selection"
+          data-combobox-clear
+        >
+          <X className="size-4" />
+        </Combobox.Clear>
+        <Combobox.Trigger
+          className={cx(
+            "flex size-6 items-center justify-center rounded",
+            "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300",
+            "transition-colors outline-none",
+            focusRing()
+          )}
+          aria-label="Toggle popup"
+        >
+          <ChevronDownIcon className="size-4" />
+        </Combobox.Trigger>
+      </div>
+    </div>
+  )
+}
+
+function DrilldownComboboxListView({
+  createLabel,
+  onCreate,
+}: {
+  createLabel: string
+  onCreate: () => void
+}) {
+  return (
+    <div className="w-1/2 shrink-0">
+      <Combobox.List
+        className={cx(
+          "max-h-[280px] overflow-y-auto py-1 outline-none",
+          "scroll-py-1 overscroll-contain"
+        )}
+      >
+        {(item: DrilldownComboboxItem) => (
+          <ItemRow key={item.id} item={item} />
+        )}
+      </Combobox.List>
+
+      <Combobox.Empty className="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+        No companies found
+      </Combobox.Empty>
+
+      {/* Create action */}
+      <div className="border-t border-gray-100 dark:border-gray-800">
+        <button
+          type="button"
+          onClick={onCreate}
+          className={cx(
+            "flex w-full items-center gap-2.5 px-3 py-2.5",
+            "text-sm text-gray-600 dark:text-gray-400",
+            "hover:bg-gray-50 dark:hover:bg-gray-800",
+            "transition-colors outline-none",
+            focusRing()
+          )}
+        >
+          <span
+            className={cx(
+              "flex size-5 items-center justify-center rounded",
+              "bg-gray-100 dark:bg-gray-800",
+              "text-gray-500 dark:text-gray-400"
+            )}
+          >
+            <Plus className="size-3.5" />
+          </span>
+          <span>{createLabel}</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function DrilldownComboboxPopup({
+  view,
+  setView,
+  createLabel,
+  formTitle,
+  submitLabel,
+  onCreateSubmit,
+  formNameRef,
+}: {
+  view: ViewState
+  setView: (view: ViewState) => void
+  createLabel: string
+  formTitle: string
+  submitLabel: string
+  onCreateSubmit?: (data: { name: string; domain: string }) => void
+  formNameRef: React.RefObject<HTMLInputElement | null>
+}) {
+  return (
+    <Combobox.Portal>
+      <Combobox.Positioner sideOffset={6}>
+        <Combobox.Popup
+          className={cx(
+            "w-[var(--anchor-width)] min-w-[280px]",
+            "rounded-xl",
+            "bg-white dark:bg-gray-900",
+            "border border-gray-200 dark:border-gray-700",
+            "shadow-lg shadow-gray-200/50 dark:shadow-none",
+            "overflow-hidden",
+            "origin-[var(--transform-origin)]",
+            "transition-[transform,opacity] duration-150",
+            "data-[starting-style]:scale-95 data-[starting-style]:opacity-0",
+            "data-[ending-style]:scale-95 data-[ending-style]:opacity-0"
+          )}
+        >
+          {/* Sliding container */}
+          <div
+            className={cx(
+              "flex transition-transform duration-200 ease-out",
+              view === "form" && "-translate-x-1/2"
+            )}
+            style={{ width: "200%" }}
+          >
+            {/* List View */}
+            <DrilldownComboboxListView
+              createLabel={createLabel}
+              onCreate={() => setView("form")}
+            />
+
+            {/* Form View */}
+            <CreationForm
+              title={formTitle}
+              submitLabel={submitLabel}
+              onSubmit={onCreateSubmit}
+              onBack={() => setView("list")}
+              nameInputRef={formNameRef}
+            />
+          </div>
+        </Combobox.Popup>
+      </Combobox.Positioner>
+    </Combobox.Portal>
+  )
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -127,138 +309,21 @@ export function DrilldownCombobox({
         onOpenChange={handleOpenChange}
         autoHighlight
       >
-        {/* Trigger */}
-        <div
-          className={cx(
-            "relative flex items-center",
-            "[&>input]:pr-[calc(0.5rem+3rem)]",
-            "has-[[data-combobox-clear]]:[&>input]:pr-[calc(0.5rem+4.5rem)]"
-          )}
-        >
-          <div className="pointer-events-none absolute left-3 z-10 flex items-center">
-            {renderSelectedIcon()}
-          </div>
+        <DrilldownComboboxTrigger
+          selectedValue={selectedValue ?? null}
+          placeholder={placeholder}
+          renderSelectedIcon={renderSelectedIcon}
+        />
 
-          <Combobox.Input
-            placeholder={selectedValue ? selectedValue.label : placeholder}
-            className={cx(
-              "h-10 w-full rounded-lg border pl-10 pr-12 text-sm outline-none transition-colors",
-              "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900",
-              "text-gray-900 dark:text-gray-50",
-              "placeholder:text-gray-500 dark:placeholder:text-gray-400",
-              "hover:border-gray-300 dark:hover:border-gray-600",
-              ...focusInput
-            )}
-          />
-
-          <div className="absolute right-2 flex items-center gap-0.5">
-            <Combobox.Clear
-              className={cx(
-                "flex size-6 items-center justify-center rounded",
-                "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300",
-                "transition-colors outline-none",
-                focusRing()
-              )}
-              aria-label="Clear selection"
-              data-combobox-clear
-            >
-              <X className="size-4" />
-            </Combobox.Clear>
-            <Combobox.Trigger
-              className={cx(
-                "flex size-6 items-center justify-center rounded",
-                "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300",
-                "transition-colors outline-none",
-                focusRing()
-              )}
-              aria-label="Toggle popup"
-            >
-              <ChevronDownIcon className="size-4" />
-            </Combobox.Trigger>
-          </div>
-        </div>
-
-        {/* Popup */}
-        <Combobox.Portal>
-          <Combobox.Positioner sideOffset={6}>
-            <Combobox.Popup
-              className={cx(
-                "w-[var(--anchor-width)] min-w-[280px]",
-                "rounded-xl",
-                "bg-white dark:bg-gray-900",
-                "border border-gray-200 dark:border-gray-700",
-                "shadow-lg shadow-gray-200/50 dark:shadow-none",
-                "overflow-hidden",
-                "origin-[var(--transform-origin)]",
-                "transition-[transform,opacity] duration-150",
-                "data-[starting-style]:scale-95 data-[starting-style]:opacity-0",
-                "data-[ending-style]:scale-95 data-[ending-style]:opacity-0"
-              )}
-            >
-              {/* Sliding container */}
-              <div
-                className={cx(
-                  "flex transition-transform duration-200 ease-out",
-                  view === "form" && "-translate-x-1/2"
-                )}
-                style={{ width: "200%" }}
-              >
-                {/* List View */}
-                <div className="w-1/2 shrink-0">
-                  <Combobox.List
-                    className={cx(
-                      "max-h-[280px] overflow-y-auto py-1 outline-none",
-                      "scroll-py-1 overscroll-contain"
-                    )}
-                  >
-                    {(item: DrilldownComboboxItem) => (
-                      <ItemRow key={item.id} item={item} />
-                    )}
-                  </Combobox.List>
-
-                  <Combobox.Empty className="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                    No companies found
-                  </Combobox.Empty>
-
-                  {/* Create action */}
-                  <div className="border-t border-gray-100 dark:border-gray-800">
-                    <button
-                      type="button"
-                      onClick={() => setView("form")}
-                      className={cx(
-                        "flex w-full items-center gap-2.5 px-3 py-2.5",
-                        "text-sm text-gray-600 dark:text-gray-400",
-                        "hover:bg-gray-50 dark:hover:bg-gray-800",
-                        "transition-colors outline-none",
-                        focusRing()
-                      )}
-                    >
-                      <span
-                        className={cx(
-                          "flex size-5 items-center justify-center rounded",
-                          "bg-gray-100 dark:bg-gray-800",
-                          "text-gray-500 dark:text-gray-400"
-                        )}
-                      >
-                        <Plus className="size-3.5" />
-                      </span>
-                      <span>{createLabel}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Form View */}
-                <CreationForm
-                  title={formTitle}
-                  submitLabel={submitLabel}
-                  onSubmit={onCreateSubmit}
-                  onBack={() => setView("list")}
-                  nameInputRef={formNameRef}
-                />
-              </div>
-            </Combobox.Popup>
-          </Combobox.Positioner>
-        </Combobox.Portal>
+        <DrilldownComboboxPopup
+          view={view}
+          setView={setView}
+          createLabel={createLabel}
+          formTitle={formTitle}
+          submitLabel={submitLabel}
+          onCreateSubmit={onCreateSubmit}
+          formNameRef={formNameRef}
+        />
       </Combobox.Root>
     </div>
   )
@@ -317,9 +382,7 @@ function ItemRow({ item }: ItemRowProps) {
     >
       {renderIcon()}
       <span className="flex-1 truncate">{item.label}</span>
-      <span className="text-xs text-muted-foreground">
-        {item.domain}
-      </span>
+      <span className="text-xs text-muted-foreground">{item.domain}</span>
       <Combobox.ItemIndicator className="ml-1">
         <CheckIcon className="size-4 text-foreground" />
       </Combobox.ItemIndicator>
@@ -454,9 +517,7 @@ const FormField = React.forwardRef<HTMLInputElement, FormFieldProps>(
         )}
       >
         {icon && (
-          <span className="shrink-0 text-gray-400 dark:text-gray-500">
-            {icon}
-          </span>
+          <span className="shrink-0 text-gray-400 dark:text-gray-500">{icon}</span>
         )}
         <input
           ref={ref}

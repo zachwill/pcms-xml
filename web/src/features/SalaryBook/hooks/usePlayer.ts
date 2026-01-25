@@ -38,6 +38,10 @@ export interface PlayerDetailResponse {
   is_no_trade: boolean;
   is_trade_bonus: boolean;
   trade_bonus_percent: number | null;
+
+  contract_type_code: string | null;
+  contract_type_lookup_value: string | null;
+
   is_trade_consent_required_now: boolean;
   is_trade_preconsented: boolean;
   player_consent_lk: string | null;
@@ -89,6 +93,10 @@ function normalizePlayer(data: any): PlayerDetailResponse {
     is_no_trade: !!data.is_no_trade,
     is_trade_bonus: !!data.is_trade_bonus,
     trade_bonus_percent: asNumberOrNull(data.trade_bonus_percent),
+
+    contract_type_code: data.contract_type_code ?? null,
+    contract_type_lookup_value: data.contract_type_lookup_value ?? null,
+
     is_trade_consent_required_now: !!data.is_trade_consent_required_now,
     is_trade_preconsented: !!data.is_trade_preconsented,
     player_consent_lk: data.player_consent_lk ?? null,

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { cx, formatters } from "@/lib/utils";
 import type { TeamSalary } from "../../../data";
+import type { TwoWayCapacity } from "../../../hooks";
 
 /**
  * Single financial stat row
@@ -16,6 +17,35 @@ function StatRow({
 }) {
   const displayValue =
     value === null ? "—" : typeof value === "number" ? formatters.compactCurrency(value) : value;
+
+  return (
+    <div className="flex justify-between items-baseline py-1.5">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span
+        className={cx(
+          "font-mono tabular-nums text-sm font-medium",
+          valueClassName
+        )}
+      >
+        {displayValue}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Simple stat row for non-currency values
+ */
+function SimpleStatRow({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string;
+  value: string | number | null;
+  valueClassName?: string;
+}) {
+  const displayValue = value === null ? "—" : value;
 
   return (
     <div className="flex justify-between items-baseline py-1.5">
@@ -156,10 +186,57 @@ function SalaryProjections({
               />
             </div>
             <span className="text-[10px] text-muted-foreground tabular-nums">
-              {year.toString().slice(-2)}
+              {`${year.toString().slice(-2)}-${(year + 1).toString().slice(-2)}`}
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Two-Way Capacity section
+ * Shows games remaining for two-way players based on team's contract count
+ */
+function TwoWayCapacitySection({
+  capacity,
+}: {
+  capacity: TwoWayCapacity | null;
+}) {
+  if (!capacity) {
+    return null;
+  }
+
+  const isUnder15Contracts = (capacity.current_contract_count ?? 0) < 15;
+  const gamesRemainingLabel = isUnder15Contracts
+    ? "Games Remaining (Under 15)"
+    : "Games Remaining";
+  const gamesRemainingValue = isUnder15Contracts
+    ? capacity.under_15_games_remaining
+    : capacity.games_remaining;
+
+  // Red text if games remaining is below 30
+  const gamesRemainingColor =
+    gamesRemainingValue !== null && gamesRemainingValue < 30
+      ? "text-red-500"
+      : undefined;
+
+  return (
+    <div className="border-t border-border pt-4">
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+        Two-Way Capacity
+      </div>
+      <div className="space-y-0.5">
+        <SimpleStatRow
+          label="Contracts"
+          value={capacity.current_contract_count}
+        />
+        <SimpleStatRow
+          label={gamesRemainingLabel}
+          value={gamesRemainingValue}
+          valueClassName={gamesRemainingColor}
+        />
       </div>
     </div>
   );
@@ -173,11 +250,13 @@ export function CapOutlookTab({
   currentYearCapSpace,
   currentSalary,
   salaryByYear,
+  twoWayCapacity,
 }: {
   currentYearTotal: number | null;
   currentYearCapSpace: number | null;
   currentSalary: TeamSalary | undefined;
   salaryByYear: Map<number, TeamSalary>;
+  twoWayCapacity: TwoWayCapacity | null;
 }) {
   return (
     <>
@@ -229,6 +308,8 @@ export function CapOutlookTab({
         </div>
       )}
 
+      {/* Two-Way Capacity */}
+      <TwoWayCapacitySection capacity={twoWayCapacity} />
     </>
   );
 }

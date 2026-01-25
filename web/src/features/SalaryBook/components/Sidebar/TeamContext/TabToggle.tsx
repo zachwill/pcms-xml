@@ -18,7 +18,7 @@ export function TabToggle({
   ];
 
   return (
-    <div className="flex gap-1 p-1 rounded-lg bg-muted/50">
+    <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border">
       {tabs.map((tab) => (
         <button
           key={tab.id}

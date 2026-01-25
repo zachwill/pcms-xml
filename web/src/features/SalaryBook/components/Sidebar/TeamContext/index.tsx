@@ -13,7 +13,7 @@
 import { useState, memo } from "react";
 import { cx } from "@/lib/utils";
 import { useSalaryBookContext } from "../../../SalaryBook";
-import { useTeamSalary, useTeams } from "../../../hooks";
+import { useTeamSalary, useTeams, useTwoWayCapacity } from "../../../hooks";
 import { TeamContextHeader } from "./TeamContextHeader";
 import { TabToggle, type TabId } from "./TabToggle";
 import { CapOutlookTab } from "./CapOutlookTab";
@@ -65,6 +65,9 @@ export function TeamContext({ teamCode: teamCodeProp, className }: TeamContextPr
     isLoading: salaryLoading,
   } = useTeamSalary(teamCode);
 
+  // Fetch two-way capacity data
+  const { capacity: twoWayCapacity } = useTwoWayCapacity(teamCode);
+
   // Get team metadata
   const team = teamCode ? getTeam(teamCode) : undefined;
 
@@ -101,6 +104,7 @@ export function TeamContext({ teamCode: teamCodeProp, className }: TeamContextPr
           currentYearCapSpace={currentYearCapSpace}
           currentSalary={currentSalary}
           salaryByYear={salaryByYear}
+          twoWayCapacity={twoWayCapacity}
         />
       ) : (
         <TeamStatsTab teamCode={teamCode} />

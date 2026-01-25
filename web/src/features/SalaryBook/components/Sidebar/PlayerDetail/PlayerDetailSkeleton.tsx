@@ -4,12 +4,13 @@
 export function PlayerDetailSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
-      {/* Header skeleton */}
-      <div className="flex flex-col items-center space-y-3">
-        <div className="w-20 h-20 rounded-full bg-muted" />
-        <div className="space-y-2 text-center">
-          <div className="h-6 w-40 bg-muted rounded mx-auto" />
-          <div className="h-4 w-32 bg-muted rounded mx-auto" />
+      {/* Header skeleton - horizontal layout */}
+      <div className="flex items-center gap-4">
+        <div className="w-20 h-20 rounded border border-border bg-muted shrink-0" />
+        <div className="space-y-2">
+          <div className="h-5 w-36 bg-muted rounded" />
+          <div className="h-4 w-28 bg-muted rounded" />
+          <div className="h-3 w-24 bg-muted rounded" />
         </div>
       </div>
 
