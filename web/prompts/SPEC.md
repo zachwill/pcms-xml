@@ -102,3 +102,4 @@ Use this structure:
 * **Don't** add features beyond what the Gemini analysis describes.
 * **Don't** reproduce Gemini's tables verbatim — synthesize into our format.
 * **Don't** make it aspirational — describe concrete mechanics.
+* **Don't** use drag-and-drop. Scroll + click + hover covers our interaction needs. Drag-and-drop adds complexity (grab targets, drop zones, mobile issues) for spatial arrangement problems we don't have.
