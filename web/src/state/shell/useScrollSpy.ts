@@ -168,6 +168,14 @@ const DEFAULT_COMMITMENT_THRESHOLD = 20;
 
 const DEFAULT_TOP_STICK_RANGE = 12;
 
+// When scrolling down into a new section, only switch if past this fraction of anchor zone
+// (0.5 = halfway through anchor zone). Prevents immediate switch on tiny scrolls.
+const ANCHOR_ZONE_COMMIT_RATIO = 0.5;
+
+// Threshold for detecting "micro-scrolls" — scrolls so small they're likely
+// momentum/noise rather than intentional movement. Don't switch teams for these.
+const MICRO_SCROLL_THRESHOLD = 1;
+
 // ============================================================================
 // Hook Implementation
 // ============================================================================
@@ -224,10 +232,6 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
   // Track the "anchor point" — where we entered the current section
   // Used to determine if we've scrolled far enough to commit to a switch
   const anchorPointRef = useRef<number | null>(null);
-
-  // Pending team change — used for debounced/committed team switches
-  // Prevents flicker by requiring sustained scroll before switching
-  const pendingTeamRef = useRef<string | null>(null);
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -403,7 +407,7 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
       else if (isScrollingDown && naturalIndex > currentIndex) {
         // If we're in the anchor zone of the new section, stay with current
         // This prevents "top-of-page drift" when scrolling just a tiny bit
-        if (isInAnchorZone && distanceIntoSection < anchorZone / 2) {
+        if (isInAnchorZone && distanceIntoSection < anchorZone * ANCHOR_ZONE_COMMIT_RATIO) {
           activeIndex = currentIndex;
           newBoundaryMode = "anchored";
         } else {
@@ -413,7 +417,7 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
       }
       // Case C: Not actively scrolling (scrollDelta ≈ 0)
       // Keep current team to prevent flicker during micro-adjustments
-      else if (Math.abs(scrollDelta) < 1) {
+      else if (Math.abs(scrollDelta) < MICRO_SCROLL_THRESHOLD) {
         activeIndex = currentIndex;
       }
     } else {
@@ -593,7 +597,6 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
 
       // Reset state machine refs for clean transition
       anchorPointRef.current = null;
-      pendingTeamRef.current = null;
 
       // Perform the scroll
       const targetTop = getElementTop(element) - topOffset;
