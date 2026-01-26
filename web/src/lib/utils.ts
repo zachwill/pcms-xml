@@ -52,6 +52,7 @@ export const formatters = {
       style: "currency",
       currency: "USD",
       notation: "compact",
+      minimumFractionDigits: 1,
       maximumFractionDigits: 1,
     }).format(value)
   },
