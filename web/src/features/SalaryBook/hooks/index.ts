@@ -14,6 +14,8 @@ export {
   type AgentEntity,
   type PickEntity,
   type TeamEntity,
+  type ScrollState,
+  type ScrollSpyResult,
 } from "@/state/shell";
 export { useTeams, type UseTeamsReturn } from "./useTeams";
 export { usePlayers, type UsePlayersReturn } from "./usePlayers";

@@ -264,24 +264,120 @@ Non-sticky footer at section bottom showing:
 
 ## 3. Scroll-Spy System
 
+The scroll-spy is the heart of the app. It implements a **Silk-inspired progress-driven model** where scroll position is the primary state driver.
+
+### Core Concept: Scroll Position IS State
+
+Unlike traditional approaches where scroll events trigger state updates, we treat scroll position as the source of truth:
+
+```tsx
+const {
+  activeTeam,       // Which team's header is sticky
+  sectionProgress,  // 0→1 through that section
+  scrollState,      // idle | scrolling | settling
+} = useShellContext();
+```
+
+Components subscribe to these values and react directly — no intermediate event handling.
+
 ### Definition: "Active Team"
 
 The team whose section header is currently in the sticky position, OR (if no header is stuck) whose section top is closest to the viewport top.
 
 ### Scroll-Spy Outputs
 
-| Output | Behavior |
-|--------|----------|
-| **Top Bar** | Active team highlighted in selector grid |
-| **Sidebar** | If in default mode, shows active team's context |
+| Output | Type | Description |
+|--------|------|-------------|
+| `activeTeam` | `string \| null` | Team code of the currently active section |
+| `sectionProgress` | `number` | 0 when section just became active, 1 when next section takes over |
+| `scrollState` | `"idle" \| "scrolling" \| "settling"` | Current scroll lifecycle state |
 
-### Rules
+### How `sectionProgress` Works
 
-- Active team updates during scroll with no flicker
-- When multiple teams partially visible, prioritize the one whose header is stuck
-- Scroll-spy does **not** change sidebar state if an entity detail view is open
+Progress is calculated based on the scroll position relative to section boundaries:
 
-**Implementation:** Uses `IntersectionObserver` with configurable `topOffset` (0) and `activationOffset` (160px) to determine active team. The `useScrollSpy` hook manages section registration and active state.
+```
+Section A (active)     Section B (next)
+┌──────────────────┐   ┌──────────────────┐
+│ ▲ threshold line │   │                  │
+│ ║                │   │                  │
+│ ║ progress=0.3   │   │                  │
+│ ║ (30% through)  │   │                  │
+│ ▼                │   │                  │
+└──────────────────┘   └──────────────────┘
+```
+
+- **progress = 0**: Section A's top just crossed the threshold (just became active)
+- **progress = 1**: Section B's top is about to cross the threshold (handoff imminent)
+- **Last section**: Progress based on scroll distance to container bottom
+
+### Scroll Lifecycle States
+
+| State | Meaning | Duration |
+|-------|---------|----------|
+| `idle` | User is not scrolling | Indefinite |
+| `scrolling` | Scroll events are firing | While scrolling |
+| `settling` | Scroll stopped, waiting for momentum/snap | ~150ms after last event |
+
+**Use cases:**
+- Suppress expensive updates during `scrolling`
+- Trigger final animations on transition to `idle`
+- Wait for scroll snap during `settling`
+
+### Behaviors
+
+| Scenario | Behavior |
+|----------|----------|
+| **Scroll updates** | `activeTeam` and `sectionProgress` update in real-time via RAF |
+| **Top bar** | Active team highlighted in selector grid |
+| **Sidebar (default mode)** | Shows active team's context |
+| **Sidebar (entity mode)** | Does NOT change — overlay stays until dismissed |
+| **Programmatic scroll** | Scroll-spy locked until scroll completes (prevents flicker) |
+| **Filter toggle** | Scroll position preserved — scrolls back to same team after re-render |
+
+### Progress-Driven Animations
+
+Use `sectionProgress` for scroll-linked effects:
+
+```tsx
+import { applyProgressStyles } from "@/lib/animate";
+
+// Fade header as section scrolls
+applyProgressStyles(headerRef.current, sectionProgress, {
+  opacity: (p) => 1 - (p * 0.3),  // 1.0 → 0.7
+  transform: (p) => `translateY(${p * -8}px)`,
+});
+```
+
+Or with the `tween()` helper for CSS calc():
+
+```tsx
+import { tween } from "@/lib/animate";
+
+el.style.opacity = tween("1", "0.7", sectionProgress);
+// → "calc(1 + (0.7 - 1) * 0.45)" at 45% progress
+```
+
+### Implementation
+
+**Hook:** `useScrollSpy` in `src/state/shell/useScrollSpy.ts`
+
+**Key implementation details:**
+- Sections registered via `registerSection(teamCode, element)`
+- Sorted by DOM position (not registration order)
+- Uses `requestAnimationFrame` for batched updates
+- Programmatic scroll via `scrollToTeam(code, behavior)` with auto-unlock
+
+**Configuration:**
+```tsx
+useScrollSpy({
+  topOffset: 0,           // Sticky threshold inside container
+  activationOffset: 160,  // Switch sooner for natural feel
+  containerRef: canvasRef,
+  scrollEndDelay: 100,    // Debounce for scroll end detection
+  settleDelay: 50,        // Time in "settling" before "idle"
+});
+```
 
 ---
 
@@ -417,7 +513,8 @@ Interactive states:
 
 | Concept | Description |
 |---------|-------------|
-| **Scroll-Driven Context** | Sidebar reflects what's visible; active team from scroll-spy |
+| **Scroll Position IS State** | `activeTeam`, `sectionProgress`, `scrollState` drive everything |
+| **Progress-Driven Animations** | Use `sectionProgress` (0→1) for scroll-linked effects |
 | **2-Level Entity Details** | Click entity pushes overlay; click another replaces it |
 | **Smart Back Navigation** | Returns to current viewport team, not origin |
 | **iOS-Style Headers** | Team + table header stick together, pushed off by next team |

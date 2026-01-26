@@ -1,5 +1,5 @@
 export { ShellProvider, useShellContext, type ShellContextValue } from "./ShellProvider";
-export { useScrollSpy } from "./useScrollSpy";
+export { useScrollSpy, type ScrollState, type ScrollSpyResult } from "./useScrollSpy";
 export {
   useSidebarStack,
   type EntityType,
@@ -10,3 +10,7 @@ export {
   type PickEntity,
   type TeamEntity,
 } from "./useSidebarStack";
+export {
+  useSidebarTransition,
+  type TransitionState,
+} from "./useSidebarTransition";

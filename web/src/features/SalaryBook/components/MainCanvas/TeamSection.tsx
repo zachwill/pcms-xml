@@ -5,10 +5,11 @@
  * - Fetches team data (players, salary totals, draft picks)
  * - Registers with scroll-spy for active team detection
  * - Builds the iOS Contacts-style sticky header group (TeamHeader + TableHeader)
+ * - Applies scroll-linked fade effect to outgoing header
  * - Delegates horizontal scroll + filtering to SalaryTable
  */
 
-import React, { useCallback } from "react";
+import React, { useCallback, useRef, useEffect } from "react";
 import { cx } from "@/lib/utils";
 import { useShellContext, type PlayerEntity, type AgentEntity, type PickEntity } from "@/state/shell";
 import { useFilters } from "@/state/filters";
@@ -23,7 +24,6 @@ import {
 } from "../../hooks";
 import type { SalaryBookPlayer, DraftPick } from "../../data";
 import { TeamHeader } from "./TeamHeader";
-import { TableHeader } from "./TableHeader";
 import { SalaryTable } from "./SalaryTable";
 
 // ============================================================================
@@ -94,8 +94,13 @@ function TeamSectionError({
 // ============================================================================
 
 export function TeamSection({ teamCode }: TeamSectionProps) {
-  const { registerSection, activeTeam, pushEntity } = useShellContext();
+  const { registerSection, activeTeam, sectionProgress, pushEntity } = useShellContext();
   const { filters } = useFilters();
+
+  // Ref for scroll-linked header content fade effect.
+  // This targets the CONTENT inside the sticky header (text, KPIs, column labels),
+  // NOT the background container. The background stays opaque to prevent bleed-through.
+  const stickyHeaderContentRef = useRef<HTMLDivElement>(null);
 
   const { getTeam } = useTeams();
 
@@ -143,6 +148,42 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
     capHoldsLoading ||
     exceptionsLoading ||
     deadMoneyLoading;
+
+  // ========================================================================
+  // Scroll-linked header content fade effect
+  // ========================================================================
+  // When this team is active, apply opacity fade to the header CONTENT as section scrolls.
+  // The container background stays opaque; only text/KPIs/column labels fade.
+  // This prevents the "sandwich" effect where outgoing header overlaps incoming header.
+  //
+  // Key insight: we only manipulate opacity when THIS section is active.
+  // - Incoming sections (not yet active) keep their default opacity (1)
+  // - Outgoing sections (no longer active) retain their last faded value
+  // - Active section fades as progress approaches 100%
+
+  useEffect(() => {
+    const el = stickyHeaderContentRef.current;
+    if (!el) return;
+
+    // Only manipulate opacity when this section is active.
+    // When not active, leave opacity untouched:
+    // - Incoming sections stay at full opacity (never been touched)
+    // - Outgoing sections retain their faded value (won't snap back)
+    if (!isActive) return;
+
+    const minOpacity = 0.35;
+    const fadeStart = 0.7;
+
+    if (sectionProgress >= fadeStart) {
+      // Fade from 100% → 35% as progress goes 70% → 100%
+      const fadeProgress = (sectionProgress - fadeStart) / (1 - fadeStart);
+      const opacity = 1 - fadeProgress * (1 - minOpacity);
+      el.style.opacity = String(opacity);
+    } else {
+      // Full opacity for first 70% of section
+      el.style.opacity = "1";
+    }
+  }, [isActive, sectionProgress]);
 
   // ========================================================================
   // Sidebar navigation handlers (memoized to prevent PlayerRow re-renders)
@@ -220,6 +261,7 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
       className="border-b border-border"
     >
       <SalaryTable
+        stickyHeaderContentRef={stickyHeaderContentRef}
         teamHeader={
           <TeamHeader
             teamCode={teamCode}

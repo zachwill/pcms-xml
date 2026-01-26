@@ -59,6 +59,12 @@ export interface SalaryTableProps {
   onAgentClick: (e: React.MouseEvent, player: SalaryBookPlayer) => void;
   /** Called when a pick pill is clicked */
   onPickClick: (pick: DraftPick) => void;
+  /**
+   * Ref for the sticky header content (for scroll-linked opacity fade).
+   * This targets the CONTENT inside the header, not the background container.
+   * The background stays opaque; the text/KPIs fade as section scrolls off.
+   */
+  stickyHeaderContentRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 // Contract years to display (6-year horizon; aligns with salary_book_warehouse cap_2025..cap_2030)
@@ -143,6 +149,7 @@ export function SalaryTable({
   onPlayerClick,
   onAgentClick,
   onPickClick,
+  stickyHeaderContentRef,
 }: SalaryTableProps) {
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const bodyScrollRef = useRef<HTMLDivElement>(null);
@@ -214,21 +221,28 @@ export function SalaryTable({
           "will-change-transform"
         )}
       >
-        {teamHeader}
+        {/*
+          Content wrapper for scroll-linked opacity fade.
+          The container's bg-background stays opaque; this inner div's opacity fades.
+          This prevents the "sandwich" effect where outgoing header text overlaps incoming.
+        */}
+        <div ref={stickyHeaderContentRef}>
+          {teamHeader}
 
-        {/* TableHeader needs to horizontally scroll with the body, but the sticky
-            container itself must NOT live inside an overflow container (otherwise
-            position: sticky breaks in some browsers). So we use a second, synced scroller. */}
-        <div
-          ref={headerScrollRef}
-          className={cx(
-            "overflow-x-auto overscroll-x-contain",
-            // Hide header scrollbar (body scrollbar is the primary)
-            "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-          )}
-        >
-          <div className="min-w-max" style={{ minWidth: MIN_TABLE_WIDTH }}>
-            <TableHeader years={SALARY_YEARS} />
+          {/* TableHeader needs to horizontally scroll with the body, but the sticky
+              container itself must NOT live inside an overflow container (otherwise
+              position: sticky breaks in some browsers). So we use a second, synced scroller. */}
+          <div
+            ref={headerScrollRef}
+            className={cx(
+              "overflow-x-auto overscroll-x-contain",
+              // Hide header scrollbar (body scrollbar is the primary)
+              "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            )}
+          >
+            <div className="min-w-max" style={{ minWidth: MIN_TABLE_WIDTH }}>
+              <TableHeader years={SALARY_YEARS} />
+            </div>
           </div>
         </div>
       </div>

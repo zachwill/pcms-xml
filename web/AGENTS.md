@@ -5,14 +5,23 @@
 
 ## What `web/` is
 
-`web/` is a **Bun + React + TypeScript** app that consumes the repo’s Postgres warehouses.
+`web/` is a **Bun + React + TypeScript** app that consumes the repo's Postgres warehouses.
 
 It exists to provide:
 
 - A UI (currently: **Salary Book**) for browsing NBA PCMS-derived `pcms.*_warehouse` tables.
 - A small Bun API layer under `/api/*` (currently: `/api/salary-book/*`) that queries Postgres (`pcms` schema).
 
-This directory is intentionally isolated from the repo’s Python code.
+This directory is intentionally isolated from the repo's Python code.
+
+## Start here
+
+| File | Purpose |
+|------|---------|
+| **`HANDOFF.md`** | Detailed handoff doc — what's done, what's next, architecture diagrams |
+| **`TODO.md`** | Current work items with status |
+| **`specs/00-ui-philosophy.md`** | Core invariants + scroll-driven model |
+| **`specs/01-salary-book.md`** | Full interaction spec |
 
 ## Mental model (read this first)
 
@@ -24,7 +33,7 @@ This directory is intentionally isolated from the repo’s Python code.
 
 ### The UI is not documentation
 
-Do **not** add long prose / “rule cards” / content blocks.
+Do **not** add long prose / "rule cards" / content blocks.
 
 Rules should surface as:
 - derived attributes
@@ -35,9 +44,19 @@ Rules should surface as:
 
 See: `web/specs/00-ui-philosophy.md`.
 
+### Scroll position IS state
+
+We take inspiration from Silk (`web/reference/silkhq/`). The scroll container's position drives:
+
+- `activeTeam` — which team's header is sticky
+- `sectionProgress` — 0→1 progress through that section
+- `scrollState` — `idle | scrolling | settling`
+
+Use `sectionProgress` for scroll-linked animations. See `specs/00-ui-philosophy.md` for the full model.
+
 ### Interaction invariants
 
-- **Scroll-driven context**: scroll position determines active team.
+- **Scroll-driven context**: scroll position determines active team + progress.
 - **Sticky iOS-contacts headers**: team header + table header push off between teams.
 - **Sidebar is 2-level**:
   - base = team context (from scroll)
@@ -67,6 +86,9 @@ POSTGRES_URL="$POSTGRES_URL" bun run dev
 
 # optional: override port
 PORT=3001 POSTGRES_URL="$POSTGRES_URL" bun run dev
+
+# typecheck
+bun run typecheck
 ```
 
 Notes:
@@ -80,26 +102,39 @@ Notes:
 
 ```
 src/
-  server.ts       # Bun server entry point (Bun.serve)
-  client.tsx      # React app entry point
-  index.html      # HTML shell
+  server.ts           # Bun server entry point (Bun.serve)
+  client.tsx          # React app entry point
+  index.html          # HTML shell
   api/
-    routes/       # API route handlers (one file per domain)
+    routes/           # API route handlers (one file per domain)
   components/
-    ui/           # Shared UI components
-  features/       # Feature modules (pages/views)
+    ui/               # Shared UI components
+    app/              # App-level components (TopNav, etc.)
+  features/           # Feature modules (SalaryBook, etc.)
   lib/
+    animate.ts        # WAAPI helpers (animate, tween, applyProgressStyles)
     server/
-      router.ts   # Route registry + Bun.serve route compilation
-      utils.ts    # Error handling helpers
-    utils.ts      # Client utilities
+      router.ts       # Route registry + Bun.serve route compilation
+      utils.ts        # Error handling helpers
+    utils.ts          # Client utilities (cx, focusRing, etc.)
+  state/
+    shell/            # Shell state (scroll-spy, sidebar, transitions)
+      useScrollSpy.ts         # Scroll-spy with sectionProgress
+      useSidebarStack.ts      # Sidebar entity stack
+      useSidebarTransition.ts # Animation lifecycle (safeToUnmount)
+      ShellProvider.tsx       # Context provider
+    filters/          # Filter state
 specs/
   00-ui-philosophy.md
   01-salary-book.md
   02-team-header-and-draft-assets.md
   03-trade-machine.md
+reference/
+  silkhq/             # Reverse-engineered Silk patterns (steal ideas, not the library)
+    AGENTS.md         # Quick patterns to steal
+    *.md              # Detailed docs on scroll, animation, state machines
 tests/
-  api.test.ts     # API endpoint tests (expects PORT=3001)
+  api.test.ts         # API endpoint tests (expects PORT=3001)
 ```
 
 ---
@@ -108,8 +143,10 @@ tests/
 
 - **API routes** are registered via `RouteRegistry` in `src/lib/server/router.ts` and merged in `src/server.ts`.
 - Prefer reading tool-facing UI data from `pcms.*_warehouse` tables.
-- Keep the app **read-only** unless there’s a strong reason to add writes.
-- Don’t re-implement cap/trade rules in React if they can live in SQL.
+- Keep the app **read-only** unless there's a strong reason to add writes.
+- Don't re-implement cap/trade rules in React if they can live in SQL.
+- **Animations use WAAPI**, not CSS transitions — see `src/lib/animate.ts`.
+- **Scroll-linked effects** should use `sectionProgress` from `useShellContext()`.
 
 ---
 
@@ -125,6 +162,10 @@ Optimizations applied:
 - **SWR**
   - hooks migrated from ad-hoc fetches to SWR
   - global config: `revalidateOnFocus: false`, `dedupingInterval: 5000`
+
+- **Scroll-spy**
+  - Uses `requestAnimationFrame` for batched updates
+  - Programmatic scroll locks updates to prevent flicker
 
 Future (only if needed): virtualization (`@tanstack/react-virtual`) with care around sticky headers.
 

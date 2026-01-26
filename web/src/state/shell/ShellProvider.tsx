@@ -9,19 +9,25 @@ import React, {
 } from "react";
 
 import { useRegisterFilterChangeHandlers } from "@/state/filters";
-import { useScrollSpy } from "./useScrollSpy";
+import { useScrollSpy, type ScrollState } from "./useScrollSpy";
 import {
   useSidebarStack,
   type SidebarEntity,
   type SidebarMode,
 } from "./useSidebarStack";
 
+// ============================================================================
+// Context Types
+// ============================================================================
+
 export interface ShellContextValue {
-  // Canvas ref
+  // Canvas ref (scroll container)
   canvasRef: React.RefObject<HTMLDivElement | null>;
 
   // Scroll-spy state
   activeTeam: string | null;
+  sectionProgress: number;
+  scrollState: ScrollState;
   registerSection: (teamCode: string, element: HTMLElement | null) => void;
   scrollToTeam: (teamCode: string, behavior?: ScrollBehavior) => void;
 
@@ -40,6 +46,10 @@ export interface ShellContextValue {
 
 const ShellContext = createContext<ShellContextValue | null>(null);
 
+// ============================================================================
+// Hook
+// ============================================================================
+
 export function useShellContext() {
   const ctx = useContext(ShellContext);
   if (!ctx) {
@@ -47,6 +57,10 @@ export function useShellContext() {
   }
   return ctx;
 }
+
+// ============================================================================
+// Provider
+// ============================================================================
 
 export interface ShellProviderProps {
   children: ReactNode;
@@ -65,7 +79,17 @@ export function ShellProvider({
 }: ShellProviderProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  const { activeTeam, registerSection, scrollToTeam } = useScrollSpy({
+  // ---------------------------------------------------------------------------
+  // Scroll-spy
+  // ---------------------------------------------------------------------------
+
+  const {
+    activeTeam,
+    sectionProgress,
+    scrollState,
+    registerSection,
+    scrollToTeam,
+  } = useScrollSpy({
     topOffset,
     activationOffset,
     containerRef: canvasRef,
@@ -77,7 +101,7 @@ export function ShellProvider({
 
   const activeTeamBeforeFilterChangeRef = useRef<string | null>(null);
 
-  // Map of registered section elements (mirrors sectionsRef in useScrollSpy)
+  // Track registered section elements for filter-change restoration
   const sectionElementsRef = useRef<Map<string, HTMLElement>>(new Map());
 
   const registerSectionWithTracking = useCallback(
@@ -164,10 +188,16 @@ export function ShellProvider({
     "WAS",
   ]);
 
+  // ---------------------------------------------------------------------------
+  // Context value
+  // ---------------------------------------------------------------------------
+
   const value = useMemo<ShellContextValue>(
     () => ({
       canvasRef,
       activeTeam,
+      sectionProgress,
+      scrollState,
       registerSection: registerSectionWithTracking,
       scrollToTeam,
       sidebarMode,
@@ -181,6 +211,8 @@ export function ShellProvider({
     }),
     [
       activeTeam,
+      sectionProgress,
+      scrollState,
       registerSectionWithTracking,
       scrollToTeam,
       sidebarMode,
