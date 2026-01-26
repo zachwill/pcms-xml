@@ -225,8 +225,11 @@ export function SalaryTable({
           Content wrapper for scroll-linked opacity fade.
           The container's bg-background stays opaque; this inner div's opacity fades.
           This prevents the "sandwich" effect where outgoing header text overlaps incoming.
+          
+          Fading is controlled via CSS: the parent section gets data-faded attribute,
+          and this element fades via descendant selector + CSS transition.
         */}
-        <div ref={stickyHeaderContentRef}>
+        <div ref={stickyHeaderContentRef} data-header-content>
           {teamHeader}
 
           {/* TableHeader needs to horizontally scroll with the body, but the sticky

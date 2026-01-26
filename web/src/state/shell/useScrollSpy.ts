@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * - Scroll position IS state (not derived from it)
  * - Progress-driven model: exposes 0→1 progress through current section
  * - Lifecycle awareness: idle → scrolling → settling
+ * - CACHED POSITIONS: avoid getBoundingClientRect() during scroll (layout thrashing)
  *
  * The "active team" is determined by which section header is currently at/past
  * the sticky threshold. This drives:
@@ -14,8 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * 2. Team Selector Grid highlight
  * 3. Scroll-linked animations (via sectionProgress)
  *
- * @see web/reference/silkhq/07-scroll-and-scrolltrap.md
- * @see web/reference/silkhq/04-sheet-runtime-model.md
+ * @see web/reference/silkhq/03-scroll-and-gesture-trapping.md
  */
 
 // ============================================================================
@@ -23,6 +23,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // ============================================================================
 
 export type ScrollState = "idle" | "scrolling" | "settling";
+
+interface CachedSection {
+  code: string;
+  top: number; // Absolute top position relative to scroll container
+}
 
 export interface ScrollSpyOptions {
   /**
@@ -68,7 +73,6 @@ export interface ScrollSpyResult {
    * Progress through the current section: 0 when section just became active,
    * 1 when the next section is about to take over.
    *
-   * Use for scroll-linked animations (header fade, parallax, etc).
    * For the last section, progress is based on scroll distance to bottom.
    */
   sectionProgress: number;
@@ -125,8 +129,10 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
   // ---------------------------------------------------------------------------
 
   const [activeTeam, setActiveTeam] = useState<string | null>(null);
-  const [sectionProgress, setSectionProgress] = useState(0);
   const [scrollState, setScrollState] = useState<ScrollState>("idle");
+  
+  // sectionProgress is a ref, not state — updating it every frame would cause re-renders
+  const sectionProgressRef = useRef(0);
 
   // ---------------------------------------------------------------------------
   // Refs
@@ -135,8 +141,15 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
   // Registered section elements: teamCode → element
   const sectionsRef = useRef<Map<string, HTMLElement>>(new Map());
 
-  // Sorted section order cache (by DOM position)
-  const sortedSectionsRef = useRef<string[]>([]);
+  // CACHED positions: sorted array of { code, top }
+  // Only updated on registration changes, resize, or explicit invalidation
+  const cachedSectionsRef = useRef<CachedSection[]>([]);
+
+  // Cache for scroll container metrics (updated on resize)
+  const containerMetricsRef = useRef<{
+    scrollHeight: number;
+    clientHeight: number;
+  }>({ scrollHeight: 0, clientHeight: 0 });
 
   // Timers for scroll state machine
   const scrollEndTimerRef = useRef<number | null>(null);
@@ -145,150 +158,126 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
   // RAF handle for batching updates
   const rafRef = useRef<number | null>(null);
 
+  // Flag to prevent re-renders during active scroll
+  const isScrollingRef = useRef(false);
+
+  // Last known active team (to avoid unnecessary state updates)
+  const lastActiveTeamRef = useRef<string | null>(null);
+
   // ---------------------------------------------------------------------------
-  // Helpers
+  // Position Caching (only called on mount/resize/registration, NOT during scroll)
   // ---------------------------------------------------------------------------
 
   /**
-   * Get scroll metrics for the container.
+   * Recalculate and cache all section positions.
+   * This is the ONLY place we call getBoundingClientRect().
+   * Called on: mount, resize, section registration changes.
    */
-  const getScrollMetrics = useCallback(() => {
+  const rebuildPositionCache = useCallback(() => {
     const container = containerRef?.current;
+    const sections = sectionsRef.current;
 
-    if (container) {
-      return {
-        scrollTop: container.scrollTop,
-        scrollHeight: container.scrollHeight,
-        clientHeight: container.clientHeight,
-        containerTop: container.getBoundingClientRect().top,
-      };
+    if (sections.size === 0) {
+      cachedSectionsRef.current = [];
+      return;
     }
 
-    // Window scroll
-    return {
-      scrollTop: window.scrollY ?? document.documentElement.scrollTop,
-      scrollHeight: document.documentElement.scrollHeight,
-      clientHeight: window.innerHeight,
-      containerTop: 0,
-    };
-  }, [containerRef]);
+    // Get container's current scroll position and bounds
+    const scrollTop = container?.scrollTop ?? window.scrollY ?? 0;
+    const containerTop = container?.getBoundingClientRect().top ?? 0;
 
-  /**
-   * Get the absolute top position of an element relative to the scroll container.
-   */
-  const getElementTop = useCallback(
-    (element: HTMLElement): number => {
+    // Build position cache
+    const cached: CachedSection[] = [];
+
+    sections.forEach((element, code) => {
       const rect = element.getBoundingClientRect();
-      const metrics = getScrollMetrics();
+      // Convert viewport-relative to scroll-container-relative absolute position
+      const absoluteTop = container
+        ? rect.top - containerTop + scrollTop
+        : rect.top + scrollTop;
 
-      if (containerRef?.current) {
-        // Relative to scroll container
-        return rect.top - metrics.containerTop + metrics.scrollTop;
-      }
-
-      // Relative to document
-      return rect.top + metrics.scrollTop;
-    },
-    [containerRef, getScrollMetrics]
-  );
-
-  /**
-   * Sort sections by their DOM position (top to bottom).
-   */
-  const updateSortedSections = useCallback(() => {
-    const entries = Array.from(sectionsRef.current.entries());
-
-    entries.sort(([, elA], [, elB]) => {
-      const topA = getElementTop(elA);
-      const topB = getElementTop(elB);
-      return topA - topB;
+      cached.push({ code, top: absoluteTop });
     });
 
-    sortedSectionsRef.current = entries.map(([code]) => code);
-  }, [getElementTop]);
+    // Sort by position (top to bottom)
+    cached.sort((a, b) => a.top - b.top);
+
+    cachedSectionsRef.current = cached;
+
+    // Also cache container metrics
+    if (container) {
+      containerMetricsRef.current = {
+        scrollHeight: container.scrollHeight,
+        clientHeight: container.clientHeight,
+      };
+    } else {
+      containerMetricsRef.current = {
+        scrollHeight: document.documentElement.scrollHeight,
+        clientHeight: window.innerHeight,
+      };
+    }
+  }, [containerRef]);
+
+  // ---------------------------------------------------------------------------
+  // Fast Scroll Calculation (uses cached positions only, NO DOM reads)
+  // ---------------------------------------------------------------------------
 
   /**
-   * Calculate active team and section progress.
-   * Returns [activeTeamCode, progress].
+   * Calculate active team and progress using ONLY cached positions.
+   * No getBoundingClientRect() calls — pure math from scrollTop.
    */
-  const calculateScrollState = useCallback((): [string | null, number] => {
-    const sections = sectionsRef.current;
-    const sortedCodes = sortedSectionsRef.current;
-
-    if (sortedCodes.length === 0) {
+  const calculateFromCache = useCallback((): [string | null, number] => {
+    const cached = cachedSectionsRef.current;
+    if (cached.length === 0) {
       return [null, 0];
     }
 
-    const metrics = getScrollMetrics();
-    const threshold = metrics.scrollTop + topOffset + activationOffset;
+    // Read scrollTop (this is cheap, no layout forced)
+    const container = containerRef?.current;
+    const scrollTop = container?.scrollTop ?? window.scrollY ?? 0;
+    const threshold = scrollTop + topOffset + activationOffset;
 
-    // Find the active section: last section whose top is at or before threshold
-    let activeCode: string | null = null;
-    let activeIndex = -1;
-
-    for (let i = sortedCodes.length - 1; i >= 0; i--) {
-      const code = sortedCodes[i];
-      if (!code) continue;
-
-      const element = sections.get(code);
-      if (!element) continue;
-
-      const elementTop = getElementTop(element);
-
-      if (elementTop <= threshold) {
-        activeCode = code;
+    // Binary search would be faster for many sections, but linear is fine for ~30
+    let activeIndex = 0;
+    for (let i = cached.length - 1; i >= 0; i--) {
+      const section = cached[i];
+      if (section && section.top <= threshold) {
         activeIndex = i;
         break;
       }
     }
 
-    // If nothing found, use the first section (we're above all sections)
-    if (activeCode === null && sortedCodes.length > 0) {
-      const firstCode = sortedCodes[0];
-      if (firstCode) {
-        activeCode = firstCode;
-        activeIndex = 0;
-      }
+    const activeSection = cached[activeIndex];
+    if (!activeSection) {
+      return [null, 0];
     }
 
-    // Calculate progress through the active section
+    // Calculate progress
     let progress = 0;
+    const nextSection = cached[activeIndex + 1];
 
-    if (activeCode !== null) {
-      const activeElement = sections.get(activeCode);
+    if (nextSection) {
+      const sectionHeight = nextSection.top - activeSection.top;
+      if (sectionHeight > 0) {
+        const distanceScrolled = threshold - activeSection.top;
+        progress = Math.max(0, Math.min(1, distanceScrolled / sectionHeight));
+      }
+    } else {
+      // Last section: progress based on distance to bottom
+      const { scrollHeight, clientHeight } = containerMetricsRef.current;
+      const maxScroll = scrollHeight - clientHeight;
+      const distanceScrolled = threshold - activeSection.top;
+      const remainingDistance = maxScroll - activeSection.top;
 
-      if (activeElement) {
-        const activeTop = getElementTop(activeElement);
-
-        // Find the next section (if any)
-        const nextCode = sortedCodes[activeIndex + 1];
-        const nextElement = nextCode ? sections.get(nextCode) : null;
-
-        if (nextElement) {
-          // Progress = how far from active top to next top
-          const nextTop = getElementTop(nextElement);
-          const sectionHeight = nextTop - activeTop;
-
-          if (sectionHeight > 0) {
-            const distanceScrolled = threshold - activeTop;
-            progress = Math.max(0, Math.min(1, distanceScrolled / sectionHeight));
-          }
-        } else {
-          // Last section: progress based on scroll to bottom
-          const distanceScrolled = threshold - activeTop;
-          const remainingScroll = metrics.scrollHeight - metrics.clientHeight - activeTop;
-
-          if (remainingScroll > 0) {
-            progress = Math.max(0, Math.min(1, distanceScrolled / remainingScroll));
-          } else {
-            progress = 1;
-          }
-        }
+      if (remainingDistance > 0) {
+        progress = Math.max(0, Math.min(1, distanceScrolled / remainingDistance));
+      } else {
+        progress = 1;
       }
     }
 
-    return [activeCode, progress];
-  }, [getScrollMetrics, getElementTop, topOffset, activationOffset]);
+    return [activeSection.code, progress];
+  }, [containerRef, topOffset, activationOffset]);
 
   // ---------------------------------------------------------------------------
   // Scroll State Machine
@@ -306,6 +295,7 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
   }, []);
 
   const transitionToSettling = useCallback(() => {
+    isScrollingRef.current = false;
     setScrollState("settling");
 
     settleTimerRef.current = window.setTimeout(() => {
@@ -316,11 +306,11 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
 
   const handleScrollStart = useCallback(() => {
     clearTimers();
+    isScrollingRef.current = true;
     setScrollState("scrolling");
   }, [clearTimers]);
 
   const handleScrollContinue = useCallback(() => {
-    // Reset the scroll-end timer on each scroll event
     if (scrollEndTimerRef.current !== null) {
       clearTimeout(scrollEndTimerRef.current);
     }
@@ -332,38 +322,71 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
   }, [scrollEndDelay, transitionToSettling]);
 
   // ---------------------------------------------------------------------------
-  // Update Handler
-  // ---------------------------------------------------------------------------
-
-  const updateActiveSection = useCallback(() => {
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-    }
-
-    rafRef.current = requestAnimationFrame(() => {
-      const [newActiveTeam, newProgress] = calculateScrollState();
-
-      setActiveTeam((prev) => (prev !== newActiveTeam ? newActiveTeam : prev));
-      setSectionProgress(newProgress);
-
-      rafRef.current = null;
-    });
-  }, [calculateScrollState]);
-
-  // ---------------------------------------------------------------------------
-  // Scroll Handler
+  // Scroll Handler (optimized: minimal work, no layout reads)
   // ---------------------------------------------------------------------------
 
   const handleScroll = useCallback(() => {
-    // Update scroll state machine
-    if (scrollState === "idle") {
+    // State machine transitions
+    if (!isScrollingRef.current) {
       handleScrollStart();
     }
     handleScrollContinue();
 
-    // Update active section
-    updateActiveSection();
-  }, [scrollState, handleScrollStart, handleScrollContinue, updateActiveSection]);
+    // Debounce via RAF — only one calculation per frame
+    if (rafRef.current !== null) {
+      return; // Already have a pending update
+    }
+
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+
+      const [newActiveTeam, newProgress] = calculateFromCache();
+      const cached = cachedSectionsRef.current;
+      const prevActiveTeam = lastActiveTeamRef.current;
+      const prevProgress = sectionProgressRef.current;
+
+      // Store progress in ref
+      sectionProgressRef.current = newProgress;
+
+      // =====================================================================
+      // CSS-driven fading: only update data-faded attributes at boundaries
+      // =====================================================================
+      const FADE_THRESHOLD = 0.8;
+      const crossedThreshold =
+        (prevProgress < FADE_THRESHOLD && newProgress >= FADE_THRESHOLD) ||
+        (prevProgress >= FADE_THRESHOLD && newProgress < FADE_THRESHOLD);
+      const teamChanged = newActiveTeam !== prevActiveTeam;
+
+      if (teamChanged || crossedThreshold) {
+        const newActiveIndex = cached.findIndex((s) => s.code === newActiveTeam);
+
+        // Update data-faded on all sections
+        cached.forEach((section, index) => {
+          const el = sectionsRef.current.get(section.code);
+          if (!el) return;
+
+          // Teams before active → faded
+          // Active team when progress >= 80% → faded
+          // Everything else → not faded
+          const shouldFade =
+            index < newActiveIndex ||
+            (index === newActiveIndex && newProgress >= FADE_THRESHOLD);
+
+          if (shouldFade) {
+            el.setAttribute("data-faded", "");
+          } else {
+            el.removeAttribute("data-faded");
+          }
+        });
+      }
+
+      // Only update React state if activeTeam actually changed
+      if (teamChanged) {
+        lastActiveTeamRef.current = newActiveTeam;
+        setActiveTeam(newActiveTeam);
+      }
+    });
+  }, [handleScrollStart, handleScrollContinue, calculateFromCache]);
 
   // ---------------------------------------------------------------------------
   // Public API
@@ -377,69 +400,116 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
         sectionsRef.current.delete(teamCode);
       }
 
-      // Re-sort sections after registration change
-      updateSortedSections();
+      // Rebuild cache after registration change
+      // Use RAF to batch multiple rapid registrations
+      requestAnimationFrame(() => {
+        rebuildPositionCache();
 
-      // Update active section if this is the first registration
-      if (sectionsRef.current.size === 1 || !element) {
-        updateActiveSection();
-      }
+        // Recalculate active team if we haven't set one yet or on unregistration
+        if (lastActiveTeamRef.current === null || !element) {
+          const [newActive] = calculateFromCache();
+          if (newActive) {
+            lastActiveTeamRef.current = newActive;
+            setActiveTeam(newActive);
+          }
+        }
+      });
     },
-    [updateSortedSections, updateActiveSection]
+    [rebuildPositionCache, calculateFromCache]
   );
 
   const scrollToTeam = useCallback(
     (teamCode: string, behavior: ScrollBehavior = "instant") => {
-      const element = sectionsRef.current.get(teamCode);
-      if (!element) return;
+      // Find cached position
+      const cached = cachedSectionsRef.current.find((s) => s.code === teamCode);
+      if (!cached) return;
 
       // Set active team immediately to prevent flicker
+      lastActiveTeamRef.current = teamCode;
       setActiveTeam(teamCode);
-      setSectionProgress(0);
+      sectionProgressRef.current = 0;
 
-      // Perform the scroll
-      const targetTop = getElementTop(element) - topOffset;
-      const scrollTarget = containerRef?.current ?? window;
+      // Scroll to position
+      const targetTop = cached.top - topOffset;
+      const container = containerRef?.current;
 
-      if (scrollTarget === window) {
-        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-        const clampedTop = Math.max(0, Math.min(targetTop, maxScroll));
-        window.scrollTo({ top: clampedTop, behavior });
-      } else if (containerRef?.current) {
-        const container = containerRef.current;
+      if (container) {
         const maxScroll = container.scrollHeight - container.clientHeight;
-        const clampedTop = Math.max(0, Math.min(targetTop, maxScroll));
-        container.scrollTo({ top: clampedTop, behavior });
+        container.scrollTo({
+          top: Math.max(0, Math.min(targetTop, maxScroll)),
+          behavior,
+        });
+      } else {
+        const maxScroll =
+          document.documentElement.scrollHeight - window.innerHeight;
+        window.scrollTo({
+          top: Math.max(0, Math.min(targetTop, maxScroll)),
+          behavior,
+        });
       }
     },
-    [containerRef, topOffset, getElementTop]
+    [containerRef, topOffset]
   );
 
   // ---------------------------------------------------------------------------
   // Effects
   // ---------------------------------------------------------------------------
 
-  // Set up scroll listener
+  // Set up scroll listener + resize observer
   useEffect(() => {
-    const scrollTarget = containerRef?.current ?? window;
+    const container = containerRef?.current;
+    const scrollTarget = container ?? window;
 
+    // Initial cache build
+    rebuildPositionCache();
+
+    // Initial active section
+    const [initialActive] = calculateFromCache();
+    lastActiveTeamRef.current = initialActive;
+    setActiveTeam(initialActive);
+
+    // Scroll listener (passive for perf)
     scrollTarget.addEventListener("scroll", handleScroll, { passive: true });
 
-    // Initial calculation
-    updateSortedSections();
-    updateActiveSection();
+    // Resize observer to rebuild cache on size changes
+    const resizeObserver = new ResizeObserver(() => {
+      // Debounce resize handling
+      requestAnimationFrame(() => {
+        rebuildPositionCache();
+      });
+    });
+
+    if (container) {
+      resizeObserver.observe(container);
+    } else {
+      resizeObserver.observe(document.documentElement);
+    }
+
+    // Also listen for window resize (for non-container scroll)
+    const handleResize = () => {
+      requestAnimationFrame(() => {
+        rebuildPositionCache();
+      });
+    };
+    window.addEventListener("resize", handleResize, { passive: true });
 
     return () => {
       scrollTarget.removeEventListener("scroll", handleScroll);
-
-      // Cleanup timers
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", handleResize);
       clearTimers();
 
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [containerRef, handleScroll, updateSortedSections, updateActiveSection, clearTimers]);
+  }, [
+    containerRef,
+    handleScroll,
+    rebuildPositionCache,
+    calculateFromCache,
+    clearTimers,
+  ]);
 
   // ---------------------------------------------------------------------------
   // Return
@@ -447,7 +517,8 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
 
   return {
     activeTeam,
-    sectionProgress,
+    // Expose ref's current value (consumers should not expect this to trigger re-renders)
+    sectionProgress: sectionProgressRef.current,
     scrollState,
     registerSection,
     scrollToTeam,

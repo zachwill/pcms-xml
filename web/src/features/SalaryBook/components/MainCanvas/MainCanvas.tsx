@@ -24,9 +24,13 @@ export function MainCanvas({ className }: MainCanvasProps) {
       className={cx(
         "flex-1 overflow-y-auto overflow-x-hidden",
         "bg-background relative",
+        "overscroll-y-contain", // Prevent scroll chaining to parent/body
         className
       )}
-      style={{ isolation: "isolate" }}
+      style={{
+        isolation: "isolate",
+        WebkitOverflowScrolling: "touch", // iOS momentum scrolling
+      }}
     >
       {/* Team sections will be rendered here */}
       <div className="min-h-full">

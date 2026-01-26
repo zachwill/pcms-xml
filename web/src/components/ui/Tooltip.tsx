@@ -2,13 +2,37 @@ import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 import React from "react"
 import { cx } from "@/lib/utils"
 
+// ============================================================================
+// TooltipProvider — MUST wrap app once at the root level
+// ============================================================================
+// Base UI's tooltip system uses a Provider for coordinating delay timers.
+// Having one Provider per tooltip (2000+ on a dense page) causes massive
+// CPU overhead on hover. Instead, wrap the app ONCE with TooltipProvider.
+
+interface TooltipProviderProps {
+  children: React.ReactNode
+  /** Default delay before tooltips appear (ms). Default: 150 */
+  delayDuration?: number
+}
+
+function TooltipProvider({ children, delayDuration = 150 }: TooltipProviderProps) {
+  return (
+    <TooltipPrimitive.Provider delay={delayDuration}>
+      {children}
+    </TooltipPrimitive.Provider>
+  )
+}
+
+// ============================================================================
+// Tooltip — Individual tooltip instances (requires TooltipProvider ancestor)
+// ============================================================================
+
 interface TooltipProps {
   children: React.ReactNode
   content: React.ReactNode
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
-  delayDuration?: number
   side?: "bottom" | "left" | "top" | "right"
   sideOffset?: number
   showArrow?: boolean
@@ -23,7 +47,6 @@ const Tooltip = React.forwardRef<HTMLDivElement, TooltipProps>(
       children,
       className,
       content,
-      delayDuration = 150,
       defaultOpen,
       open,
       onClick,
@@ -36,67 +59,65 @@ const Tooltip = React.forwardRef<HTMLDivElement, TooltipProps>(
     forwardedRef,
   ) => {
     return (
-      <TooltipPrimitive.Provider delay={delayDuration}>
-        <TooltipPrimitive.Root
-          open={open}
-          defaultOpen={defaultOpen}
-          onOpenChange={onOpenChange}
+      <TooltipPrimitive.Root
+        open={open}
+        defaultOpen={defaultOpen}
+        onOpenChange={onOpenChange}
+      >
+        <TooltipPrimitive.Trigger
+          onClick={onClick}
+          render={triggerAsChild ? (children as React.ReactElement) : undefined}
         >
-          <TooltipPrimitive.Trigger
-            onClick={onClick}
-            render={triggerAsChild ? (children as React.ReactElement) : undefined}
-          >
-            {triggerAsChild ? undefined : children}
-          </TooltipPrimitive.Trigger>
-          <TooltipPrimitive.Portal>
-            <TooltipPrimitive.Positioner side={side} sideOffset={sideOffset}>
-              <TooltipPrimitive.Popup
-                ref={forwardedRef}
-                className={cx(
-                  // base
-                  "max-w-60 select-none rounded-md px-2.5 py-1.5 text-sm leading-5 shadow-md",
-                  // text color - inverted
-                  "text-primary-foreground",
-                  // background color
-                  "bg-foreground",
-                  // transform origin for animations
-                  "origin-[var(--transform-origin)]",
-                  // transitions
-                  "transition-[transform,scale,opacity] duration-100",
-                  "data-[starting-style]:scale-90 data-[starting-style]:opacity-0",
-                  "data-[ending-style]:scale-90 data-[ending-style]:opacity-0",
-                  className,
-                )}
-              >
-                {content}
-                {showArrow ? (
-                  <TooltipPrimitive.Arrow
-                    className={cx(
-                      "data-[side=bottom]:top-[-7px] data-[side=bottom]:rotate-180",
-                      "data-[side=top]:bottom-[-7px] data-[side=top]:rotate-0",
-                      "data-[side=left]:right-[-10px] data-[side=left]:-rotate-90",
-                      "data-[side=right]:left-[-10px] data-[side=right]:rotate-90",
-                    )}
+          {triggerAsChild ? undefined : children}
+        </TooltipPrimitive.Trigger>
+        <TooltipPrimitive.Portal>
+          <TooltipPrimitive.Positioner side={side} sideOffset={sideOffset}>
+            <TooltipPrimitive.Popup
+              ref={forwardedRef}
+              className={cx(
+                // base
+                "max-w-60 select-none rounded-md px-2.5 py-1.5 text-sm leading-5 shadow-md",
+                // text color - inverted
+                "text-primary-foreground",
+                // background color
+                "bg-foreground",
+                // transform origin for animations
+                "origin-[var(--transform-origin)]",
+                // transitions
+                "transition-[transform,scale,opacity] duration-100",
+                "data-[starting-style]:scale-90 data-[starting-style]:opacity-0",
+                "data-[ending-style]:scale-90 data-[ending-style]:opacity-0",
+                className,
+              )}
+            >
+              {content}
+              {showArrow ? (
+                <TooltipPrimitive.Arrow
+                  className={cx(
+                    "data-[side=bottom]:top-[-7px] data-[side=bottom]:rotate-180",
+                    "data-[side=top]:bottom-[-7px] data-[side=top]:rotate-0",
+                    "data-[side=left]:right-[-10px] data-[side=left]:-rotate-90",
+                    "data-[side=right]:left-[-10px] data-[side=right]:rotate-90",
+                  )}
+                >
+                  <svg
+                    width="12"
+                    height="7"
+                    viewBox="0 0 12 7"
+                    className="fill-foreground"
+                    aria-hidden="true"
                   >
-                    <svg
-                      width="12"
-                      height="7"
-                      viewBox="0 0 12 7"
-                      className="fill-foreground"
-                      aria-hidden="true"
-                    >
-                      <polygon points="0,0 6,7 12,0" />
-                    </svg>
-                  </TooltipPrimitive.Arrow>
-                ) : null}
-              </TooltipPrimitive.Popup>
-            </TooltipPrimitive.Positioner>
-          </TooltipPrimitive.Portal>
-        </TooltipPrimitive.Root>
-      </TooltipPrimitive.Provider>
+                    <polygon points="0,0 6,7 12,0" />
+                  </svg>
+                </TooltipPrimitive.Arrow>
+              ) : null}
+            </TooltipPrimitive.Popup>
+          </TooltipPrimitive.Positioner>
+        </TooltipPrimitive.Portal>
+      </TooltipPrimitive.Root>
     )
   },
 )
 Tooltip.displayName = "Tooltip"
 
-export { Tooltip, type TooltipProps }
+export { Tooltip, TooltipProvider, type TooltipProps, type TooltipProviderProps }

@@ -245,9 +245,10 @@ export function SidebarPanel({ className }: SidebarPanelProps) {
         {/* Base Layer: Team Context (utilizes full height) */}
         <div
           className={cx(
-            "absolute inset-0 overflow-y-auto pt-4 px-4 pb-4 transition-opacity duration-300",
+            "absolute inset-0 overflow-y-auto overscroll-y-contain pt-4 px-4 pb-4 transition-opacity duration-300",
             isEntityMode ? "opacity-20 grayscale pointer-events-none" : "opacity-100"
           )}
+          style={{ WebkitOverflowScrolling: "touch" }}
         >
           <TeamContext />
         </div>
@@ -268,7 +269,8 @@ export function SidebarPanel({ className }: SidebarPanelProps) {
         {showEntity && stagedEntity && (
           <div
             ref={containerRef}
-            className="absolute inset-0 overflow-y-auto z-10"
+            className="absolute inset-0 overflow-y-auto overscroll-y-contain z-10"
+            style={{ WebkitOverflowScrolling: "touch" }}
             data-transition-state={transitionState}
           >
             <div className="pt-14 px-4 pb-4">

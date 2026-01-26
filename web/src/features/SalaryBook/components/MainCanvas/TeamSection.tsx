@@ -9,7 +9,7 @@
  * - Delegates horizontal scroll + filtering to SalaryTable
  */
 
-import React, { useCallback, useRef, useEffect, useMemo } from "react";
+import React, { useCallback, useRef } from "react";
 import { cx } from "@/lib/utils";
 import { useShellContext, type PlayerEntity, type AgentEntity, type PickEntity } from "@/state/shell";
 import { useFilters } from "@/state/filters";
@@ -34,6 +34,11 @@ interface TeamSectionProps {
   /** 3-letter team code (e.g., "BOS", "LAL") */
   teamCode: string;
 }
+
+const teamSectionStyle: React.CSSProperties = {
+  contentVisibility: "auto",
+  containIntrinsicSize: "800px 600px",
+};
 
 // ============================================================================
 // Helper Components
@@ -94,7 +99,10 @@ function TeamSectionError({
 // ============================================================================
 
 export function TeamSection({ teamCode }: TeamSectionProps) {
-  const { registerSection, activeTeam, sectionProgress, pushEntity, loadedTeams } = useShellContext();
+  // NOTE: Scroll-linked fading is now handled via CSS + data-faded attribute.
+  // useScrollSpy sets data-faded on section elements at boundary crossings.
+  // No per-frame JS needed — CSS transitions handle the animation.
+  const { registerSection, pushEntity } = useShellContext();
   const { filters } = useFilters();
 
   // Ref for scroll-linked header content fade effect.
@@ -140,7 +148,6 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
   );
 
   const team = getTeam(teamCode);
-  const isActive = activeTeam === teamCode;
   const isLoading =
     playersLoading ||
     salaryLoading ||
@@ -148,47 +155,6 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
     capHoldsLoading ||
     exceptionsLoading ||
     deadMoneyLoading;
-
-  // ========================================================================
-  // Team fading logic
-  // ========================================================================
-  // A team's header opacity is determined by:
-  // 1. Teams above the active team → fully faded (0.35)
-  // 2. Active team → progressively fades from 1 → 0.35 as progress goes 70% → 100%
-  // 3. Teams below the active team → full opacity (1)
-  //
-  // This creates a clean "reading line" effect where teams you've scrolled
-  // past are dimmed, and the active team smoothly fades as you approach the next.
-
-  const headerOpacity = useMemo(() => {
-    const minOpacity = 0.35;
-    const fadeStart = 0.7;
-
-    if (!activeTeam) return 1;
-
-    const activeIndex = loadedTeams.indexOf(activeTeam);
-    const thisIndex = loadedTeams.indexOf(teamCode);
-
-    // Team is above active team → fully faded
-    if (thisIndex < activeIndex) return minOpacity;
-
-    // Team is below active team → full opacity
-    if (thisIndex > activeIndex) return 1;
-
-    // This IS the active team → progressive fade based on sectionProgress
-    if (sectionProgress <= fadeStart) return 1;
-
-    // Fade from 1 → 0.35 as progress goes 70% → 100%
-    const fadeProgress = (sectionProgress - fadeStart) / (1 - fadeStart);
-    return 1 - fadeProgress * (1 - minOpacity);
-  }, [activeTeam, loadedTeams, teamCode, sectionProgress]);
-
-  useEffect(() => {
-    const el = stickyHeaderContentRef.current;
-    if (!el) return;
-
-    el.style.opacity = String(headerOpacity);
-  }, [headerOpacity]);
 
   // ========================================================================
   // Sidebar navigation handlers (memoized to prevent PlayerRow re-renders)
@@ -237,6 +203,7 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
         ref={(el) => registerSection(teamCode, el)}
         data-team={teamCode}
         className="border-b border-border"
+        style={teamSectionStyle}
       >
         <TeamSectionSkeleton teamCode={teamCode} />
       </div>
@@ -249,6 +216,7 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
         ref={(el) => registerSection(teamCode, el)}
         data-team={teamCode}
         className="border-b border-border"
+        style={teamSectionStyle}
       >
         <TeamSectionError teamCode={teamCode} error={playersError} onRetry={refetchPlayers} />
       </div>
@@ -264,6 +232,7 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
       ref={(el) => registerSection(teamCode, el)}
       data-team={teamCode}
       className="border-b border-border"
+      style={teamSectionStyle}
     >
       <SalaryTable
         stickyHeaderContentRef={stickyHeaderContentRef}
@@ -284,7 +253,6 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
             roomUnderSecondApron={currentYearSalary?.room_under_second_apron ?? null}
             rosterCount={currentYearSalary?.roster_row_count ?? null}
             twoWayCount={currentYearSalary?.two_way_row_count ?? null}
-            isActive={isActive}
           />
         }
         players={players}

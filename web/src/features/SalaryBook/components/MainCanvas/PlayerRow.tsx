@@ -13,7 +13,6 @@
 
 import React, { memo } from "react";
 import { cx } from "@/lib/utils";
-import { Tooltip } from "@/components/ui/Tooltip";
 import type { SalaryBookPlayer } from "../../data";
 import type { ContractOption, GuaranteeType } from "../../data";
 import { PlayerSalary } from "./PlayerSalary";
@@ -39,7 +38,7 @@ interface SalaryCellStyle {
   textClass: string;
   /** Italicize the salary number (not the pct-cap line) */
   salaryItalic: boolean;
-  tooltip: React.ReactNode | null;
+  tooltipText: string | null;
 }
 
 function getSalaryCellStyle(
@@ -213,14 +212,7 @@ function getSalaryCellStyle(
     bgClass,
     textClass,
     salaryItalic,
-    tooltip:
-      tooltips.length > 0 ? (
-        <div className="flex flex-col gap-0.5">
-          {tooltips.map((t) => (
-            <div key={t}>{t}</div>
-          ))}
-        </div>
-      ) : null,
+    tooltipText: tooltips.length > 0 ? tooltips.join("\n") : null,
   };
 }
 
@@ -426,7 +418,7 @@ function SalaryYearCell({
           yosThisYear,
           priorYearSalary
         )
-      : { bgClass: "", textClass: "", salaryItalic: false, tooltip: null };
+      : { bgClass: "", textClass: "", salaryItalic: false, tooltipText: null };
 
   // Get percentile and format pct cap with blocks
   const pctCapPercentile = getPctCapPercentile(player, year);
@@ -442,6 +434,7 @@ function SalaryYearCell({
         cellStyle.bgClass,
         cellStyle.textClass
       )}
+      title={cellStyle.tooltipText ?? undefined}
     >
       {showTwoWayBadge ? (
         <PlayerSalary amount={salary} showTwoWayBadge />
@@ -477,18 +470,7 @@ function SalaryYearCell({
     </div>
   );
 
-  return cellStyle.tooltip ? (
-    <Tooltip
-      triggerAsChild
-      content={cellStyle.tooltip}
-      side="top"
-      sideOffset={6}
-    >
-      {cell}
-    </Tooltip>
-  ) : (
-    cell
-  );
+  return cell;
 }
 
 function TotalSalaryCell({
@@ -512,6 +494,7 @@ function TotalSalaryCell({
           ? "grid place-items-center h-[calc(1.75rem+1.25rem-0.125rem)]"
           : "flex flex-col"
       )}
+      title={contractTypeLabel ?? undefined}
     >
       {showTotalTwoWay ? (
         <PlayerSalary
@@ -539,13 +522,7 @@ function TotalSalaryCell({
     </div>
   );
 
-  return contractTypeLabel ? (
-    <Tooltip triggerAsChild content={contractTypeLabel} side="top" sideOffset={6}>
-      {cell}
-    </Tooltip>
-  ) : (
-    cell
-  );
+  return cell;
 }
 
 function AgentAgencyColumn({

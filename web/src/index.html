@@ -97,9 +97,28 @@
         margin: 0;
         height: 100%;
         font-family: 'Inter', system-ui, sans-serif;
+        overflow-x: hidden;
+        overscroll-behavior-y: contain; /* Prevent pull-to-refresh / bounce */
       }
 
-      body { overflow-x: hidden; }
+      /* iOS momentum scrolling for scroll containers */
+      .scroll-touch {
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Smooth programmatic scrolls (scrollToTeam, etc.) */
+      html.smooth-scroll {
+        scroll-behavior: smooth;
+      }
+
+      /* Team section fading: scroll-spy sets data-faded on sections we've passed */
+      [data-header-content] {
+        opacity: 1;
+        transition: opacity 0.2s ease-out;
+      }
+      [data-faded] [data-header-content] {
+        opacity: 0.35;
+      }
 
       /* Base UI Dialog/AlertDialog animations */
       /* Backdrop */
