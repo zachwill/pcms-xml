@@ -151,7 +151,7 @@ export function TeamSelectorGrid() {
       // Alt/Cmd+Click: Isolate - show only this team
       setLoadedTeams([teamCode]);
       // Small delay to let state update before scrolling
-      setTimeout(() => scrollToTeam(teamCode, "auto"), 0);
+      setTimeout(() => scrollToTeam(teamCode, "instant"), 0);
       return;
     }
 
@@ -180,9 +180,9 @@ export function TeamSelectorGrid() {
       );
       setLoadedTeams(newLoaded);
       // Wait for DOM update before scrolling
-      setTimeout(() => scrollToTeam(teamCode, "smooth"), 0);
+      setTimeout(() => scrollToTeam(teamCode, "instant"), 0);
     } else {
-      scrollToTeam(teamCode, "smooth");
+      scrollToTeam(teamCode, "instant");
     }
   };
 

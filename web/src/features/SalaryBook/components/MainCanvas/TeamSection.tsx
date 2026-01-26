@@ -9,7 +9,7 @@
  * - Delegates horizontal scroll + filtering to SalaryTable
  */
 
-import React, { useCallback, useRef, useEffect } from "react";
+import React, { useCallback, useRef, useEffect, useMemo } from "react";
 import { cx } from "@/lib/utils";
 import { useShellContext, type PlayerEntity, type AgentEntity, type PickEntity } from "@/state/shell";
 import { useFilters } from "@/state/filters";
@@ -94,7 +94,7 @@ function TeamSectionError({
 // ============================================================================
 
 export function TeamSection({ teamCode }: TeamSectionProps) {
-  const { registerSection, activeTeam, sectionProgress, pushEntity } = useShellContext();
+  const { registerSection, activeTeam, sectionProgress, pushEntity, loadedTeams } = useShellContext();
   const { filters } = useFilters();
 
   // Ref for scroll-linked header content fade effect.
@@ -150,40 +150,45 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
     deadMoneyLoading;
 
   // ========================================================================
-  // Scroll-linked header content fade effect
+  // Team fading logic
   // ========================================================================
-  // When this team is active, apply opacity fade to the header CONTENT as section scrolls.
-  // The container background stays opaque; only text/KPIs/column labels fade.
-  // This prevents the "sandwich" effect where outgoing header overlaps incoming header.
+  // A team's header opacity is determined by:
+  // 1. Teams above the active team → fully faded (0.35)
+  // 2. Active team → progressively fades from 1 → 0.35 as progress goes 70% → 100%
+  // 3. Teams below the active team → full opacity (1)
   //
-  // Key insight: we only manipulate opacity when THIS section is active.
-  // - Incoming sections (not yet active) keep their default opacity (1)
-  // - Outgoing sections (no longer active) retain their last faded value
-  // - Active section fades as progress approaches 100%
+  // This creates a clean "reading line" effect where teams you've scrolled
+  // past are dimmed, and the active team smoothly fades as you approach the next.
+
+  const headerOpacity = useMemo(() => {
+    const minOpacity = 0.35;
+    const fadeStart = 0.7;
+
+    if (!activeTeam) return 1;
+
+    const activeIndex = loadedTeams.indexOf(activeTeam);
+    const thisIndex = loadedTeams.indexOf(teamCode);
+
+    // Team is above active team → fully faded
+    if (thisIndex < activeIndex) return minOpacity;
+
+    // Team is below active team → full opacity
+    if (thisIndex > activeIndex) return 1;
+
+    // This IS the active team → progressive fade based on sectionProgress
+    if (sectionProgress <= fadeStart) return 1;
+
+    // Fade from 1 → 0.35 as progress goes 70% → 100%
+    const fadeProgress = (sectionProgress - fadeStart) / (1 - fadeStart);
+    return 1 - fadeProgress * (1 - minOpacity);
+  }, [activeTeam, loadedTeams, teamCode, sectionProgress]);
 
   useEffect(() => {
     const el = stickyHeaderContentRef.current;
     if (!el) return;
 
-    // Only manipulate opacity when this section is active.
-    // When not active, leave opacity untouched:
-    // - Incoming sections stay at full opacity (never been touched)
-    // - Outgoing sections retain their faded value (won't snap back)
-    if (!isActive) return;
-
-    const minOpacity = 0.35;
-    const fadeStart = 0.7;
-
-    if (sectionProgress >= fadeStart) {
-      // Fade from 100% → 35% as progress goes 70% → 100%
-      const fadeProgress = (sectionProgress - fadeStart) / (1 - fadeStart);
-      const opacity = 1 - fadeProgress * (1 - minOpacity);
-      el.style.opacity = String(opacity);
-    } else {
-      // Full opacity for first 70% of section
-      el.style.opacity = "1";
-    }
-  }, [isActive, sectionProgress]);
+    el.style.opacity = String(headerOpacity);
+  }, [headerOpacity]);
 
   // ========================================================================
   // Sidebar navigation handlers (memoized to prevent PlayerRow re-renders)

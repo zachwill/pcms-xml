@@ -167,6 +167,7 @@ const CommandContent = React.forwardRef<
     if (itemElements && itemElements[selectedIndex]) {
       itemElements[selectedIndex].scrollIntoView({
         block: "nearest",
+        behavior: "instant",
       })
     }
   }, [selectedIndex, items])

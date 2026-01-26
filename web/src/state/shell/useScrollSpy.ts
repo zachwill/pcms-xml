@@ -142,10 +142,6 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
   const scrollEndTimerRef = useRef<number | null>(null);
   const settleTimerRef = useRef<number | null>(null);
 
-  // Programmatic scroll lock (prevents scroll-spy updates during scrollTo)
-  const isProgrammaticScrollRef = useRef(false);
-  const programmaticScrollTimerRef = useRef<number | null>(null);
-
   // RAF handle for batching updates
   const rafRef = useRef<number | null>(null);
 
@@ -340,8 +336,6 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
   // ---------------------------------------------------------------------------
 
   const updateActiveSection = useCallback(() => {
-    if (isProgrammaticScrollRef.current) return;
-
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
     }
@@ -395,21 +389,13 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
   );
 
   const scrollToTeam = useCallback(
-    (teamCode: string, behavior: ScrollBehavior = "smooth") => {
+    (teamCode: string, behavior: ScrollBehavior = "instant") => {
       const element = sectionsRef.current.get(teamCode);
       if (!element) return;
 
       // Set active team immediately to prevent flicker
       setActiveTeam(teamCode);
       setSectionProgress(0);
-
-      // Lock scroll-spy updates during programmatic scroll
-      isProgrammaticScrollRef.current = true;
-
-      // Clear any existing programmatic scroll timer
-      if (programmaticScrollTimerRef.current !== null) {
-        clearTimeout(programmaticScrollTimerRef.current);
-      }
 
       // Perform the scroll
       const targetTop = getElementTop(element) - topOffset;
@@ -425,17 +411,8 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
         const clampedTop = Math.max(0, Math.min(targetTop, maxScroll));
         container.scrollTo({ top: clampedTop, behavior });
       }
-
-      // Unlock after scroll completes (with generous timeout for smooth scrolling)
-      const unlockDelay = behavior === "smooth" ? 1000 : 100;
-
-      programmaticScrollTimerRef.current = window.setTimeout(() => {
-        isProgrammaticScrollRef.current = false;
-        programmaticScrollTimerRef.current = null;
-        updateActiveSection();
-      }, unlockDelay);
     },
-    [containerRef, topOffset, getElementTop, updateActiveSection]
+    [containerRef, topOffset, getElementTop]
   );
 
   // ---------------------------------------------------------------------------
@@ -460,10 +437,6 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
 
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
-      }
-
-      if (programmaticScrollTimerRef.current !== null) {
-        clearTimeout(programmaticScrollTimerRef.current);
       }
     };
   }, [containerRef, handleScroll, updateSortedSections, updateActiveSection, clearTimers]);
