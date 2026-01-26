@@ -139,6 +139,12 @@ export function TeamHeader({
     return formatters.compactCurrency(value);
   };
 
+  // Some team names are just a hair too long for the fixed left column.
+  // Keep styling identical for all other teams.
+  const isSlightlySmallerTeamName =
+    teamName === "Minnesota Timberwolves" ||
+    teamName === "Oklahoma City Thunder";
+
   return (
     <div
       className={cx(
@@ -184,7 +190,8 @@ export function TeamHeader({
           <button
             onClick={handleTeamClick}
             className={cx(
-              "font-semibold text-[13px] leading-tight text-left",
+              "font-semibold leading-tight text-left",
+              isSlightlySmallerTeamName ? "text-[12px]" : "text-[13px]",
               // Ensure long names truncate inside the fixed-width left column
               "block w-full truncate",
               "hover:text-primary transition-colors",
