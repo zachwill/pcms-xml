@@ -41,10 +41,10 @@ export function MainCanvas({ className }: MainCanvasProps) {
             ))}
 
             {/*
-              Scroll spacer so the last team can always "handoff" and own the sticky header.
-              This mirrors iOS Contacts behavior near the end of the list.
+              Small scroll spacer so the last team header can still reach the sticky position
+              without adding a huge blank tail at the end of the list.
             */}
-            <div aria-hidden className="h-[calc(100vh-130px)]" />
+            <div aria-hidden className="h-8" />
           </div>
         )}
       </div>

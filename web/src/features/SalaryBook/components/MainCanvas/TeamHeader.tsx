@@ -72,8 +72,8 @@ function KpiCard({ label, value, title, variant = "default" }: KpiCardProps) {
   return (
     <div
       className={cx(
-        // Size: match salary column width (w-24 = 96px)
-        "w-24 h-10",
+        // Size: compact KPI card (w-20 = 80px)
+        "w-20 h-10",
         // Dark background with minimal border-radius
         "bg-zinc-200/80 dark:bg-zinc-700/80 rounded",
         // Two-level layout: label on top, value below
@@ -143,14 +143,14 @@ export function TeamHeader({
     <div
       className={cx(
         // Layout - taller to accommodate KPI cards
-        "h-14 px-4 flex items-center",
+        "h-14 flex items-center",
         // Border
         "border-b border-border"
       )}
       style={{ backgroundColor: "var(--muted, #f4f4f5)" }}
     >
       {/* Left section: Logo + Team name — fixed width to align with Player Info column */}
-      <div className="w-[190px] shrink-0 flex items-center gap-3">
+      <div className="w-52 shrink-0 pl-4 flex items-center gap-3">
         {/* Team logo */}
         <div
           className={cx(
@@ -184,7 +184,9 @@ export function TeamHeader({
           <button
             onClick={handleTeamClick}
             className={cx(
-              "font-semibold text-sm leading-tight text-left",
+              "font-semibold text-[13px] leading-tight text-left",
+              // Ensure long names truncate inside the fixed-width left column
+              "block w-full truncate",
               "hover:text-primary transition-colors",
               "focus:outline-none focus-visible:underline focus-visible:text-primary"
             )}
@@ -198,65 +200,86 @@ export function TeamHeader({
         </div>
       </div>
 
-      {/* KPI Cards - aligned with year columns below */}
-      <div className="flex items-center gap-2">
-        {/* Roster Count - above 25-26 */}
-        {rosterCount !== null && (
-          <KpiCard
-            label="Roster"
-            value={`${rosterCount}`}
-            title="Number of roster players"
-          />
-        )}
+      {/* KPI Cards - aligned with year + total columns below */}
+      <div className="flex items-center">
+        {/*
+          Each KPI occupies a fixed "slot" matching a salary column (w-24).
+          The card itself can be narrower (w-20) but stays centered in the slot,
+          so the slot boundaries align with the table columns.
+        */}
 
-        {/* Total Salary - above 26-27 */}
-        {currentYearTotal !== null && (
-          <KpiCard
-            label="Total"
-            value={formatters.compactCurrency(currentYearTotal)}
-            title="Current year total salary"
-          />
-        )}
+        {/* Slot 1: above 25-26 */}
+        <div className="w-24 shrink-0 flex justify-center">
+          {rosterCount !== null ? (
+            <KpiCard
+              label="Roster"
+              value={`${rosterCount}`}
+              title="Number of roster players"
+            />
+          ) : null}
+        </div>
 
-        {/* Cap Space - above 27-28 (green if positive) */}
-        {currentYearCapSpace !== null && (
-          <KpiCard
-            label="Cap Space"
-            value={`${currentYearCapSpace >= 0 ? "+" : ""}${formatters.compactCurrency(currentYearCapSpace)}`}
-            title="Cap space (positive = room, negative = over cap)"
-            variant={currentYearCapSpace > 0 ? "positive" : "default"}
-          />
-        )}
+        {/* Slot 2: above 26-27 */}
+        <div className="w-24 shrink-0 flex justify-center">
+          {currentYearTotal !== null ? (
+            <KpiCard
+              label="Total"
+              value={formatters.compactCurrency(currentYearTotal)}
+              title="Current year total salary"
+            />
+          ) : null}
+        </div>
 
-        {/* Room Under Tax - above 28-29 (red if negative) */}
-        {roomUnderTax !== null && (
-          <KpiCard
-            label="Tax Room"
-            value={formatRoom(roomUnderTax)}
-            title="Room under luxury tax line"
-            variant={roomUnderTax < 0 ? "negative" : "default"}
-          />
-        )}
+        {/* Slot 3: above 27-28 */}
+        <div className="w-24 shrink-0 flex justify-center">
+          {currentYearCapSpace !== null ? (
+            <KpiCard
+              label="Cap Space"
+              value={`${currentYearCapSpace >= 0 ? "+" : ""}${formatters.compactCurrency(currentYearCapSpace)}`}
+              title="Cap space (positive = room, negative = over cap)"
+              variant={currentYearCapSpace > 0 ? "positive" : "default"}
+            />
+          ) : null}
+        </div>
 
-        {/* Room Under 1st Apron - above 29-30 (red if negative) */}
-        {roomUnderFirstApron !== null && (
-          <KpiCard
-            label="Apron 1"
-            value={formatRoom(roomUnderFirstApron)}
-            title="Room under first apron"
-            variant={roomUnderFirstApron < 0 ? "negative" : "default"}
-          />
-        )}
+        {/* Slot 4: above 28-29 */}
+        <div className="w-24 shrink-0 flex justify-center">
+          {roomUnderTax !== null ? (
+            <KpiCard
+              label="Tax Room"
+              value={formatRoom(roomUnderTax)}
+              title="Room under luxury tax line"
+              variant={roomUnderTax < 0 ? "negative" : "default"}
+            />
+          ) : null}
+        </div>
 
-        {/* Room Under 2nd Apron - above Total column (red if negative) */}
-        {roomUnderSecondApron !== null && (
-          <KpiCard
-            label="Apron 2"
-            value={formatRoom(roomUnderSecondApron)}
-            title="Room under second apron"
-            variant={roomUnderSecondApron < 0 ? "negative" : "default"}
-          />
-        )}
+        {/* Slot 5: above 29-30 */}
+        <div className="w-24 shrink-0 flex justify-center">
+          {roomUnderFirstApron !== null ? (
+            <KpiCard
+              label="Apron 1"
+              value={formatRoom(roomUnderFirstApron)}
+              title="Room under first apron"
+              variant={roomUnderFirstApron < 0 ? "negative" : "default"}
+            />
+          ) : null}
+        </div>
+
+        {/* Slot 6: above Total column */}
+        <div className="w-24 shrink-0 flex justify-center">
+          {roomUnderSecondApron !== null ? (
+            <KpiCard
+              label="Apron 2"
+              value={formatRoom(roomUnderSecondApron)}
+              title="Room under second apron"
+              variant={roomUnderSecondApron < 0 ? "negative" : "default"}
+            />
+          ) : null}
+        </div>
+
+        {/* Agent column spacer (matches table agent column width) */}
+        <div className="w-40 shrink-0 pr-4" />
       </div>
     </div>
   );
