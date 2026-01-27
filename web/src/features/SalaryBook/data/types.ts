@@ -273,6 +273,9 @@ export interface DraftPick {
   round: 1 | 2;
   protections: string | null; // Protection description
   is_swap: boolean; // If it's a pick swap
+  is_conditional: boolean;
+  asset_type: string | null;
+  description: string | null;
   conveyance_history: string | null;
 }
 

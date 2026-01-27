@@ -16,6 +16,7 @@
 import React from "react";
 import { cx, formatters } from "@/lib/utils";
 import { useShellContext, type TeamEntity } from "@/state/shell";
+import { KpiCell } from "./KpiCell";
 
 // ============================================================================
 // Types
@@ -51,49 +52,6 @@ export interface TeamHeaderProps {
 // ============================================================================
 // Component
 // ============================================================================
-
-// ============================================================================
-// KPI Card Component
-// ============================================================================
-
-interface KpiCardProps {
-  label: string;
-  value: string;
-  title?: string;
-  /** Optional color variant for the value */
-  variant?: "default" | "positive" | "negative";
-}
-
-function KpiCard({ label, value, title, variant = "default" }: KpiCardProps) {
-  const valueColorClass = {
-    default: "text-foreground",
-    positive: "text-green-600 dark:text-green-400",
-    negative: "text-red-500",
-  }[variant];
-
-  return (
-    <div
-      className={cx(
-        // Size: compact KPI card (w-20 = 80px)
-        "w-20 h-10",
-        // Dark background with minimal border-radius
-        "bg-zinc-200/80 dark:bg-zinc-700/80 rounded",
-        // Two-level layout: label on top, value below
-        "flex flex-col items-center justify-center",
-        // Text styling
-        "text-center"
-      )}
-      title={title}
-    >
-      <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-medium leading-none">
-        {label}
-      </span>
-      <span className={cx("text-xs tabular-nums font-semibold leading-tight mt-0.5", valueColorClass)}>
-        {value}
-      </span>
-    </div>
-  );
-}
 
 // ============================================================================
 // Main Component
@@ -221,7 +179,7 @@ export function TeamHeader({
         {/* Slot 1: above 25-26 */}
         <div className="w-24 shrink-0 flex justify-center">
           {rosterCount !== null ? (
-            <KpiCard
+            <KpiCell
               label="Roster"
               value={`${rosterCount}`}
               title="Number of roster players"
@@ -232,7 +190,7 @@ export function TeamHeader({
         {/* Slot 2: Two-Way */}
         <div className="w-24 shrink-0 flex justify-center">
           {twoWayCount !== null ? (
-            <KpiCard
+            <KpiCell
               label="Two-Way"
               value={`${twoWayCount}`}
               title="Number of two-way contracts"
@@ -243,7 +201,7 @@ export function TeamHeader({
         {/* Slot 3: Total */}
         <div className="w-24 shrink-0 flex justify-center">
           {currentYearTotal !== null ? (
-            <KpiCard
+            <KpiCell
               label="Total"
               value={formatters.compactCurrency(currentYearTotal)}
               title="Current year total salary"
@@ -254,7 +212,7 @@ export function TeamHeader({
         {/* Slot 4: Cap Space */}
         <div className="w-24 shrink-0 flex justify-center">
           {currentYearCapSpace !== null ? (
-            <KpiCard
+            <KpiCell
               label="Cap Space"
               value={`${currentYearCapSpace >= 0 ? "+" : ""}${formatters.compactCurrency(currentYearCapSpace)}`}
               title="Cap space (positive = room, negative = over cap)"
@@ -266,7 +224,7 @@ export function TeamHeader({
         {/* Slot 5: Tax Room */}
         <div className="w-24 shrink-0 flex justify-center">
           {roomUnderTax !== null ? (
-            <KpiCard
+            <KpiCell
               label="Tax Room"
               value={formatRoom(roomUnderTax)}
               title="Room under luxury tax line"
@@ -278,7 +236,7 @@ export function TeamHeader({
         {/* Slot 6: Apron 1 */}
         <div className="w-24 shrink-0 flex justify-center">
           {roomUnderFirstApron !== null ? (
-            <KpiCard
+            <KpiCell
               label="Apron 1"
               value={formatRoom(roomUnderFirstApron)}
               title="Room under first apron"
@@ -290,7 +248,7 @@ export function TeamHeader({
         {/* Slot 7: Apron 2 */}
         <div className="w-24 shrink-0 flex justify-center">
           {roomUnderSecondApron !== null ? (
-            <KpiCard
+            <KpiCell
               label="Apron 2"
               value={formatRoom(roomUnderSecondApron)}
               title="Room under second apron"

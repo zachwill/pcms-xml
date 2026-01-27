@@ -9,7 +9,10 @@ interface PickApiResponse {
   year: number;
   round: number;
   asset_slot: number;
+  sub_asset_slot: number;
   asset_type: string | null;
+  is_conditional: boolean;
+  is_swap: boolean;
   description: string | null;
 }
 
@@ -27,27 +30,37 @@ export interface UsePicksReturn {
   refetch: () => Promise<void>;
 }
 
-function parseOriginTeamCode(teamCode: string, rawFragment: string): string {
-  // Try to extract origin team from description
-  // Common patterns: "LAL 1st", "Own 1st", "From LAL"
-  const fromMatch = rawFragment.match(/(?:From|from)\s+([A-Z]{3})/);
-  const prefixMatch = rawFragment.match(/^([A-Z]{3})\s+/);
-
-  const from = fromMatch?.[1];
-  if (from) return from;
-
-  const prefix = prefixMatch?.[1];
-  if (prefix && prefix !== "Own") return prefix;
-
-  return teamCode;
-}
-
 function parseProtections(rawFragment: string): string | null {
   // Common patterns: "Top 5 Protected", "Lottery Protected", "Unprotected"
   const protectedMatch = rawFragment.match(
     /(Top\s+\d+|Lottery|Unprotected)[\s-]*(Protected)?/i
   );
   return protectedMatch ? protectedMatch[0] : null;
+}
+
+function parseOriginTeamCode(teamCode: string, rawFragment: string): string {
+  const hasOwnMatch = rawFragment.match(/\bOwn\b/i);
+  if (hasOwnMatch) return teamCode;
+
+  // Common patterns: "Has LAL", "To OKC", "From LAL"
+  const fromMatch = rawFragment.match(/(?:From|from)\s+([A-Z]{3})/);
+  const toMatch = rawFragment.match(/(?:To|to)\s+([A-Z]{3})/);
+  const hasMatch = rawFragment.match(/(?:Has|has)\s+([A-Z]{3})/);
+  const prefixMatch = rawFragment.match(/^([A-Z]{3})\s+/);
+
+  const from = fromMatch?.[1];
+  if (from) return from;
+
+  const to = toMatch?.[1];
+  if (to) return to;
+
+  const has = hasMatch?.[1];
+  if (has) return has;
+
+  const prefix = prefixMatch?.[1];
+  if (prefix && prefix !== "Own") return prefix;
+
+  return teamCode;
 }
 
 /**
@@ -59,21 +72,21 @@ function mapApiToPick(data: PickApiResponse): DraftPick {
   const originTeamCode = parseOriginTeamCode(data.team_code, description);
   const protections = parseProtections(description);
 
-  // Determine if it's a pick swap based on either asset_type or description.
-  const isSwap =
-    data.asset_type?.toLowerCase().includes("swap") ??
-    description.toLowerCase().includes("swap");
+  const isSwap = data.is_swap || description.toLowerCase().includes("swap");
 
   return {
     // We don't have a stable DB id in this endpoint.
     // Use a deterministic composite key.
-    id: `${data.team_code}-${data.year}-${data.round}-${data.asset_slot}`,
+    id: `${data.team_code}-${data.year}-${data.round}-${data.asset_slot}-${data.sub_asset_slot}`,
     team_code: data.team_code,
     origin_team_code: originTeamCode,
     year: Number(data.year),
     round: data.round === 1 ? 1 : 2,
     protections,
     is_swap: isSwap,
+    is_conditional: data.is_conditional,
+    asset_type: data.asset_type ?? null,
+    description: data.description ?? null,
     conveyance_history: null,
   };
 }

@@ -5,9 +5,11 @@
  * Shows team info with cap outlook (financial health) data.
  * Updates automatically as user scrolls to different teams.
  *
- * Two tabs:
- * - Cap Outlook: financial health, cap space projections, tax thresholds
- * - Team Stats: record, standings, efficiency metrics (future phase)
+ * Tabs:
+ * - Cap: financial health, cap space projections, tax thresholds
+ * - Draft: placeholder for future picks/rights view
+ * - Injuries: placeholder for future availability view
+ * - Stats: record, standings, efficiency metrics (future phase)
  */
 
 import { useState, memo } from "react";
@@ -17,6 +19,8 @@ import { useTeamSalary, useTeams, useTwoWayCapacity } from "../../../hooks";
 import { TeamContextHeader } from "./TeamContextHeader";
 import { TabToggle, type TabId } from "./TabToggle";
 import { CapOutlookTab } from "./CapOutlookTab";
+import { DraftTab } from "./DraftTab";
+import { InjuriesTab } from "./InjuriesTab";
 import { TeamStatsTab } from "./TeamStatsTab";
 import { TeamContextSkeleton, EmptyState } from "./TeamContextSkeleton";
 
@@ -40,9 +44,11 @@ export interface TeamContextProps {
  *
  * Content:
  * - Team header (logo, name, conference)
- * - Tab toggle (Cap Outlook / Team Stats)
- * - Cap Outlook: total salary, cap space, tax status, room under thresholds, projections
- * - Team Stats: placeholder for future phase (record, standings, efficiency)
+ * - Tab toggle (Cap / Draft / Injuries / Stats)
+ * - Cap: total salary, cap space, tax status, room under thresholds, projections
+ * - Draft: placeholder for pick inventory + protections
+ * - Injuries: placeholder for availability report
+ * - Stats: placeholder for future phase (record, standings, efficiency)
  *
  * Future additions:
  * - AI Analysis insights
@@ -52,7 +58,7 @@ export function TeamContext({ teamCode: teamCodeProp, className }: TeamContextPr
   const { getTeam, isLoading: teamsLoading } = useTeams();
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<TabId>("cap-outlook");
+  const [activeTab, setActiveTab] = useState<TabId>("cap");
 
   // Use prop if provided, otherwise fall back to scroll-spy active team
   const teamCode = teamCodeProp ?? activeTeam;
@@ -98,7 +104,7 @@ export function TeamContext({ teamCode: teamCodeProp, className }: TeamContextPr
       <TabToggle activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Tab Content */}
-      {activeTab === "cap-outlook" ? (
+      {activeTab === "cap" && (
         <CapOutlookTab
           currentYearTotal={currentYearTotal}
           currentYearCapSpace={currentYearCapSpace}
@@ -106,9 +112,10 @@ export function TeamContext({ teamCode: teamCodeProp, className }: TeamContextPr
           salaryByYear={salaryByYear}
           twoWayCapacity={twoWayCapacity}
         />
-      ) : (
-        <TeamStatsTab teamCode={teamCode} />
       )}
+      {activeTab === "draft" && <DraftTab teamCode={teamCode} />}
+      {activeTab === "injuries" && <InjuriesTab teamCode={teamCode} />}
+      {activeTab === "stats" && <TeamStatsTab teamCode={teamCode} />}
     </div>
   );
 }

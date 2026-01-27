@@ -1,18 +1,14 @@
 /**
- * DraftAssetsRow — Pick pills aligned under year columns
+ * DraftAssetsRow — Draft assets aligned under year columns
  *
- * Displays draft picks owned by the team, organized by year with clickable pills.
- * Each pill shows origin team + round (e.g., "LAL 1").
- *
- * Layout must align with the player rows/table header:
- * - Sticky left block = headshot spacer (w-10) + label column (w-40)
- * - 6 year columns (w-24 each)
- * - total spacer column (w-24)
- * - management spacer (w-40)
+ * Displays draft picks owned by the team, organized by year.
+ * Each year column stacks pick cards vertically (FRP/SRP).
  */
 
 import React from "react";
+import { FileText } from "lucide-react";
 import { cx, focusRing } from "@/lib/utils";
+import { KpiCell } from "./KpiCell";
 import type { DraftPick } from "../../data";
 
 export interface DraftAssetsRowProps {
@@ -22,35 +18,75 @@ export interface DraftAssetsRowProps {
 
 const SALARY_YEARS = [2025, 2026, 2027, 2028, 2029] as const;
 
-interface PickPillProps {
-  pick: DraftPick;
-  onClick: (e: React.MouseEvent) => void;
+function DraftAssetsIcon() {
+  return (
+    <div
+      className={cx(
+        "w-7 h-7 rounded border border-border",
+        "bg-background flex items-center justify-center",
+        "text-muted-foreground"
+      )}
+    >
+      <FileText className="w-4 h-4" aria-hidden="true" />
+    </div>
+  );
 }
 
-function PickPill({ pick, onClick }: PickPillProps) {
-  const colorClasses =
-    pick.round === 1
-      ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800/50"
-      : "bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700/50";
+function getRoundLabel(round: DraftPick["round"]): string {
+  return round === 1 ? "FRP" : "SRP";
+}
 
-  return (
-    <button
-      onClick={onClick}
-      className={cx(
-        "inline-flex items-center gap-0.5",
-        "px-1.5 py-0.5 rounded",
-        "text-[9px] font-semibold uppercase tracking-wide",
-        colorClasses,
-        pick.is_swap && "border border-dashed border-current/40",
-        "transition-colors cursor-pointer",
-        focusRing()
-      )}
-      title={buildPickTitle(pick)}
-    >
-      {pick.origin_team_code} {pick.round}
-      {pick.is_swap && "s"}
-    </button>
-  );
+function isFrozenPick(pick: DraftPick): boolean {
+  return pick.description?.toLowerCase().includes("frozen") ?? false;
+}
+
+function getPickStatus(pick: DraftPick): string {
+  if (isFrozenPick(pick)) return "Frozen";
+  if (pick.is_swap) return "Swap";
+  if (pick.is_conditional) return "Conditional";
+  if (pick.protections) return "Protected";
+  if (pick.description?.toLowerCase().includes("conditional")) return "Conditional";
+  return getRoundLabel(pick.round);
+}
+
+function getPickCardClasses(pick: DraftPick): {
+  className: string;
+  labelClassName: string;
+  valueClassName: string;
+} {
+  if (isFrozenPick(pick)) {
+    return {
+      className: "bg-slate-950/90 border border-blue-500/40",
+      labelClassName: "text-blue-200",
+      valueClassName: "text-blue-100",
+    };
+  }
+
+  if (pick.round === 1) {
+    return {
+      className: "bg-amber-200/80 dark:bg-amber-700/70",
+      labelClassName: "",
+      valueClassName: "",
+    };
+  }
+
+  return {
+    className: "bg-slate-200/80 dark:bg-slate-700/70",
+    labelClassName: "",
+    valueClassName: "",
+  };
+}
+
+function buildPickValue(pick: DraftPick): string {
+  if (pick.asset_type === "TO") {
+    return `To ${pick.origin_team_code}`;
+  }
+
+  if (pick.origin_team_code === pick.team_code) {
+    return "Own";
+  }
+
+  return pick.origin_team_code;
 }
 
 function buildPickTitle(pick: DraftPick): string {
@@ -84,7 +120,7 @@ export function DraftAssetsRow({ picks, onPickClick }: DraftAssetsRowProps) {
         "[[data-scroll-state=scrolling]_&]:pointer-events-none"
       )}
     >
-      <div className="h-8 flex items-center text-xs">
+      <div className="flex items-start text-xs py-2">
         {/* Label column (STICKY LEFT COLUMN) */}
         <div
           className={cx(
@@ -97,7 +133,9 @@ export function DraftAssetsRow({ picks, onPickClick }: DraftAssetsRowProps) {
           )}
         >
           <div className="grid grid-cols-[40px_1fr] items-center h-full">
-            <div />
+            <div className="flex items-center justify-start">
+              <DraftAssetsIcon />
+            </div>
             <div className="pl-1 flex items-center gap-2 min-w-0">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Draft Assets
@@ -117,36 +155,54 @@ export function DraftAssetsRow({ picks, onPickClick }: DraftAssetsRowProps) {
         </div>
 
         {/* Year columns */}
-        {SALARY_YEARS.map((year) => {
-          const yearPicks = picksByYear[year] || [];
-          return (
-            <div
-              key={year}
-              className={cx(
-                "w-24 shrink-0",
-                "flex flex-wrap items-center justify-center gap-1",
-                "px-0.5"
-              )}
-            >
-              {yearPicks.map((pick) => (
-                <PickPill
-                  key={pick.id}
-                  pick={pick}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onPickClick(pick);
-                  }}
-                />
-              ))}
-            </div>
-          );
-        })}
+        <div className="flex items-start">
+          {SALARY_YEARS.map((year) => {
+            const yearPicks = picksByYear[year] || [];
+            const hasPicks = yearPicks.length > 0;
 
-        {/* Total spacer column */}
-        <div className="w-24 shrink-0" />
+            return (
+              <div
+                key={year}
+                className="w-24 shrink-0 flex flex-col items-center gap-1"
+              >
+                {hasPicks
+                  ? yearPicks.map((pick) => {
+                      const status = getPickStatus(pick);
+                      const value = buildPickValue(pick);
+                      const cardClasses = getPickCardClasses(pick);
+                      return (
+                        <button
+                          key={pick.id}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onPickClick(pick);
+                          }}
+                          className={cx("rounded", focusRing())}
+                        >
+                          <KpiCell
+                            label={status}
+                            value={value}
+                            title={buildPickTitle(pick)}
+                            className={cardClasses.className}
+                            labelClassName={cx("w-full truncate", cardClasses.labelClassName)}
+                            valueClassName={cx("truncate", cardClasses.valueClassName)}
+                          />
+                        </button>
+                      );
+                    })
+                  : (
+                      <KpiCell value="—" variant="muted" />
+                    )}
+              </div>
+            );
+          })}
 
-        {/* Management spacer */}
-        <div className="w-40 pr-4 shrink-0" />
+          {/* Total spacer column */}
+          <div className="w-24 shrink-0" />
+
+          {/* Management spacer */}
+          <div className="w-40 pr-4 shrink-0" />
+        </div>
       </div>
     </div>
   );

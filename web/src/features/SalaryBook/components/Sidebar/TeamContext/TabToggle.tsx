@@ -1,10 +1,10 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { cx, focusRing } from "@/lib/utils";
 
-type TabId = "cap-outlook" | "team-stats";
+type TabId = "cap" | "draft" | "injuries" | "stats";
 
 /**
- * Tab toggle for switching between Cap Outlook and Team Stats
+ * Tab toggle for switching between Cap, Draft, Injuries, and Stats
  *
  * Features a sliding indicator that animates between tabs (Silk-inspired pattern).
  * The indicator is a separate element that slides behind the buttons, creating
@@ -20,8 +20,10 @@ export function TabToggle({
   onTabChange: (tab: TabId) => void;
 }) {
   const tabs: { id: TabId; label: string }[] = [
-    { id: "cap-outlook", label: "Cap Outlook" },
-    { id: "team-stats", label: "Team Stats" },
+    { id: "cap", label: "Cap" },
+    { id: "draft", label: "Draft" },
+    { id: "injuries", label: "Injuries" },
+    { id: "stats", label: "Stats" },
   ];
 
   // Refs for measuring positions

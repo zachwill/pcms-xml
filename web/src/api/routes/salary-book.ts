@@ -389,12 +389,15 @@ salaryBookRouter.get("/picks", async (req) => {
       draft_year as year,
       draft_round as round,
       asset_slot,
+      sub_asset_slot,
       asset_type,
+      is_conditional,
+      is_swap,
       raw_fragment as description
-    FROM pcms.draft_picks_warehouse
+    FROM pcms.draft_assets_warehouse
     WHERE team_code = ${teamCode}
       AND draft_year BETWEEN 2025 AND 2030
-    ORDER BY draft_year, draft_round, asset_slot
+    ORDER BY draft_year, draft_round, asset_slot, sub_asset_slot
   `;
 
   return Response.json(picks);
