@@ -14,7 +14,7 @@
 
 import { useState, memo } from "react";
 import { cx } from "@/lib/utils";
-import { useShellContext } from "@/state/shell";
+import { useShellScrollContext } from "@/state/shell";
 import { useTeamSalary, useTeams, useTwoWayCapacity } from "../../../hooks";
 import { TeamContextHeader } from "./TeamContextHeader";
 import { TabToggle, type TabId } from "./TabToggle";
@@ -54,7 +54,7 @@ export interface TeamContextProps {
  * - AI Analysis insights
  */
 export function TeamContext({ teamCode: teamCodeProp, className }: TeamContextProps) {
-  const { activeTeam } = useShellContext();
+  const { activeTeam } = useShellScrollContext();
   const { getTeam, isLoading: teamsLoading } = useTeams();
 
   // Tab state

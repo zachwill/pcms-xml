@@ -11,7 +11,7 @@
  */
 
 import { cx, formatters, focusRing } from "@/lib/utils";
-import { useShellContext, type AgentEntity } from "@/state/shell";
+import { useShellSidebarContext, type AgentEntity } from "@/state/shell";
 import { TwoWaySalaryBadge } from "../MainCanvas/badges";
 import { useAgent, useTeams, type AgentClientPlayer } from "../../hooks";
 
@@ -341,7 +341,7 @@ function AgentDetailError({
  * Each client is clickable to push a PlayerEntity onto the sidebar stack.
  */
 export function AgentDetail({ entity, className }: AgentDetailProps) {
-  const { pushEntity } = useShellContext();
+  const { pushEntity } = useShellSidebarContext();
   const { getTeam } = useTeams();
 
   // Fetch agent data

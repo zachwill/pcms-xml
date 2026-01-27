@@ -11,7 +11,13 @@
 
 import React, { useCallback, useRef } from "react";
 import { cx } from "@/lib/utils";
-import { useShellContext, type PlayerEntity, type AgentEntity, type PickEntity } from "@/state/shell";
+import {
+  useShellScrollContext,
+  useShellSidebarContext,
+  type PlayerEntity,
+  type AgentEntity,
+  type PickEntity,
+} from "@/state/shell";
 import { useFilters } from "@/state/filters";
 import {
   usePlayers,
@@ -103,7 +109,8 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
   // NOTE: Scroll-linked fading is now handled via CSS + data-faded attribute.
   // useScrollSpy sets data-faded on section elements at boundary crossings.
   // No per-frame JS needed — CSS transitions handle the animation.
-  const { registerSection, pushEntity } = useShellContext();
+  const { registerSection } = useShellScrollContext();
+  const { pushEntity } = useShellSidebarContext();
   const { filters } = useFilters();
 
   // Ref for scroll-linked header content fade effect.

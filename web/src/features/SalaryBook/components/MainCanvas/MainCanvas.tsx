@@ -6,7 +6,7 @@
  */
 
 import { cx } from "@/lib/utils";
-import { useShellContext } from "@/state/shell";
+import { useShellScrollContext, useShellTeamsContext } from "@/state/shell";
 import { TeamSection } from "./TeamSection";
 
 export interface MainCanvasProps {
@@ -16,7 +16,8 @@ export interface MainCanvasProps {
 
 /** Main scrollable canvas - renders all team sections */
 export function MainCanvas({ className }: MainCanvasProps) {
-  const { canvasRef, loadedTeams } = useShellContext();
+  const { canvasRef } = useShellScrollContext();
+  const { loadedTeams } = useShellTeamsContext();
 
   return (
     <div

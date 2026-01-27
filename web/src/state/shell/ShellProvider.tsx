@@ -21,40 +21,59 @@ import {
 // Context Types
 // ============================================================================
 
-export interface ShellContextValue {
+export interface ShellScrollContextValue {
   // Canvas ref (scroll container)
   canvasRef: React.RefObject<HTMLDivElement | null>;
 
   // Scroll-spy state
   activeTeam: string | null;
-  sectionProgress: number;
   scrollState: ScrollState;
   registerSection: (teamCode: string, element: HTMLElement | null) => void;
   scrollToTeam: (teamCode: string, behavior?: ScrollBehavior) => void;
+}
 
-  // Sidebar stack state
+export interface ShellSidebarContextValue {
   sidebarMode: SidebarMode;
   currentEntity: SidebarEntity | null;
   pushEntity: (entity: SidebarEntity) => void;
   popEntity: () => void;
   clearStack: () => void;
   canGoBack: boolean;
+}
 
-  // Loaded teams
+export interface ShellTeamsContextValue {
   loadedTeams: string[];
   setLoadedTeams: (teams: string[]) => void;
 }
 
-const ShellContext = createContext<ShellContextValue | null>(null);
+const ShellScrollContext = createContext<ShellScrollContextValue | null>(null);
+const ShellSidebarContext = createContext<ShellSidebarContextValue | null>(null);
+const ShellTeamsContext = createContext<ShellTeamsContextValue | null>(null);
 
 // ============================================================================
-// Hook
+// Hooks
 // ============================================================================
 
-export function useShellContext() {
-  const ctx = useContext(ShellContext);
+export function useShellScrollContext() {
+  const ctx = useContext(ShellScrollContext);
   if (!ctx) {
-    throw new Error("useShellContext must be used within <ShellProvider>");
+    throw new Error("useShellScrollContext must be used within <ShellProvider>");
+  }
+  return ctx;
+}
+
+export function useShellSidebarContext() {
+  const ctx = useContext(ShellSidebarContext);
+  if (!ctx) {
+    throw new Error("useShellSidebarContext must be used within <ShellProvider>");
+  }
+  return ctx;
+}
+
+export function useShellTeamsContext() {
+  const ctx = useContext(ShellTeamsContext);
+  if (!ctx) {
+    throw new Error("useShellTeamsContext must be used within <ShellProvider>");
   }
   return ctx;
 }
@@ -84,17 +103,12 @@ export function ShellProvider({
   // Scroll-spy
   // ---------------------------------------------------------------------------
 
-  const {
-    activeTeam,
-    sectionProgress,
-    scrollState,
-    registerSection,
-    scrollToTeam,
-  } = useScrollSpy({
-    topOffset,
-    activationOffset,
-    containerRef: canvasRef,
-  });
+  const { activeTeam, scrollState, registerSection, scrollToTeam } =
+    useScrollSpy({
+      topOffset,
+      activationOffset,
+      containerRef: canvasRef,
+    });
 
   // ---------------------------------------------------------------------------
   // Sync scroll state to DOM (Silk pattern for performant CSS-based updates)
@@ -200,41 +214,52 @@ export function ShellProvider({
   ]);
 
   // ---------------------------------------------------------------------------
-  // Context value
+  // Context values
   // ---------------------------------------------------------------------------
 
-  const value = useMemo<ShellContextValue>(
+  const scrollValue = useMemo<ShellScrollContextValue>(
     () => ({
       canvasRef,
       activeTeam,
-      sectionProgress,
       scrollState,
       registerSection: registerSectionWithTracking,
       scrollToTeam,
+    }),
+    [
+      activeTeam,
+      scrollState,
+      registerSectionWithTracking,
+      scrollToTeam,
+    ]
+  );
+
+  const sidebarValue = useMemo<ShellSidebarContextValue>(
+    () => ({
       sidebarMode,
       currentEntity,
       pushEntity: push,
       popEntity: pop,
       clearStack: clear,
       canGoBack,
+    }),
+    [sidebarMode, currentEntity, push, pop, clear, canGoBack]
+  );
+
+  const teamsValue = useMemo<ShellTeamsContextValue>(
+    () => ({
       loadedTeams,
       setLoadedTeams,
     }),
-    [
-      activeTeam,
-      sectionProgress,
-      scrollState,
-      registerSectionWithTracking,
-      scrollToTeam,
-      sidebarMode,
-      currentEntity,
-      push,
-      pop,
-      clear,
-      canGoBack,
-      loadedTeams,
-    ]
+    [loadedTeams]
   );
 
-  return <ShellContext.Provider value={value}>{children}</ShellContext.Provider>;
+  return (
+    <ShellScrollContext.Provider value={scrollValue}>
+      <ShellTeamsContext.Provider value={teamsValue}>
+        <ShellSidebarContext.Provider value={sidebarValue}>
+          {children}
+        </ShellSidebarContext.Provider>
+      </ShellTeamsContext.Provider>
+    </ShellScrollContext.Provider>
+  );
 }

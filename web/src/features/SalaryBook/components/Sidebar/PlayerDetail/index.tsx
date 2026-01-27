@@ -12,7 +12,7 @@
  */
 
 import { cx } from "@/lib/utils";
-import { useShellContext, type PlayerEntity } from "@/state/shell";
+import { useShellSidebarContext, type PlayerEntity } from "@/state/shell";
 import { usePlayer, useTeams } from "../../../hooks";
 import { PlayerHeader } from "./PlayerHeader";
 import { ContractSummary } from "./ContractSummary";
@@ -39,7 +39,7 @@ export interface PlayerDetailProps {
  * PlayerDetail — Full player contract view for sidebar
  */
 export function PlayerDetail({ entity, className }: PlayerDetailProps) {
-  const { pushEntity } = useShellContext();
+  const { pushEntity } = useShellSidebarContext();
   const { getTeam } = useTeams();
 
   const { player, isLoading, error } = usePlayer(entity.playerId);

@@ -11,7 +11,7 @@
  */
 
 import { cx } from "@/lib/utils";
-import { useShellContext } from "@/state/shell";
+import { useShellScrollContext, useShellTeamsContext } from "@/state/shell";
 import { useTeams } from "@/features/SalaryBook/hooks";
 import type { Team } from "@/features/SalaryBook/data";
 
@@ -132,12 +132,8 @@ function ConferenceGrid({
  * - scrollToTeam (jump navigation)
  */
 export function TeamSelectorGrid() {
-  const {
-    activeTeam,
-    loadedTeams,
-    setLoadedTeams,
-    scrollToTeam,
-  } = useShellContext();
+  const { activeTeam, scrollToTeam } = useShellScrollContext();
+  const { loadedTeams, setLoadedTeams } = useShellTeamsContext();
 
   const { teamsByConference, isLoading, error } = useTeams();
 
@@ -150,8 +146,7 @@ export function TeamSelectorGrid() {
     if (e.altKey || e.metaKey) {
       // Alt/Cmd+Click: Isolate - show only this team
       setLoadedTeams([teamCode]);
-      // Small delay to let state update before scrolling
-      setTimeout(() => scrollToTeam(teamCode, "instant"), 0);
+      scrollToTeam(teamCode, "instant");
       return;
     }
 
@@ -179,8 +174,7 @@ export function TeamSelectorGrid() {
         a.localeCompare(b)
       );
       setLoadedTeams(newLoaded);
-      // Wait for DOM update before scrolling
-      setTimeout(() => scrollToTeam(teamCode, "instant"), 0);
+      scrollToTeam(teamCode, "instant");
     } else {
       scrollToTeam(teamCode, "instant");
     }

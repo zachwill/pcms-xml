@@ -15,7 +15,7 @@
 
 import React from "react";
 import { cx, formatters } from "@/lib/utils";
-import { useShellContext, type TeamEntity } from "@/state/shell";
+import { useShellSidebarContext, type TeamEntity } from "@/state/shell";
 import { KpiCell } from "./KpiCell";
 
 // ============================================================================
@@ -71,7 +71,7 @@ export function TeamHeader({
   twoWayCount,
   isActive = false,
 }: TeamHeaderProps) {
-  const { pushEntity } = useShellContext();
+  const { pushEntity } = useShellSidebarContext();
 
   const [logoErrored, setLogoErrored] = React.useState(false);
 

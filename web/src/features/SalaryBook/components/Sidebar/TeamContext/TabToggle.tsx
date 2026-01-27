@@ -66,7 +66,7 @@ export function TabToggle({
   return (
     <div
       ref={containerRef}
-      className="relative flex gap-1 p-1 rounded-lg bg-muted border border-border"
+      className="relative grid grid-cols-4 gap-1 p-1 rounded-lg bg-muted border border-border"
     >
       {/* Sliding indicator — positioned absolutely behind buttons */}
       <div
@@ -79,6 +79,7 @@ export function TabToggle({
           // Start invisible until positioned (prevents flash)
           !isReady && "opacity-0"
         )}
+        style={{ width: 0, transform: "translateX(0px)" }}
         aria-hidden="true"
       />
 
@@ -90,9 +91,9 @@ export function TabToggle({
           onClick={() => onTabChange(tab.id)}
           className={cx(
             // Layout
-            "relative z-10 flex-1 px-3 py-1.5",
+            "relative z-10 min-w-0 px-3 py-1.5",
             // Typography
-            "text-sm font-medium",
+            "text-sm font-medium text-center",
             // Shape (for focus ring)
             "rounded-md",
             // Transition for text color only (indicator handles background)

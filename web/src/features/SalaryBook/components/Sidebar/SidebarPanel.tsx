@@ -18,7 +18,12 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { cx, focusRing } from "@/lib/utils";
-import { useShellContext, useSidebarTransition, type SidebarEntity } from "@/state/shell";
+import {
+  useShellScrollContext,
+  useShellSidebarContext,
+  useSidebarTransition,
+  type SidebarEntity,
+} from "@/state/shell";
 import { useTeams } from "../../hooks";
 import { durations, easings } from "@/lib/animate";
 import { TeamContext } from "./TeamContext";
@@ -139,11 +144,8 @@ export interface SidebarPanelProps {
  * - No CSS transitions that fight with WAAPI
  */
 export function SidebarPanel({ className }: SidebarPanelProps) {
-  const {
-    currentEntity,
-    popEntity,
-    activeTeam,
-  } = useShellContext();
+  const { currentEntity, popEntity } = useShellSidebarContext();
+  const { activeTeam } = useShellScrollContext();
 
   const {
     stagedEntity,

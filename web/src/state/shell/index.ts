@@ -1,4 +1,12 @@
-export { ShellProvider, useShellContext, type ShellContextValue } from "./ShellProvider";
+export {
+  ShellProvider,
+  useShellScrollContext,
+  useShellSidebarContext,
+  useShellTeamsContext,
+  type ShellScrollContextValue,
+  type ShellSidebarContextValue,
+  type ShellTeamsContextValue,
+} from "./ShellProvider";
 export { useScrollSpy, type ScrollState, type ScrollSpyResult } from "./useScrollSpy";
 export {
   useSidebarStack,

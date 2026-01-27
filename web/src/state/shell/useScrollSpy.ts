@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * the sticky threshold. This drives:
  * 1. Sidebar default mode (shows active team context)
  * 2. Team Selector Grid highlight
- * 3. Scroll-linked animations (via sectionProgress)
+ * 3. Scroll-linked animations (internal progress tracking)
  *
  * @see web/reference/silkhq/03-scroll-and-gesture-trapping.md
  */
@@ -70,14 +70,6 @@ export interface ScrollSpyResult {
   activeTeam: string | null;
 
   /**
-   * Progress through the current section: 0 when section just became active,
-   * 1 when the next section is about to take over.
-   *
-   * For the last section, progress is based on scroll distance to bottom.
-   */
-  sectionProgress: number;
-
-  /**
    * Current scroll lifecycle state.
    * - idle: not scrolling
    * - scrolling: actively scrolling (events firing)
@@ -97,11 +89,6 @@ export interface ScrollSpyResult {
    */
   scrollToTeam: (teamCode: string, behavior?: ScrollBehavior) => void;
 
-  /**
-   * Manually set active team (for external control).
-   * Typically not needed — prefer scrollToTeam.
-   */
-  setActiveTeam: (teamCode: string) => void;
 }
 
 // ============================================================================
@@ -164,6 +151,12 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
 
   // Last known active team (to avoid unnecessary state updates)
   const lastActiveTeamRef = useRef<string | null>(null);
+
+  // Pending scroll target (used when section isn't registered yet)
+  const pendingScrollRef = useRef<{
+    teamCode: string;
+    behavior: ScrollBehavior;
+  } | null>(null);
 
   // ---------------------------------------------------------------------------
   // Position Caching (only called on mount/resize/registration, NOT during scroll)
@@ -405,6 +398,34 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
   // Public API
   // ---------------------------------------------------------------------------
 
+  const performScrollToTeam = useCallback(
+    (teamCode: string, behavior: ScrollBehavior) => {
+      const cached = cachedSectionsRef.current.find((s) => s.code === teamCode);
+      if (!cached) return false;
+
+      const targetTop = cached.top - topOffset;
+      const container = containerRef?.current;
+
+      if (container) {
+        const maxScroll = container.scrollHeight - container.clientHeight;
+        container.scrollTo({
+          top: Math.max(0, Math.min(targetTop, maxScroll)),
+          behavior,
+        });
+      } else {
+        const maxScroll =
+          document.documentElement.scrollHeight - window.innerHeight;
+        window.scrollTo({
+          top: Math.max(0, Math.min(targetTop, maxScroll)),
+          behavior,
+        });
+      }
+
+      return true;
+    },
+    [containerRef, topOffset]
+  );
+
   const registerSection = useCallback(
     (teamCode: string, element: HTMLElement | null) => {
       if (element) {
@@ -428,43 +449,37 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
             applyFadedSections(newActive, newProgress);
           }
         }
+
+        const pending = pendingScrollRef.current;
+        if (pending && performScrollToTeam(pending.teamCode, pending.behavior)) {
+          pendingScrollRef.current = null;
+        }
       });
     },
-    [rebuildPositionCache, calculateFromCache, applyFadedSections]
+    [
+      rebuildPositionCache,
+      calculateFromCache,
+      applyFadedSections,
+      performScrollToTeam,
+    ]
   );
 
   const scrollToTeam = useCallback(
     (teamCode: string, behavior: ScrollBehavior = "instant") => {
-      // Find cached position
-      const cached = cachedSectionsRef.current.find((s) => s.code === teamCode);
-      if (!cached) return;
-
       // Set active team immediately to prevent flicker
       lastActiveTeamRef.current = teamCode;
       setActiveTeam(teamCode);
       sectionProgressRef.current = 0;
       applyFadedSections(teamCode, 0);
 
-      // Scroll to position
-      const targetTop = cached.top - topOffset;
-      const container = containerRef?.current;
-
-      if (container) {
-        const maxScroll = container.scrollHeight - container.clientHeight;
-        container.scrollTo({
-          top: Math.max(0, Math.min(targetTop, maxScroll)),
-          behavior,
-        });
+      const didScroll = performScrollToTeam(teamCode, behavior);
+      if (!didScroll) {
+        pendingScrollRef.current = { teamCode, behavior };
       } else {
-        const maxScroll =
-          document.documentElement.scrollHeight - window.innerHeight;
-        window.scrollTo({
-          top: Math.max(0, Math.min(targetTop, maxScroll)),
-          behavior,
-        });
+        pendingScrollRef.current = null;
       }
     },
-    [containerRef, topOffset, applyFadedSections]
+    [applyFadedSections, performScrollToTeam]
   );
 
   // ---------------------------------------------------------------------------
@@ -536,11 +551,8 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
 
   return {
     activeTeam,
-    // Expose ref's current value (consumers should not expect this to trigger re-renders)
-    sectionProgress: sectionProgressRef.current,
     scrollState,
     registerSection,
     scrollToTeam,
-    setActiveTeam,
   };
 }
