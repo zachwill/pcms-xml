@@ -158,6 +158,10 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
     behavior: ScrollBehavior;
   } | null>(null);
 
+  // Force active team during programmatic navigation to avoid flicker
+  const forcedActiveTeamRef = useRef<string | null>(null);
+  const forcedActiveTimerRef = useRef<number | null>(null);
+
   // ---------------------------------------------------------------------------
   // Position Caching (only called on mount/resize/registration, NOT during scroll)
   // ---------------------------------------------------------------------------
@@ -309,6 +313,14 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
   // Scroll State Machine
   // ---------------------------------------------------------------------------
 
+  const clearForcedActive = useCallback(() => {
+    if (forcedActiveTimerRef.current !== null) {
+      clearTimeout(forcedActiveTimerRef.current);
+      forcedActiveTimerRef.current = null;
+    }
+    forcedActiveTeamRef.current = null;
+  }, []);
+
   const clearTimers = useCallback(() => {
     if (scrollEndTimerRef.current !== null) {
       clearTimeout(scrollEndTimerRef.current);
@@ -370,9 +382,18 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
       const cached = cachedSectionsRef.current;
       const prevActiveTeam = lastActiveTeamRef.current;
       const prevProgress = sectionProgressRef.current;
+      const forcedActiveTeam = forcedActiveTeamRef.current;
 
       // Store progress in ref
       sectionProgressRef.current = newProgress;
+
+      if (forcedActiveTeam && newActiveTeam !== forcedActiveTeam) {
+        return;
+      }
+
+      if (forcedActiveTeam && newActiveTeam === forcedActiveTeam) {
+        clearForcedActive();
+      }
 
       // =====================================================================
       // CSS-driven fading: only update data-faded attributes at boundaries
@@ -472,6 +493,13 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
       sectionProgressRef.current = 0;
       applyFadedSections(teamCode, 0);
 
+      clearForcedActive();
+      forcedActiveTeamRef.current = teamCode;
+      forcedActiveTimerRef.current = window.setTimeout(() => {
+        forcedActiveTimerRef.current = null;
+        forcedActiveTeamRef.current = null;
+      }, 350);
+
       const didScroll = performScrollToTeam(teamCode, behavior);
       if (!didScroll) {
         pendingScrollRef.current = { teamCode, behavior };
@@ -479,7 +507,7 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
         pendingScrollRef.current = null;
       }
     },
-    [applyFadedSections, performScrollToTeam]
+    [applyFadedSections, performScrollToTeam, clearForcedActive]
   );
 
   // ---------------------------------------------------------------------------

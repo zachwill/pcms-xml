@@ -35,8 +35,7 @@ export function TabToggle({
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
 
-  // Position/animate indicator when activeTab changes
-  useLayoutEffect(() => {
+  const updateIndicator = () => {
     const indicator = indicatorRef.current;
     const activeButton = tabRefs.current.get(activeTab);
 
@@ -52,6 +51,23 @@ export function TabToggle({
       hasInitialized.current = true;
       setIsReady(true);
     }
+  };
+
+  // Position/animate indicator when activeTab changes
+  useLayoutEffect(() => {
+    const rafId = requestAnimationFrame(updateIndicator);
+    return () => cancelAnimationFrame(rafId);
+  }, [activeTab]);
+
+  // Keep indicator synced to layout changes (Safari grid timing)
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => updateIndicator());
+    observer.observe(container);
+
+    return () => observer.disconnect();
   }, [activeTab]);
 
   // Register tab button refs
