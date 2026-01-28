@@ -160,7 +160,12 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
 
   // Force active team during programmatic navigation to avoid flicker
   const forcedActiveTeamRef = useRef<string | null>(null);
-  const forcedActiveTimerRef = useRef<number | null>(null);
+  const forcedActiveTargetRef = useRef<number | null>(null);
+
+  const clearForcedActive = useCallback(() => {
+    forcedActiveTeamRef.current = null;
+    forcedActiveTargetRef.current = null;
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Position Caching (only called on mount/resize/registration, NOT during scroll)
@@ -177,6 +182,7 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
 
     if (sections.size === 0) {
       cachedSectionsRef.current = [];
+      clearForcedActive();
       return;
     }
 
@@ -202,6 +208,17 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
 
     cachedSectionsRef.current = cached;
 
+    if (forcedActiveTeamRef.current) {
+      const forcedSection = cached.find(
+        (section) => section.code === forcedActiveTeamRef.current
+      );
+      if (!forcedSection) {
+        clearForcedActive();
+      } else {
+        forcedActiveTargetRef.current = forcedSection.top - topOffset;
+      }
+    }
+
     // Also cache container metrics
     if (container) {
       containerMetricsRef.current = {
@@ -214,7 +231,7 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
         clientHeight: window.innerHeight,
       };
     }
-  }, [containerRef]);
+  }, [containerRef, clearForcedActive, topOffset]);
 
   // ---------------------------------------------------------------------------
   // Fast Scroll Calculation (uses cached positions only, NO DOM reads)
@@ -313,14 +330,6 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
   // Scroll State Machine
   // ---------------------------------------------------------------------------
 
-  const clearForcedActive = useCallback(() => {
-    if (forcedActiveTimerRef.current !== null) {
-      clearTimeout(forcedActiveTimerRef.current);
-      forcedActiveTimerRef.current = null;
-    }
-    forcedActiveTeamRef.current = null;
-  }, []);
-
   const clearTimers = useCallback(() => {
     if (scrollEndTimerRef.current !== null) {
       clearTimeout(scrollEndTimerRef.current);
@@ -378,22 +387,30 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
 
+      const forcedActiveTeam = forcedActiveTeamRef.current;
+      const forcedTargetTop = forcedActiveTargetRef.current;
+
+      if (forcedActiveTeam) {
+        const container = containerRef?.current;
+        const scrollTop = container?.scrollTop ?? window.scrollY ?? 0;
+        const tolerance = 2;
+
+        if (
+          forcedTargetTop === null ||
+          Math.abs(scrollTop - forcedTargetTop) > tolerance
+        ) {
+          return;
+        }
+
+        clearForcedActive();
+      }
+
       const [newActiveTeam, newProgress] = calculateFromCache();
-      const cached = cachedSectionsRef.current;
       const prevActiveTeam = lastActiveTeamRef.current;
       const prevProgress = sectionProgressRef.current;
-      const forcedActiveTeam = forcedActiveTeamRef.current;
 
       // Store progress in ref
       sectionProgressRef.current = newProgress;
-
-      if (forcedActiveTeam && newActiveTeam !== forcedActiveTeam) {
-        return;
-      }
-
-      if (forcedActiveTeam && newActiveTeam === forcedActiveTeam) {
-        clearForcedActive();
-      }
 
       // =====================================================================
       // CSS-driven fading: only update data-faded attributes at boundaries
@@ -413,16 +430,23 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
         setActiveTeam(newActiveTeam);
       }
     });
-  }, [handleScrollStart, handleScrollContinue, calculateFromCache, applyFadedSections]);
+  }, [
+    handleScrollStart,
+    handleScrollContinue,
+    calculateFromCache,
+    applyFadedSections,
+    clearForcedActive,
+    containerRef,
+  ]);
 
   // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
 
   const performScrollToTeam = useCallback(
-    (teamCode: string, behavior: ScrollBehavior) => {
+    (teamCode: string, behavior: ScrollBehavior): number | null => {
       const cached = cachedSectionsRef.current.find((s) => s.code === teamCode);
-      if (!cached) return false;
+      if (!cached) return null;
 
       const targetTop = cached.top - topOffset;
       const container = containerRef?.current;
@@ -442,7 +466,7 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
         });
       }
 
-      return true;
+      return targetTop;
     },
     [containerRef, topOffset]
   );
@@ -472,8 +496,15 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
         }
 
         const pending = pendingScrollRef.current;
-        if (pending && performScrollToTeam(pending.teamCode, pending.behavior)) {
-          pendingScrollRef.current = null;
+        if (pending) {
+          const targetTop = performScrollToTeam(
+            pending.teamCode,
+            pending.behavior
+          );
+          if (targetTop !== null) {
+            forcedActiveTargetRef.current = targetTop;
+            pendingScrollRef.current = null;
+          }
         }
       });
     },
@@ -495,15 +526,12 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
 
       clearForcedActive();
       forcedActiveTeamRef.current = teamCode;
-      forcedActiveTimerRef.current = window.setTimeout(() => {
-        forcedActiveTimerRef.current = null;
-        forcedActiveTeamRef.current = null;
-      }, 350);
 
-      const didScroll = performScrollToTeam(teamCode, behavior);
-      if (!didScroll) {
+      const targetTop = performScrollToTeam(teamCode, behavior);
+      if (targetTop === null) {
         pendingScrollRef.current = { teamCode, behavior };
       } else {
+        forcedActiveTargetRef.current = targetTop;
         pendingScrollRef.current = null;
       }
     },
@@ -559,6 +587,7 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
       resizeObserver.disconnect();
       window.removeEventListener("resize", handleResize);
       clearTimers();
+      clearForcedActive();
 
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
@@ -571,6 +600,7 @@ export function useScrollSpy(options: ScrollSpyOptions = {}): ScrollSpyResult {
     calculateFromCache,
     applyFadedSections,
     clearTimers,
+    clearForcedActive,
   ]);
 
   // ---------------------------------------------------------------------------

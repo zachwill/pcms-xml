@@ -11,7 +11,11 @@
  */
 
 import { cx } from "@/lib/utils";
-import { useShellScrollContext, useShellTeamsContext } from "@/state/shell";
+import {
+  useShellScrollContext,
+  useShellTeamsContext,
+} from "@/state/shell";
+import { sortTeamsByOrder } from "@/state/shell/teamOrder";
 import { useTeams } from "@/features/SalaryBook/hooks";
 import type { Team } from "@/features/SalaryBook/data";
 
@@ -159,9 +163,7 @@ export function TeamSelectorGrid() {
         }
       } else {
         // Add team to loaded list (maintain alphabetical order)
-        const newLoaded = [...loadedTeams, teamCode].sort((a, b) =>
-          a.localeCompare(b)
-        );
+        const newLoaded = sortTeamsByOrder([...loadedTeams, teamCode]);
         setLoadedTeams(newLoaded);
       }
       return;
@@ -170,9 +172,7 @@ export function TeamSelectorGrid() {
     // Regular click: Jump to team (add if not loaded)
     if (!isLoaded) {
       // Add team in alphabetical order
-      const newLoaded = [...loadedTeams, teamCode].sort((a, b) =>
-        a.localeCompare(b)
-      );
+      const newLoaded = sortTeamsByOrder([...loadedTeams, teamCode]);
       setLoadedTeams(newLoaded);
       scrollToTeam(teamCode, "instant");
     } else {

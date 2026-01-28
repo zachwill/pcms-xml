@@ -11,6 +11,7 @@ import React, {
 
 import { useRegisterFilterChangeHandlers } from "@/state/filters";
 import { useScrollSpy, type ScrollState } from "./useScrollSpy";
+import { TEAM_ORDER, sortTeamsByOrder } from "./teamOrder";
 import {
   useSidebarStack,
   type SidebarEntity,
@@ -20,6 +21,8 @@ import {
 // ============================================================================
 // Context Types
 // ============================================================================
+
+const INITIAL_TEAMS = ["ATL", "BKN", "BOS", "POR"];
 
 export interface ShellScrollContextValue {
   // Canvas ref (scroll container)
@@ -180,38 +183,39 @@ export function ShellProvider({
   // Loaded teams state
   // ---------------------------------------------------------------------------
 
-  const [loadedTeams, setLoadedTeams] = useState<string[]>([
-    "ATL",
-    "BKN",
-    "BOS",
-    "CHA",
-    "CHI",
-    "CLE",
-    "DAL",
-    "DEN",
-    "DET",
-    "GSW",
-    "HOU",
-    "IND",
-    "LAC",
-    "LAL",
-    "MEM",
-    "MIA",
-    "MIL",
-    "MIN",
-    "NOP",
-    "NYK",
-    "OKC",
-    "ORL",
-    "PHI",
-    "PHX",
-    "POR",
-    "SAC",
-    "SAS",
-    "TOR",
-    "UTA",
-    "WAS",
-  ]);
+  const [loadedTeams, setLoadedTeams] = useState<string[]>(INITIAL_TEAMS);
+
+  useEffect(() => {
+    let timeoutId: number | null = null;
+    let intervalId: number | null = null;
+
+    timeoutId = window.setTimeout(() => {
+      intervalId = window.setInterval(() => {
+        setLoadedTeams((prev) => {
+          const remaining = TEAM_ORDER.filter((team) => !prev.includes(team));
+          if (remaining.length === 0) {
+            if (intervalId !== null) {
+              clearInterval(intervalId);
+              intervalId = null;
+            }
+            return prev;
+          }
+
+          const nextChunk = remaining.slice(0, 4);
+          return sortTeamsByOrder([...prev, ...nextChunk]);
+        });
+      }, 500);
+    }, 4000);
+
+    return () => {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+      if (intervalId !== null) {
+        clearInterval(intervalId);
+      }
+    };
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Context values

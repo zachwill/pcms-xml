@@ -37,6 +37,7 @@ const EXCEPTION_LABEL_MAP: Record<string, string> = {
   MLE: "MLE",
   TAXMLE: "Tax MLE",
   ROOMMLE: "Room MLE",
+  RMEXC: "Room MLE",
   NTMLE: "MLE",
   NTMDL: "MLE",
   CNTMD: "C-MLE",

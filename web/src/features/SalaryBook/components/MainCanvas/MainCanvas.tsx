@@ -7,7 +7,8 @@
 
 import { cx } from "@/lib/utils";
 import { useShellScrollContext, useShellTeamsContext } from "@/state/shell";
-import { TeamSection } from "./TeamSection";
+import { TEAM_ORDER } from "@/state/shell/teamOrder";
+import { TeamSection, TeamSectionPlaceholder } from "./TeamSection";
 
 export interface MainCanvasProps {
   /** Optional additional className */
@@ -36,15 +37,19 @@ export function MainCanvas({ className }: MainCanvasProps) {
     >
       {/* Team sections will be rendered here */}
       <div className="min-h-full">
-        {loadedTeams.length === 0 ? (
+        {TEAM_ORDER.length === 0 ? (
           <div className="flex items-center justify-center h-96 text-muted-foreground">
             No teams loaded. Select teams from the Team Selector Grid.
           </div>
         ) : (
           <div className="space-y-0">
-            {loadedTeams.map((teamCode) => (
-              <TeamSection key={teamCode} teamCode={teamCode} />
-            ))}
+            {TEAM_ORDER.map((teamCode) =>
+              loadedTeams.includes(teamCode) ? (
+                <TeamSection key={teamCode} teamCode={teamCode} />
+              ) : (
+                <TeamSectionPlaceholder key={teamCode} teamCode={teamCode} />
+              )
+            )}
 
             {/*
               Small scroll spacer so the last team header can still reach the sticky position

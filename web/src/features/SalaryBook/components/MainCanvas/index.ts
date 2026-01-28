@@ -3,7 +3,7 @@
  */
 
 export { MainCanvas, type MainCanvasProps } from "./MainCanvas";
-export { TeamSection } from "./TeamSection";
+export { TeamSection, TeamSectionPlaceholder } from "./TeamSection";
 export { TeamHeader, type TeamHeaderProps } from "./TeamHeader";
 export { TableHeader, type TableHeaderProps } from "./TableHeader";
 export { SalaryTable, type SalaryTableProps } from "./SalaryTable";

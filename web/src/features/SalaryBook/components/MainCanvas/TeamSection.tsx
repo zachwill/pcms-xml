@@ -43,7 +43,7 @@ interface TeamSectionProps {
 
 const teamSectionStyle: React.CSSProperties = {
   contentVisibility: "auto",
-  containIntrinsicSize: "800px 600px",
+  containIntrinsicSize: "1200px 600px",
   scrollSnapAlign: "start",
 };
 
@@ -274,6 +274,21 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
         onAgentClick={handleAgentClick}
         onPickClick={handlePickClick}
       />
+    </div>
+  );
+}
+
+export function TeamSectionPlaceholder({ teamCode }: { teamCode: string }) {
+  const { registerSection } = useShellScrollContext();
+
+  return (
+    <div
+      ref={(el) => registerSection(teamCode, el)}
+      data-team={teamCode}
+      className="border-b border-border"
+      style={teamSectionStyle}
+    >
+      <TeamSectionSkeleton teamCode={teamCode} />
     </div>
   );
 }

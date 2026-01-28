@@ -44,11 +44,11 @@ function StickyLabelCell({
       className={cx(
         "w-52 pl-4 shrink-0",
         "sticky left-0 z-[1]",
-        "bg-muted/20 dark:bg-muted/10",
         "after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px",
         "after:bg-border/30",
         "relative"
       )}
+      style={{ backgroundColor: "var(--muted, #f4f4f5)" }}
     >
       <div className="grid grid-cols-[40px_1fr] items-center h-full">
         <div className="flex items-center justify-start text-muted-foreground">
@@ -116,7 +116,7 @@ export function TotalsFooter({
   showTaxAprons = true,
 }: TotalsFooterProps) {
   return (
-    <div className="bg-muted/20 dark:bg-muted/10">
+    <div style={{ backgroundColor: "var(--muted, #f4f4f5)" }}>
       {/* Roster Cost Row */}
       <div className="h-12 flex items-center text-xs">
         <StickyLabelCell icon={<Sigma className="w-4 h-4" aria-hidden="true" />}>

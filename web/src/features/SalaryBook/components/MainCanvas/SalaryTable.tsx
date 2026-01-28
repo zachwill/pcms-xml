@@ -95,18 +95,21 @@ function isTwoWayContract(player: SalaryBookPlayer): boolean {
 
 function PlaceholderSectionRow({ label }: { label: string }) {
   return (
-    <div className={cx("bg-muted/10 dark:bg-muted/5", "border-b border-border/50")}>
+    <div
+      className={cx("border-b border-border/50")}
+      style={{ backgroundColor: "var(--muted, #f4f4f5)" }}
+    >
       <div className="h-8 flex items-center text-xs">
         {/* Label column (sticky left) */}
         <div
           className={cx(
             "w-52 pl-4 shrink-0",
             "sticky left-0 z-[2]",
-            "bg-muted/10 dark:bg-muted/5",
             "after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px",
             "after:bg-border/30",
             "relative"
           )}
+          style={{ backgroundColor: "var(--muted, #f4f4f5)" }}
         >
           <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
             {label}

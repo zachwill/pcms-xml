@@ -49,6 +49,14 @@ function getPickStatus(pick: DraftPick): string {
   return getRoundLabel(pick.round);
 }
 
+function buildPickLabel(pick: DraftPick): string {
+  const status = getPickStatus(pick);
+  if (status === "FRP" || status === "SRP") {
+    return `${pick.year + 1} ${status}`;
+  }
+  return status;
+}
+
 function getPickCardClasses(pick: DraftPick): {
   className: string;
   labelClassName: string;
@@ -167,7 +175,7 @@ export function DraftAssetsRow({ picks, onPickClick }: DraftAssetsRowProps) {
               >
                 {hasPicks
                   ? yearPicks.map((pick) => {
-                      const status = getPickStatus(pick);
+                      const label = buildPickLabel(pick);
                       const value = buildPickValue(pick);
                       const cardClasses = getPickCardClasses(pick);
                       return (
@@ -180,7 +188,7 @@ export function DraftAssetsRow({ picks, onPickClick }: DraftAssetsRowProps) {
                           className={cx("rounded", focusRing())}
                         >
                           <KpiCell
-                            label={status}
+                            label={label}
                             value={value}
                             title={buildPickTitle(pick)}
                             className={cardClasses.className}
