@@ -14,6 +14,12 @@ import { cx } from "@/lib/utils";
 import { FilterToggles } from "./FilterToggles";
 import { TeamSelectorGrid } from "./TeamSelectorGrid";
 import { ViewSelector } from "./ViewSelector";
+import {
+  MAIN_VIEWS,
+  SIDEBAR_VIEWS,
+  type MainViewKey,
+  type SidebarViewKey,
+} from "@/config/views";
 
 /**
  * TopNav — Main export
@@ -46,7 +52,18 @@ export function TopNav() {
       <div className="h-20 w-px bg-border self-center" />
 
       {/* Views: placeholder (Salary Book is the only active view right now) */}
-      <ViewSelector />
+      <ViewSelector<MainViewKey>
+        title="Main View"
+        views={MAIN_VIEWS}
+        activeView="salary-book"
+      />
+
+      {/* Sidebar Views: placeholder */}
+      <ViewSelector<SidebarViewKey>
+        title="Sidebar View"
+        views={SIDEBAR_VIEWS}
+        activeView="team-view"
+      />
     </div>
   );
 }

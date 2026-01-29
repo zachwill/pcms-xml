@@ -10,26 +10,33 @@
 
 import { cx } from "@/lib/utils";
 import { Radio, RadioGroup } from "@/components/ui";
-import { APP_VIEWS, type ViewKey } from "@/config/views";
+import type { AppView } from "@/config/views";
 
-export function ViewSelector() {
-  // Hard-coded for now; will become router/state driven later.
-  const activeView: ViewKey = "salary-book";
+interface ViewSelectorProps<T extends string> {
+  title: string;
+  views: AppView<T>[];
+  activeView: T;
+}
 
+export function ViewSelector<T extends string>({
+  title,
+  views,
+  activeView,
+}: ViewSelectorProps<T>) {
   return (
     <div className="space-y-1">
       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-        View
+        {title}
       </div>
 
       <RadioGroup
-        aria-label="View"
+        aria-label={title}
         value={activeView}
         // Placeholder: router/state driven later.
         onValueChange={() => {}}
         className="flex flex-col gap-1"
       >
-        {APP_VIEWS.map((view) => {
+        {views.map((view) => {
           const isActive = view.key === activeView;
           const isDisabled = !view.enabled;
 
