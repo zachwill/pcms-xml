@@ -203,11 +203,20 @@ function ClientRow({
     client.cap_2030,
   ].reduce<number>((sum, val) => sum + Number(val ?? 0), 0);
 
-  // Build metadata line: Team Name · AGE · YOS
+  // Build metadata line: AGE YRS · YOS (team implied by avatar; fallback to team name)
   const metaParts: string[] = [];
-  if (client.age) metaParts.push(`${Number(client.age).toFixed(1)} YRS`);
-  if (client.years_of_service !== null && client.years_of_service !== undefined) {
-    metaParts.push(`${client.years_of_service} YOS`);
+
+  const age = client.age;
+  if (age !== null && age !== undefined) {
+    metaParts.push(`${Number(age).toFixed(1)} YRS`);
+  }
+
+  const yos = client.years_of_service;
+  if (yos !== null && yos !== undefined) {
+    const yosNum = Number(yos);
+    if (Number.isFinite(yosNum)) {
+      metaParts.push(yosNum <= 0 ? "Rookie" : `${yosNum} YOS`);
+    }
   }
 
   const detailLine = metaParts.length > 0 ? metaParts.join(" · ") : teamName;

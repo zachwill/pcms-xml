@@ -393,13 +393,13 @@ function SalaryYearCell({
       ? Number(player.experience) + (year - SALARY_YEARS[0])
       : null;
 
-  // Poison Pill only meaningfully applies in the current season and only for 3 YOS players.
+  // Poison Pill only meaningfully applies in the current season and only for 2–3 YOS players.
   // (Warehouse flag can be historically true even when it's no longer relevant.)
   const isPoisonPillNow =
     isCurrentSeason &&
     player.is_poison_pill &&
     yosThisYear !== null &&
-    Number(yosThisYear) === 3;
+    (Number(yosThisYear) === 2 || Number(yosThisYear) === 3);
 
   const priorYearSalary = getSalary(player, year - 1);
 
