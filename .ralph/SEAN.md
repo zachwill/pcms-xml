@@ -71,7 +71,7 @@ grep -nE "'<Sheet Name>'!" reference/warehouse/*.json
 - [x] Spec: `contract_protections.json`
 - [x] Spec: `system_values.json`
 - [x] Spec: `minimum_salary_scale.json`
-- [ ] Spec: `rookie_scale_amounts.json`
+- [x] Spec: `rookie_scale_amounts.json`
 
 ### Team + salary book views
 - [x] Spec: `playground.json`
