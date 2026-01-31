@@ -64,7 +64,7 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
 
 - [x] Implement dataset extract: `tbl_dead_money_warehouse` → `DATA_dead_money_warehouse`
 
-- [ ] Implement dataset extract: `tbl_exceptions_warehouse` → `DATA_exceptions_warehouse`
+- [x] Implement dataset extract: `tbl_exceptions_warehouse` → `DATA_exceptions_warehouse`
 
 - [ ] Implement dataset extract: `tbl_draft_picks_warehouse` → `DATA_draft_picks_warehouse`
 

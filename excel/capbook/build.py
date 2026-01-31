@@ -26,6 +26,7 @@ from .extract import (
     extract_salary_book_yearly,
     extract_cap_holds_warehouse,
     extract_dead_money_warehouse,
+    extract_exceptions_warehouse,
 )
 from .xlsx import create_standard_formats, write_table
 from .sheets import write_meta_sheet, UI_STUB_WRITERS, write_home_stub
@@ -129,9 +130,9 @@ def build_capbook(
     datasets["salary_book_yearly"] = extract_salary_book_yearly(base_year, league)
     datasets["cap_holds_warehouse"] = extract_cap_holds_warehouse(base_year)
     datasets["dead_money_warehouse"] = extract_dead_money_warehouse(base_year)
+    datasets["exceptions_warehouse"] = extract_exceptions_warehouse(base_year)
 
     # TODO: Extract remaining datasets per data contract
-    # datasets["exceptions_warehouse"] = extract_exceptions_warehouse(...)
     # datasets["draft_picks_warehouse"] = extract_draft_picks_warehouse(...)
 
     # Step 3: Generate workbook
@@ -233,6 +234,17 @@ def build_capbook(
         write_table(
             data_worksheets["DATA_dead_money_warehouse"],
             "tbl_dead_money_warehouse",
+            0,
+            0,
+            cols,
+            rows,
+        )
+
+    if datasets.get("exceptions_warehouse"):
+        cols, rows = datasets["exceptions_warehouse"]
+        write_table(
+            data_worksheets["DATA_exceptions_warehouse"],
+            "tbl_exceptions_warehouse",
             0,
             0,
             cols,

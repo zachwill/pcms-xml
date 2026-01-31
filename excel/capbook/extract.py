@@ -489,6 +489,66 @@ def extract_dead_money_warehouse(
     return columns, rows
 
 
+def extract_exceptions_warehouse(
+    base_year: int,
+) -> tuple[list[str], list[dict[str, Any]]]:
+    """
+    Extract tbl_exceptions_warehouse dataset.
+
+    Returns (columns, rows) for DATA_exceptions_warehouse sheet.
+
+    Per the data contract:
+    - Primary key: team_exception_id
+    - Filters: salary_year BETWEEN base_year AND base_year + 5
+    - Used by: exception inventory UI, trade planner / TPE absorption
+    """
+    sql = """
+        SELECT
+            team_exception_id,
+            team_code,
+            team_id,
+            salary_year,
+            exception_type_lk,
+            exception_type_name,
+            effective_date,
+            expiration_date,
+            original_amount,
+            remaining_amount,
+            trade_exception_player_id,
+            trade_exception_player_name,
+            record_status_lk,
+            is_expired,
+            proration_applies,
+            proration_days,
+            proration_factor,
+            prorated_remaining_amount
+        FROM pcms.exceptions_warehouse
+        WHERE salary_year BETWEEN %(base_year)s AND %(base_year)s + 5
+        ORDER BY team_code, salary_year, exception_type_lk, remaining_amount DESC
+    """
+    rows = fetch_all(sql, {"base_year": base_year})
+    columns = [
+        "team_exception_id",
+        "team_code",
+        "team_id",
+        "salary_year",
+        "exception_type_lk",
+        "exception_type_name",
+        "effective_date",
+        "expiration_date",
+        "original_amount",
+        "remaining_amount",
+        "trade_exception_player_id",
+        "trade_exception_player_name",
+        "record_status_lk",
+        "is_expired",
+        "proration_applies",
+        "proration_days",
+        "proration_factor",
+        "prorated_remaining_amount",
+    ]
+    return columns, rows
+
+
 # TODO: Implement remaining extract functions per data contract:
-# - extract_exceptions_warehouse
 # - extract_draft_picks_warehouse
