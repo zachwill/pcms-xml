@@ -55,6 +55,7 @@ from .sheets import (
     write_signings_and_exceptions,
     write_waive_buyout_stretch,
     write_assets,
+    write_rules_reference,
 )
 
 
@@ -413,11 +414,21 @@ def build_capbook(
         except Exception as e:  # noqa: BLE001
             _mark_failed(build_meta, f"ASSETS writer crashed: {e}\n{traceback.format_exc()}")
 
+        # RULES_REFERENCE - quick reference tables for CBA rules
+        try:
+            write_rules_reference(
+                workbook,
+                ui_worksheets["RULES_REFERENCE"],
+                formats,
+            )
+        except Exception as e:  # noqa: BLE001
+            _mark_failed(build_meta, f"RULES_REFERENCE writer crashed: {e}\n{traceback.format_exc()}")
+
         # Write remaining UI sheet stubs (skip sheets we've already handled)
         # NOTE: UI stub writers now require (workbook, worksheet, formats) signature
         # because they include the shared command bar.
         for sheet_name, writer_fn in UI_STUB_WRITERS.items():
-            if sheet_name in ("TEAM_COCKPIT", "AUDIT_AND_RECONCILE", "ROSTER_GRID", "BUDGET_LEDGER", "PLAN_MANAGER", "PLAN_JOURNAL", "TRADE_MACHINE", "SIGNINGS_AND_EXCEPTIONS", "WAIVE_BUYOUT_STRETCH", "ASSETS"):
+            if sheet_name in ("TEAM_COCKPIT", "AUDIT_AND_RECONCILE", "ROSTER_GRID", "BUDGET_LEDGER", "PLAN_MANAGER", "PLAN_JOURNAL", "TRADE_MACHINE", "SIGNINGS_AND_EXCEPTIONS", "WAIVE_BUYOUT_STRETCH", "ASSETS", "RULES_REFERENCE"):
                 continue  # Already handled above
             if sheet_name in ui_worksheets:
                 try:

@@ -94,7 +94,7 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - ASSETS inventory (exceptions + draft picks) filtered by `SelectedTeam`
 
 ### Phase 9 - RULES_REFERENCE (memory aids)
-- [ ] Implement rules reference tables + notes
+- [x] Implement rules reference tables + notes
   - Tax rates table (from `DATA_tax_rates`)
   - Minimum + rookie scale tables (from new datasets)
   - Salary matching tiers table (static)

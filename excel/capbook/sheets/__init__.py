@@ -37,6 +37,7 @@ from .subsystems import (
     write_waive_buyout_stretch,
     write_assets,
 )
+from .rules_reference import write_rules_reference
 from .ui_stubs import (
     UI_STUB_WRITERS,
     write_home_stub,
@@ -83,6 +84,8 @@ __all__ = [
     "write_signings_and_exceptions",
     "write_waive_buyout_stretch",
     "write_assets",
+    # Rules reference
+    "write_rules_reference",
     # UI stubs
     "UI_STUB_WRITERS",
     "write_home_stub",
