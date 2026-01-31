@@ -22,6 +22,9 @@ We have **near-complete parity** with Sean's Excel workbook for the core analyst
 | **System Values** (cap/tax/apron thresholds) | `pcms.league_system_values` | ✅ Complete |
 | **Trade Machine** (forward salary matching) | `pcms.fn_tpe_trade_math()` | ✅ Complete |
 | **TPE Absorption** (multi-leg trades) | `pcms.fn_trade_plan_tpe()` | ✅ Complete |
+| **Can Bring Back** (inverse matching window) | `pcms.fn_trade_salary_range()` | ✅ Complete |
+| **Multi-Year Minimums** (Years 2–5) | `pcms.fn_minimum_salary()` | ✅ Complete |
+| **Buyout / Waiver scenarios** | `pcms.fn_buyout_scenario()` | ✅ Complete |
 | **Rookie Scale** | `pcms.rookie_scale_amounts` | ✅ Complete |
 | **Draft Picks** | `pcms.draft_picks_warehouse` | ✅ Complete |
 | **Dead Money** (waiver charges) | `pcms.dead_money_warehouse` | ✅ Complete |
@@ -213,6 +216,73 @@ SELECT pcms.fn_trade_plan_tpe(
     ARRAY[player3],           -- incoming
     ARRAY[exception_id]       -- TPE to use
 );
+```
+
+### Can Bring Back / Matching Window: `fn_trade_salary_range()`
+
+For a single outgoing salary amount, return the **matching window** for a simple 2-team trade:
+
+- `min_incoming`: minimum single salary the other team needs to send to acquire this salary
+- `max_incoming`: maximum single salary you’re allowed to receive for this salary
+
+```sql
+SELECT * FROM pcms.fn_trade_salary_range(30000000, 2025, 'expanded', 'NBA');
+```
+
+To build a “Can Bring Back” table for a roster:
+
+```sql
+SELECT
+  sby.player_name,
+  sby.cap_amount AS outgoing_salary,
+  r.min_incoming,
+  r.max_incoming
+FROM pcms.salary_book_yearly sby
+CROSS JOIN LATERAL pcms.fn_trade_salary_range(sby.cap_amount, sby.salary_year, 'expanded', 'NBA') r
+WHERE sby.salary_year = 2025
+  AND sby.team_code = 'BOS'
+ORDER BY sby.cap_amount DESC NULLS LAST;
+```
+
+---
+
+## Minimum Salary
+
+### Multi-year minimum salaries: `fn_minimum_salary()`
+
+PCMS provides Year 1 minimums; this function derives Years 2–5 using Sean’s escalators.
+
+```sql
+-- 2025 minimum for a 4-YOS player, contract year 3
+SELECT pcms.fn_minimum_salary(2025, 4, 3, 'NBA') AS min_salary;
+```
+
+---
+
+## Buyout / Waiver Modeling
+
+### Buyout scenarios: `fn_buyout_scenario()`
+
+```sql
+-- Example shape (player_id required)
+SELECT * FROM pcms.fn_buyout_scenario(
+  1629027,              -- player_id (example: Trae Young)
+  '2026-01-15'::date,   -- waive date
+  9000000               -- give-back amount
+);
+```
+
+Helpers:
+
+```sql
+-- Days remaining after waiver clearance (waive_date + 2 days)
+SELECT pcms.fn_days_remaining('2026-01-15'::date, '2025-10-20'::date);
+
+-- Stretch provision (2 * remaining_years + 1)
+SELECT * FROM pcms.fn_stretch_waiver(30000000, 2);
+
+-- Set-off amount when a waived player signs elsewhere
+SELECT pcms.fn_setoff_amount(14104000, 1, 2025, 'NBA');
 ```
 
 ---
