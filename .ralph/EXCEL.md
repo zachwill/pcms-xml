@@ -56,7 +56,7 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - "Minimum contracts" count + total readout (using `is_min_contract`)
 
 ### Phase 4 - ROSTER_GRID (ledger view v1)
-- [ ] Implement roster ledger view with reconciliation
+- [x] Implement roster ledger view with reconciliation
   - Layout + shared command bar
   - Roster rows (salary book wide table + badges + bucket flags)
   - Cap holds section (bucket = FA) + dead money section (bucket = TERM)

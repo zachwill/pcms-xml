@@ -23,6 +23,7 @@ from .command_bar import (
     COCKPIT_SHEET_NAME,
 )
 from .meta import write_meta_sheet
+from .roster_grid import write_roster_grid
 from .ui_stubs import (
     UI_STUB_WRITERS,
     write_home_stub,
@@ -55,6 +56,8 @@ __all__ = [
     "COCKPIT_SHEET_NAME",
     # Meta
     "write_meta_sheet",
+    # Roster grid
+    "write_roster_grid",
     # UI stubs
     "UI_STUB_WRITERS",
     "write_home_stub",

@@ -46,6 +46,7 @@ from .sheets import (
     write_home_stub,
     write_meta_sheet,
     write_team_cockpit_with_command_bar,
+    write_roster_grid,
     define_meta_named_ranges,
 )
 
@@ -325,11 +326,21 @@ def build_capbook(
         except Exception as e:  # noqa: BLE001
             _mark_failed(build_meta, f"AUDIT_AND_RECONCILE writer crashed: {e}\n{traceback.format_exc()}")
 
+        # ROSTER_GRID gets special treatment - full roster ledger with reconciliation
+        try:
+            write_roster_grid(
+                workbook,
+                ui_worksheets["ROSTER_GRID"],
+                formats,
+            )
+        except Exception as e:  # noqa: BLE001
+            _mark_failed(build_meta, f"ROSTER_GRID writer crashed: {e}\n{traceback.format_exc()}")
+
         # Write remaining UI sheet stubs (skip sheets we've already handled)
         # NOTE: UI stub writers now require (workbook, worksheet, formats) signature
         # because they include the shared command bar.
         for sheet_name, writer_fn in UI_STUB_WRITERS.items():
-            if sheet_name in ("TEAM_COCKPIT", "AUDIT_AND_RECONCILE"):
+            if sheet_name in ("TEAM_COCKPIT", "AUDIT_AND_RECONCILE", "ROSTER_GRID"):
                 continue  # Already handled above
             if sheet_name in ui_worksheets:
                 try:
