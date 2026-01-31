@@ -5,6 +5,10 @@ Each sheet writer follows the pattern:
     write_<sheet_name>(worksheet, formats, build_meta, ...)
 """
 
+from .cockpit import (
+    write_team_cockpit_with_command_bar,
+    get_command_bar_cell_refs,
+)
 from .meta import write_meta_sheet
 from .ui_stubs import (
     UI_STUB_WRITERS,
@@ -24,6 +28,8 @@ from .ui_stubs import (
 
 __all__ = [
     "write_meta_sheet",
+    "write_team_cockpit_with_command_bar",
+    "get_command_bar_cell_refs",
     "UI_STUB_WRITERS",
     "write_home_stub",
     "write_team_cockpit_stub",

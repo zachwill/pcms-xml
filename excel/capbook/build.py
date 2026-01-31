@@ -38,7 +38,12 @@ from .extract import (
 )
 from .reconcile import reconcile_team_salary_warehouse
 from .xlsx import create_standard_formats, write_table
-from .sheets import UI_STUB_WRITERS, write_home_stub, write_meta_sheet
+from .sheets import (
+    UI_STUB_WRITERS,
+    write_home_stub,
+    write_meta_sheet,
+    write_team_cockpit_with_command_bar,
+)
 
 
 # Sheet names per the blueprint
@@ -274,8 +279,27 @@ def build_capbook(
                     f"Failed writing table {table_name} on sheet {sheet_name}: {e}\n{traceback.format_exc()}",
                 )
 
-        # Step 4: Write UI sheet stubs (structure for future implementation)
+        # Step 4: Write UI sheets
+        # TEAM_COCKPIT gets special treatment - it has command bar inputs with defined names
+        try:
+            # Extract distinct team_codes from team_salary_warehouse for validation dropdown (future task)
+            team_codes = sorted(
+                set(row.get("team_code") for row in extracted.get("team_salary_warehouse", ([], []))[1] if row.get("team_code"))
+            )
+            write_team_cockpit_with_command_bar(
+                workbook,
+                ui_worksheets["TEAM_COCKPIT"],
+                formats,
+                build_meta,
+                team_codes=team_codes,
+            )
+        except Exception as e:  # noqa: BLE001
+            _mark_failed(build_meta, f"TEAM_COCKPIT writer crashed: {e}\n{traceback.format_exc()}")
+
+        # Write remaining UI sheet stubs (skip TEAM_COCKPIT since we already wrote it)
         for sheet_name, writer_fn in UI_STUB_WRITERS.items():
+            if sheet_name == "TEAM_COCKPIT":
+                continue  # Already handled above
             if sheet_name in ui_worksheets:
                 try:
                     writer_fn(ui_worksheets[sheet_name], formats)

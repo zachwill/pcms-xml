@@ -78,9 +78,10 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
   - Implemented in `excel/capbook/reconcile.py`
   - Also added missing `apron_rost/fa/term/2way` columns to team_salary_warehouse extract
 
-- [ ] Implement workbook-defined names for cockpit command bar inputs:
+- [x] Implement workbook-defined names for cockpit command bar inputs:
   - `SelectedTeam`, `SelectedYear`, `AsOfDate`, `SelectedMode`
   - Place them in `TEAM_COCKPIT` and define names via `workbook.define_name(...)`
+  - Implemented in `excel/capbook/sheets/cockpit.py`
 
 - [ ] Add data validation dropdown for `SelectedTeam` based on distinct `team_code` values
 
