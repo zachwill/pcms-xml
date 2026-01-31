@@ -1,19 +1,10 @@
 """
-TEAM_COCKPIT sheet writer with command bar inputs and primary readouts.
+TEAM_COCKPIT sheet writer with shared command bar and primary readouts.
 
-This module implements the cockpit command bar with workbook-defined names:
-- SelectedTeam
-- SelectedYear
-- AsOfDate
-- SelectedMode
-
-And the primary readouts section driven by DATA_team_salary_warehouse:
-- Cap position (space or over-cap)
-- Tax position (room or over-tax)
-- Room under Apron 1
-- Room under Apron 2
-- Roster count (NBA) + two-way count
-- Repeater Status
+This module implements:
+1. The editable command bar (using command_bar.write_command_bar_editable)
+2. Primary readouts section driven by DATA_team_salary_warehouse
+3. Sheet protection with unlocked input cells
 
 Per the blueprint (excel-cap-book-blueprint.md), the command bar is the
 workbook's "operating context" and should be consistent across all sheets.
@@ -21,39 +12,31 @@ workbook's "operating context" and should be consistent across all sheets.
 
 from __future__ import annotations
 
-from datetime import date
 from typing import Any
 
 from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
-from ..xlsx import define_named_cell, FMT_MONEY
+from ..xlsx import FMT_MONEY
+from .command_bar import (
+    write_command_bar_editable,
+    get_content_start_row,
+)
 
 
-# Command bar layout constants
-# Row positions (0-indexed)
-COMMAND_BAR_START_ROW = 3
-ROW_TEAM = 4
-ROW_YEAR = 5
-ROW_AS_OF = 6
-ROW_MODE = 7
+# =============================================================================
+# Primary Readouts Layout
+# =============================================================================
 
-# Column positions
-COL_LABEL = 0
-COL_INPUT = 1
-COL_VALUE = 1  # Readout value column
-COL_UNIT = 2  # Readout unit/description column
+# Readouts start after the command bar
+def _get_readouts_start_row() -> int:
+    return get_content_start_row()
 
-# Primary readouts section
-READOUTS_START_ROW = 9
-ROW_CAP_POSITION = 10
-ROW_TAX_POSITION = 11
-ROW_APRON1_ROOM = 12
-ROW_APRON2_ROOM = 13
-ROW_ROSTER_COUNT = 14
-ROW_REPEATER_STATUS = 15
-ROW_CAP_TOTAL = 16
-ROW_TAX_TOTAL = 17
+
+# Column layout for readouts
+COL_READOUT_LABEL = 0
+COL_READOUT_VALUE = 1
+COL_READOUT_DESC = 2
 
 
 def _sumifs_formula(data_col: str) -> str:
@@ -90,246 +73,179 @@ def write_team_cockpit_with_command_bar(
     team_codes: list[str] | None = None,
 ) -> None:
     """
-    Write TEAM_COCKPIT sheet with command bar inputs and defined names.
+    Write TEAM_COCKPIT sheet with editable command bar and primary readouts.
 
     The command bar provides the workbook's operating context:
-    - SelectedTeam: the active team code
-    - SelectedYear: the base salary year
-    - AsOfDate: the as-of date for the snapshot
-    - SelectedMode: display mode (Cap / Tax / Apron)
+    - SelectedTeam, SelectedYear, AsOfDate, SelectedMode
+    - Policy toggles (roster fill, two-way counting, etc.)
+    - Plan selectors (ActivePlan, ComparePlanA/B/C/D)
 
     The primary readouts section shows key metrics from DATA_team_salary_warehouse:
     - Cap position, Tax position, Apron room, Roster counts, Repeater status
 
     Args:
-        workbook: The XlsxWriter Workbook (needed for define_name)
+        workbook: The XlsxWriter Workbook (needed for define_name and formats)
         worksheet: The TEAM_COCKPIT worksheet
         formats: Standard format dict from create_standard_formats
         build_meta: Build metadata (base_year, as_of_date, etc.)
         team_codes: Optional list of team codes for validation dropdown
     """
-    # Column widths
-    worksheet.set_column(COL_LABEL, COL_LABEL, 22)
-    worksheet.set_column(COL_INPUT, COL_INPUT, 18)
-    worksheet.set_column(COL_UNIT, COL_UNIT, 30)
-    worksheet.set_column(3, 3, 15)
-
-    # Money format for readouts
-    money_fmt = workbook.add_format({"num_format": FMT_MONEY, "bold": True})
-    # Text format for labels
-    label_fmt = workbook.add_format({"bold": False})
-    # Positive room format (green)
-    room_positive_fmt = workbook.add_format(
-        {"num_format": FMT_MONEY, "bold": True, "font_color": "#16A34A"}
-    )
-    # Negative room format (red)
-    room_negative_fmt = workbook.add_format(
-        {"num_format": FMT_MONEY, "bold": True, "font_color": "#EF4444"}
-    )
-
-    # Sheet title
+    # Sheet title (row 0-1)
     worksheet.write(0, 0, "TEAM COCKPIT", formats["header"])
     worksheet.write(1, 0, "Primary flight display for team cap position")
-
-    # Command bar section header
-    worksheet.write(COMMAND_BAR_START_ROW, 0, "COMMAND BAR", formats["header"])
-
-    # --- Team input ---
-    worksheet.write(ROW_TEAM, COL_LABEL, "Team:", label_fmt)
-    # Default to first team code if available, otherwise placeholder
-    default_team = team_codes[0] if team_codes else "LAL"
-    worksheet.write(ROW_TEAM, COL_INPUT, default_team)
-    define_named_cell(workbook, "SelectedTeam", "TEAM_COCKPIT", ROW_TEAM, COL_INPUT)
-
-    # Add data validation dropdown for team selection if we have team codes
-    if team_codes:
-        worksheet.data_validation(
-            ROW_TEAM,
-            COL_INPUT,
-            ROW_TEAM,
-            COL_INPUT,
-            {
-                "validate": "list",
-                "source": team_codes,
-                "input_title": "Select Team",
-                "input_message": "Choose a team from the dropdown",
-                "error_title": "Invalid Team",
-                "error_message": "Please select a valid team code from the list",
-            },
-        )
-
-    # --- Year input ---
-    worksheet.write(ROW_YEAR, COL_LABEL, "Salary Year:", label_fmt)
-    base_year = build_meta.get("base_year", 2025)
-    worksheet.write(ROW_YEAR, COL_INPUT, base_year)
-    define_named_cell(workbook, "SelectedYear", "TEAM_COCKPIT", ROW_YEAR, COL_INPUT)
-
-    # Add year validation dropdown
-    year_list = [base_year + i for i in range(6)]
-    worksheet.data_validation(
-        ROW_YEAR,
-        COL_INPUT,
-        ROW_YEAR,
-        COL_INPUT,
-        {
-            "validate": "list",
-            "source": year_list,
-            "input_title": "Select Year",
-            "input_message": "Choose a salary year",
-        },
+    
+    # Write the editable command bar
+    write_command_bar_editable(
+        workbook,
+        worksheet,
+        formats,
+        build_meta,
+        team_codes=team_codes,
+        plan_names=None,  # Will be populated when PLAN_MANAGER is implemented
     )
-
-    # --- As-Of Date input ---
-    worksheet.write(ROW_AS_OF, COL_LABEL, "As-Of Date:", label_fmt)
-    as_of_str = build_meta.get("as_of_date", "")
-    # Write as a date if possible, otherwise string
-    if as_of_str:
-        try:
-            as_of_date = date.fromisoformat(as_of_str)
-            date_format = workbook.add_format({"num_format": "yyyy-mm-dd"})
-            worksheet.write_datetime(ROW_AS_OF, COL_INPUT, as_of_date, date_format)
-        except ValueError:
-            worksheet.write(ROW_AS_OF, COL_INPUT, as_of_str)
-    else:
-        worksheet.write(ROW_AS_OF, COL_INPUT, "")
-    define_named_cell(workbook, "AsOfDate", "TEAM_COCKPIT", ROW_AS_OF, COL_INPUT)
-
-    # --- Mode input ---
-    worksheet.write(ROW_MODE, COL_LABEL, "Mode:", label_fmt)
-    worksheet.write(ROW_MODE, COL_INPUT, "Cap")  # Default to Cap mode
-    define_named_cell(workbook, "SelectedMode", "TEAM_COCKPIT", ROW_MODE, COL_INPUT)
-
-    # Mode validation dropdown
-    worksheet.data_validation(
-        ROW_MODE,
-        COL_INPUT,
-        ROW_MODE,
-        COL_INPUT,
-        {
-            "validate": "list",
-            "source": ["Cap", "Tax", "Apron"],
-            "input_title": "Select Mode",
-            "input_message": "Choose display mode",
-        },
-    )
-
+    
     # =========================================================================
-    # PRIMARY READOUTS SECTION
-    # These are driven by formulas referencing DATA_team_salary_warehouse
+    # Primary Readouts Section
     # =========================================================================
-    worksheet.write(READOUTS_START_ROW, 0, "PRIMARY READOUTS", formats["header"])
+    
+    readouts_start = _get_readouts_start_row()
+    
+    # Create formats
+    money_fmt = workbook.add_format({"num_format": FMT_MONEY, "bold": True})
+    label_fmt = workbook.add_format({"bold": False})
+    bold_fmt = workbook.add_format({"bold": True})
+    
+    # Column widths for readouts area
+    worksheet.set_column(COL_READOUT_DESC, COL_READOUT_DESC, 30)
+    
+    # Section header
+    worksheet.write(readouts_start, COL_READOUT_LABEL, "PRIMARY READOUTS", formats["header"])
     worksheet.write(
-        READOUTS_START_ROW, COL_UNIT, "(values update when Team/Year changes)"
+        readouts_start, COL_READOUT_DESC, "(values update when Team/Year changes)"
     )
-
+    
+    # Row assignments (relative to readouts_start)
+    row_cap = readouts_start + 1
+    row_tax = readouts_start + 2
+    row_apron1 = readouts_start + 3
+    row_apron2 = readouts_start + 4
+    row_roster = readouts_start + 5
+    row_repeater = readouts_start + 6
+    row_cap_total = readouts_start + 7
+    row_tax_total = readouts_start + 8
+    
     # --- Cap Position ---
-    # over_cap is positive when team is over the cap (no room)
-    # We display as "Over Cap" or "Cap Room" with appropriate sign
-    worksheet.write(ROW_CAP_POSITION, COL_LABEL, "Cap Position:", label_fmt)
+    worksheet.write(row_cap, COL_READOUT_LABEL, "Cap Position:", label_fmt)
     worksheet.write_formula(
-        ROW_CAP_POSITION, COL_VALUE, _sumifs_formula("over_cap"), money_fmt
+        row_cap, COL_READOUT_VALUE, _sumifs_formula("over_cap"), money_fmt
     )
-    # Descriptive text: "over cap" if positive, "cap room" if negative (flipped sign)
     worksheet.write_formula(
-        ROW_CAP_POSITION,
-        COL_UNIT,
+        row_cap,
+        COL_READOUT_DESC,
         f'=IF({_sumifs_formula("over_cap")}>0,"over cap","cap room")',
     )
 
     # --- Tax Position ---
-    # room_under_tax: positive = room, negative = over tax line
-    worksheet.write(ROW_TAX_POSITION, COL_LABEL, "Tax Position:", label_fmt)
+    worksheet.write(row_tax, COL_READOUT_LABEL, "Tax Position:", label_fmt)
     worksheet.write_formula(
-        ROW_TAX_POSITION, COL_VALUE, _sumifs_formula("room_under_tax"), money_fmt
+        row_tax, COL_READOUT_VALUE, _sumifs_formula("room_under_tax"), money_fmt
     )
     worksheet.write_formula(
-        ROW_TAX_POSITION,
-        COL_UNIT,
+        row_tax,
+        COL_READOUT_DESC,
         f'=IF({_sumifs_formula("room_under_tax")}>0,"under tax line","over tax line")',
     )
 
     # --- Room Under Apron 1 ---
-    worksheet.write(ROW_APRON1_ROOM, COL_LABEL, "Room Under Apron 1:", label_fmt)
+    worksheet.write(row_apron1, COL_READOUT_LABEL, "Room Under Apron 1:", label_fmt)
     worksheet.write_formula(
-        ROW_APRON1_ROOM, COL_VALUE, _sumifs_formula("room_under_apron1"), money_fmt
+        row_apron1, COL_READOUT_VALUE, _sumifs_formula("room_under_apron1"), money_fmt
     )
     worksheet.write_formula(
-        ROW_APRON1_ROOM,
-        COL_UNIT,
+        row_apron1,
+        COL_READOUT_DESC,
         f'=IF({_sumifs_formula("room_under_apron1")}>0,"under 1st apron","at/above 1st apron")',
     )
 
     # --- Room Under Apron 2 ---
-    worksheet.write(ROW_APRON2_ROOM, COL_LABEL, "Room Under Apron 2:", label_fmt)
+    worksheet.write(row_apron2, COL_READOUT_LABEL, "Room Under Apron 2:", label_fmt)
     worksheet.write_formula(
-        ROW_APRON2_ROOM, COL_VALUE, _sumifs_formula("room_under_apron2"), money_fmt
+        row_apron2, COL_READOUT_VALUE, _sumifs_formula("room_under_apron2"), money_fmt
     )
     worksheet.write_formula(
-        ROW_APRON2_ROOM,
-        COL_UNIT,
+        row_apron2,
+        COL_READOUT_DESC,
         f'=IF({_sumifs_formula("room_under_apron2")}>0,"under 2nd apron","at/above 2nd apron")',
     )
 
     # --- Roster Count ---
-    # Shows both NBA roster count and two-way count
-    worksheet.write(ROW_ROSTER_COUNT, COL_LABEL, "Roster Count:", label_fmt)
+    worksheet.write(row_roster, COL_READOUT_LABEL, "Roster Count:", label_fmt)
     worksheet.write_formula(
-        ROW_ROSTER_COUNT,
-        COL_VALUE,
+        row_roster,
+        COL_READOUT_VALUE,
         _sumifs_formula("roster_row_count"),
-        workbook.add_format({"bold": True}),
+        bold_fmt,
     )
-    # Show two-way count in description
     worksheet.write_formula(
-        ROW_ROSTER_COUNT,
-        COL_UNIT,
+        row_roster,
+        COL_READOUT_DESC,
         f'="NBA roster + "&{_sumifs_formula("two_way_row_count")}&" two-way"',
     )
 
     # --- Repeater Status ---
-    worksheet.write(ROW_REPEATER_STATUS, COL_LABEL, "Repeater Status:", label_fmt)
-    # is_repeater_taxpayer is a boolean; convert to display
+    worksheet.write(row_repeater, COL_READOUT_LABEL, "Repeater Status:", label_fmt)
     worksheet.write_formula(
-        ROW_REPEATER_STATUS,
-        COL_VALUE,
+        row_repeater,
+        COL_READOUT_VALUE,
         f'=IF({_if_formula("is_repeater_taxpayer")}=TRUE,"YES","NO")',
-        workbook.add_format({"bold": True}),
+        bold_fmt,
     )
     worksheet.write(
-        ROW_REPEATER_STATUS, COL_UNIT, "(repeater taxpayer if TRUE)", label_fmt
+        row_repeater, COL_READOUT_DESC, "(repeater taxpayer if TRUE)", label_fmt
     )
 
     # --- Cap Total (for reference) ---
-    worksheet.write(ROW_CAP_TOTAL, COL_LABEL, "Cap Total:", label_fmt)
+    worksheet.write(row_cap_total, COL_READOUT_LABEL, "Cap Total:", label_fmt)
     worksheet.write_formula(
-        ROW_CAP_TOTAL, COL_VALUE, _sumifs_formula("cap_total"), money_fmt
+        row_cap_total, COL_READOUT_VALUE, _sumifs_formula("cap_total"), money_fmt
     )
     worksheet.write_formula(
-        ROW_CAP_TOTAL,
-        COL_UNIT,
+        row_cap_total,
+        COL_READOUT_DESC,
         f'="vs cap of "&TEXT({_sumifs_formula("salary_cap_amount")},"$#,##0")',
     )
 
     # --- Tax Total (for reference) ---
-    worksheet.write(ROW_TAX_TOTAL, COL_LABEL, "Tax Total:", label_fmt)
+    worksheet.write(row_tax_total, COL_READOUT_LABEL, "Tax Total:", label_fmt)
     worksheet.write_formula(
-        ROW_TAX_TOTAL, COL_VALUE, _sumifs_formula("tax_total"), money_fmt
+        row_tax_total, COL_READOUT_VALUE, _sumifs_formula("tax_total"), money_fmt
     )
     worksheet.write_formula(
-        ROW_TAX_TOTAL,
-        COL_UNIT,
+        row_tax_total,
+        COL_READOUT_DESC,
         f'="vs tax line of "&TEXT({_sumifs_formula("tax_level_amount")},"$#,##0")',
     )
+    
+    # =========================================================================
+    # Sheet Protection
+    # =========================================================================
+    # Protect the sheet but allow editing of unlocked (input) cells
+    # Input cells are marked with locked=False in command_bar.py
+    worksheet.protect(options={
+        "objects": True,
+        "scenarios": True,
+        "format_cells": False,  # Allow format changes
+        "select_unlocked_cells": True,
+        "select_locked_cells": True,
+    })
 
 
 def get_command_bar_cell_refs() -> dict[str, tuple[int, int]]:
     """Return cell positions (row, col) for command bar inputs.
 
     Useful for other sheets that need to reference these cells.
+    
+    Deprecated: Use the named ranges (SelectedTeam, etc.) instead of cell refs.
     """
-    return {
-        "SelectedTeam": (ROW_TEAM, COL_INPUT),
-        "SelectedYear": (ROW_YEAR, COL_INPUT),
-        "AsOfDate": (ROW_AS_OF, COL_INPUT),
-        "SelectedMode": (ROW_MODE, COL_INPUT),
-    }
+    from .command_bar import NAMED_RANGES
+    return NAMED_RANGES.copy()

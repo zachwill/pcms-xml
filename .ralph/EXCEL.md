@@ -41,7 +41,7 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - Bump `DATA_CONTRACT_VERSION` to v2-2026-01-31
 
 ### Phase 2 — Shared command bar + named ranges
-- [ ] Implement shared command bar across **all UI sheets**
+- [x] Implement shared command bar across **all UI sheets**
   - Create `excel/capbook/sheets/command_bar.py` helper + use in every UI sheet
   - Add plan selectors + named ranges: `ActivePlan`, `ComparePlanA/B/C/D`
   - Add policy toggles + named ranges: `RosterFillTarget`, `RosterFillType`, `CountTwoWayInRoster`, `CountTwoWayInTotals`, `ShowExistsOnlyRows`

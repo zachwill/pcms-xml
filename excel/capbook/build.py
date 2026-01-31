@@ -46,6 +46,7 @@ from .sheets import (
     write_home_stub,
     write_meta_sheet,
     write_team_cockpit_with_command_bar,
+    define_meta_named_ranges,
 )
 
 
@@ -325,14 +326,22 @@ def build_capbook(
             _mark_failed(build_meta, f"AUDIT_AND_RECONCILE writer crashed: {e}\n{traceback.format_exc()}")
 
         # Write remaining UI sheet stubs (skip sheets we've already handled)
+        # NOTE: UI stub writers now require (workbook, worksheet, formats) signature
+        # because they include the shared command bar.
         for sheet_name, writer_fn in UI_STUB_WRITERS.items():
             if sheet_name in ("TEAM_COCKPIT", "AUDIT_AND_RECONCILE"):
                 continue  # Already handled above
             if sheet_name in ui_worksheets:
                 try:
-                    writer_fn(ui_worksheets[sheet_name], formats)
+                    writer_fn(workbook, ui_worksheets[sheet_name], formats)
                 except Exception as e:  # noqa: BLE001
                     _mark_failed(build_meta, f"UI stub writer crashed for {sheet_name}: {e}")
+
+        # Define META named ranges (for formulas that reference build metadata)
+        try:
+            define_meta_named_ranges(workbook, "META")
+        except Exception as e:  # noqa: BLE001
+            _mark_failed(build_meta, f"Failed to define META named ranges: {e}")
 
         # META + HOME (write last so they reflect failures above)
         write_meta_sheet(ui_worksheets["META"], formats, build_meta)
