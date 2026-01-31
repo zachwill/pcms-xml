@@ -420,16 +420,20 @@ def _write_alert_stack(
     })
     row += 1
     
-    # Alert 5: Two-way contracts included in totals
+    # Alert 5: Two-way policy toggles NOT YET IMPLEMENTED warning
+    # These toggles currently do not change authoritative totals or roster counts.
+    # (Authoritative totals always come from tbl_team_salary_warehouse.)
     worksheet.write_formula(
         row, COL_READOUT_LABEL,
-        '=IF(CountTwoWayInTotals="Yes","ℹ Two-way contracts included in totals","")',
+        '=IF(OR(CountTwoWayInTotals="Yes",CountTwoWayInRoster="Yes"),'
+        '"🚧 TWO-WAY TOGGLES NOT YET IMPLEMENTED — they do not change totals/roster counts (warehouse still includes 2-way)",'
+        '"")',
         alert_row_fmt
     )
     worksheet.conditional_format(row, COL_READOUT_LABEL, row, COL_READOUT_DESC, {
         "type": "formula",
-        "criteria": '=CountTwoWayInTotals="Yes"',
-        "format": workbook.add_format({"bg_color": "#DBEAFE", "font_color": "#1E40AF"}),  # blue-100 / blue-800
+        "criteria": '=OR(CountTwoWayInTotals="Yes",CountTwoWayInRoster="Yes")',
+        "format": workbook.add_format({"bg_color": "#FEE2E2", "font_color": "#991B1B", "bold": True}),  # red-100 / red-800 + bold
     })
     row += 1
     

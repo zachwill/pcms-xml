@@ -11,7 +11,7 @@ This module implements:
    - MINIMUM label display when is_min_contract=TRUE
    - Conditional formatting for badges (colors cells based on PO/TO/ETO, GTD/PRT/NG, NTC/Kicker)
 3. Two-way section (bucket = 2WAY)
-   - Respects CountTwoWayInRoster and CountTwoWayInTotals policy toggles
+   - Two-way policy toggles are not implemented yet (totals/counts remain authoritative)
 4. Cap holds section (bucket = FA, from tbl_cap_holds_warehouse)
 5. Dead money section (bucket = TERM, from tbl_dead_money_warehouse)
 6. Totals + reconciliation block vs DATA_team_salary_warehouse
@@ -27,7 +27,7 @@ Design notes:
 - SelectedMode ("Cap"/"Tax"/"Apron") controls which salary columns are displayed
 - Reconciliation block sums rows and compares to team_salary_warehouse totals (mode-aware)
 - Conditional formatting highlights deltas ≠ 0
-- Two-way counting respects policy toggles: CountTwoWayInRoster, CountTwoWayInTotals
+- Two-way policy toggles (CountTwoWayInRoster/CountTwoWayInTotals) are placeholders and do not change totals yet
 
 Badge formatting (aligned to web UI conventions from web/src/features/SalaryBook/):
 - Option: PO/PLYR (blue), TO/TEAM (purple), ETO/PLYTF (orange)
@@ -687,13 +687,13 @@ def _write_twoway_section(
             roster_formats["bucket_2way"],
         )
 
-        # CountsTowardTotal: two-way counts only if CountTwoWayInTotals="Yes"
-        counts_total_expr = f'=IF({name_expr}<>"",IF(CountTwoWayInTotals="Yes","Y","N"),"")'
+        # CountsTowardTotal: two-way rows count toward authoritative totals (warehouse includes 2-way)
+        counts_total_expr = f'=IF({name_expr}<>"","Y","")'
         worksheet.write_formula(row, COL_COUNTS_TOTAL, counts_total_expr, roster_formats["counts_yes"])
 
-        # CountsTowardRoster: two-way counts only if CountTwoWayInRoster="Yes"
-        counts_roster_expr = f'=IF({name_expr}<>"",IF(CountTwoWayInRoster="Yes","Y","N"),"")'
-        worksheet.write_formula(row, COL_COUNTS_ROSTER, counts_roster_expr, roster_formats["counts_yes"])
+        # CountsTowardRoster: two-way rows do not count toward NBA roster size (tracked separately)
+        counts_roster_expr = f'=IF({name_expr}<>"","N","")'
+        worksheet.write_formula(row, COL_COUNTS_ROSTER, counts_roster_expr, roster_formats["counts_no"])
 
         worksheet.write_formula(row, COL_NAME, f"={name_expr}")
         worksheet.write(row, COL_OPTION, "")  # Two-ways don't have options

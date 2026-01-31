@@ -6,7 +6,7 @@ This module implements the "accounting statement" for team salary cap:
 2. Snapshot totals section (from tbl_team_salary_warehouse)
    - Cap/Tax/Apron totals by bucket (ROST, FA, TERM, 2WAY)
    - System thresholds for context
-3. Plan delta section (placeholder zeros for v1)
+3. Plan delta section (from tbl_plan_journal, filtered by ActivePlanId)
 4. Derived totals section (snapshot + deltas)
 5. Delta vs snapshot verification
 
@@ -18,7 +18,7 @@ Per the blueprint (excel-cap-book-blueprint.md):
 Design notes:
 - Uses Excel formulas filtered by SelectedTeam + SelectedYear + SelectedMode
 - Mode-aware display (Cap vs Tax vs Apron columns)
-- Plan deltas are zeros for v1 (placeholder for PLAN_JOURNAL integration)
+- Plan deltas are aggregated from tbl_plan_journal (enabled rows, filtered by ActivePlanId)
 """
 
 from __future__ import annotations
@@ -726,10 +726,40 @@ def _write_policy_warnings(
     })
     
     row += 1
-    
+
+    # Two-way policy toggles NOT YET IMPLEMENTED warning
+    # These toggles currently do not change authoritative totals or roster counts.
+    worksheet.write_formula(
+        row, COL_LABEL,
+        '=IF(OR(CountTwoWayInTotals="Yes",CountTwoWayInRoster="Yes"),"🚧 TWO-WAY TOGGLES NOT YET IMPLEMENTED","")',
+        warning_fmt
+    )
+    worksheet.write_formula(
+        row, COL_CAP,
+        '=IF(OR(CountTwoWayInTotals="Yes",CountTwoWayInRoster="Yes"),"No effect on totals/roster counts","")',
+        warning_fmt
+    )
+    worksheet.write_formula(
+        row, COL_NOTES,
+        '=IF(OR(CountTwoWayInTotals="Yes",CountTwoWayInRoster="Yes"),"Authoritative totals always include 2-way per warehouse — set both to No to hide this warning","")',
+        workbook.add_format({
+            "bg_color": "#FEE2E2",
+            "font_color": "#991B1B",
+            "font_size": 9,
+            "italic": True,
+        })
+    )
+    worksheet.conditional_format(row, COL_LABEL, row, COL_NOTES, {
+        "type": "formula",
+        "criteria": '=OR(CountTwoWayInTotals="Yes",CountTwoWayInRoster="Yes")',
+        "format": warning_fmt,
+    })
+
+    row += 1
+
     # Blank row for spacing (only shows if warning is active, otherwise row is empty)
     row += 1
-    
+
     return row
 
 
@@ -748,7 +778,7 @@ def write_budget_ledger(
     The budget ledger shows:
     - Snapshot totals by bucket from DATA_team_salary_warehouse
     - System thresholds for context
-    - Plan deltas (placeholder zeros for v1)
+    - Plan deltas (from tbl_plan_journal, enabled rows filtered by ActivePlanId)
     - Derived totals (snapshot + deltas)
     - Room/over analysis for cap/tax/aprons
     - Verification that formulas are consistent
@@ -795,7 +825,7 @@ def write_budget_ledger(
         worksheet, content_row, formats, budget_formats
     )
     
-    # 3. Plan delta section (placeholder zeros for v1)
+    # 3. Plan delta section (from tbl_plan_journal for ActivePlanId)
     content_row, delta_total_row = _write_plan_delta_section(
         worksheet, content_row, formats, budget_formats
     )
