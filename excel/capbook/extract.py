@@ -350,8 +350,73 @@ def extract_salary_book_warehouse(
     return columns, rows
 
 
+def extract_cap_holds_warehouse(
+    base_year: int,
+) -> tuple[list[str], list[dict[str, Any]]]:
+    """
+    Extract tbl_cap_holds_warehouse dataset.
+
+    Returns (columns, rows) for DATA_cap_holds_warehouse sheet.
+
+    Per the data contract:
+    - Primary key: non_contract_amount_id
+    - Filters: salary_year BETWEEN base_year AND base_year + 5
+    """
+    sql = """
+        SELECT
+            non_contract_amount_id,
+            team_code,
+            salary_year,
+            player_id,
+            player_name,
+            amount_type_lk,
+            cap_amount,
+            tax_amount,
+            apron_amount,
+            free_agent_designation_lk,
+            free_agent_status_lk,
+            fa_amount,
+            qo_amount,
+            rofr_amount,
+            rookie_scale_amount,
+            carry_over_fa_flg,
+            fa_amount_type_lk,
+            min_contract_lk,
+            contract_id,
+            contract_type_lk,
+            years_of_service
+        FROM pcms.cap_holds_warehouse
+        WHERE salary_year BETWEEN %(base_year)s AND %(base_year)s + 5
+        ORDER BY team_code, salary_year, player_name
+    """
+    rows = fetch_all(sql, {"base_year": base_year})
+    columns = [
+        "non_contract_amount_id",
+        "team_code",
+        "salary_year",
+        "player_id",
+        "player_name",
+        "amount_type_lk",
+        "cap_amount",
+        "tax_amount",
+        "apron_amount",
+        "free_agent_designation_lk",
+        "free_agent_status_lk",
+        "fa_amount",
+        "qo_amount",
+        "rofr_amount",
+        "rookie_scale_amount",
+        "carry_over_fa_flg",
+        "fa_amount_type_lk",
+        "min_contract_lk",
+        "contract_id",
+        "contract_type_lk",
+        "years_of_service",
+    ]
+    return columns, rows
+
+
 # TODO: Implement remaining extract functions per data contract:
-# - extract_cap_holds_warehouse
 # - extract_dead_money_warehouse
 # - extract_exceptions_warehouse
 # - extract_draft_picks_warehouse

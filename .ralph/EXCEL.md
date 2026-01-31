@@ -60,7 +60,7 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
 
 - [x] Implement dataset extract: `tbl_salary_book_yearly` → `DATA_salary_book_yearly` (base_year..base_year+5)
 
-- [ ] Implement dataset extract: `tbl_cap_holds_warehouse` → `DATA_cap_holds_warehouse`
+- [x] Implement dataset extract: `tbl_cap_holds_warehouse` → `DATA_cap_holds_warehouse`
 
 - [ ] Implement dataset extract: `tbl_dead_money_warehouse` → `DATA_dead_money_warehouse`
 
