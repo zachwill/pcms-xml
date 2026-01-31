@@ -85,9 +85,11 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
 
 - [x] Add data validation dropdown for `SelectedTeam` based on distinct `team_code` values
 
-- [ ] Implement minimal `TEAM_COCKPIT` readouts driven from `DATA_team_salary_warehouse`:
+- [x] Implement minimal `TEAM_COCKPIT` readouts driven from `DATA_team_salary_warehouse`:
   - cap position, tax position, room under apron 1/2, roster count, repeater flag
   - keep it formula-light; correctness + reconciliation beats polish
+  - Uses SUMIFS formulas referencing tbl_team_salary_warehouse with SelectedTeam/SelectedYear
+  - Also shows cap_total/tax_total vs thresholds for context
 
 - [ ] Implement minimal `AUDIT_AND_RECONCILE` section:
   - show selected team/year totals from `DATA_team_salary_warehouse`
