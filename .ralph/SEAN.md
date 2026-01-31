@@ -1,10 +1,10 @@
-# Sean workbook (current) — reverse engineering backlog
+# Sean workbook (current) - reverse engineering backlog
 
 **Source of truth:** `reference/warehouse/*.json`
 
-These JSON files are exports of Sean’s current Excel workbook. Our older mental models in `reference/sean/` are now **legacy** and should not be treated as accurate.
+These JSON files are exports of Sean's current Excel workbook. Our older mental models in `reference/sean/` are now **legacy** and should not be treated as accurate.
 
-**Goal:** for each worksheet export, write a concise but accurate “mental model” spec in:
+**Goal:** for each worksheet export, write a concise but accurate "mental model" spec in:
 
 - `reference/warehouse/specs/<sheet>.md`
 
@@ -27,10 +27,10 @@ Each `reference/warehouse/specs/<sheet>.md` should include:
    - what sheets it references (grep formulas like `='System Values'!G8`)
    - what sheets reference *it* (grep other files for its sheet name)
 6. **Key formulas / logic patterns**
-   - quote representative formulas (and explain what they’re computing)
+   - quote representative formulas (and explain what they're computing)
 7. **Mapping to our Postgres model**
    - which `pcms.*` tables/views this corresponds to
-   - what’s missing from our schema/caches (if anything)
+   - what's missing from our schema/caches (if anything)
 8. **Open questions / TODO**
 
 ---
@@ -66,7 +66,7 @@ grep -nE "'<Sheet Name>'!" reference/warehouse/*.json
 - [x] Create `reference/warehouse/specs/00-index.md` (workbook overview + dependency graph + links to each spec)
 
 ### Core warehouses / constants
-- [x] Spec: `y.json` (Y Warehouse — multi-year salary matrix)
+- [x] Spec: `y.json` (Y Warehouse - multi-year salary matrix)
 - [x] Spec: `dynamic_contracts.json`
 - [x] Spec: `contract_protections.json`
 - [x] Spec: `system_values.json`
@@ -107,11 +107,11 @@ grep -nE "'<Sheet Name>'!" reference/warehouse/*.json
 ## Follow-ups (post-spec / tooling parity)
 
 - [x] Resolve **external workbook references** in formulas (e.g. `X!` and `[2]Exceptions Warehouse - 2024`) and map them to our in-repo sheets and/or `pcms.*` tables. → See `specs/external-refs.md`
-- [ ] Validate **luxury tax parity**: Sean’s `Tax Array` SUMPRODUCT vs `pcms.league_tax_rates` (and repeater flags from `pcms.tax_team_status`).
-- [ ] Validate **minimum salary parity**: Sean’s multi-year minimum escalators vs what PCMS provides (`pcms.league_salary_scales` is year-1 only).
-- [ ] Decide whether our tool-facing warehouses should extend to **2031** (Sean’s Y goes to 2031; ours is typically 2025–2030).
+- [x] Validate **luxury tax parity**: Sean's `Tax Array` SUMPRODUCT vs `pcms.league_tax_rates` (and repeater flags from `pcms.tax_team_status`). → See `specs/tax_array.md` §8–10 for detailed parity analysis, rate tables, and validation queries.
+- [ ] Validate **minimum salary parity**: Sean's multi-year minimum escalators vs what PCMS provides (`pcms.league_salary_scales` is year-1 only).
+- [ ] Decide whether our tool-facing warehouses should extend to **2031** (Sean's Y goes to 2031; ours is typically 2025-2030).
 - [ ] Reverse-engineer **buyout / waiver scenario math** from `buyout_calculator` + `kuzma_buyout`:
   - confirm the `174` day constant + `waived_date + 2` clearance assumption
   - explain the **$600,000 subtraction** in `kuzma_buyout` (guarantee protection?)
   - codify **stretch provision years** rule (typically `2 × years_remaining + 1`)
-- [ ] Identify other **duplicate snapshot sheets** (like `por.json` = `playground.json`) so we don’t spec/implement redundant logic.
+- [ ] Identify other **duplicate snapshot sheets** (like `por.json` = `playground.json`) so we don't spec/implement redundant logic.
