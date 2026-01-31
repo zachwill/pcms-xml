@@ -40,6 +40,7 @@ from .reconcile import reconcile_team_salary_warehouse
 from .xlsx import create_standard_formats, write_table
 from .sheets import (
     UI_STUB_WRITERS,
+    write_audit_and_reconcile,
     write_home_stub,
     write_meta_sheet,
     write_team_cockpit_with_command_bar,
@@ -296,9 +297,20 @@ def build_capbook(
         except Exception as e:  # noqa: BLE001
             _mark_failed(build_meta, f"TEAM_COCKPIT writer crashed: {e}\n{traceback.format_exc()}")
 
-        # Write remaining UI sheet stubs (skip TEAM_COCKPIT since we already wrote it)
+        # AUDIT_AND_RECONCILE gets special treatment - it has formula-driven reconciliation
+        try:
+            write_audit_and_reconcile(
+                workbook,
+                ui_worksheets["AUDIT_AND_RECONCILE"],
+                formats,
+                build_meta,
+            )
+        except Exception as e:  # noqa: BLE001
+            _mark_failed(build_meta, f"AUDIT_AND_RECONCILE writer crashed: {e}\n{traceback.format_exc()}")
+
+        # Write remaining UI sheet stubs (skip sheets we've already handled)
         for sheet_name, writer_fn in UI_STUB_WRITERS.items():
-            if sheet_name == "TEAM_COCKPIT":
+            if sheet_name in ("TEAM_COCKPIT", "AUDIT_AND_RECONCILE"):
                 continue  # Already handled above
             if sheet_name in ui_worksheets:
                 try:
