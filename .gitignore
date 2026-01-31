@@ -26,7 +26,8 @@ npm-debug.log*
 
 # Local extracts / scratch data
 .shared/
-shared/
+/shared/*
+!/shared/AGENTS.md
 *.xml
 
 # Lock files (optional - uncomment if needed)
