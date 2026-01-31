@@ -293,6 +293,6 @@ ORDER BY salary_year, team_code;
 
 - [ ] Run validation queries above when DB is accessible.
 - [ ] Confirm `pcms.league_tax_rates.lower_limit/upper_limit` are defined in terms of **amount over the tax line** (vs absolute payroll).
-- [ ] Add SQL helper function `pcms.fn_luxury_tax_amount(salary_year, team_tax_salary, is_repeater)`.
+- [x] Luxury tax helper functions implemented: `pcms.fn_luxury_tax_amount(p_salary_year, p_over_tax_amount, p_is_repeater)` (+ wrappers `pcms.fn_team_luxury_tax`, `pcms.fn_all_teams_luxury_tax`). See `migrations/057_fn_luxury_tax_amount.sql` and `fn_luxury_tax_amount.md`.
 - [ ] Reconcile workbook "Tax Bracket" increment (System Values col L) vs PCMS bracket definitions.
 - [ ] Fix Sean workbook inconsistency: GSW missing from `finance.json` repeater list.

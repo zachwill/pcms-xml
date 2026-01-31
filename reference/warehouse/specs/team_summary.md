@@ -253,8 +253,8 @@ AB36: =AB35/COUNTIF(AB3:AB32,"<1")  -- Per-team share (teams under tax)
 | Cap/Tax/Apron levels | `pcms.league_system_values` | Columns: `salary_cap`, `tax_level`, `apron_1`, `apron_2` |
 | Roster count | `pcms.salary_book_warehouse` | `COUNT(*) WHERE team_code = ?` |
 | Minimum salary fill | TODO | Requires a minimum-salary scale by YOS (Sean references `minimum_salary_scale.json`) |
-| Repeater status | `pcms.teams` or computed | Need 3-year tax history |
-| Tax bracket calc | `pcms.league_tax_rates` + `pcms.tax_team_status` | Compute from over-tax amount + repeater flag |
+| Repeater status | `pcms.tax_team_status` / `pcms.team_salary_warehouse` | Use `is_repeater_taxpayer` keyed by `(team_code, salary_year)` |
+| Tax payment calculation | `pcms.fn_team_luxury_tax(team_code, salary_year)` | Wrapper over `pcms.fn_luxury_tax_amount()` + `league_tax_rates` + system values |
 | Standings (wins/losses) | **Not in PCMS** | Would come from NBA Stats API |
 | Conference | `pcms.teams.conference` | |
 
@@ -263,8 +263,8 @@ AB36: =AB35/COUNTIF(AB3:AB32,"<1")  -- Per-team share (teams under tax)
 - ✅ Team salary totals (cap/tax/apron) — `team_salary_warehouse`
 - ✅ Dead money breakout — `dead_money_warehouse`
 - ✅ CBA constants — `league_system_values`
-- ⚠️ Repeater flag — need to derive from tax payment history
-- ⚠️ Tax payment calculation — need tax bracket table or function
+- ✅ Repeater flag — `pcms.tax_team_status.is_repeater_taxpayer` (also surfaced in `pcms.team_salary_warehouse.is_repeater_taxpayer`)
+- ✅ Tax payment calculation — `pcms.fn_luxury_tax_amount()` (see `migrations/057_fn_luxury_tax_amount.sql`), still needs parity validation vs workbook
 - ❌ Standings data — not in PCMS (NBA Stats API)
 
 ---
@@ -275,7 +275,7 @@ AB36: =AB35/COUNTIF(AB3:AB32,"<1")  -- Per-team share (teams under tax)
 
 2. **Days remaining proration**: The `$D$1/174` factor prorates minimum fills by days left in season. The 174 constant is presumably the total season days. Verify this is correct for 2025-26.
 
-3. **Repeater status source**: Currently hardcoded ("Yes" in column K). Need to compute from 3-year tax payment history or add to `pcms.teams`.
+3. **Repeater status source**: Workbook hardcodes repeaters ("Yes" in column K). In Postgres, use `pcms.tax_team_status.is_repeater_taxpayer` (also surfaced in `pcms.team_salary_warehouse.is_repeater_taxpayer`); verify parity for 2025.
 
 4. **Tax bracket parity**: The SUMPRODUCT pattern uses Tax Array columns E–I (standard) and K–O (repeater). Need to verify our tax calculation matches.
 
@@ -297,8 +297,8 @@ Team Summary is a **league-wide salary scoreboard** — one row per team with:
 
 Our `pcms.team_salary_warehouse` is the direct analog for the salary totals. The main gaps are:
 
-- **Tax payment calculation** (need bracket logic)
-- **Repeater status** (need historical derivation)
+- **Minimum salary fill / proration** (rookie/vet min fill-to-14 logic + 174-day constant)
 - **Standings** (not in PCMS)
+- **Parity validation**: confirm our tax outputs (`fn_team_luxury_tax` / `fn_luxury_tax_amount`) match workbook `Tax Payment` cells
 
 For salary-cap tooling, this sheet answers "who's over the tax?" and "what's the league-wide tax bill?" — useful for trade deadline context.

@@ -217,7 +217,7 @@ Looks up Year 1 salary for pick 1 in 2025 season.
 
 1. **How is Y populated?** — The player rows (3–612) appear to be static values, not formulas. This suggests Sean exports from PCMS/another source and pastes values.
 
-2. **Year range**: Y covers 2025–2031 (7 years). Our `salary_book_warehouse` currently covers 2025–2030 (6 years). May need to extend.
+2. **Year range**: Y covers 2025–2031 (7 years). **Decision:** keep our tool-facing `pcms.salary_book_warehouse` horizon at **2025–2030** (see `year-horizon-decision.md`). Treat 2031 as workbook-only / future-proofing until we intentionally extend our warehouses.
 
 3. **Tier logic**: What defines tier 1–10? Likely based on salary % of cap or max contract eligibility. Need to reverse-engineer if we want to replicate.
 
