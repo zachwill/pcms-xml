@@ -25,7 +25,7 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
   - `excel/capbook/xlsx.py` — XlsxWriter helpers (formats, tables, named ranges)
   - `excel/capbook/build.py` — orchestrate workbook build (calls extract + sheet writers)
 
-- [ ] Create `excel/export_capbook.py` entrypoint (PEP-723 style like other scripts) that:
+- [x] Create `excel/export_capbook.py` entrypoint (PEP-723 style like other scripts) that:
   - depends on `xlsxwriter` + `psycopg[binary]`
   - accepts `--out`, `--base-year`, `--as-of` (and optional `--league` default NBA)
   - calls `capbook.build.build_capbook(...)`
