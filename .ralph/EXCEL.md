@@ -37,7 +37,7 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
   - Total row for `APRON TOTAL`
 
 ### 2) AUDIT_AND_RECONCILE: make the summary banner require CAP+TAX+APRON all reconcile
-- [ ] Update the summary banner logic so it cannot show PASS if any section mismatches
+- [x] Update the summary banner logic so it cannot show PASS if any section mismatches
   - PASS iff all three total deltas (cap/tax/apron) are zero (tolerance < 1)
   - FAIL message should name which totals are mismatched (Cap/Tax/Apron) and show deltas
 

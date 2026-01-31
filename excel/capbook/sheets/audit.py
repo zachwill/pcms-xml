@@ -290,24 +290,62 @@ def _write_summary_banner(
     
     This shows at-a-glance whether the workbook is reconciled.
     
+    PASS iff all three total deltas (cap/tax/apron) are zero (tolerance < 1).
+    FAIL message names which totals are mismatched and shows deltas.
+    
     Returns next row.
     """
     # We'll create a merged cell that shows overall status
-    # The formula checks if all bucket deltas are zero
+    # The formula checks if ALL three (cap/tax/apron) bucket deltas are zero
     
-    # Calculate total delta = sum of all bucket drilldowns - warehouse total
-    total_drilldown = (
+    # Calculate CAP delta = drilldown - warehouse
+    cap_drilldown = (
         f"({_salary_book_sumproduct('cap', is_two_way=False)})"
         f"+({_salary_book_sumproduct('cap', is_two_way=True)})"
         f"+({_cap_holds_sumifs('cap_amount')})"
         f"+({_dead_money_sumifs('cap_value')})"
     )
-    total_warehouse = _warehouse_sumifs('cap_total')
+    cap_warehouse = _warehouse_sumifs('cap_total')
+    cap_delta = f"({cap_drilldown}-{cap_warehouse})"
+    
+    # Calculate TAX delta = drilldown - warehouse
+    tax_drilldown = (
+        f"({_salary_book_sumproduct('tax', is_two_way=False)})"
+        f"+({_salary_book_sumproduct('tax', is_two_way=True)})"
+        f"+({_cap_holds_sumifs('tax_amount')})"
+        f"+({_dead_money_sumifs('tax_value')})"
+    )
+    tax_warehouse = _warehouse_sumifs('tax_total')
+    tax_delta = f"({tax_drilldown}-{tax_warehouse})"
+    
+    # Calculate APRON delta = drilldown - warehouse
+    apron_drilldown = (
+        f"({_salary_book_sumproduct('apron', is_two_way=False)})"
+        f"+({_salary_book_sumproduct('apron', is_two_way=True)})"
+        f"+({_cap_holds_sumifs('apron_amount')})"
+        f"+({_dead_money_sumifs('apron_value')})"
+    )
+    apron_warehouse = _warehouse_sumifs('apron_total')
+    apron_delta = f"({apron_drilldown}-{apron_warehouse})"
+    
+    # Check if each is within tolerance
+    cap_ok = f"(ABS{cap_delta}<1)"
+    tax_ok = f"(ABS{tax_delta}<1)"
+    apron_ok = f"(ABS{apron_delta}<1)"
+    all_ok = f"AND({cap_ok},{tax_ok},{apron_ok})"
+    
+    # Build mismatch detail string showing which sections failed and their deltas
+    # Format: "Cap: $X, Tax: $Y, Apron: $Z" for any that mismatch
+    mismatch_parts = (
+        f'IF(NOT({cap_ok}),"Cap: $"&TEXT(ABS{cap_delta},"#,##0")&" ","")'
+        f'&IF(NOT({tax_ok}),"Tax: $"&TEXT(ABS{tax_delta},"#,##0")&" ","")'
+        f'&IF(NOT({apron_ok}),"Apron: $"&TEXT(ABS{apron_delta},"#,##0"),"")'
+    )
     
     status_formula = (
-        f'=IF(ABS({total_drilldown}-{total_warehouse})<1,'
-        f'"✓ RECONCILED — All drilldown sums match warehouse totals",'
-        f'"✗ MISMATCH — Drilldown sums differ from warehouse (see details below)")'
+        f'=IF({all_ok},'
+        f'"✓ RECONCILED — All drilldown sums match warehouse totals (Cap/Tax/Apron)",'
+        f'"✗ MISMATCH — "&TRIM({mismatch_parts}))'
     )
     
     worksheet.merge_range(row, COL_LABEL, row, COL_NOTES, "", audit_formats["summary_pass"])
