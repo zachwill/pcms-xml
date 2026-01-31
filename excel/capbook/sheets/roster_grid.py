@@ -32,7 +32,7 @@ Design notes:
 - SelectedMode ("Cap"/"Tax"/"Apron") controls which salary columns are displayed
 - Reconciliation block sums rows and compares to team_salary_warehouse totals (mode-aware)
 - Conditional formatting highlights deltas ≠ 0
-- Two-way policy toggles (CountTwoWayInRoster/CountTwoWayInTotals) are placeholders and do not change totals yet
+- Two-way rows display Ct$=Y (counts toward cap totals per CBA), CtR=N (does not count toward 15-player roster)
 
 Badge formatting (aligned to web UI conventions from web/src/features/SalaryBook/):
 - Option: PO/PLYR (blue), TO/TEAM (purple), ETO/PLYTF (orange)

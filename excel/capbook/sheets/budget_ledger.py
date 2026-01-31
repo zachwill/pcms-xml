@@ -731,37 +731,11 @@ def _write_policy_warnings(
     
     row += 1
 
-    # Two-way policy toggles NOT YET IMPLEMENTED warning
-    # These toggles currently do not change authoritative totals or roster counts.
-    worksheet.write_formula(
-        row, COL_LABEL,
-        '=IF(OR(CountTwoWayInTotals="Yes",CountTwoWayInRoster="Yes"),"🚧 TWO-WAY TOGGLES NOT YET IMPLEMENTED","")',
-        warning_fmt
-    )
-    worksheet.write_formula(
-        row, COL_CAP,
-        '=IF(OR(CountTwoWayInTotals="Yes",CountTwoWayInRoster="Yes"),"No effect on totals/roster counts","")',
-        warning_fmt
-    )
-    worksheet.write_formula(
-        row, COL_NOTES,
-        '=IF(OR(CountTwoWayInTotals="Yes",CountTwoWayInRoster="Yes"),"Authoritative totals always include 2-way per warehouse — set both to No to hide this warning","")',
-        workbook.add_format({
-            "bg_color": "#FEE2E2",
-            "font_color": "#991B1B",
-            "font_size": 9,
-            "italic": True,
-        })
-    )
-    worksheet.conditional_format(row, COL_LABEL, row, COL_NOTES, {
-        "type": "formula",
-        "criteria": '=OR(CountTwoWayInTotals="Yes",CountTwoWayInRoster="Yes")',
-        "format": warning_fmt,
-    })
+    # NOTE: The former "Two-way toggles NOT YET IMPLEMENTED" warning was removed.
+    # Two-way counting is a CBA fact (2-way counts toward cap totals, not roster).
+    # The COCKPIT now shows informational 2-way readouts instead.
 
-    row += 1
-
-    # Blank row for spacing (only shows if warning is active, otherwise row is empty)
+    # Blank row for spacing
     row += 1
 
     return row

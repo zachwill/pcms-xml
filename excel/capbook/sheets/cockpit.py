@@ -420,22 +420,9 @@ def _write_alert_stack(
     })
     row += 1
     
-    # Alert 5: Two-way policy toggles NOT YET IMPLEMENTED warning
-    # These toggles currently do not change authoritative totals or roster counts.
-    # (Authoritative totals always come from tbl_team_salary_warehouse.)
-    worksheet.write_formula(
-        row, COL_READOUT_LABEL,
-        '=IF(OR(CountTwoWayInTotals="Yes",CountTwoWayInRoster="Yes"),'
-        '"🚧 TWO-WAY TOGGLES NOT YET IMPLEMENTED — they do not change totals/roster counts (warehouse still includes 2-way)",'
-        '"")',
-        alert_row_fmt
-    )
-    worksheet.conditional_format(row, COL_READOUT_LABEL, row, COL_READOUT_DESC, {
-        "type": "formula",
-        "criteria": '=OR(CountTwoWayInTotals="Yes",CountTwoWayInRoster="Yes")',
-        "format": workbook.add_format({"bg_color": "#FEE2E2", "font_color": "#991B1B", "bold": True}),  # red-100 / red-800 + bold
-    })
-    row += 1
+    # NOTE: The former "Two-way toggles NOT YET IMPLEMENTED" alert was removed.
+    # Two-way counting is a CBA fact (2-way counts toward cap totals, not roster).
+    # The COCKPIT now shows informational 2-way readouts in PRIMARY READOUTS section.
     
     # Blank row for spacing
     row += 1
@@ -540,6 +527,26 @@ def _write_primary_readouts(
         row, COL_READOUT_DESC,
         f'="vs tax line of "&TEXT({_sumifs_formula("tax_level_amount")},"$#,##0")',
     )
+    row += 1
+    
+    # =========================================================================
+    # Two-Way Informational Readouts
+    # =========================================================================
+    # NOTE: Two-way counting is a CBA fact, not a user policy toggle.
+    # Per CBA: two-way contracts COUNT toward cap/tax/apron totals but do NOT
+    # count toward the 15-player NBA roster limit (they have separate 2-slot limit).
+    # These readouts provide transparency for analysts who want to see the breakdown.
+    
+    # Two-Way Count
+    worksheet.write(row, COL_READOUT_LABEL, "Two-Way Count:", label_fmt)
+    worksheet.write_formula(row, COL_READOUT_VALUE, _sumifs_formula("two_way_row_count"), bold_fmt)
+    worksheet.write(row, COL_READOUT_DESC, "(separate from 15-player roster)", label_fmt)
+    row += 1
+    
+    # Two-Way Cap Amount (mode-aware would require more complexity; show cap for consistency)
+    worksheet.write(row, COL_READOUT_LABEL, "Two-Way Cap Amount:", label_fmt)
+    worksheet.write_formula(row, COL_READOUT_VALUE, _sumifs_formula("cap_2way"), money_fmt)
+    worksheet.write(row, COL_READOUT_DESC, "(included in Cap Total above)", label_fmt)
     row += 1
     
     # Blank row for spacing

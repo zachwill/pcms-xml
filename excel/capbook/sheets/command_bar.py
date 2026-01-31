@@ -17,10 +17,13 @@ The command bar renders in two flavors:
 Named ranges (workbook-scoped, defined once on TEAM_COCKPIT):
 - Context: SelectedTeam, SelectedYear, AsOfDate, SelectedMode
 - Plans: ActivePlan, ComparePlanA, ComparePlanB, ComparePlanC, ComparePlanD
-- Policy toggles: RosterFillTarget, RosterFillType, CountTwoWayInRoster,
-                  CountTwoWayInTotals, ShowExistsOnlyRows
+- Policy toggles: RosterFillTarget, RosterFillType, ShowExistsOnlyRows
 - META (convenience): MetaValidationStatus, MetaRefreshedAt, MetaBaseYear,
                       MetaAsOfDate, MetaDataContractVersion
+
+NOTE: CountTwoWayInRoster/CountTwoWayInTotals toggles were removed.
+Two-way counting is a CBA fact (2-way counts toward cap totals, not roster).
+The COCKPIT now shows informational 2-way readouts in PRIMARY READOUTS section.
 """
 
 from __future__ import annotations
@@ -60,9 +63,10 @@ ROW_MODE = 6
 # Group 2: Policy toggles (cols 2-3)
 ROW_ROSTER_FILL_TARGET = 3
 ROW_ROSTER_FILL_TYPE = 4
-ROW_COUNT_2WAY_ROSTER = 5
-ROW_COUNT_2WAY_TOTALS = 6
-ROW_SHOW_EXISTS_ONLY = 7
+ROW_SHOW_EXISTS_ONLY = 5
+# NOTE: CountTwoWayInRoster/CountTwoWayInTotals toggles removed.
+# Two-way counting is a CBA fact (2-way counts toward cap totals, not roster).
+# The COCKPIT now shows informational readouts instead of misleading toggles.
 
 # Group 3: Plan selectors (cols 4-5)
 ROW_ACTIVE_PLAN = 3
@@ -71,8 +75,9 @@ ROW_COMPARE_B = 5
 ROW_COMPARE_C = 6
 ROW_COMPARE_D = 7
 
-# The command bar ends at row 8 (0-indexed) - leaves row 8 blank for visual separation
-COMMAND_BAR_END_ROW = 8
+# The command bar ends at row 7 (0-indexed) - leaves row 8 blank for visual separation
+# (Row 7 is ShowExistsOnly, row 8 is blank)
+COMMAND_BAR_END_ROW = 7
 
 # COCKPIT sheet name (canonical source of command bar inputs)
 COCKPIT_SHEET_NAME = "TEAM_COCKPIT"
@@ -88,8 +93,6 @@ DEFAULT_MODE = "Cap"
 # does not imply that generated assumptions are active.
 DEFAULT_ROSTER_FILL_TARGET = 0  # 0 = off
 DEFAULT_ROSTER_FILL_TYPE = "Vet Min"
-DEFAULT_COUNT_2WAY_ROSTER = False
-DEFAULT_COUNT_2WAY_TOTALS = False
 DEFAULT_SHOW_EXISTS_ONLY = False
 DEFAULT_ACTIVE_PLAN = "Baseline"
 
@@ -108,8 +111,6 @@ NAMED_RANGES = {
     # Policy toggles
     "RosterFillTarget": (ROW_ROSTER_FILL_TARGET, COL_INPUT_2),
     "RosterFillType": (ROW_ROSTER_FILL_TYPE, COL_INPUT_2),
-    "CountTwoWayInRoster": (ROW_COUNT_2WAY_ROSTER, COL_INPUT_2),
-    "CountTwoWayInTotals": (ROW_COUNT_2WAY_TOTALS, COL_INPUT_2),
     "ShowExistsOnlyRows": (ROW_SHOW_EXISTS_ONLY, COL_INPUT_2),
     # Plan selectors
     "ActivePlan": (ROW_ACTIVE_PLAN, COL_INPUT_3),
@@ -357,34 +358,6 @@ def write_command_bar_editable(
         },
     )
     
-    # Count Two-Way in Roster
-    worksheet.write(ROW_COUNT_2WAY_ROSTER, COL_LABEL_2, "2-Way in Roster?:", label_fmt)
-    worksheet.write(ROW_COUNT_2WAY_ROSTER, COL_INPUT_2, "No", input_bool_fmt)
-    
-    worksheet.data_validation(
-        ROW_COUNT_2WAY_ROSTER, COL_INPUT_2, ROW_COUNT_2WAY_ROSTER, COL_INPUT_2,
-        {
-            "validate": "list",
-            "source": ["Yes", "No"],
-            "input_title": "Count Two-Way in Roster",
-            "input_message": "Include two-way contracts in roster count?",
-        },
-    )
-    
-    # Count Two-Way in Totals
-    worksheet.write(ROW_COUNT_2WAY_TOTALS, COL_LABEL_2, "2-Way in Totals?:", label_fmt)
-    worksheet.write(ROW_COUNT_2WAY_TOTALS, COL_INPUT_2, "No", input_bool_fmt)
-    
-    worksheet.data_validation(
-        ROW_COUNT_2WAY_TOTALS, COL_INPUT_2, ROW_COUNT_2WAY_TOTALS, COL_INPUT_2,
-        {
-            "validate": "list",
-            "source": ["Yes", "No"],
-            "input_title": "Count Two-Way in Totals",
-            "input_message": "Include two-way contracts in cap/tax totals?",
-        },
-    )
-    
     # Show Exists-Only Rows
     worksheet.write(ROW_SHOW_EXISTS_ONLY, COL_LABEL_2, "Show Exists-Only?:", label_fmt)
     worksheet.write(ROW_SHOW_EXISTS_ONLY, COL_INPUT_2, "No", input_bool_fmt)
@@ -565,12 +538,6 @@ def write_command_bar_readonly(
     
     worksheet.write(ROW_ROSTER_FILL_TYPE, COL_LABEL_2, "Roster Fill Type:", label_fmt)
     worksheet.write_formula(ROW_ROSTER_FILL_TYPE, COL_INPUT_2, "=RosterFillType", readonly_fmt)
-    
-    worksheet.write(ROW_COUNT_2WAY_ROSTER, COL_LABEL_2, "2-Way in Roster?:", label_fmt)
-    worksheet.write_formula(ROW_COUNT_2WAY_ROSTER, COL_INPUT_2, "=CountTwoWayInRoster", readonly_fmt)
-    
-    worksheet.write(ROW_COUNT_2WAY_TOTALS, COL_LABEL_2, "2-Way in Totals?:", label_fmt)
-    worksheet.write_formula(ROW_COUNT_2WAY_TOTALS, COL_INPUT_2, "=CountTwoWayInTotals", readonly_fmt)
     
     worksheet.write(ROW_SHOW_EXISTS_ONLY, COL_LABEL_2, "Show Exists-Only?:", label_fmt)
     worksheet.write_formula(ROW_SHOW_EXISTS_ONLY, COL_INPUT_2, "=ShowExistsOnlyRows", readonly_fmt)

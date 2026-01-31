@@ -793,11 +793,12 @@ def _write_policy_assumptions_section(
     row += 1
     
     # Policy toggles (read from named ranges)
+    # NOTE: CountTwoWayInRoster/CountTwoWayInTotals were removed.
+    # Two-way counting is a CBA fact (2-way counts toward cap totals, not roster).
+    # The COCKPIT now shows informational 2-way readouts in PRIMARY READOUTS section.
     policies = [
         ("Roster Fill Target", "RosterFillTarget", "Generated fill rows target count"),
         ("Roster Fill Type", "RosterFillType", "Minimum salary type for fills"),
-        ("Count Two-Way in Roster", "CountTwoWayInRoster", "Include 2-way in roster count"),
-        ("Count Two-Way in Totals", "CountTwoWayInTotals", "Include 2-way in cap totals"),
         ("Show Exists-Only Rows", "ShowExistsOnlyRows", "Display non-counting rows"),
         ("Active Plan", "ActivePlan", "Currently selected scenario"),
     ]

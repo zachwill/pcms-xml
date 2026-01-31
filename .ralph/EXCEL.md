@@ -35,14 +35,18 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
   - Updated TEAM_COCKPIT + BUDGET_LEDGER to show info message instead of "NOT YET IMPLEMENTED" warning
 
 ### 2) Two-way toggles: decide + implement real semantics without breaking reconciliation trust
-- [ ] Decide what `CountTwoWayInTotals` / `CountTwoWayInRoster` mean, and implement accordingly
-  - Current behavior (intentional, for trust):
-    - Authoritative totals always come from `tbl_team_salary_warehouse` (includes 2-way)
-    - `ROSTER_GRID` Ct$/CtR are **authoritative** (2-way Ct$=Y, CtR=N)
-    - If either toggle is set to "Yes", the workbook shows **NOT YET IMPLEMENTED** warnings
-  - Next step options (pick one):
-    - (A) Treat toggles as **display-only** and rename/relocate them (or remove them)
-    - (B) Add a clearly labeled **policy-adjusted** total/count (excluding 2-way) that is explicitly *not* the authoritative total
+- [x] Decide what `CountTwoWayInTotals` / `CountTwoWayInRoster` mean, and implement accordingly
+  - **Decision:** Remove the toggles entirely. Two-way counting is a CBA fact, not a user policy choice.
+  - Per CBA: two-way contracts COUNT toward cap/tax/apron totals but do NOT count toward 15-player roster.
+  - The toggles were misleading because they implied the user could change authoritative totals.
+  - **Implementation:**
+    - Removed `CountTwoWayInRoster` and `CountTwoWayInTotals` toggles from command bar
+    - Removed "NOT YET IMPLEMENTED" warnings from TEAM_COCKPIT and BUDGET_LEDGER
+    - Added informational 2-way readouts to TEAM_COCKPIT PRIMARY READOUTS section:
+      - "Two-Way Count:" — shows `two_way_row_count` (separate from 15-player roster)
+      - "Two-Way Cap Amount:" — shows `cap_2way` (included in Cap Total above)
+    - Updated AUDIT_AND_RECONCILE policy assumptions section (removed 2-way toggle rows)
+    - Roster Count readout already shows "NBA roster + N two-way" format
 
 ### 3) Roster fill (generated rows): implement minimal, explicit, toggleable generation
 - [ ] Add a `GENERATED` section that creates fill rows when `RosterFillTarget` is 12/14/15
