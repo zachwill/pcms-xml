@@ -509,6 +509,19 @@ def write_signings_and_exceptions(
     # Build data matrix
     data_matrix = [[row_dict.get(col, "") for col in signing_columns] for row_dict in initial_data]
 
+    # Column definitions with unlocked formats for editing on protected sheet
+    column_defs = [
+        {"header": "player_name", "format": formats["input"]},
+        {"header": "signing_type", "format": formats["input"]},
+        {"header": "exception_used", "format": formats["input"]},
+        {"header": "years", "format": formats["input_int"]},
+        {"header": "year_1_salary", "format": formats["input_money"]},
+        {"header": "year_2_salary", "format": formats["input_money"]},
+        {"header": "year_3_salary", "format": formats["input_money"]},
+        {"header": "year_4_salary", "format": formats["input_money"]},
+        {"header": "notes", "format": formats["input"]},
+    ]
+
     worksheet.add_table(
         table_start_row,
         SIG_COL_PLAYER,
@@ -516,7 +529,7 @@ def write_signings_and_exceptions(
         SIG_COL_NOTES,
         {
             "name": "tbl_signings_input",
-            "columns": [{"header": col} for col in signing_columns],
+            "columns": column_defs,
             "data": data_matrix,
             "style": "Table Style Light 9",  # Yellow-ish for input
         },
@@ -538,6 +551,15 @@ def write_signings_and_exceptions(
     )
 
     content_row = table_end_row + 3
+
+    # Editable zone note
+    worksheet.write(
+        content_row, SIG_COL_PLAYER,
+        "📝 EDITABLE ZONE: The table above (yellow cells) is unlocked for editing. "
+        "Formulas and sheet structure are protected.",
+        sub_formats["note"],
+    )
+    content_row += 2
 
     # Totals row
     worksheet.write(content_row, SIG_COL_PLAYER, "TOTALS:", sub_formats["label_bold"])
@@ -719,6 +741,20 @@ def write_waive_buyout_stretch(
     # Build data matrix
     data_matrix = [[row_dict.get(col, "") for col in waive_columns] for row_dict in initial_data]
 
+    # Column definitions with unlocked formats for editing on protected sheet
+    column_defs = [
+        {"header": "player_name", "format": formats["input"]},
+        {"header": "waive_date", "format": formats["input_date"]},
+        {"header": "remaining_gtd", "format": formats["input_money"]},
+        {"header": "giveback", "format": formats["input_money"]},
+        {"header": "net_owed", "format": formats["input_money"]},
+        {"header": "stretch", "format": formats["input"]},
+        {"header": "dead_year_1", "format": formats["input_money"]},
+        {"header": "dead_year_2", "format": formats["input_money"]},
+        {"header": "dead_year_3", "format": formats["input_money"]},
+        {"header": "notes", "format": formats["input"]},
+    ]
+
     worksheet.add_table(
         table_start_row,
         WV_COL_PLAYER,
@@ -726,7 +762,7 @@ def write_waive_buyout_stretch(
         WV_COL_NOTES,
         {
             "name": "tbl_waive_input",
-            "columns": [{"header": col} for col in waive_columns],
+            "columns": column_defs,
             "data": data_matrix,
             "style": "Table Style Light 9",
         },
@@ -747,6 +783,15 @@ def write_waive_buyout_stretch(
     )
 
     content_row = table_end_row + 3
+
+    # Editable zone note
+    worksheet.write(
+        content_row, WV_COL_PLAYER,
+        "📝 EDITABLE ZONE: The table above (yellow cells) is unlocked for editing. "
+        "Formulas and sheet structure are protected.",
+        sub_formats["note"],
+    )
+    content_row += 2
 
     # Totals row
     worksheet.write(content_row, WV_COL_PLAYER, "TOTALS:", sub_formats["label_bold"])

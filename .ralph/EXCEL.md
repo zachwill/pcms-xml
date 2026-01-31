@@ -27,7 +27,7 @@ This backlog reflects the post‑v2 audit. Core sheets exist; remaining work foc
 ## Backlog (ordered)
 
 ### 1) Make PLAN + subsystem input tables truly editable
-- [ ] Unlock input tables on protected sheets
+- [x] Unlock input tables on protected sheets
   - Apply unlocked input formats to `tbl_plan_manager`, `tbl_plan_journal`, `tbl_signings_input`, `tbl_waive_input`
   - Confirm sheet protection still prevents formula overwrites but allows user edits
   - Add a quick note in each sheet explaining editable zones

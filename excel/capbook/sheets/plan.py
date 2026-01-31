@@ -270,6 +270,16 @@ def write_plan_manager(
     for row_dict in initial_data:
         data_matrix.append([row_dict.get(col, "") for col in columns])
     
+    # Column definitions with unlocked formats for editing on protected sheet
+    # All columns in tbl_plan_manager are user-editable inputs
+    column_defs = [
+        {"header": "plan_id", "format": formats["input_int"]},
+        {"header": "plan_name", "format": formats["input"]},
+        {"header": "notes", "format": formats["input"]},
+        {"header": "created_at", "format": formats["input"]},
+        {"header": "is_active", "format": formats["input"]},
+    ]
+    
     worksheet.add_table(
         table_start_row,
         PM_COL_PLAN_ID,
@@ -277,7 +287,7 @@ def write_plan_manager(
         table_end_col,
         {
             "name": "tbl_plan_manager",
-            "columns": [{"header": col} for col in columns],
+            "columns": column_defs,
             "data": data_matrix,
             "style": "Table Style Light 9",  # Yellow-ish to indicate input
         },
@@ -298,6 +308,15 @@ def write_plan_manager(
     )
     
     content_row = table_end_row + 3
+    
+    # Editable zone note
+    worksheet.write(
+        content_row, PM_COL_PLAN_ID,
+        "📝 EDITABLE ZONE: The table above (yellow cells) is unlocked for editing. "
+        "Formulas and sheet structure are protected.",
+        plan_formats["note"],
+    )
+    content_row += 2
     
     # Usage notes
     worksheet.write(content_row, PM_COL_PLAN_ID, "Usage Notes:", formats["header"])
@@ -443,6 +462,24 @@ def write_plan_journal(
     for row_dict in initial_data:
         data_matrix.append([row_dict.get(col, "") for col in columns])
     
+    # Column definitions with unlocked formats for editing on protected sheet
+    # Most columns are user-editable; delta and validation may be formula-driven in future
+    column_defs = [
+        {"header": "step", "format": formats["input_int"]},
+        {"header": "plan_id", "format": formats["input_int"]},
+        {"header": "enabled", "format": formats["input"]},
+        {"header": "effective_date", "format": formats["input_date"]},
+        {"header": "action_type", "format": formats["input"]},
+        {"header": "target_player", "format": formats["input"]},
+        {"header": "target_team", "format": formats["input"]},
+        {"header": "notes", "format": formats["input"]},
+        {"header": "delta_cap", "format": formats["input_money"]},
+        {"header": "delta_tax", "format": formats["input_money"]},
+        {"header": "delta_apron", "format": formats["input_money"]},
+        {"header": "validation", "format": formats["input"]},
+        {"header": "source", "format": formats["input"]},
+    ]
+    
     worksheet.add_table(
         table_start_row,
         PJ_COL_STEP,
@@ -450,7 +487,7 @@ def write_plan_journal(
         table_end_col,
         {
             "name": "tbl_plan_journal",
-            "columns": [{"header": col} for col in columns],
+            "columns": column_defs,
             "data": data_matrix,
             "style": "Table Style Light 9",  # Yellow-ish to indicate input
         },
@@ -539,6 +576,15 @@ def write_plan_journal(
     )
     
     content_row = table_end_row + 3
+    
+    # Editable zone note
+    worksheet.write(
+        content_row, PJ_COL_STEP,
+        "📝 EDITABLE ZONE: The table above (yellow cells) is unlocked for editing. "
+        "Formulas and sheet structure are protected.",
+        plan_formats["note"],
+    )
+    content_row += 2
     
     # Action type reference
     worksheet.write(content_row, PJ_COL_STEP, "Action Types (Reference):", formats["header"])

@@ -129,6 +129,30 @@ def create_standard_formats(workbook: Workbook) -> dict[str, Any]:
         {"bg_color": COLOR_PRECONSENTED, "font_color": "#FFFFFF", "bold": True}
     )
 
+    # -------------------------------------------------------------------------
+    # Input table formats (unlocked for editing on protected sheets)
+    # Light yellow background indicates editable zones.
+    # -------------------------------------------------------------------------
+    formats["input"] = workbook.add_format({
+        "bg_color": "#FFFDE7",  # Light yellow
+        "locked": False,
+    })
+    formats["input_money"] = workbook.add_format({
+        "bg_color": "#FFFDE7",
+        "num_format": FMT_MONEY,
+        "locked": False,
+    })
+    formats["input_date"] = workbook.add_format({
+        "bg_color": "#FFFDE7",
+        "num_format": "yyyy-mm-dd",
+        "locked": False,
+    })
+    formats["input_int"] = workbook.add_format({
+        "bg_color": "#FFFDE7",
+        "num_format": "0",
+        "locked": False,
+    })
+
     return formats
 
 
