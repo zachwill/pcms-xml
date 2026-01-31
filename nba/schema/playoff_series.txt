@@ -1,0 +1,43 @@
+### nba.playoff_series
+
+- series_id text PRIMARY KEY
+- league_id text
+- season_year integer
+- season_label text
+- season_type text -- typically "Playoffs" but stored verbatim
+- round_number integer
+- series_number integer
+- series_conference text
+- series_text text
+- series_status text
+- high_seed_id integer REFERENCES nba.teams(team_id)
+- low_seed_id integer REFERENCES nba.teams(team_id)
+- high_seed_rank integer
+- low_seed_rank integer
+- high_seed_series_wins integer
+- low_seed_series_wins integer
+- series_winner_team_id integer REFERENCES nba.teams(team_id)
+- next_series_id text
+- next_game_id text
+- series_game_id_prefix text -- e.g., first 9 digits used to identify games in a series
+- series_json jsonb
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- UNIQUE (series_id)
+- INDEX ON (league_id, season_year)
+- INDEX ON (season_year, season_type)
+- INDEX ON (high_seed_id)
+- INDEX ON (low_seed_id)
+- INDEX ON (series_winner_team_id)
+- INDEX USING gin (series_json)
+
+#### Notes
+- Unifies playoff series/bracket data from multiple sources:
+  - NBA Scores: `/api/scores/playoff/seriessummary`
+  - NBA Standings: `/api/standings/playoff/bracket`
+  - NGSS: `/Leagues/{leagueCode}/seasons/{seasonId}/series`
+- `series_json` stores the full raw payload for stability as source schemas change.

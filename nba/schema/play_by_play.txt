@@ -1,0 +1,21 @@
+### nba.play_by_play
+
+- game_id text REFERENCES nba.games(game_id)
+- pbp_json jsonb
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- PRIMARY KEY (game_id)
+- INDEX ON (game_id)
+- INDEX USING gin (pbp_json)
+
+#### Notes
+- Following the "PBP Guidance" in `AGENTS.md`, this table stores **one row per game** containing the full Play-by-Play event stream in a `jsonb` column.
+- `game_id` is the official 10-digit NBA game identifier (e.g., "0022200354").
+- `pbp_json` contains the full array of actions/events for the game, as returned by the `/api/stats/pbp` endpoint.
+- This approach is chosen to prevent "premature schema explosion" before stable event-level structures are determined.
+- A separate `nba.ngss_pbp` table will handle the legacy Genius Sports event feeds which may contain additional metadata (like challenge details or officials' attributions).
+- The GIN index on `pbp_json` allows for efficient querying into the event array if needed (e.g., searching for specific `actionType` or `personId` across all games).

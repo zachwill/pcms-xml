@@ -1,0 +1,42 @@
+### nba.teams
+
+- team_id integer PRIMARY KEY
+- team_name text
+- team_city text
+- team_full_name text
+- team_tricode text
+- team_slug text
+- team_abbreviation text
+- league_id text
+- conference text
+- division text
+- state text
+- arena_name text
+- arena_city text
+- arena_state text
+- arena_timezone text
+- is_active boolean DEFAULT true
+- ngss_team_id text
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- UNIQUE (team_id)
+- INDEX ON (team_tricode)
+- INDEX ON (team_abbreviation)
+- INDEX ON (league_id)
+- INDEX ON (ngss_team_id)
+
+#### Notes
+- `team_id` is the official NBA identifier (e.g., 1610612737 for Atlanta Hawks).
+- `team_name` is the nickname (e.g., "Hawks").
+- `team_city` is the city (e.g., "Atlanta").
+- `team_full_name` is the combination (e.g., "Atlanta Hawks").
+- `team_tricode` and `team_abbreviation` are often the same (e.g., "ATL"), but both are stored as they appear across different endpoints.
+- `team_slug` is used in NBA.com URLs (e.g., "hawks").
+- `ngss_team_id` stores the legacy Genius Sports identifier if it differs from the NBA ID.
+- `league_id` is typically "00" for the NBA, "10" for WNBA, "20" for G League.
+- `conference` and `division` are sourced from the standings or team index endpoints.
+- `state` and `arena_name`, `arena_city`, `arena_state`, `arena_timezone` are sourced from the team index or scoreboard/schedule metadata.

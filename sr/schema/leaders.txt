@@ -1,0 +1,31 @@
+### league_leaders
+
+This table stores pre-calculated league leader rankings from SportRadar. While these rankings can be derived from `sr.season_player_statistics`, the API provides canonical rankings with specific qualifying criteria that may differ from manual calculations.
+
+- leader_id text PRIMARY KEY — Generated: `{season_id}:{category}:{rank}`
+- source_api text NOT NULL — 'nba', 'ncaa', 'gleague'
+- season_id text NOT NULL — FK to `sr.seasons`
+- season_year integer — Denormalized for quick filtering
+- season_type text — REG, PST, etc.
+- category text NOT NULL — Statistical category (e.g., "points", "rebounds", "assists", "steals", "blocks", "fg_pct", "fg3_pct", "ft_pct")
+- rank integer NOT NULL — Player's rank in this category (1 = leader)
+- sr_id text NOT NULL — FK to `sr.players`
+- sr_team_id text — FK to `sr.teams`
+- player_name text — Denormalized for display
+- team_alias text — Denormalized for display
+- value numeric(10,3) — The statistical value (e.g., 30.1 PPG)
+- games_played integer — Number of games for qualification
+- is_tied boolean DEFAULT false — Whether this rank is tied with another player
+
+**Constraints:**
+- `PRIMARY KEY (leader_id)`
+- `UNIQUE (season_id, category, rank, sr_id)` — Handles ties
+- `INDEX (season_id, category)`
+- `INDEX (sr_id)`
+
+**Notes:**
+- Source: `League Leaders` endpoint (`/seasons/:year/:type/leaders`)
+- Categories vary by league but typically include: points, rebounds, assists, steals, blocks, fg_pct, fg3_pct, ft_pct, minutes, double_doubles, triple_doubles
+- The API applies its own qualifying minimums (e.g., minimum games played, minimum attempts for percentages)
+- This table enables fast "Leaderboard" UIs without recalculating ranks
+- For NCAA, leaders may be scoped by conference or division

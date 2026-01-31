@@ -1,0 +1,23 @@
+### nba.tracking_streams
+
+- stream_id text PRIMARY KEY
+- game_id text REFERENCES nba.games(game_id)
+- stream_name text
+- processor_name text
+- status text -- created, started, processing, finished, timed_out, expired
+- stream_created_at timestamptz
+- expires_at timestamptz
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- INDEX ON (game_id)
+- INDEX ON (status)
+
+#### Notes
+- `stream_created_at`: Timestamp from the source indicating when the tracking stream was created.
+- Sourced from `nba/api/nba-tracking.txt` and `nba/api/nba-tracking-feed.txt`.
+- Tracks availability and status of Hawkeye tracking data streams.
+- `stream_id` is the unique identifier used to subscribe via SSE.

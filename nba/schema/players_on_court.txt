@@ -1,0 +1,19 @@
+### nba.players_on_court
+
+- game_id text REFERENCES nba.games(game_id)
+- poc_json jsonb
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- PRIMARY KEY (game_id)
+- INDEX ON (game_id)
+- INDEX USING gin (poc_json)
+
+#### Notes
+- Sourced from `/api/stats/poc`.
+- Stored as **one row per game** as JSONB to avoid an event-level row explosion.
+- The payload maps play-by-play actions (or action numbers) to the 10 players on court.
+- If we later need event-level joins for performance-critical analytics, we can generate a derived table/materialized view from `poc_json`.

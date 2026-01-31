@@ -1,0 +1,123 @@
+openapi: 3.0.1
+servers[1]{url,description}:
+  "https://api.nba.com/v0",NBA Stats API
+info:
+  title: Alerts
+  version: v0
+  description: "Alerts are items that describe interesting things happening during a game. These could be player milestones, team runs, career or season highs, or just Player X is having a good game. These endpoints are meant to surface the best alerts for a game at the time the request is made. Meaning, an alert could be considered a top alert in period 1, but fall in ranking as the game moves along.\n"
+  "x-metadata":
+    tags[1]: Public
+    image: ../../images/scores.svg
+    description: Curated Alerts content
+    apiId: f9f3c7a8-ca76-4556-b3c7-a8ca76e55690
+paths:
+  "/api/alerts/topAlert":
+    get:
+      summary: Alerts - Top alert for the game
+      operationId: getTopAlert
+      description: Top alert for the game at the time of the request
+      parameters[1]:
+        - name: gameId
+          in: query
+          description: Valid Game ID
+          required: true
+          schema:
+            type: string
+            description: Valid Game ID
+            example: "0042200101"
+            nullable: true
+      responses:
+        "200":
+          description: Success
+  "/api/alerts/topNAlerts":
+    get:
+      summary: Alerts - Top alerts for the game
+      operationId: getTopNAlert
+      description: Top n-number of alert for the game at the time of the request
+      parameters[2]:
+        - name: gameId
+          in: query
+          description: Valid Game ID
+          required: true
+          schema:
+            type: string
+            description: Valid Game ID
+            example: "0042200101"
+        - name: alertCount
+          in: query
+          description: Alert Count between 1 and 10
+          required: true
+          schema:
+            type: integer
+            maximum: 10
+            minimum: 1
+            format: int32
+      responses:
+        "200":
+          description: Success
+  "/api/alerts/topNPregameStorylines":
+    get:
+      summary: Alerts - Top N Pregame Storylines
+      operationId: getTopNPreGameStoryLines
+      description: Returns the top n-number Pregame Storyline for the home and away teams
+      parameters[2]:
+        - name: gameId
+          in: query
+          description: Valid Game ID
+          required: true
+          schema:
+            type: string
+            description: Valid Game ID
+            example: "0042200101"
+        - name: storylineCount
+          in: query
+          description: Storyline Count between 1 and 20
+          required: true
+          schema:
+            maximum: 20
+            minimum: 0
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: Success
+  "/api/alerts/topBreakingNewsAlerts":
+    get:
+      summary: Alerts - Breaking News Alerts
+      operationId: getTopBreakingNews
+      description: Returns the top alert for all current games
+      parameters[2]:
+        - "$ref": #/components/parameters/leagueId
+        - name: gameDate
+          in: query
+          description: Game date to get breaking news alerts for in the format of YYYY-MM-DD
+          required: true
+          schema:
+            type: string
+            description: Game date to get breaking news alerts for in the format of YYYY-MM-DD
+            example: 2023-09-27
+      responses:
+        "200":
+          description: Success
+security[1]:
+  - ApiKeyAuth[0]:
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-NBA-Api-Key
+  parameters:
+    leagueId:
+      name: leagueId
+      in: query
+      description: Two digit league ID
+      required: true
+      schema:
+        type: string
+        description: Two digit league ID
+        "x-enumDescriptions":
+          "10": WNBA
+          "20": G League
+          "00": NBA
+        example: "00"

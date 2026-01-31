@@ -1,0 +1,19 @@
+### nba.hustle_events
+
+- game_id text REFERENCES nba.games(game_id)
+- hustle_events_json jsonb
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- PRIMARY KEY (game_id)
+- INDEX ON (game_id)
+- INDEX USING gin (hustle_events_json)
+
+#### Notes
+- Following the "PBP Guidance" in `AGENTS.md`, this table stores **one row per game** containing the full Hustle Stats Game Events stream in a `jsonb` column.
+- Source endpoint: `{gameId}_HustleStatsGameEvents.xml`.
+- Individual events in `hustle_events_json` contain detailed hustle metadata like `boxOutType`, `looseBallRecoveryType`, and `reboundAfterBoxOut`.
+- This table complements `nba.play_by_play` and `nba.ngss_pbp` for advanced defensive and effort analysis.

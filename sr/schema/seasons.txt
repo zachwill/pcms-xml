@@ -1,0 +1,33 @@
+### seasons
+
+This table stores unified league and season metadata across SportRadar basketball collections (NBA, NCAA, G-League, International). It maps the various season types (REG, POST, PRE, etc.) to a consistent schema for easy lookup.
+
+- season_id text [PRIMARY KEY] — SportRadar UUID for the season (e.g., "0ab3f16a-a7b3-4d19-b47d-23a47a323228")
+- source_api text NOT NULL — One of: 'nba', 'ncaa', 'gleague', 'intl'
+- league_id text NOT NULL — SportRadar UUID for the league
+- league_name text — Human-readable league name (e.g., "NBA", "NBA G League")
+- league_alias text — Short league alias (e.g., "NBA", "NBDL", "NCAAM")
+- season_year integer NOT NULL — The 4-digit start year of the season (e.g., 2024)
+- season_type text NOT NULL — The type of season. Common values:
+    - `PRE`: Preseason
+    - `REG`: Regular Season
+    - `POST` / `PST`: Postseason / Playoffs
+    - `IST`: In-Season Tournament (NBA)
+    - `SC`: Showcase Cup (G-League)
+    - `PIT`: Play-In Tournament (NBA)
+    - `CT`: Conference Tournament (NCAA)
+- season_name text — Human-readable season name if provided (e.g., "2024-25 Regular Season")
+- is_current boolean DEFAULT false — Whether this is the currently active season
+- status text — Current status of the season (e.g., "scheduled", "inprogress", "closed")
+- start_date date — The scheduled start date of the season
+- end_date date — The scheduled end date of the season
+
+**Constraints:**
+- `PRIMARY KEY (season_id)`
+- `UNIQUE (source_api, league_id, season_year, season_type)`
+
+**Notes:**
+- SportRadar's `Seasons` endpoint provides the bulk of this data.
+- The `season_type` values can vary slightly between leagues; we preserve the SportRadar codes but document them here.
+- `season_year` usually refers to the year the season begins (e.g., "2024" for the 2024-25 NBA season).
+- This table allows joining games and statistics to a specific season context across all supported leagues.

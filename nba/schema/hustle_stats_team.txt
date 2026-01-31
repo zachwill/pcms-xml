@@ -1,0 +1,32 @@
+### nba.hustle_stats_team
+
+- game_id text REFERENCES nba.games(game_id)
+- team_id integer REFERENCES nba.teams(team_id)
+- contested_field_goals integer
+- contested_2pt_field_goals integer
+- contested_3pt_field_goals integer
+- deflections integer
+- loose_balls_recovered integer
+- loose_balls_recovered_offensive integer
+- loose_balls_recovered_defensive integer
+- charges_drawn integer
+- screen_assists integer
+- screen_assists_pts integer
+- boxouts integer
+- boxouts_offensive integer
+- boxouts_defensive integer
+- boxout_team_rebound_pct numeric(5,2)
+- forced_turnovers integer
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- PRIMARY KEY (game_id, team_id)
+- INDEX ON (team_id)
+- INDEX ON (game_id)
+
+#### Notes
+- Sourced from the `<Team_Stats>` block in `{gameId}_hustlestats.xml`.
+- This table stores official team-level hustle totals directly (rather than requiring aggregation from player rows).

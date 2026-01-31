@@ -1,0 +1,19 @@
+### pbp
+
+This table stores the full play-by-play event stream for a game. It is designed to be updated via UPSERT as the game progresses, maintaining the most recent state of the entire event sequence.
+
+- game_id text PRIMARY KEY — SportRadar UUID for the game (e.g., "89fa8b67-a2e5-459d-8769-decaac17c2ae")
+- source_api text NOT NULL — One of: 'nba', 'ncaa', 'gleague', 'intl'
+- status text — Current game status (e.g., 'closed', 'inprogress', 'scheduled')
+- period integer — The current period (quarter/overtime)
+- clock text — Current game clock (e.g., "12:00", "00:00")
+- away_pts integer — Current total points for the away team
+- home_pts integer — Current total points for the home team
+- pbp_json jsonb — The full raw JSON response from the Play-By-Play endpoint
+
+NOTES:
+- This table is populated from the `Play-By-Play` endpoint.
+- It stores one row per game. During live games, this row is updated (UPSERT) with the latest event stream.
+- The `pbp_json` column contains the full `periods` array and all events. 
+- Individual event extraction into a normalized table is deferred until specific query patterns (e.g., "find all dunks") require it.
+- `period`, `clock`, and `pts` provide a quick snapshot of game progress for list views without needing to parse the potentially large `pbp_json` block.

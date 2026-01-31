@@ -1,0 +1,110 @@
+openapi: 3.0.1
+servers[1]{url,description}:
+  "https://api.nba.com/v1/api/trackingfeed",NBA Stats API
+info:
+  title: Tracking Feed
+  version: v1
+  description: Provides access to the various tracking data event feeds provided by the Tracking API.
+  "x-metadata":
+    tags[1]: Tracking
+    image: ../../images/trackingFeed.svg
+    description: Provides access to the various tracking data event feeds provided by the Tracking API.
+    apiId: 4626c3cb-2cfe-4e24-a6c3-cb2cfe2e242d
+paths:
+  "/earliest/{stream_identifier}":
+    get:
+      summary: Consume from earliest
+      description: "Establish an SSE connection to the tracking feed api for the specified stream ID, starting from the earliest point. The connection will send you a series of messages, each being a json representation of a frame or event of hawkeye data.\n\nNote - The {stream_identifier} must be obtained from the Tracking api, do not build it out of game_id/stream_name pairs. The url may change depending on how you access the stream\n"
+      operationId: consume_tracking_feed_earliest
+      parameters[4]:
+        - name: Connection
+          in: header
+          required: true
+          schema:
+            type: string
+            default: keep-alive
+        - name: Accept
+          in: header
+          required: true
+          schema:
+            type: string
+            default: text/event-stream
+        - name: stream_id
+          in: path
+          description: ID of an active player tracking stream
+          required: true
+          schema:
+            type: string
+            example: 12345abcd
+        - description: Specify an existing or create a new consumer group ID. Each consumer group ID will have it's own cursor/offset. If you would like to start streaming from the beginning of the stream specify a brand new consumer group ID here.
+          required: false
+          name: cgid
+          in: query
+          schema:
+            title: Consumer Group ID
+            type: string
+            description: Specify an existing or create a new consumer group ID.
+            example: streamConsumer1
+      responses:
+        "200":
+          description: OK
+          content:
+            "text/event_stream":
+              schema:
+                type: string
+                description: JSON representation of a frame or event of hawkeye data.
+        "404":
+          description: Topic Not Found
+          content:
+            text:
+              schema:
+                type: string
+                description: Topic not found
+  "/latest/{stream_identifier}":
+    get:
+      summary: Consume from latest
+      description: "Establish an SSE connection to the tracking feed api for the specified stream ID, starting from the latest point (so no messages before hand). \nThe connection will send you a series of messages, each being a json representation of a frame or event of hawkeye data.\n\nNote - The {stream_identifier} must be obtained from the Tracking api, do not build it out of game_id/stream_name pairs. The url may change depending on how you access the stream\n"
+      operationId: consume_tracking_feed_latest
+      parameters[3]:
+        - name: Connection
+          in: header
+          required: true
+          schema:
+            type: string
+            default: keep-alive
+        - name: Accept
+          in: header
+          required: true
+          schema:
+            type: string
+            default: text/event-stream
+        - name: stream_id
+          in: path
+          description: ID of an active player tracking stream
+          required: true
+          schema:
+            type: string
+            example: 0012300026-delayed.pose.clean
+      responses:
+        "200":
+          description: OK
+          content:
+            "text/event_stream":
+              schema:
+                type: string
+                description: JSON representation of a frame or event of hawkeye data.
+        "404":
+          description: Topic Not Found
+          content:
+            text:
+              schema:
+                type: string
+                description: Topic not found
+security[1]:
+  - ApiKeyAuth[0]:
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-NBA-Api-Key

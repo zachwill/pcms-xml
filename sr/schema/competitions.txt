@@ -1,0 +1,63 @@
+### competitions
+
+This table stores competition metadata for International (INTL) basketball. The INTL API covers 200+ competitions across regions, each with its own hierarchy of categories, seasons, and stages.
+
+- competition_id text PRIMARY KEY — SportRadar competition URN (e.g., "sr:competition:156")
+- source_api text NOT NULL — 'intl'
+- name text NOT NULL — Competition name (e.g., "EuroLeague", "BBL", "Liga ACB")
+- alias text — Short alias if available
+- gender text — 'men' or 'women'
+- type text — 'club' or 'national' (club competitions vs national team events)
+- parent_id text — Parent competition ID for nested hierarchies
+- category_id text — Category ID (typically country/region)
+- category_name text — Category name (e.g., "Germany", "Europe")
+
+**Constraints:**
+- `PRIMARY KEY (competition_id)`
+- `INDEX (category_id)`
+- `INDEX (parent_id)`
+
+---
+
+### season_stages
+
+This table captures the stage/phase structure within an INTL season. Many international competitions have multiple stages (group stage, knockout rounds, etc.).
+
+- stage_id text PRIMARY KEY — SportRadar stage URN (e.g., "sr:stage:123456")
+- season_id text NOT NULL — FK to `sr.seasons`
+- competition_id text — FK to `sr.competitions`
+- source_api text NOT NULL — 'intl'
+- name text — Stage name (e.g., "Regular Season", "Playoffs", "Group Stage")
+- type text — 'league', 'cup', 'group', 'knockout'
+- phase text — e.g., "regular season", "playoffs", "finals"
+- order_num integer — Display order within season
+- start_date date
+- end_date date
+
+**Constraints:**
+- `PRIMARY KEY (stage_id)`
+- `INDEX (season_id)`
+
+---
+
+### season_groups
+
+For group-stage competitions (common in INTL), this table stores the group definitions.
+
+- group_id text PRIMARY KEY — SportRadar group URN
+- stage_id text NOT NULL — FK to `sr.season_stages`
+- season_id text NOT NULL — FK to `sr.seasons`
+- source_api text NOT NULL — 'intl'
+- name text — Group name (e.g., "Group A", "Group B")
+- order_num integer — Display order
+
+**Constraints:**
+- `PRIMARY KEY (group_id)`
+- `INDEX (stage_id)`
+
+**Notes:**
+- Source: `Competitions`, `Competition Info`, and `Season Links` endpoints
+- The INTL hierarchy is: Category → Competition → Season → Stage → Group
+- Games reference `competition_id`, `stage_type`, `stage_phase`, and `group_name` directly for query convenience
+- These tables provide the lookup/registry for those references
+- `type` distinguishes club tournaments (EuroLeague) from national team events (EuroBasket)

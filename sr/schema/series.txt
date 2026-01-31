@@ -1,0 +1,39 @@
+### series
+
+This table stores playoff series metadata for NBA and G-League. Each series represents a best-of-N matchup in the postseason (e.g., "Western Conference Finals").
+
+- series_id text PRIMARY KEY — SportRadar UUID for the series
+- source_api text NOT NULL — 'nba' or 'gleague'
+- season_id text NOT NULL — FK to `sr.seasons`
+- title text — Series title (e.g., "Western Conference Finals", "NBA Finals")
+- round text — Round identifier (e.g., "1", "2", "CF", "F")
+- round_number integer — Numeric round (1 = First Round, 4 = Finals)
+- status text — 'scheduled', 'inprogress', 'closed'
+- start_date date — Date of Game 1
+- end_date date — Date of final game (if closed)
+- best_of integer DEFAULT 7 — Number of games in series (typically 7)
+
+**Participants**
+- team1_sr_team_id text — FK to `sr.teams`
+- team1_seed integer — Seed of team 1
+- team1_wins integer DEFAULT 0
+- team2_sr_team_id text — FK to `sr.teams`
+- team2_seed integer — Seed of team 2
+- team2_wins integer DEFAULT 0
+- winner_sr_team_id text — FK to `sr.teams` (null until series ends)
+
+**Context**
+- conference text — 'Eastern', 'Western', or null for Finals
+- bracket text — Bracket name if applicable
+
+**Constraints:**
+- `PRIMARY KEY (series_id)`
+- `INDEX (season_id)`
+- `INDEX (team1_sr_team_id, team2_sr_team_id)`
+
+**Notes:**
+- Source: `Series Schedule` endpoint (`/series/:year/:season_type/schedule`)
+- Games link to series via `sr.games.series_id`
+- NBA Play-In Tournament (PIT) games are also represented as mini-series
+- In-Season Tournament (IST) knockout rounds may use this structure as well
+- `round_number` allows easy sorting of playoff progression

@@ -1,0 +1,504 @@
+openapi: 3.0.2
+servers[1]{url,description}:
+  "https://api.nba.com/v0/api/tracking",NBA Stats API
+info:
+  title: Tracking API
+  description: Provides methods to search and filter for access urls to feeds and kick off hydration process of archived feeds.
+  version: 0.1.0
+  "x-metadata":
+    tags[1]: Tracking
+    image: ../../images/trackingFeed.svg
+    description: Provides methods to search and filter for access urls to feeds and kick off hydration process of archived feeds.
+    apiId: 5fa6f0a3-c04e-4fe6-a6f0-a3c04e4fe641
+paths:
+  "/game_streams":
+    get:
+      summary: Get Game Streams
+      description: Read available streams from the currently available game recordings.
+      operationId: get_game_streams_game_streams_get
+      parameters[7]:
+        - description: Filter streams where the game started after this date
+          required: false
+          schema:
+            title: From Date
+            type: string
+            description: Filter streams where the game started after this date
+            format: date-time
+          example: "2023-01-08T00:00:00"
+          name: from_date
+          in: query
+        - description: Filter streams where the game started before this date
+          required: false
+          schema:
+            title: To Date
+            type: string
+            description: Filter streams where the game started before this date
+            format: date-time
+          example: "2023-01-08T00:00:00"
+          name: to_date
+          in: query
+        - description: Filter streams by the specified game ID(s)
+          required: false
+          schema:
+            title: Game Id
+            type: array
+            items:
+              type: string
+            description: Filter streams by the specified game ID(s)
+          example: "0042200302"
+          name: game_id
+          in: query
+        - description: Filter streams by the specified team ID(s)
+          required: false
+          schema:
+            title: Team Id
+            type: array
+            items:
+              type: string
+            description: Filter streams by the specified team ID(s)
+          example: "1610612747"
+          name: team_id
+          in: query
+        - description: Filter streams by the specified stream name(s)
+          required: false
+          schema:
+            title: Stream Name
+            type: array
+            items:
+              type: string
+            description: Filter streams by the specified stream name(s)
+          example: fast.com.clean
+          name: stream_name
+          in: query
+        - description: Filter streams by the specified processor name(s)
+          required: false
+          schema:
+            title: Processor Name
+            type: array
+            items:
+              type: string
+            description: "Filter streams by the specified processor name(s). \\n Pass \"None\", \"null\", or \"\" to exclude any processor streams"
+          example: PassBoxScore
+          name: processor_name
+          in: query
+        - description: Only return live streams if True
+          required: false
+          schema:
+            title: Only Live Streams
+            type: boolean
+            description: Only return live streams if True
+            default: false
+          name: only_live_streams
+          in: query
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/GetGameStreamsResponse
+        "422":
+          description: Validation Error
+          content:
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/HTTPValidationError
+  "/game_streams/{external_id}/retrievals":
+    post:
+      summary: Create Retrieval
+      description: Create a request to retrieve a game from archive into active storage.
+      operationId: create_retrieval_game_streams__external_id__retrievals_post
+      parameters[1]:
+        - required: true
+          schema:
+            title: External Id
+            type: string
+          name: external_id
+          in: path
+      responses:
+        "201":
+          description: Successful Response - created a retrieval. Wait for retrieval to transition from created->processing to start consuming a stream
+          content:
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/PostRetrievalResponse
+        "303":
+          description: See Other - retrieval already exists. Response shows details on the already created retrieval
+          content:
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/PostRetrievalResponse
+        "409":
+          description: Conflict - attempted retrieval for existing stream. Use the details provided in the response to connect to the existing stream
+          content:
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/AlreadyExistingGameStreamsResponse
+        "422":
+          description: Validation Error
+          content:
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/HTTPValidationError
+  "/game_streams/{external_id}/retrievals/{retrieval_id}":
+    get:
+      summary: Get Retrieval
+      description: Read the status of an existing retrieval of an archived game.
+      operationId: get_retrieval_game_streams__external_id__retrievals__retrieval_id__get
+      parameters[2]:
+        - required: true
+          schema:
+            title: External Id
+            type: string
+          name: external_id
+          in: path
+        - required: true
+          schema:
+            title: Retrieval Id
+            type: string
+          name: retrieval_id
+          in: path
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/GetRetrievalResponse
+        "422":
+          description: Validation Error
+          content:
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/HTTPValidationError
+  "/event_logs":
+    get:
+      summary: Get Status Logs
+      description: "Get a list of status logs, individual lines of interesting events happening on the RealTime Player Tracking system."
+      operationId: get_status_logs_event_logs_get
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/EventLogsResponse
+security[1]:
+  - ApiKeyAuth[0]:
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-NBA-Api-Key
+  schemas:
+    ApiAction:
+      title: ApiAction
+      required[2]: method,url
+      type: object
+      properties:
+        method:
+          title: Method
+          enum[2]: GET,POST
+          type: string
+        url:
+          title: Url
+          type: string
+    GameStreamActions:
+      title: actions
+      type: object
+      required[3]: subscribe_earliest,subscribe_latest,retrieve
+      example:
+        subscribe_earliest:
+          "$ref": #/components/schemas/ApiAction
+          method: GET
+          url: /v1/api/trackingfeed/earliest/0022301062-processed.pose.clean
+        subscribe_latest:
+          method: GET
+          url: /v1/api/trackingfeed/latest/0022301062-processed.pose.clean
+        example_retrieve:
+          method: POST
+          url: archived_streams/retrievals/0022301062-processed.pose.clean-
+    GameStream:
+      title: GameStream
+      required[4]: stream_id,game_id,stream_name,actions
+      type: object
+      properties:
+        stream_id:
+          title: Stream Id
+          type: string
+          example: 0022300650-processed.pose.clean-
+          description: "Made up of {game_id}-{stream_name}-{procesor_name}, streams without processors will have an ID that ends in `-`"
+        game_id:
+          title: Game Id
+          type: string
+        stream_name:
+          title: Stream Name
+          type: string
+        processor_name:
+          title: Processor Name
+          type: string
+        actions:
+          "$ref": #/components/schemas/GameStreamActions
+        game_info:
+          "$ref": #/components/schemas/ScheduledGame
+      description: "Game streams are the publicly accessible streams that are available for viewing.\nThese streams come from redpanda topics."
+      example:
+        stream_id: 0022300650-processed.pose.clean-
+        stream_name: processed.pose.clean
+        processor_name: null
+        actions:
+          subscribe_earliest:
+            method: GET
+            url: /v1/api/trackingfeed/earliest/0022300650-processed.pose.clean
+          subscribe_latest:
+            method: GET
+            url: /v1/api/trackingfeed/latest/0022300650-processed.pose.clean
+          retrieve:
+            method: POST
+            url: /game_streams/0022300650-processed.pose.clean-/retrievals
+        game_info:
+          game_id: "0022300650"
+          home_team_name: Wizards
+          home_team_id: "1610612744"
+          away_team_name: Lakers
+          away_team_id: "1610612747"
+          arena_name: Chase Center
+          game_start_time: "2024-01-28T01:30:00"
+    GetGameStreamsResponse:
+      title: GetGameStreamsResponse
+      required[1]: game_streams
+      type: object
+      properties:
+        game_streams:
+          title: Game Streams
+          type: array
+          items:
+            "$ref": #/components/schemas/GameStream
+    GetRetrievalResponse:
+      title: GetRetrievalResponse
+      required[1]: stream_retrieval
+      type: object
+      properties:
+        stream_retrieval:
+          "$ref": #/components/schemas/StreamRetrieval
+        game_stream:
+          "$ref": #/components/schemas/GameStream
+    HTTPValidationError:
+      title: HTTPValidationError
+      type: object
+      properties:
+        detail:
+          title: Detail
+          type: array
+          items:
+            "$ref": #/components/schemas/ValidationError
+    AlreadyExistingGameStreamsResponse:
+      title: AlreadyExistingGameStreamsResponse
+      required[1]: detail
+      type: object
+      properties:
+        detail:
+          "$ref": #/components/schemas/GameStream
+    Pong:
+      title: Pong
+      required[1]: pong
+      type: object
+      properties:
+        pong:
+          title: Pong
+          enum[1]: true
+          type: boolean
+    PostExecutionHistory:
+      title: PostExecutionHistory
+      type: object
+      properties:
+        version:
+          title: Version
+          type: string
+        started_at:
+          title: Started At
+          type: string
+          format: date-time
+        finished_at:
+          title: Finished At
+          type: string
+          format: date-time
+        created_at:
+          title: Created At
+          type: string
+          format: date-time
+      description: "Execution history of when the script was executed by the admin\n# TODO add filters field at a later point in time"
+    PostExternalStreamRule:
+      title: PostExternalStreamRule
+      required[3]: name,rule_name,rule_arguments
+      type: object
+      properties:
+        name:
+          title: Name
+          type: string
+        rule_name:
+          title: Rule Name
+          type: string
+        rule_arguments:
+          title: Rule Arguments
+          anyOf[2]:
+            - type: string
+              format: json-string
+            - type: object
+    PostRetrievalResponse:
+      title: PostRetrievalResponse
+      required[2]: stream_retrieval,url
+      type: object
+      properties:
+        stream_retrieval:
+          "$ref": #/components/schemas/StreamRetrieval
+        url:
+          title: Url
+          type: string
+          example: /game_streams/0022300650-processed.pose.clean-/retrievals/f7e754b6-856d-4c90-74d5-302790b77a3e
+    PutExecutionHistory:
+      title: PutExecutionHistory
+      type: object
+      properties:
+        finished_at:
+          title: Finished At
+          type: string
+          format: date-time
+      description: "Execution history of when the script was executed by the admin\n# TODO add filters field at a later point in time"
+    ScheduledGame:
+      title: ScheduledGame
+      required[7]: game_id,home_team_name,home_team_id,away_team_name,away_team_id,arena_name,game_start_time
+      type: object
+      properties:
+        game_id:
+          title: Game Id
+          type: string
+        home_team_name:
+          title: Home Team Name
+          type: string
+        home_team_id:
+          title: Home Team Id
+          type: string
+        away_team_name:
+          title: Away Team Name
+          type: string
+        away_team_id:
+          title: Away Team Id
+          type: string
+        arena_name:
+          title: Arena Name
+          type: string
+        game_start_time:
+          title: Game Start Time
+          type: string
+      example:
+        game_id: "0022201039"
+        home_team_name: Wizards
+        home_team_id: "1610612764"
+        away_team_name: Celtics
+        away_team_id: "1610612738"
+        arena_name: Capital One Arena
+        game_start_time: "2023-03-21T18:00:01.795031"
+    StreamRetrieval:
+      title: StreamRetrieval
+      required[5]: game_id,stream_name,status,created_at,expires_at
+      type: object
+      properties:
+        game_id:
+          title: Game Id
+          type: string
+        stream_name:
+          title: Stream Name
+          type: string
+        processor_name:
+          title: Processor Name
+          type: string
+        status:
+          title: Status
+          enum[6]: created,started,processing,finished,timed_out,expired
+          type: string
+        created_at:
+          title: Created At
+          type: string
+        expires_at:
+          title: Expires At
+          type: string
+        game_info:
+          "$ref": #/components/schemas/ScheduledGame
+      example:
+        id: f7e754b6-856d-4c90-74d5-302790b77a3e
+        game_id: "0022201039"
+        stream_name: live.pose.clean
+        processor_name: null
+        status: created
+        created_at: "2023-03-21T18:00:01.795031"
+        expires_at: "2023-03-21T22:00:01.795031"
+        game_info:
+          game_id: "0022201039"
+          home_team_name: Wizards
+          home_team_id: "1610612764"
+          away_team_name: Celtics
+          away_team_id: "1610612738"
+          arena_name: Capital One Arena
+          game_start_time: "2023-03-21T18:00:01.795031"
+        task_runner_id: null
+    ValidationError:
+      title: ValidationError
+      required[3]: loc,msg,type
+      type: object
+      properties:
+        loc:
+          title: Location
+          type: array
+          items:
+            anyOf[2]{type}:
+              string
+              integer
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string
+    EventLogApiModel:
+      properties:
+        type:
+          type: string
+          title: Type
+        game_id:
+          type: string
+          title: Game Id
+        affected_streams:
+          items:
+            type: string
+          type: array
+          title: Affected Streams
+        affected_processors:
+          items:
+            type: string
+          type: array
+          title: Affected Processors
+        recorded_at:
+          type: string
+          format: date-time
+          title: Recorded At
+      type: object
+      required[2]: type,recorded_at
+      title: EventLogApiModel
+      example:
+        type: stream_capturing_started
+        game_id: "0099900014"
+        affected_streams[5]: live.events.clean,fast.com.clean,delayed.pose.clean,live.pose.clean,combined.events.clean
+        affected_processors[5]: flink_metrics.topics.aggregate_topics.dribbleBoxScore.DribbleBoxScore,flink_metrics.topics.aggregate_topics.trackingBoxScore.TrackingBoxScore,flink_metrics.topics.live_event_topics.passEvent.PassEventLive,flink_metrics.topics.aggregate_topics.passBoxScore.PassBoxScoreLive,flink_metrics.topics.live_event_topics.dribbleEvent.DribbleEvent
+        recorded_at: "2024-08-28T14:55:00.998996+00:00"
+    EventLogsResponse:
+      properties:
+        status_logs:
+          items:
+            "$ref": #/components/schemas/EventLogApiModel
+          type: array
+          title: Status Logs
+      type: object
+      required[1]: status_logs
+      title: EventLogsResponse

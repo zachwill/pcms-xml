@@ -1,0 +1,55 @@
+### nba.hustle_stats
+
+- game_id text REFERENCES nba.games(game_id)
+- nba_id integer REFERENCES nba.players(nba_id)
+- team_id integer REFERENCES nba.teams(team_id)
+- minutes interval
+- contested_field_goals integer
+- contested_2pt_field_goals integer
+- contested_3pt_field_goals integer
+- deflections integer
+- loose_balls_recovered integer
+- loose_balls_recovered_offensive integer
+- loose_balls_recovered_defensive integer
+- charges_drawn integer
+- screen_assists integer
+- screen_assists_pts integer
+- boxouts integer
+- boxouts_offensive integer
+- boxouts_defensive integer
+- boxout_player_rebound_pct numeric(5,2)
+- boxout_team_rebound_pct numeric(5,2)
+- forced_turnovers integer
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- PRIMARY KEY (game_id, nba_id)
+- INDEX ON (team_id)
+- INDEX ON (nba_id)
+- INDEX ON (game_id)
+
+#### Notes
+- `game_id` is the official 10-digit NBA game identifier.
+- `nba_id` is the official player identifier.
+- `minutes`: Stored as `interval` for better calculation support.
+- This table stores player-level hustle stats from the Hustle Stats Box Score (`{gameId}_hustlestats.xml`).
+- Metric abbreviations mapped from the NBA API:
+  - `CFG` -> `contested_field_goals`
+  - `C2FG` -> `contested_2pt_field_goals`
+  - `C3FG` -> `contested_3pt_field_goals`
+  - `DEFL` -> `deflections`
+  - `LBR` -> `loose_balls_recovered`
+  - `OLBR` -> `loose_balls_recovered_offensive`
+  - `DLBR` -> `loose_balls_recovered_defensive`
+  - `CHG_DR` -> `charges_drawn`
+  - `SA` -> `screen_assists`
+  - `PTSOFFSA` -> `screen_assists_pts`
+  - `BOXOUTS` -> `boxouts`
+  - `OBOXOUTS` -> `boxouts_offensive`
+  - `DBOXOUTS` -> `boxouts_defensive`
+  - `PCTBOXOUTSTMREB` -> `boxout_team_rebound_pct` (This refers to team rebounds after boxout)
+  - `FORCEDTOV` -> `forced_turnovers`
+- Team-level hustle stats are stored separately in `nba.hustle_stats_team`.

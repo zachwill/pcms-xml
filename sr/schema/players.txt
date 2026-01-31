@@ -1,0 +1,38 @@
+### players
+
+- sr_id text PRIMARY KEY
+- reference text — Official league ID (NBA.com / Elias ID, e.g., "1628369")
+- full_name text
+- first_name text
+- last_name text
+- abbr_name text
+- status text
+- position text
+- primary_position text
+- jersey_number text
+- experience text
+- birthdate date
+- birth_place text
+- high_school text
+- college text
+- rookie_year integer
+- height integer -- in inches
+- weight integer -- in lbs
+- sr_team_id text -- current team
+- draft_year integer
+- draft_round integer
+- draft_pick integer
+- sr_draft_team_id text
+- is_free_agent boolean DEFAULT false
+- updated_at timestamptz
+- source_api text NOT NULL -- nba, ncaa, gleague, intl
+- references_json jsonb -- raw SportRadar references array
+- seasons_json jsonb -- raw SportRadar seasons statistics array (from profile)
+
+**Notes:**
+- `sr_id` is the SportRadar UUID.
+- `reference` is the official NBA.com / Elias player ID for cross-system joins.
+- `sr_team_id` is the current team from the profile payload.
+- `seasons_json` stores the career statistics summary found in the Player Profile endpoint.
+- Height and weight are stored as integers (inches and lbs). SportRadar often provides height in inches.
+- `references_json` preserves the full external IDs array (NBA ID, etc.) provided in the `references` field.

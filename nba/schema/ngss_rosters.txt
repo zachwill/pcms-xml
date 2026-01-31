@@ -1,0 +1,40 @@
+### nba.ngss_rosters
+
+- game_id text REFERENCES nba.ngss_games(game_id)
+- ngss_game_id text REFERENCES nba.ngss_games(ngss_game_id)
+- team_id integer REFERENCES nba.teams(team_id)
+- ngss_team_id text
+- nba_id integer REFERENCES nba.players(nba_id)
+- ngss_person_id text
+- full_name text
+- first_name text
+- family_name text
+- jersey_number text
+- position text
+- is_player boolean
+- is_official boolean
+- is_team_staff boolean
+- team_role text
+- player_status text
+- not_playing_reason text
+- not_playing_description text
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- PRIMARY KEY (ngss_game_id, ngss_person_id)
+- INDEX ON (game_id)
+- INDEX ON (nba_id)
+- INDEX ON (team_id)
+
+#### Notes
+- This table serves as the person-mapping layer for NGSS-sourced data (Rosters, Boxscores, PBP).
+- It maps NGSS `PersonId` to official `nba_id` and `team_id` when possible.
+- `ngss_person_id`: The Genius Sports identifier for the individual (player, official, or staff).
+- `is_player`, `is_official`, `is_team_staff`: Booleans derived from the NGSS person flags.
+- `team_role`: For staff, specifies their role (e.g., Head Coach, Assistant Coach).
+- `player_status`: NGSS status (e.g., 'Active', 'Inactive').
+- `not_playing_reason`: Stores the enum-based reason for DNP/DND (e.g., 'DnpCoach', 'DnpInjury').
+- `not_playing_description`: Any additional text provided for the absence.

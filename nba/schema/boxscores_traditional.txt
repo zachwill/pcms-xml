@@ -1,0 +1,57 @@
+### nba.boxscores_traditional
+
+- game_id text REFERENCES nba.games(game_id)
+- nba_id integer REFERENCES nba.players(nba_id)
+- team_id integer REFERENCES nba.teams(team_id)
+- status text
+- not_playing_reason text
+- not_playing_description text
+- order_sequence integer
+- jersey_num text
+- position text
+- is_starter boolean
+- is_on_court boolean
+- played boolean
+- minutes interval
+- pts integer
+- fgm integer
+- fga integer
+- fg_pct numeric(6,5)
+- fg3m integer
+- fg3a integer
+- fg3_pct numeric(6,5)
+- fg2m integer
+- fg2a integer
+- fg2_pct numeric(6,5)
+- ftm integer
+- fta integer
+- ft_pct numeric(6,5)
+- oreb integer
+- dreb integer
+- reb integer
+- ast integer
+- stl integer
+- blk integer
+- tov integer
+- pf integer
+- fouls_drawn integer
+- plus_minus numeric(5,1)
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- PRIMARY KEY (game_id, nba_id)
+- INDEX ON (team_id)
+- INDEX ON (nba_id)
+- INDEX ON (game_id)
+
+#### Notes
+- `game_id` is the official 10-digit NBA game identifier.
+- `nba_id` is the official player identifier.
+- `minutes`: Stored as `interval` for better calculation support. Original format in API is "PTmmMss.ccS" (ISO 8601 duration) or "MM:SS".
+- `plus_minus`: Stored as numeric to handle decimals if they appear in certain feeds, though usually integers in traditional boxscores.
+- `played`, `is_starter`, `is_on_court`: Converted from API strings ("1"/"0") to boolean.
+- This table stores player-level performance stats. Team-level totals can be aggregated from this table or stored in a separate `boxscores_traditional_team` table if needed for performance (per `AGENTS.md` duplication is acceptable).
+- Measure Type: Traditional (per `nba-stats.txt`).

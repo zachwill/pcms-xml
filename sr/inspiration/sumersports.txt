@@ -1,0 +1,45 @@
+# SumerSports Depth Chart
+
+## Overview
+A visual, interactive depth chart that prioritizes a drag-and-drop board over a traditional table. Users can reorganize player cards and apply data overlays without leaving the primary view.
+
+## Layout
+
+### Global Header
+- Fixed header with title "DEPTH CHART" on the left
+- Standard icons on the right: Settings, Notifications, Help, User Profile
+
+### Primary View & Data Toggle
+- Left: switch between visual depth chart (active) and a table/list view
+- Center: data overlays — Biometrics, Performance, Cap, Character — that change indicators on player cards
+
+### Secondary View Controls
+- Dropdowns: Team, formation (e.g., Nickel), personnel groupings, depth level (e.g., 2-Deep)
+- Special Teams button for a separate view
+
+### Vertical Navigation Bar
+- Persistent left rail linking to other sections (e.g., Scouting, Analytics)
+
+### Main Content Area (Board)
+- Dotted grid canvas organizing players into vertical positional columns
+- Positional columns labeled (e.g., QB, LB) with player counts
+- Player cards: name, status, photo/silhouette, key metrics; draggable within and between columns
+- Notepad widget ("NOTEPAD"): floating, timestamped, collaborative notes applicable to the full roster
+
+## Best Ideas and Effective Features
+
+- Interactive, visual depth chart
+  - Drag-and-drop player cards enable quick roster experimentation without spreadsheet-style editing
+
+- Contextual data overlays
+  - Toggling Biometrics, Performance, Cap, or Character updates on-card indicators
+  - Example: switch to Cap to see financial implications of a proposed lineup
+
+- Integrated, collaborative notepad
+  - Timestamped comments (e.g., “Need more depth at LG”) keep context adjacent to the relevant position and preserve decision history
+
+- Dynamic scenario filtering
+  - Formation, personnel, and depth-level controls simulate packages (e.g., Base to Nickel) to reveal strengths and gaps
+
+- Information-dense player cards
+  - Combine name, a visual status indicator (multi-colored bar), and a key metric (e.g., SNAPS) for quick scanning without opening a profile

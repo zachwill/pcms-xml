@@ -1,0 +1,128 @@
+# CTG — League Four Factors
+
+## Overview
+
+### Description
+A league-wide view of NBA team performance on the Four Factors, presented as a sortable, filterable table. It lets users slice context (season, opponent strength, rest, location, etc.) and compare teams on offense and defense metrics with league ranks and a league-average baseline.
+
+### Main UI Patterns
+- Primary: Data table
+- Supporting: Control panel (filters)
+- Secondary: Sectional navigation and search
+
+### Notes
+- Emphasizes relative performance via color-coded ranks rather than raw values alone
+- Anchors interpretation with a league-average row
+- Data scope is curated (excludes garbage time and end-of-quarter heaves), shaping how users trust and apply insights
+
+## Key Modules
+
+### 1. Global Header + Stats Navigation + Search
+- Description: Keeps users oriented and able to jump between Stats subsections (Games, Players, Teams, Salaries, League breakdowns). Search accelerates entry to specific teams/players without leaving the stats context
+- Core Elements:
+  - Top-level site nav (Articles, Stats, About, account)
+  - Secondary Stats nav with direct links to subpages, including Four Factors
+  - Prominent player/team search
+- Interaction Patterns:
+  - Persistent header; quick switching across related stat views
+  - Search-as-navigation to bypass browsing
+- Notes:
+  - Pattern scales well across a stats suite: consistent mental model, reduced navigation cost
+
+### 2. Filters and Customization Panel
+- Description: Turns a static table into a contextual analysis tool by letting users specify when and against whom performance is measured
+- Core Elements:
+  - Season and season type (regular, playoffs)
+  - Date range
+  - Opponent, location (home/away), game result (win/loss)
+  - Rest days for team and opponent
+  - Opponent strength filters (rank by point differential, offense, defense)
+- Interaction Patterns:
+  - Multi-criteria filtering with immediate table updates
+  - Advanced filters for strength-of-schedule and fatigue context
+- Notes:
+  - Reusable pattern: expose a small core filter set plus an advanced group for power users
+
+### 3. Four Factors Data Table
+- Description: Central comparative view of team efficiency split into offense and defense, with ranks and color cues for quick scanning
+- Core Elements:
+  - Team identity (logo, name), record, point differential
+  - Offense and Defense sections with Points per Possession, eFG%, TOV%, ORB%, Free Throw Rate
+  - League ranks and color-coding per metric
+  - League-average row at top
+  - Sortable columns
+- Interaction Patterns:
+  - Click-to-sort by any metric
+  - Preattentive color encoding of ranks for rapid hot/cold spotting
+  - Comparison to league average without leaving the table
+- Notes:
+  - Rank-based coloring normalizes across heterogeneous metrics, improving cross-column scan
+
+### 4. Explanations + Data Export
+- Description: Establishes data scope/assumptions and enables external analysis
+- Core Elements:
+  - Note on excluding garbage time and heaves
+  - Download this table as CSV
+- Interaction Patterns:
+  - Lightweight documentation near the data
+  - One-click export for reproducibility and deeper analysis
+- Notes:
+  - Reusable pattern: pair methodological note with export to build trust and enable workflow continuity
+
+### 5. Footer
+- Description: Standard site information and policies
+- Core Elements:
+  - Copyright
+  - Terms
+  - Privacy
+  - Contact
+- Interaction Patterns:
+  - Static links; credibility signaling
+
+## Best Ideas
+
+### 1. Rank-as-Color Heatmap in Cells
+- Why It Works: Uses rank to normalize disparate metrics and color to reduce scanning time. Users can spot strengths/weaknesses across offense/defense without parsing every number
+- Where It Breaks Down: Without a legend or accessibility support, colorblind users may struggle; ranks can mask magnitude differences between close values
+
+### 2. League-Average Baseline Row
+- Why It Works: Provides an immediate anchor for above/below average across all metrics, reducing cognitive load and back-and-forth reference
+- Where It Breaks Down: A single average hides distribution shape; percentile bands or quartiles could give more nuance
+
+### 3. Context-Heavy Filters (Opponent Strength, Rest Days)
+- Why It Works: Encodes schedule strength and fatigue, enabling apples-to-contextual-apples comparisons without leaving the interface or building custom datasets
+- Where It Breaks Down: Complex filter states can be hard to track without visible chips/summaries or saved views
+
+### 4. Curated Data Scope (Exclude Garbage Time and Heaves)
+- Why It Works: Reduces noise and aligns the dataset with meaningful possessions, producing more stable comparisons
+- Where It Breaks Down: Users sometimes need to compare to other public sources that include all possessions; a toggle could help
+
+### 5. CSV Export Adjacent to Table
+- Why It Works: Encourages trust and off-platform analysis; integrates with users’ workflows without friction
+- Where It Breaks Down: Lacks parameterized/saved exports or API access for automated pipelines
+
+### 6. Secondary Stats Navigation Within a Suite
+- Why It Works: Keeps users in analysis mode while switching topics; consistency reduces reorientation cost
+- Where It Breaks Down: If taxonomy grows, navigation can sprawl without grouping or search within the nav
+
+## Metadata
+
+### Data Density
+High-density table across two dimensions (offense/defense) and multiple metrics, mitigated by rank-based color and sorting. The league-average row improves interpretability without additional charts
+
+### Notable Omissions
+Not described:
+- Saved filter presets
+- Shareable URLs for filter state
+- Column customization or hiding
+- Per-metric definitions/tooltips
+- Color scale legend and accessibility alternatives
+- Multi-sort
+- Trend/sparkline views over time
+- Mobile handling for wide tables
+- Ability to toggle inclusion of garbage time
+- Explanations of how ranks are computed under filtering
+
+### Misc Notes
+- The combination of curated possession data, context filters, rank coloring, and export creates a clear path from question to answer to external analysis
+- The same table framework could support additional derived metrics or percentile bands without changing the core interaction model

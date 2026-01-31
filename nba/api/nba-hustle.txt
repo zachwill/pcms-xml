@@ -1,0 +1,269 @@
+openapi: 3.1.0
+info:
+  title: NBA Hustle Stats
+  version: v0
+  description: "The Hustle Stats Feed provides access to hustle stats data for the NBA only. The feed comprises two files for each game for which hustle stats have been logged.\nThe files are: a box score file with individual player statistics for each team\nalong with team-level statistics for each team; and a game events file.\n<br/>\n<br/>\nThe file names are prefixed with the ten-digit game identifiers that identify each game.\nThe file name formats are:\n\n- XXXXXXXXXX_hustlestats.xml, which is the box score file\n\n- XXXXXXXXXX_HustleStatsGameEvents.xml, which is the game events file\n\nwhere XXXXXXXXXX is the ten-digit game ID.\n\n*Note: the file names are case-sensitive.*\n\nAs the file names suggest, the format of these files is XML.\n<br/>\n<br/>\nEach game event has an *event type*, which is an integer value. See the [Hustle Stats Feed Guide](../../../../docs/hustlestats-guide/) for definition of the event types.\n"
+  "x-metadata":
+    tags[1]: Public
+    image: ../../images/stats.svg
+    description: The Hustle Stats Feed provides access to hustle stats data.
+    apiId: f2c7d597-a9b1-452b-87d5-97a9b1352bc6
+security[1]:
+  - ApiKeyAuth[0]:
+servers[1]{url,description}:
+  "https://api.nba.com/v0/api/hustlestats",NBA Hustle Stats
+paths:
+  "/{gameId}_hustlestats.xml":
+    get:
+      description: Hustle stats box score for the specified game ID
+      summary: Hustle Stats Box Score
+      operationId: HustleStatsBoxScore
+      responses:
+        "200":
+          description: Hustle stats box score
+          content:
+            "application/xml":
+              schema:
+                "$ref": #/components/schemas/HustleStatsBoxScore
+              example: "<HustleStatsBoxScore Game_id=\"0042300405\" AuditCompletedOn=\"2024-06-18T16:31:25Z\" Game_date=\"6/17/2024\" Game_time=\"08:30 PM\" Game_time_UTC=\"2024-06-18T00:30Z\" Attendance=\"19156\" Duration=\"2:21\" Arena_name=\"TD Garden\" Location=\"Boston, MA\">\n  <Player_Stats>\n    <Team Team_id=\"1610612742\" Team_city=\"Dallas\" Team_abr=\"DAL\" Team_name=\"Mavericks\">\n      <Player Person_id=\"1627884\" Jersey_number=\"55\" First_Name=\"Derrick\" Last_Name=\"Jones Jr.\" BoxScoreOrder=\"1\" CFG=\"3\" C2FG=\"2\" C3FG=\"1\" DEFL=\"0\" LBR=\"0\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"0\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"0\" OBOXOUTS=\"0\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"0.00\" FORCEDTOV=\"0\" />\n      <Player Person_id=\"1629023\" Jersey_number=\"25\" First_Name=\"P.J.\" Last_Name=\"Washington\" BoxScoreOrder=\"2\" CFG=\"7\" C2FG=\"3\" C3FG=\"4\" DEFL=\"2\" LBR=\"1\" CHG_DR=\"0\" SA=\"2\" BOXOUTS=\"0\" OLBR=\"1\" DLBR=\"0\" DBOXOUTS=\"0\" OBOXOUTS=\"0\" PTSOFFSA=\"4\" PCTBOXOUTSTMREB=\"0.00\" FORCEDTOV=\"0\" />\n      <Player Person_id=\"1629655\" Jersey_number=\"21\" First_Name=\"Daniel\" Last_Name=\"Gafford\" BoxScoreOrder=\"3\" CFG=\"7\" C2FG=\"5\" C3FG=\"2\" DEFL=\"2\" LBR=\"0\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"1\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"0\" OBOXOUTS=\"1\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"100.00\" FORCEDTOV=\"0\" />\n      <Player Person_id=\"202681\" Jersey_number=\"11\" First_Name=\"Kyrie\" Last_Name=\"Irving\" BoxScoreOrder=\"4\" CFG=\"1\" C2FG=\"0\" C3FG=\"1\" DEFL=\"3\" LBR=\"2\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"1\" OLBR=\"1\" DLBR=\"1\" DBOXOUTS=\"1\" OBOXOUTS=\"0\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"100.00\" FORCEDTOV=\"1\" />\n      <Player Person_id=\"1629029\" Jersey_number=\"77\" First_Name=\"Luka\" Last_Name=\"Doncic\" BoxScoreOrder=\"5\" CFG=\"9\" C2FG=\"0\" C3FG=\"9\" DEFL=\"5\" LBR=\"1\" CHG_DR=\"0\" SA=\"1\" BOXOUTS=\"1\" OLBR=\"1\" DLBR=\"0\" DBOXOUTS=\"1\" OBOXOUTS=\"0\" PTSOFFSA=\"3\" PCTBOXOUTSTMREB=\"100.00\" FORCEDTOV=\"3\" />\n      <Player Person_id=\"1630182\" Jersey_number=\"8\" First_Name=\"Josh\" Last_Name=\"Green\" BoxScoreOrder=\"6\" CFG=\"3\" C2FG=\"1\" C3FG=\"2\" DEFL=\"0\" LBR=\"0\" CHG_DR=\"0\" SA=\"4\" BOXOUTS=\"0\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"0\" OBOXOUTS=\"0\" PTSOFFSA=\"10\" PCTBOXOUTSTMREB=\"0.00\" FORCEDTOV=\"0\" />\n      <Player Person_id=\"1641726\" Jersey_number=\"2\" First_Name=\"Dereck\" Last_Name=\"Lively II\" BoxScoreOrder=\"7\" CFG=\"5\" C2FG=\"2\" C3FG=\"3\" DEFL=\"0\" LBR=\"0\" CHG_DR=\"0\" SA=\"2\" BOXOUTS=\"1\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"0\" OBOXOUTS=\"1\" PTSOFFSA=\"4\" PCTBOXOUTSTMREB=\"100.00\" FORCEDTOV=\"1\" />\n      <Player Person_id=\"1628467\" Jersey_number=\"42\" First_Name=\"Maxi\" Last_Name=\"Kleber\" BoxScoreOrder=\"8\" CFG=\"1\" C2FG=\"0\" C3FG=\"1\" DEFL=\"0\" LBR=\"0\" CHG_DR=\"0\" SA=\"1\" BOXOUTS=\"0\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"0\" OBOXOUTS=\"0\" PTSOFFSA=\"3\" PCTBOXOUTSTMREB=\"0.00\" FORCEDTOV=\"0\" />\n      <Player Person_id=\"203957\" Jersey_number=\"0\" First_Name=\"Dante\" Last_Name=\"Exum\" BoxScoreOrder=\"9\" CFG=\"0\" C2FG=\"0\" C3FG=\"0\" DEFL=\"0\" LBR=\"0\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"1\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"1\" OBOXOUTS=\"0\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"100.00\" FORCEDTOV=\"0\" />\n      <Player Person_id=\"203501\" Jersey_number=\"10\" First_Name=\"Tim\" Last_Name=\"Hardaway Jr.\" BoxScoreOrder=\"10\" CFG=\"4\" C2FG=\"3\" C3FG=\"1\" DEFL=\"0\" LBR=\"0\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"0\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"0\" OBOXOUTS=\"0\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"0.00\" FORCEDTOV=\"0\" />\n      <Player Person_id=\"1630702\" Jersey_number=\"1\" First_Name=\"Jaden\" Last_Name=\"Hardy\" BoxScoreOrder=\"11\" CFG=\"1\" C2FG=\"0\" C3FG=\"1\" DEFL=\"0\" LBR=\"0\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"0\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"0\" OBOXOUTS=\"0\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"0.00\" FORCEDTOV=\"0\" />\n      <Player Person_id=\"1630639\" Jersey_number=\"9\" First_Name=\"A.J.\" Last_Name=\"Lawson\" BoxScoreOrder=\"12\" CFG=\"0\" C2FG=\"0\" C3FG=\"0\" DEFL=\"1\" LBR=\"0\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"0\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"0\" OBOXOUTS=\"0\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"0.00\" FORCEDTOV=\"0\" />\n      <Player Person_id=\"203939\" Jersey_number=\"7\" First_Name=\"Dwight\" Last_Name=\"Powell\" BoxScoreOrder=\"13\" CFG=\"1\" C2FG=\"1\" C3FG=\"0\" DEFL=\"0\" LBR=\"0\" CHG_DR=\"0\" SA=\"1\" BOXOUTS=\"2\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"2\" OBOXOUTS=\"0\" PTSOFFSA=\"2\" PCTBOXOUTSTMREB=\"100.00\" FORCEDTOV=\"0\" />\n      <Player Person_id=\"1641765\" Jersey_number=\"18\" First_Name=\"Olivier-Maxence\" Last_Name=\"Prosper\" BoxScoreOrder=\"14\" CFG=\"1\" C2FG=\"0\" C3FG=\"1\" DEFL=\"0\" LBR=\"0\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"1\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"1\" OBOXOUTS=\"0\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"100.00\" FORCEDTOV=\"0\" />\n    </Team>\n    <Team Team_id=\"1610612738\" Team_city=\"Boston\" Team_abr=\"BOS\" Team_name=\"Celtics\">\n      <Player Person_id=\"1627759\" Jersey_number=\"7\" First_Name=\"Jaylen\" Last_Name=\"Brown\" BoxScoreOrder=\"1\" CFG=\"0\" C2FG=\"0\" C3FG=\"0\" DEFL=\"4\" LBR=\"1\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"3\" OLBR=\"0\" DLBR=\"1\" DBOXOUTS=\"3\" OBOXOUTS=\"0\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"100.00\" FORCEDTOV=\"2\" />\n      <Player Person_id=\"1628369\" Jersey_number=\"0\" First_Name=\"Jayson\" Last_Name=\"Tatum\" BoxScoreOrder=\"2\" CFG=\"4\" C2FG=\"2\" C3FG=\"2\" DEFL=\"3\" LBR=\"1\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"2\" OLBR=\"1\" DLBR=\"0\" DBOXOUTS=\"2\" OBOXOUTS=\"0\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"100.00\" FORCEDTOV=\"2\" />\n      <Player Person_id=\"201143\" Jersey_number=\"42\" First_Name=\"Al\" Last_Name=\"Horford\" BoxScoreOrder=\"3\" CFG=\"7\" C2FG=\"0\" C3FG=\"7\" DEFL=\"2\" LBR=\"2\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"7\" OLBR=\"1\" DLBR=\"1\" DBOXOUTS=\"7\" OBOXOUTS=\"0\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"100.00\" FORCEDTOV=\"0\" />\n      <Player Person_id=\"1628401\" Jersey_number=\"9\" First_Name=\"Derrick\" Last_Name=\"White\" BoxScoreOrder=\"4\" CFG=\"5\" C2FG=\"3\" C3FG=\"2\" DEFL=\"4\" LBR=\"1\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"1\" OLBR=\"1\" DLBR=\"0\" DBOXOUTS=\"1\" OBOXOUTS=\"0\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"100.00\" FORCEDTOV=\"2\" />\n      <Player Person_id=\"201950\" Jersey_number=\"4\" First_Name=\"Jrue\" Last_Name=\"Holiday\" BoxScoreOrder=\"5\" CFG=\"2\" C2FG=\"2\" C3FG=\"0\" DEFL=\"3\" LBR=\"0\" CHG_DR=\"0\" SA=\"2\" BOXOUTS=\"1\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"1\" OBOXOUTS=\"0\" PTSOFFSA=\"6\" PCTBOXOUTSTMREB=\"100.00\" FORCEDTOV=\"1\" />\n      <Player Person_id=\"204001\" Jersey_number=\"8\" First_Name=\"Kristaps\" Last_Name=\"Porzingis\" BoxScoreOrder=\"6\" CFG=\"6\" C2FG=\"2\" C3FG=\"4\" DEFL=\"1\" LBR=\"0\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"0\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"0\" OBOXOUTS=\"0\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"0.00\" FORCEDTOV=\"0\" />\n      <Player Person_id=\"1630573\" Jersey_number=\"30\" First_Name=\"Sam\" Last_Name=\"Hauser\" BoxScoreOrder=\"7\" CFG=\"5\" C2FG=\"5\" C3FG=\"0\" DEFL=\"3\" LBR=\"1\" CHG_DR=\"0\" SA=\"1\" BOXOUTS=\"0\" OLBR=\"1\" DLBR=\"0\" DBOXOUTS=\"0\" OBOXOUTS=\"0\" PTSOFFSA=\"2\" PCTBOXOUTSTMREB=\"0.00\" FORCEDTOV=\"2\" />\n      <Player Person_id=\"1628436\" Jersey_number=\"40\" First_Name=\"Luke\" Last_Name=\"Kornet\" BoxScoreOrder=\"9\" CFG=\"2\" C2FG=\"2\" C3FG=\"0\" DEFL=\"0\" LBR=\"0\" CHG_DR=\"0\" SA=\"0\" BOXOUTS=\"0\" OLBR=\"0\" DLBR=\"0\" DBOXOUTS=\"0\" OBOXOUTS=\"0\" PTSOFFSA=\"0\" PCTBOXOUTSTMREB=\"0.00\" FORCEDTOV=\"0\" />\n    </Team>\n  </Player_Stats>\n  <Team_Stats>\n    <Team_Stats Team_id=\"1610612742\" Team_city=\"Dallas\" Team_abr=\"DAL\" Team_name=\"Mavericks\" CFG=\"43\" C2FG=\"17\" C3FG=\"26\" DEFL=\"13\" LBR=\"4\" CHG_DR=\"0\" SA=\"11\" BOXOUTS=\"8\" OLBR=\"3\" DLBR=\"1\" DBOXOUTS=\"6\" OBOXOUTS=\"2\" PTSOFFSA=\"26\" FORCEDTOV=\"2\" />\n    <Team_Stats Team_id=\"1610612738\" Team_city=\"Boston\" Team_abr=\"BOS\" Team_name=\"Celtics\" CFG=\"31\" C2FG=\"16\" C3FG=\"15\" DEFL=\"20\" LBR=\"6\" CHG_DR=\"0\" SA=\"3\" BOXOUTS=\"14\" OLBR=\"4\" DLBR=\"2\" DBOXOUTS=\"14\" OBOXOUTS=\"0\" PTSOFFSA=\"8\" FORCEDTOV=\"0\" />\n  </Team_Stats>\n</HustleStatsBoxScore>\n"
+        "403":
+          description: "Access denied. This code is returned to indicate the requested resource is unavailable, equivalent to 404 Not Found."
+      parameters[1]{"$ref"}:
+        #/components/parameters/GameId
+  "/{gameId}_HustleStatsGameEvents.xml":
+    get:
+      description: Hustle stats game events for the specified game ID
+      summary: Hustle Stats Game Events
+      operationId: HustleStatsGameEvents
+      responses:
+        "200":
+          description: Hustle stats game events
+          content:
+            "application/xml":
+              schema:
+                "$ref": #/components/schemas/HustleStatsGameEvents
+              example: "<HustleStatsEvents GameID=\"0042300405\" AuditCompletedOn=\"2024-06-18T16:31:25Z\">\n  <Event EventNumber=\"13\" EventType=\"483\" ActionType=\"3\" Period=\"1\" GameClock=\"6650\" PlayerID=\"1629655\" Player=\"Daniel Gafford\" TeamID=\"1610612742\" Team=\"Dallas\" Description=\"(11:05) [DAL] Gafford - Contested 3pt Shot\" BoxOutType=\"\" PointsOffScreenAssists=\"\" LooseBallRecoveryType=\"\" ReboundAfterBoxOut=\"\"/>\n  <Event EventNumber=\"2086\" EventType=\"484\" ActionType=\"1\" Period=\"1\" GameClock=\"6590\" PlayerID=\"1628401\" Player=\"Derrick White\" TeamID=\"1610612738\" Team=\"Boston\" Description=\"(10:59) [BOS] White - Deflection\" BoxOutType=\"\" PointsOffScreenAssists=\"\" LooseBallRecoveryType=\"\" ReboundAfterBoxOut=\"\"/>\n  <Event EventNumber=\"15\" EventType=\"690\" ActionType=\"1\" Period=\"1\" GameClock=\"6570\" PlayerID=\"1628401\" Player=\"Derrick White\" TeamID=\"1610612738\" Team=\"Boston\" Description=\"(10:57) [BOS] White - Bad Pass Forced Turnover\" BoxOutType=\"\" PointsOffScreenAssists=\"\" LooseBallRecoveryType=\"\" ReboundAfterBoxOut=\"\"/>\n  <Event EventNumber=\"24\" EventType=\"669\" ActionType=\"1\" Period=\"1\" GameClock=\"6260\" PlayerID=\"201143\" Player=\"Al Horford\" TeamID=\"1610612738\" Team=\"Boston\" Description=\"(10:26) [BOS] Horford - Box Out\" BoxOutType=\"Defensive\" PointsOffScreenAssists=\"\" LooseBallRecoveryType=\"\" ReboundAfterBoxOut=\"1\"/>\n  <Event EventNumber=\"26\" EventType=\"483\" ActionType=\"2\" Period=\"1\" GameClock=\"6100\" PlayerID=\"1629655\" Player=\"Daniel Gafford\" TeamID=\"1610612742\" Team=\"Dallas\" Description=\"(10:10) [DAL] Gafford - Contested 2pt Shot\" BoxOutType=\"\" PointsOffScreenAssists=\"\" LooseBallRecoveryType=\"\" ReboundAfterBoxOut=\"\"/>\n  <!-- Remaining events removed for brevity -->\n</HustleStatsEvents>\n"
+        "403":
+          description: "Access denied. This code is returned to indicate the requested resource is unavailable, equivalent to 404 Not Found."
+      parameters[1]{"$ref"}:
+        #/components/parameters/GameId
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-NBA-Api-Key
+  schemas:
+    HustleStatsGameEvents:
+      type: object
+      properties:
+        Game_id:
+          type: string
+          format: "\\d{10}"
+          description: Game identifier
+          example: "0042300405"
+        AuditCompletedOn:
+          type: string
+          format: date-time
+          description: Date and time that the last audit of the hustle stats was logged
+          example: "2024-06-18T16:31:25Z"
+        EventNumber:
+          type: integer
+          description: Event number
+          example: 24
+        EventType:
+          type: integer
+          description: "Event type (see the [Hustle Stats Feed Guide](../../../../docs/hustlestats-guide/) for definition of the event types)"
+          example: 669
+        ActionType:
+          type: integer
+          description: "Action type; 2 or 3 for 2-point or 3-point contested shots, 1 otherwise"
+          example: 1
+        Period:
+          type: integer
+          description: Period of the game in which event took place
+          example: 1
+        GameClock:
+          type: integer
+          description: Game clock in tenths-of-seconds remaining in the period
+          example: 6260
+        PlayerID:
+          type: integer
+          description: Player identifier
+          example: 201143
+        Player:
+          type: string
+          description: Player name
+          example: Al Horford
+        TeamID:
+          type: integer
+          description: Team identifier
+          example: 1610612738
+        Team:
+          type: string
+          description: Team name
+          example: Boston
+        Description:
+          type: string
+          description: Description of event
+          example: "(10:26) [BOS] Horford - Box Out"
+        BoxOutType:
+          type: string
+          description: "Boxout type, Defensive or Offensive, or empty string if not a boxout event"
+          example: Defensive
+        PointsOffScreenAssists:
+          type: integer
+          description: "Points off screen assists, if a screen assist event, or empty string if not a screen assist event"
+          example: Defensive
+        LooseBallRecoveryType:
+          type: integer
+          description: "Loose ball recovery type, Defensive or Offensive, or empty string if not a loose ball recovery event"
+          example: Defensive
+        ReboundAfterBoxOut:
+          type: integer
+          description: "1 if a rebound occurred after boxout, empty string otherwise"
+          example: 1
+    HustleStatsBoxScore:
+      type: object
+      properties:
+        Game_id:
+          type: string
+          format: "\\d{10}"
+          description: Game identifier
+          example: "0042300405"
+        AuditCompletedOn:
+          type: string
+          format: date-time
+          description: Date and time that the last audit of the hustle stats was logged
+          example: "2024-06-18T16:31:25Z"
+        Game_date:
+          type: string
+          format: date
+          description: Game date
+          example: 6/17/2024
+        Game_time:
+          type: string
+          description: Game time
+          example: "08:30 PM"
+        Attendance:
+          type: integer
+          description: Attendance
+          example: 19156
+        Duration:
+          type: string
+          description: Game duration
+          example: "2:21"
+        Arena_name:
+          type: string
+          description: Arena name
+          example: TD Garden
+        Location:
+          type: string
+          description: Arena location
+          example: "Boston, MA"
+        Team_id:
+          type: integer
+          description: Team identifier
+          example: 1610612742
+        Team_city:
+          type: string
+          description: Team city
+          example: Dallas
+        Team_abr:
+          type: string
+          description: Team tricode
+          example: DAL
+        Team_name:
+          type: string
+          description: Team name
+          example: Mavericks
+        Person_id:
+          type: integer
+          description: Person identifier
+          example: 202681
+        Jersey_number:
+          type: string
+          description: Jersey number
+          example: "11"
+        First_Name:
+          type: string
+          description: First name
+          example: Kyrie
+        Last_Name:
+          type: string
+          description: Last name
+          example: Irving
+        BoxScoreOrder:
+          type: integer
+          description: Position of the player's entry in the box score for the player's Team
+          example: 4
+        CFG:
+          type: integer
+          description: Contested field goal attempts
+          example: 1
+        C2FG:
+          type: integer
+          description: Contested two-point field goal attempts
+          example: 0
+        C3FG:
+          type: integer
+          description: Contested three-point field goal attempts
+          example: 1
+        DEFL:
+          type: integer
+          description: Deflections
+          example: 3
+        LBR:
+          type: integer
+          description: Loose balls recovered
+          example: 2
+        CHG_DR:
+          type: integer
+          description: Charges drawn
+          example: 0
+        SA:
+          type: integer
+          description: Screen assists
+          example: 0
+        BOXOUTS:
+          type: integer
+          description: Boxouts
+          example: 1
+        OLBR:
+          type: integer
+          description: Offensive loose ball recoveries
+          example: 1
+        DLBR:
+          type: integer
+          description: Defensive loose ball recoveries
+          example: 1
+        DBOXOUTS:
+          type: integer
+          description: Defensive boxouts
+          example: 1
+        OBOXOUTS:
+          type: integer
+          description: Offensive boxouts
+          example: 0
+        PTSOFFSA:
+          type: integer
+          description: Points off screen assists
+          example: 0
+        PCTBOXOUTSTMREB:
+          type: number
+          description: Percentage of boxouts leading to team rebounds
+          example: 100
+        FORCEDTOV:
+          type: integer
+          description: Forced turnovers
+          example: 1
+  parameters:
+    GameId:
+      in: path
+      name: gameId
+      required: true
+      description: Game identifier
+      schema:
+        type: string
+        pattern: "\\d{10}"
+        example: "0042300405"

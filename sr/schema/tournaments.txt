@@ -1,0 +1,48 @@
+### tournaments
+
+This table stores tournament metadata for NCAA basketball. NCAA has dozens of conference tournaments (CT) plus national postseason tournaments (NCAA Tournament, NIT, CBI, etc.).
+
+- tournament_id text PRIMARY KEY — SportRadar UUID for the tournament
+- source_api text NOT NULL — 'ncaa'
+- season_id text NOT NULL — FK to `sr.seasons`
+- name text NOT NULL — Tournament name (e.g., "Big Ten Tournament", "NCAA Tournament")
+- alias text — Short alias if available
+- type text — Tournament type: 'conference', 'ncaa', 'nit', 'cbi', 'other'
+- gender text — 'M' or 'W'
+- division text — NCAA division (e.g., "D1", "D2", "D3")
+- status text — 'scheduled', 'inprogress', 'closed'
+- location text — Primary venue/city
+- start_date date
+- end_date date
+- bracket_size integer — Number of teams (e.g., 68 for NCAA Tournament)
+
+**Constraints:**
+- `PRIMARY KEY (tournament_id)`
+- `INDEX (season_id)`
+- `INDEX (type)`
+
+---
+
+### tournament_teams
+
+Junction table tracking which teams participate in which tournaments. This allows answering "Which teams are in the Big Ten Tournament?" before games are scheduled.
+
+- tournament_id text NOT NULL — FK to `sr.tournaments`
+- sr_team_id text NOT NULL — FK to `sr.teams`
+- seed integer — Tournament seed (1-16 for NCAA, varies for conference)
+- region text — NCAA region assignment (e.g., "South", "Midwest")
+- eliminated boolean DEFAULT false — Whether team has been eliminated
+- eliminated_round text — Round in which team was eliminated
+- final_rank integer — Final tournament placement (1 = champion)
+- source_api text NOT NULL — 'ncaa'
+
+**Constraints:**
+- `PRIMARY KEY (tournament_id, sr_team_id)`
+- `INDEX (sr_team_id)`
+
+**Notes:**
+- Source: `Tournament List` and `Tournament Summary` endpoints
+- Games link to tournaments via `sr.games.tournament_id`
+- This table is populated from Tournament Summary which returns participant lists
+- `seed` and `region` are critical for bracket visualization
+- `eliminated` and `final_rank` are updated as the tournament progresses

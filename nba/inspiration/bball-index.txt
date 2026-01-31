@@ -1,0 +1,138 @@
+# BBall Index Player Profile (Fanspo)
+
+## Overview
+
+### Description
+A player profile that consolidates BBall Index analytics into one place: identity, roles, badges, layered statistical views (Summary, Quick View, Full Data), and contextual metrics (e.g., Guarded Data, Teammate Strength). Supports season-level filtering and navigation to related pages (Bio, Earnings, Stats, Contract, Social).
+
+### Main UI Patterns
+- Profile dashboard with masonry data cards
+- Tabbed navigation and breadcrumbs for orientation
+- Progressive disclosure via view toggle (Summary/Quick View/Full Data)
+- Gamified badges and report-card grading
+
+### Notes
+- The page prioritizes identification and role framing before deep stats
+- Context modules (opponent and teammate context) help interpret raw metrics
+
+## Key Modules
+
+### 1. Player Identity Header
+- Description: Anchors the page with who the player is and the context needed before reading stats
+- Core Elements:
+  - Name, photo, team logo, position
+  - Height/weight
+  - Age
+  - Advanced position, offensive archetype, defensive role
+  - Season selector
+- Interaction Patterns: Season dropdown updates downstream content to the chosen season
+- Notes: The triad of roles (advanced position, offensive archetype, defensive role) frames how to interpret all subsequent data
+
+### 2. Navigation (Tabs + Breadcrumbs)
+- Description: Provides global orientation and quick jumps to adjacent content
+- Core Elements:
+  - Tabs: BBall Index, Bio, Earnings, Stats, Contract, Social
+  - Breadcrumb: e.g., BBall Index > Profiles > Player Name
+- Interaction Patterns: Tab switching for category-level navigation; breadcrumbs for hierarchical backtracking
+- Notes: Breadcrumbs clarify placement within the BBall Index section, reducing disorientation in deep content
+
+### 3. Access & Monetization Banner
+- Description: Sets expectations about data access and encourages subscription
+- Core Elements:
+  - Persistent "demo version" notice
+  - Subscribe CTA
+- Interaction Patterns: CTA click-through to subscription/upgrade
+- Notes: Clear signaling minimizes surprise when data is limited or gated
+
+### 4. Core Role Summary
+- Description: Quickly communicates how the player is used (beyond position labels)
+- Core Elements:
+  - Advanced position
+  - Offensive archetype
+  - Defensive role
+- Interaction Patterns: Static summary (potentially with tooltips, not specified)
+- Notes: Primes readers to interpret metrics through a role-aware lens
+
+### 5. Skill Badges
+- Description: Highlights standout skills at a glance
+- Core Elements:
+  - Badges mapped to specific skill domains
+  - Tiers: Gold, Silver, Bronze
+- Interaction Patterns: Visual scan; potential hover/tap for details (not specified)
+- Notes: Gamified tokens compress multi-metric performance into recognizable markers
+
+### 6. Data Depth Toggle (Summary / Quick View / Full Data)
+- Description: Controls information density to fit different user needs
+- Core Elements:
+  - Three-state view control
+  - Summary: a few key grades
+  - Quick View: multiple mid-depth tables
+  - Full Data: all metrics
+- Interaction Patterns: Single-click view switching; state affects all downstream sections
+- Notes: Progressive disclosure reduces cognitive load and speeds time-to-insight
+
+### 7. Analytics Sections (Masonry Data Cards)
+- Description: The main analytical payload organized by category
+- Core Elements:
+  - Categories: Efficiency, Playmaking, Perimeter Shooting, Player Impact, Teammate Strength, Guarded Data
+  - Row contents: metric name, value, percentile, letter grade
+- Interaction Patterns: Masonry layout enables scanning across categories; depth and breadth vary by selected view; sorting/filtering per table not indicated
+- Notes: Combining raw value + percentile + grade meets both detail-oriented and comparative needs
+
+### 8. Footer
+- Description: Standard wayfinding, support, and legal links
+- Core Elements:
+  - Popular tools
+  - Contact
+  - Legal
+- Interaction Patterns: Static navigation
+- Notes: Conventional; supports site-wide discoverability
+
+## Best Ideas
+
+### 1. Layered data access (Summary/Quick View/Full Data)
+- Why It Works: Progressive disclosure adjusts cognitive load—casual users get the gist; power users access comprehensive stats without switching pages
+- Where It Breaks Down: If the selected view doesn’t persist across navigation or refresh, users must repeatedly reset it
+
+### 2. Role-based archetypes (advanced position, offensive archetype, defensive role)
+- Why It Works: Establishes a mental model for how to interpret metrics and compare players beyond traditional positions
+- Where It Breaks Down: Without on-page definitions or links to methodology, users may misinterpret role labels or their thresholds
+
+### 3. Gamified skill badges (Gold/Silver/Bronze)
+- Why It Works: Compresses multi-metric assessments into compact visual tokens that are easy to scan and remember
+- Where It Breaks Down: Over-simplifies nuance; if badge criteria aren’t visible on hover or click, credibility and interpretability suffer
+
+### 4. Report-card grading for complex metrics
+- Why It Works: Converts continuous or composite values into categorical bands (e.g., percentiles to letter grades), enabling quick relative judgment
+- Where It Breaks Down: Grades hide small but meaningful differences near thresholds; without showing cutoffs, users can’t gauge how close a grade is to the next tier
+
+### 5. Context modules (Guarded Data, Teammate Strength)
+- Why It Works: Separates player signal from context by quantifying opponent difficulty and teammate quality, reducing attribution errors
+- Where It Breaks Down: Lacking methodology notes (e.g., sample size, opponent definitions) can lead to misinterpretation or overconfidence
+
+### 6. Masonry layout for medium-depth scanning
+- Why It Works: Uses vertical space efficiently and groups related metrics while letting users browse multiple categories without deep scrolling
+- Where It Breaks Down: Inconsistent card heights can impair cross-column comparisons and make content "jump" on resize
+
+### 7. Clear gating notice ("demo version")
+- Why It Works: Sets expectations early, minimizing frustration and framing the upgrade path
+- Where It Breaks Down: If what’s gated vs. available isn’t explicit per section, users may feel baited or confused
+
+## Metadata
+
+### Data Density
+High. Rows often include metric value, percentile, and grade; multiple categories appear simultaneously in a masonry layout. The depth toggle mitigates overload.
+
+### Notable Omissions
+- Metric definitions, methodology, and percentile cohorts (e.g., by position/minutes) are not surfaced
+- Player-to-player comparison and bookmarking/favorites are not indicated
+- Filters beyond season (e.g., playoffs vs. regular season, last N games, on/off splits) are not visible
+- Sorting/search within tables isn’t specified
+- Data freshness (last updated timestamp), sample size, and confidence indicators are not shown
+- Export/share options and print-friendly view are not evident
+- Accessibility affordances (keyboard navigation, non-color indicators) are not indicated
+
+### Misc Notes
+- Fixed global header with cross-sport navigation maintains orientation site-wide
+- Breadcrumbs reinforce section context (BBall Index > Profiles > Player)
+- The architecture supports a wide range of users—from casual scanning (Summary + badges) to deep analysis (Full Data)—without requiring separate pages

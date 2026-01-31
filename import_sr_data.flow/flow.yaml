@@ -1,0 +1,614 @@
+summary: Import SportRadar data
+description: ''
+value:
+  modules:
+    - id: a
+      summary: Upsert Seasons
+      value:
+        type: rawscript
+        content: '!inline upsert_seasons.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_seasons.inline_script.lock'
+        language: python3
+    - id: b
+      summary: Upsert Teams
+      value:
+        type: rawscript
+        content: '!inline upsert_teams.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_teams.inline_script.lock'
+        language: python3
+    - id: c
+      summary: Upsert Players
+      value:
+        type: rawscript
+        content: '!inline upsert_players.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_players.inline_script.lock'
+        language: python3
+    - id: d
+      summary: Upsert Games
+      value:
+        type: rawscript
+        content: '!inline upsert_games.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_games.inline_script.lock'
+        language: python3
+    - id: e
+      summary: Upsert Game Stats
+      value:
+        type: rawscript
+        content: '!inline upsert_game_stats.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_game_stats.inline_script.lock'
+        language: python3
+    - id: f
+      summary: Upsert PBP
+      value:
+        type: rawscript
+        content: '!inline upsert_pbp.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_pbp.inline_script.lock'
+        language: python3
+    - id: g
+      summary: Upsert Standings
+      value:
+        type: rawscript
+        content: '!inline upsert_standings.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_standings.inline_script.lock'
+        language: python3
+    - id: h
+      summary: Upsert Rankings
+      value:
+        type: rawscript
+        content: '!inline upsert_rankings.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_rankings.inline_script.lock'
+        language: python3
+    - id: i
+      summary: Upsert Injuries
+      value:
+        type: rawscript
+        content: '!inline upsert_injuries.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_injuries.inline_script.lock'
+        language: python3
+    - id: j
+      summary: Upsert Season Stats
+      value:
+        type: rawscript
+        content: '!inline upsert_season_stats.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_season_stats.inline_script.lock'
+        language: python3
+    - id: k
+      summary: Upsert Season Splits
+      value:
+        type: rawscript
+        content: '!inline upsert_season_splits.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_season_splits.inline_script.lock'
+        language: python3
+    - id: l
+      summary: Upsert Series
+      value:
+        type: rawscript
+        content: '!inline upsert_series.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_series.inline_script.lock'
+        language: python3
+    - id: m
+      summary: Upsert Tournaments
+      value:
+        type: rawscript
+        content: '!inline upsert_tournaments.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_tournaments.inline_script.lock'
+        language: python3
+    - id: n
+      summary: Upsert League Leaders
+      value:
+        type: rawscript
+        content: '!inline upsert_leaders.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_leaders.inline_script.lock'
+        language: python3
+    - id: o
+      summary: Upsert Draft
+      value:
+        type: rawscript
+        content: '!inline upsert_draft.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_draft.inline_script.lock'
+        language: python3
+    - id: p
+      summary: Upsert Intl Hierarchy
+      value:
+        type: rawscript
+        content: '!inline upsert_intl_hierarchy.inline_script.py'
+        input_transforms:
+          dry_run:
+            type: javascript
+            expr: flow_input.dry_run
+          source_api:
+            type: javascript
+            expr: flow_input.source_api
+          mode:
+            type: javascript
+            expr: flow_input.mode
+          date:
+            type: javascript
+            expr: flow_input.date
+          season_year:
+            type: javascript
+            expr: flow_input.season_year
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
+          include_pbp:
+            type: javascript
+            expr: flow_input.include_pbp
+          locale:
+            type: javascript
+            expr: flow_input.locale
+          max_concurrency:
+            type: javascript
+            expr: flow_input.max_concurrency
+        lock: '!inline upsert_intl_hierarchy.inline_script.lock'
+        language: python3
+  same_worker: true
+schema:
+  $schema: 'https://json-schema.org/draft/2020-12/schema'
+  type: object
+  order:
+    - dry_run
+    - source_api
+    - mode
+    - date
+    - season_year
+    - season_type
+    - include_pbp
+    - locale
+    - max_concurrency
+  properties:
+    dry_run:
+      type: boolean
+      description: Preview changes without writing to DB
+      default: false
+    source_api:
+      type: string
+      description: SportRadar source API
+      enum: ['nba', 'ncaa', 'gleague', 'intl']
+      default: 'nba'
+    mode:
+      type: string
+      description: Fetch mode
+      enum: ['daily', 'backfill']
+      default: 'daily'
+    date:
+      type: string
+      description: Date for daily mode (YYYY-MM-DD)
+    season_year:
+      type: integer
+      description: Season year for backfill mode
+    season_type:
+      type: string
+      description: Season type for backfill mode (REG, PRE, PST, etc.)
+    include_pbp:
+      type: boolean
+      description: Fetch play-by-play data
+      default: true
+    locale:
+      type: string
+      description: Locale for SportRadar
+      default: 'en'
+    max_concurrency:
+      type: integer
+      description: Max concurrent HTTP requests
+      default: 6

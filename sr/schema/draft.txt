@@ -1,0 +1,38 @@
+### draft
+
+NBA-specific draft picks, prospects, and draft-day transactions. This table centralizes data from the Draft Summary, Prospects, Top Prospects, and Trades endpoints.
+
+- draft_id text PRIMARY KEY -- Generated ID: {source_api}_{year}_{round}_{pick} or SportRadar UUID if available
+- source_api text NOT NULL -- nba, gleague
+- draft_year integer NOT NULL
+- round integer
+- pick integer
+- overall_pick integer
+- sr_team_id text -- Team that made the pick (current/final holder of the pick)
+- original_sr_team_id text -- Team that originally owned the pick (if traded)
+- sr_id text -- Reference to sr.players (if prospect is already in the system)
+- prospect_id text -- SportRadar UUID for the prospect
+- first_name text
+- last_name text
+- full_name text
+- position text
+- primary_position text
+- height integer -- in inches
+- weight integer -- in lbs
+- experience text
+- birthdate date
+- birth_place text
+- high_school text
+- college text
+- country text
+- rank integer -- Prospect rank (from Top Prospects)
+- status text -- Prospect status (e.g. "available", "picked")
+- trade_id text -- If picked via a trade, the SportRadar trade ID
+- trades_json jsonb -- Array of trades involving this pick (from Trades endpoint)
+
+**Notes:**
+- This table combines "Draft Summary" (live picks), "Prospects"/"Top Prospects" (biographical), and "Trades" (transactional history).
+- `draft_id` should be stable. Since SportRadar pick IDs might not be present for all years, a composite key `{source_api}_{year}_{round}_{pick}` is a safe fallback for uniqueness.
+- `prospect_id` and `player_id` may differ; `player_id` is assigned once they enter the league/system.
+- `trades_json` captures the movement of the pick prior to or during the draft.
+- Height and weight follow the same integer convention as the `players` table.

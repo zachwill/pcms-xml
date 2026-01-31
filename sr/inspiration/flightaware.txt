@@ -1,0 +1,155 @@
+# FlightAware — Flight Detail Page
+
+## Overview
+
+### Description
+FlightAware’s flight detail page tracks a specific flight in real time and in context. It combines a live map, progress summary, precise departure/arrival timing, aircraft and operator details, and a full history of the same flight number (past and upcoming), with pivots to related entities (airline, airport, aircraft).
+
+### Main UI Patterns
+Two-column dashboard (visual status on the left, tabular details on the right); interactive map with route and playback controls; data tables for timings, aircraft/operator details, and historical logs; mega-menu header with a scoped/typed search bar.
+
+### Notes
+- Clear information hierarchy from flight identity → airports → gates → times → route/details
+- Percent-complete progress bar translates geospatial state into a quick mental model
+- Embedded history (past/upcoming) puts current status in trend context without a new search
+- Pervasive pivot links and CTAs enable “continue the investigation” flows
+- Some high-value details are gated behind upsells (e.g., full registration info/history)
+
+## Key Modules
+
+### 1. Global Navigation and Scoped Search
+- Description: Gets users to the right entity fast (flight, route, tail, airport) from anywhere
+- Core Elements:
+  - Utility bar (join, login, clock, locale)
+  - Mega-menu (Products, Industries, ADS-B, Flight Tracking, Community, Company)
+  - Central typed/scoped search input
+- Interaction Patterns:
+  - Scope selection (by flight, route, airline, tail)
+  - Rich dropdowns with grouped links and short descriptions
+- Notes:
+  - Scoped search reduces irrelevant results by constraining the query type
+
+### 2. Flight Identification and Summary Block
+- Description: Communicates the essential “what/where/when” at a glance
+- Core Elements:
+  - Airline logo + flight number + plain-language status
+  - Airports (L1), gates (L2), times (L3) with scheduled vs actual/estimated
+- Interaction Patterns:
+  - Progressive disclosure by hierarchy (airports → gates → timing deltas)
+  - Inline on-time/delay labeling
+- Notes:
+  - Keeps top questions answerable without scanning the whole page
+
+### 3. Progress Bar with Travel Metrics
+- Description: Converts route progress into a single, comparable visual
+- Core Elements:
+  - Percent-complete bar
+  - Elapsed/remaining time and distance; total travel time
+- Interaction Patterns:
+  - Read-only snapshot aligned with live data updates
+- Notes:
+  - Complements the map by making status scannable and comparable
+
+### 4. Interactive Map with Route and Replay
+- Description: Shows current position, planned route, and flown path
+- Core Elements:
+  - Aircraft position, planned and completed tracks
+  - Map layer controls (weather, satellite)
+  - Zoom and timeline scrubber for replay
+- Interaction Patterns:
+  - Toggle layers; zoom/pan; time scrub to replay flight
+- Notes:
+  - Replay supports incident review and understanding deviations
+
+### 5. Right-Column Details (Times, Aircraft, Operator, Route)
+- Description: Houses granular data for analysis and drill-down
+- Core Elements:
+  - Detailed timing table (gate out, takeoff, landing, gate in, taxi times)
+  - Aircraft type, registration (with upsell), photos link
+  - Airline name, callsign, links to operator’s flights
+  - Filed route, speed, altitude, distances
+- Interaction Patterns:
+  - Pivot links to aircraft, airline, and airport pages
+  - Some data gated behind paywalls/upgrades
+- Notes:
+  - A compact condensed summary repeats flight identity for context while scrolling
+
+### 6. Aircraft Photo Carousel
+- Description: Adds visual reference and community-sourced media for the aircraft type
+- Core Elements:
+  - Horizontally scrolling gallery of user-submitted photos
+- Interaction Patterns:
+  - Scroll or click through thumbnails
+- Notes:
+  - Secondary value; supports enthusiast and identification use cases
+
+### 7. Full-Width Activity Log (Past, En Route, Upcoming)
+- Description: Provides temporal context for the same flight number
+- Core Elements:
+  - Tables for upcoming flights, current flight, past flights
+  - Links to each instance’s detail page
+  - View more and purchase entire history CTAs
+- Interaction Patterns:
+  - Click to pivot into any instance; upsell for deep history
+- Notes:
+  - Enables quick pattern recognition (repeated delays/cancellations)
+
+### 8. Contextual Actions and CTAs
+- Description: Encourages next steps tied to user goals
+- Core Elements:
+  - Get alerts, track inbound plane, view more history, purchase history
+  - Pivots to airline/airport/aircraft pages
+- Interaction Patterns:
+  - Action buttons situated near relevant data blocks
+- Notes:
+  - Turns passive tracking into workflows (monitoring, research, escalation)
+
+## Best Ideas
+
+### 1. Two-Column “Summary vs. Detail” Layout
+- Why It Works: Separates scanning (left: status, progress, map) from analysis (right: tables), reducing cognitive load and enabling simultaneous use by different user types.
+- Where It Breaks Down: On narrow screens without a thoughtful responsive strategy, modules can stack and bury key data.
+
+### 2. Layered Summary Block (Airports → Gates → Times)
+- Why It Works: Mirrors user questioning order and progressively discloses specificity; minimizes back-and-forth scanning.
+- Where It Breaks Down: If any layer is missing (e.g., gate unknown), the hierarchy can collapse; placeholders and clarity states are necessary.
+
+### 3. Percent-Complete Progress Bar with Time/Distance Labels
+- Why It Works: Normalizes complex geospatial state into a single metric; side labels provide enough context to be actionable.
+- Where It Breaks Down: Nonlinear segments (holding, diversions) can make percent misleading unless it updates with actual path flown.
+
+### 4. Embedded History of the Same Flight Number
+- Why It Works: Keeps temporal context in view, enabling trend assessment without new searches; supports quick hypothesis testing.
+- Where It Breaks Down: Without filters (by day of week, seasonality), users may still need external tools for deeper patterns.
+
+### 5. Scoped (Typed) Search Input
+- Why It Works: Reduces ambiguity in polymorphic domains (flight vs tail vs airport) and improves result relevance.
+- Where It Breaks Down: Poor scope defaults or unclear scope switching can lead to zero-results confusion.
+
+### 6. Pervasive Pivot Links and Context-Preserving CTAs
+- Why It Works: Treats each datum as a navigation node; users can follow their investigation paths without restarting.
+- Where It Breaks Down: Over-linking can add noise; needs consistent affordances and sensible prioritization.
+
+### 7. Replayable Map Timeline with Layer Toggles
+- Why It Works: Lets users inspect the sequence of events and correlate with weather or airspace conditions.
+- Where It Breaks Down: Without annotations (e.g., reason for reroute), replay alone may not explain causality.
+
+## Metadata
+
+### Data Density (if notable)
+High. Simultaneous presentation of live map, progress metrics, hierarchical summaries, multi-stage timings, aircraft/operator data, and multi-instance logs. Clear hierarchy and columnar separation keep it navigable.
+
+### Notable Omissions (if any)
+Not shown in the description:
+- Filters/sorting for the history tables (by day, delay type, aircraft, on-time performance)
+- Comparison tools (e.g., compare multiple flight instances or routes)
+- Export/share/print options for tables or map states
+- Timezone toggles and units preferences (mi/km, local vs UTC)
+- Data freshness indicators, provenance, or confidence/uncertainty markers
+- Accessibility specifics (keyboard nav, map alternatives, ARIA)
+- Customization/pinning of modules or reordering the two-column layout
+
+### Misc Notes (if applicable)
+- Some high-value data is gated behind upsells (e.g., full registration history), with clear prompts
+- The condensed summary likely acts as a sticky context keeper during scroll, reducing disorientation
+- Map layer controls suggest weather-context correlation is a supported use case

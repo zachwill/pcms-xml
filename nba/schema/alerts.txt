@@ -1,0 +1,23 @@
+### nba.alerts
+
+- alert_id text PRIMARY KEY
+- game_id text REFERENCES nba.games(game_id)
+- team_id integer REFERENCES nba.teams(team_id) -- nullable; only present when the alert is team-specific
+- alert_type text -- milestone, team_run, career_high, etc.
+- alert_text text
+- alert_priority integer
+- alert_json jsonb
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- INDEX ON (game_id)
+- INDEX ON (team_id)
+- INDEX ON (alert_type)
+
+#### Notes
+- Sourced from `nba/api/nba-alerts.txt`.
+- Stores interesting game events like milestones, runs, and highs.
+- `alert_id` may need to be generated if not provided by the API (e.g., hash of text/game/time).

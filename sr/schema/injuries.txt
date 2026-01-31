@@ -1,0 +1,23 @@
+### injuries
+
+Daily and seasonal player injury reports and statuses. This table tracks individual injury records for players across teams and leagues.
+
+- injury_id text [primary key] -- SportRadar UUID for the injury record
+- sr_id text [not null] -- Reference to sr.players
+- sr_team_id text [not null] -- Reference to sr.teams (the team the player was on when injured)
+- source_api text [not null] -- nba, ncaa, gleague, intl
+- status text -- e.g., "Out For Season", "Day-To-Day", "Out"
+- description text -- e.g., "Knee", "Ankle", "ACL"
+- comment text -- Detailed notes from SportRadar
+- start_date date -- When the injury was first reported
+- update_date date -- When the injury status was last updated
+- is_active boolean DEFAULT true -- Whether the injury is currently active in the latest feed
+
+**Constraints**
+- PRIMARY KEY (injury_id)
+
+**Notes**
+- This table covers both "Daily Injuries" (which provide updates) and the general "Injuries" (active) endpoints.
+- When ingesting the active "Injuries" endpoint, existing injuries for a team that are NOT in the feed should likely be marked `is_active = false`.
+- If SportRadar re-uses `injury_id` across updates for the same injury, UPSERT will work correctly.
+- If multiple injuries exist for a player, they will be separate rows.

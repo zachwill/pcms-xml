@@ -1,0 +1,449 @@
+info:
+  _postman_id: 89640c6c-af84-43c1-abd7-caf50d30a08c
+  name: Sportradar NBA v8
+  description: "Sportradar is the Official Data Provider of NBA statistics. We combine on-venue speed, detailed game and seasonal statistics, and advanced metrics for a full basketball experience. Every NBA game – including preseason – updates in real-time, with live event positional data.\n\nThe NBA API is consistent in structure, format, and behavior with our other League Specific APIs. Our primary feeds return schedules, standings, team/player data, and real-time scores.\n\nOur other NBA feeds provide a host of complimentary statistics and information, including:\n\n- Rankings\n    \n- League leaders\n    \n- Game splits\n    \n- Season splits\n    \n- Injuries\n    \n- Free agents\n    \n- Draft information\n    \n- Live advanced metrics\n    \n- In-game substitution info\n    \n- Live event positional data\n    \n\nReal-time customers are also offered five delivery Push Feeds to enhance speed.\n\nThe easiest way to get started with the API is to click the fork button to fork this collection to your own workspace and use Postman to send requests.\n\nTo receive trial access, visit [this page](https://developer.sportradar.com/getting-started/docs/make-your-first-call#create-an-account)."
+  schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  _exporter_id: "39634211"
+  _collection_link: "https://www.postman.com/sportradar-media-apis/sportradar-media-apis/collection/8u2ejra/sportradar-nba-v8?action=share&source=collection_link&creator=39634211"
+item[31]:
+  - name: Daily Change Log
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/league/:year/:month/:day/changes.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[6]: ":locale",league,":year",":month",":day","changes.{{format}}"
+        variable[4]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2024",(Required) Year in 4 digit format
+          month,"01",(Required) Month in 2 digit format
+          day,"25",(Required) Day in 2 digit format
+      description: "Provides IDs and timestamps for teams, players, game statistics, schedules, and standings that have been modified on a given date. To receive the data updates, use these unique IDs to pull relevant API feeds."
+    response[0]:
+  - name: Daily Injuries
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/league/:year/:month/:day/daily_injuries.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[6]: ":locale",league,":year",":month",":day","daily_injuries.{{format}}"
+        variable[4]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2024",(Required) Year in 4 digit format
+          month,"01",(Required) Month in 2 digit format
+          day,"25",(Required) Day in 2 digit format
+      description: Provides details for all injuries updated on a given date.
+    response[0]:
+  - name: Daily Schedule
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/games/:year/:month/:day/schedule.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[6]: ":locale",games,":year",":month",":day","schedule.{{format}}"
+        variable[4]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2021",(Required) Year in 4 digit format
+          month,"12",(Required) Month in 2 digit format
+          day,"13",(Required) Day in 2 digit format
+      description: "Date, time, location, and other event details for every game taking place in the league-defined day."
+    response[0]:
+  - name: Daily Transfers
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/league/:year/:month/:day/transfers.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[6]: ":locale",league,":year",":month",":day","transfers.{{format}}"
+        variable[4]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2021",(Required) Year in 4 digit format
+          month,"02",(Required) Month in 2 digit format
+          day,"21",(Required) Day in 2 digit format
+      description: Information for all transfers added or edited during the league-defined day.
+    response[0]:
+  - name: Draft Summary
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrlDraft}}/:locale/:year/draft.{{format}}"
+        host[1]: "{{baseUrlDraft}}"
+        path[3]: ":locale",":year","draft.{{format}}"
+        variable[1]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+      description: "Provides pre-draft pick order with live pick selections during the draft. Displays information on draft rounds, picks, teams, and prospects for a given draft year."
+    response[0]:
+  - name: Free Agents
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/league/free_agents.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[3]: ":locale",league,"free_agents.{{format}}"
+        variable[1]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+      description: Detailed player information for all current free agents in the league.
+    response[0]:
+  - name: Game Boxscore
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/games/:game_id/boxscore.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[4]: ":locale",games,":game_id","boxscore.{{format}}"
+        variable[2]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          game_id,e911202b-9ad9-4ff5-9d07-249b19cc4748,(Required) ID of a game
+      description: "Top-level team scores by quarter, along with full statistics for each teams’ leaders in points, rebounds, and assists."
+    response[0]:
+  - name: Game Summary
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/games/:game_id/summary.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[4]: ":locale",games,":game_id","summary.{{format}}"
+        variable[2]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          game_id,e911202b-9ad9-4ff5-9d07-249b19cc4748,(Required) ID of a game
+      description: "Top-level boxscore information, along with detailed game stats at the team and player levels."
+    response[0]:
+  - name: Injuries
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/league/injuries.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[3]: ":locale",league,"injuries.{{format}}"
+        variable[1]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+      description: Information concerning all active player injuries for each NBA team.
+    response[0]:
+  - name: League Hierarchy
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/league/hierarchy.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[3]: ":locale",league,"hierarchy.{{format}}"
+        variable[1]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+      description: "League, conference, division, and team identification and association information."
+    response[0]:
+  - name: League Leaders
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/seasons/:year/:season_type/leaders.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[5]: ":locale",seasons,":year",":season_type","leaders.{{format}}"
+        variable[3]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2021",(Required) Year in 4 digit format
+          season_type,REG,"(Required) Season type as Preseason (PRE), Regular (REG), In-Season Tournament (IST), or Postseason (PST)"
+      description: NBA leader information for various offensive and defensive categories including full player seasonal statistics for each player in each category.
+    response[0]:
+  - name: Play-By-Play
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/games/:game_id/pbp.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[4]: ":locale",games,":game_id","pbp.{{format}}"
+        variable[2]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          game_id,89fa8b67-a2e5-459d-8769-decaac17c2ae,(Required) ID of a game
+      description: "Detailed, real-time information on every team possession and game event."
+    response[0]:
+  - name: Player Profile
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/players/:game_id/profile.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[4]: ":locale",players,":game_id","profile.{{format}}"
+        variable[2]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          game_id,ad389979-d1d5-4f26-ad64-3e516b3373a3,(Required) ID of a game
+      description: "Provides player biographical information, draft information, and seasonal statistics for the regular season and postseason."
+    response[0]:
+  - name: Prospects
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrlDraft}}/:locale/:year/prospects.{{format}}"
+        host[1]: "{{baseUrlDraft}}"
+        path[3]: ":locale",":year","prospects.{{format}}"
+        variable[2]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2021",(Required) Year in 4 digit format
+      description: Provides a list of upcoming or historical draft prospects for a given year.
+    response[0]:
+  - name: Rankings
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/seasons/:year/:season_year/rankings.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[5]: ":locale",seasons,":year",":season_year","rankings.{{format}}"
+        variable[3]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2021",(Required) Year in 4 digit format
+          season_year,REG,"(Required) Season type as Preseason (PRE), Regular (REG), In-Season Tournament (IST), or Postseason (PST)"
+      description: "Conference and division rank for each team, including playoff clinching status."
+    response[0]:
+  - name: Schedule
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/games/:year/:season_type/schedule.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[5]: ":locale",games,":year",":season_type","schedule.{{format}}"
+        variable[3]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2020",(Required) Year in 4 digit format
+          season_type,PST,"(Required) Season type as Preseason (PRE), Regular (REG), In-Season Tournament (IST), or Postseason (PST)"
+      description: "Date, time, location, and other event details for every match-up taking place in the full league season."
+    response[0]:
+  - name: Seasonal Statistics
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/seasons/:year/:season_type/teams/:team_id/statistics.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[7]: ":locale",seasons,":year",":season_type",teams,":team_id","statistics.{{format}}"
+        variable[4]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2021",(Required) Year in 4 digit format
+          season_type,REG,"(Required) Season type as Preseason (PRE), Regular (REG), In-Season Tournament (IST), or Postseason (PST)"
+          team_id,583ec773-fb46-11e1-82cb-f4ce4684ea4c,(Required) ID of a team
+      description: Provides complete team and player seasonal statistics for a given season and season type.
+    response[0]:
+  - name: Seasons
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/league/seasons.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[3]: ":locale",league,"seasons.{{format}}"
+        variable[1]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+      description: "Provides a list of all available seasons, including preseasons and postseasons."
+    response[0]:
+  - name: Series Schedule
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/series/:year/:season_type/schedule.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[5]: ":locale",series,":year",":season_type","schedule.{{format}}"
+        variable[3]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2023",(Required) Year in 4 digit format
+          season_type,PST,"(Required) Regular (REG), In-Season Tournament (IST), Postseason (PST), or Play-In Tournament (PIT)"
+      description: "Playoff participant information as well as the date, time, location, and other event details for every match-up taking place for the entire playoffs."
+    response[0]:
+  - name: Series Statistics
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/series/:series_id/teams/:team_id/statistics.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[6]: ":locale",series,":series_id",teams,":team_id","statistics.{{format}}"
+        variable[3]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          series_id,0a31fc2b-555b-4656-9a77-5325e000668b,(Required) ID of a series
+          team_id,583ec825-fb46-11e1-82cb-f4ce4684ea4c,(Required) ID of a team
+      description: Detailed team and player statistics for a given playoff series.
+    response[0]:
+  - name: Splits (Game)
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/seasons/:year/:season_type/teams/:team_id/splits/game.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[8]: ":locale",seasons,":year",":season_type",teams,":team_id",splits,"game.{{format}}"
+        variable[4]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2020",(Required) Year in 4 digit format
+          season_type,REG,"(Required) Season type as Preseason (PRE), Regular (REG), In-Season Tournament (IST), or Postseason (PST)"
+          team_id,583ec773-fb46-11e1-82cb-f4ce4684ea4c,(Required) ID of a team
+      description: "Detailed Team, Player, and Opponent game splits across various views including: Home Team, Loss, Vs Opponent, Overtime, Over 500, Road, Under 500, At Venue, and Wins."
+    response[0]:
+  - name: Splits (Hierarchy)
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/seasons/:year/:season_type/teams/:team_id/splits/hierarchy.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[8]: ":locale",seasons,":year",":season_type",teams,":team_id",splits,"hierarchy.{{format}}"
+        variable[4]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2021",(Required) Year in 4 digit format
+          season_type,REG,"(Required) Season type as Preseason (PRE), Regular (REG), In-Season Tournament (IST), or Postseason (PST)"
+          team_id,583ec825-fb46-11e1-82cb-f4ce4684ea4c,(Required) ID of a team
+      description: "Detailed Team, Player, and Opponent splits across each Conference and Division."
+    response[0]:
+  - name: Splits (Ingame)
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/seasons/:year/:season_type/teams/:team_id/splits/ingame.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[8]: ":locale",seasons,":year",":season_type",teams,":team_id",splits,"ingame.{{format}}"
+        variable[4]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2021",(Required) Year in 4 digit format
+          season_type,REG,"(Required) Season type as Preseason (PRE), Regular (REG), In-Season Tournament (IST), or Postseason (PST)"
+          team_id,583ec825-fb46-11e1-82cb-f4ce4684ea4c,(Required) ID of a team
+      description: "Detailed Team, Player, and Opponent in-game splits across various views including: Higher Field Goal Percentage, Less Personal Fouls, Less Rebounds, Less Turnovers, Lower Field Goal Percentage, More Personal Fouls, More Rebounds, More Turnovers, Over 100 Against, Over 100 For, Same Personal Fouls, Same Rebounds, Same Turnovers, Under 100 Against, and Under 100 For."
+    response[0]:
+  - name: Splits (Schedule)
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/seasons/:year/:season_type/teams/:team_id/splits/schedule.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[8]: ":locale",seasons,":year",":season_type",teams,":team_id",splits,"schedule.{{format}}"
+        variable[4]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2021",(Required) Year in 4 digit format
+          season_type,REG,"(Required) Season type as Preseason (PRE), Regular (REG), In-Season Tournament (IST), or Postseason (PST)"
+          team_id,583ec825-fb46-11e1-82cb-f4ce4684ea4c,(Required) ID of a team
+      description: "Detailed Team, Player, and Opponent splits across various schedule views including: Days of Rest (1, 2, or 3+), Day of the Week, Last 5, Last 10, By Month, and By Week."
+    response[0]:
+  - name: Standings
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/seasons/:year/:season_type/standings.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[5]: ":locale",seasons,":year",":season_type","standings.{{format}}"
+        variable[3]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2021",(Required) Year in 4 digit format
+          season_type,REG,"(Required) Season type as Preseason (PRE), Regular (REG), In-Season Tournament (IST), or Postseason (PST)"
+      description: "Detailed team records across various views including, overall, conference, and division information."
+    response[0]:
+  - name: Team Depth Chart
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/teams/:team_id/depth_chart.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[4]: ":locale",teams,":team_id","depth_chart.{{format}}"
+        variable[2]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          team_id,583eca2f-fb46-11e1-82cb-f4ce4684ea4c,(Required) ID of a team
+      description: "Provides a positional depth chart for a given team, including player position information."
+    response[0]:
+  - name: Team Profile (Rosters)
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/teams/:team_id/profile.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[4]: ":locale",teams,":team_id","profile.{{format}}"
+        variable[2]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          team_id,583eca2f-fb46-11e1-82cb-f4ce4684ea4c,(Required) ID of a team
+      description: Provides top-level team information and a full roster of active players.
+    response[0]:
+  - name: Team Draft Summary
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrlDraft}}/:locale/:year/teams/:team_id/draft.{{format}}"
+        host[1]: "{{baseUrlDraft}}"
+        path[5]: ":locale",":year",teams,":team_id","draft.{{format}}"
+        variable[3]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2021",(Required) Year in 4 digit format
+          team_id,583ecc9a-fb46-11e1-82cb-f4ce4684ea4c,(Required) ID of a team
+      description: Provides pre-draft pick order with live pick selections during the draft for a given team.
+    response[0]:
+  - name: Teams
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrl}}/:locale/league/teams.{{format}}"
+        host[1]: "{{baseUrl}}"
+        path[3]: ":locale",league,"teams.{{format}}"
+        variable[1]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+      description: Provides a complete list of teams in the NBA API database.
+    response[0]:
+  - name: Top Prospects
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrlDraft}}/:locale/:year/top_prospects.{{format}}"
+        host[1]: "{{baseUrlDraft}}"
+        path[3]: ":locale",":year","top_prospects.{{format}}"
+        variable[2]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2021",(Required) Year in 4 digit format
+      description: Provides a list of the top prospects for a given year.
+    response[0]:
+  - name: Trades
+    request:
+      method: GET
+      header[0]:
+      url:
+        raw: "{{baseUrlDraft}}/:locale/:year/trades.{{format}}"
+        host[1]: "{{baseUrlDraft}}"
+        path[3]: ":locale",":year","trades.{{format}}"
+        variable[2]{key,value,description}:
+          locale,en,(Required) Locale used for translations
+          year,"2021",(Required) Year in 4 digit format
+      description: Provides summary details of all in-draft trades.
+    response[0]:
+auth:
+  type: apikey
+  apikey[3]{key,value,type}:
+    key,"",string
+    value,"",string
+    in,query,string
+event[2]:
+  - listen: prerequest
+    script:
+      type: text/javascript
+      exec[1]: ""
+  - listen: test
+    script:
+      type: text/javascript
+      exec[1]: ""
+variable[3]{key,value}:
+  baseUrl,"https://api.sportradar.com/nba/trial/v8"
+  baseUrlDraft,"https://api.sportradar.com/draft/nba/trial/v1"
+  format,json

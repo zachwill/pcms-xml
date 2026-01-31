@@ -1,0 +1,129 @@
+# FanGraphs — Splits Leaderboard
+
+## Overview
+
+### Description
+An interactive leaderboard for MLB batting and pitching that lets users segment results by situational "splits" and time windows, rank entities (players/teams/leagues), compare selected players, and export the resulting data.
+
+### Main UI Patterns
+- Control panel that configures a sortable, paginated data table
+- Tabbed filters (Quick Splits, Advanced Splits, Filters) for progressive disclosure
+- Applied filters summary (tokens) with inline removal and reset
+- Secondary comparison module for building custom player lists
+
+### Notes
+- Progressive complexity management via tabs keeps entry simple while exposing depth on demand
+- Context-aware controls: switching Batting/Pitching or Player/Team/League reconfigures downstream options
+- Time filters combine presets, season/period toggles, and a calendar picker in one row
+- Direct export sits at the point of data consumption, reducing friction
+
+## Key Modules
+
+### 1. Primary Entity, Stat Type, and Grouping
+- Description: Establishes the scope and shape of the leaderboard so subsequent filters and columns stay relevant
+- Core Elements:
+  - Entity toggles: Player, Team, League, MLB
+  - Stat type: Batting or Pitching
+  - Grouping: Season, Career, Month, etc.
+- Interaction Patterns:
+  - Context switching updates available splits, stats, and columns
+  - Grouping changes row aggregation (e.g., monthly rows vs. career totals)
+
+### 2. Split Selection (Tabbed: Quick, Advanced, Filters)
+- Description: Lets users compose situational queries from simple presets to granular multi-dimensional filters
+- Core Elements:
+  - Quick Splits: One-click common scenarios (Home/Away, vs. LHP/RHP)
+  - Advanced Splits: Categorized dropdowns (Handedness, Home/Away, Batted Balls, Situation, Count, Leverage, Weather, Park, etc.)
+  - Filters: Numeric thresholds and ranges (e.g., PA minimums, BA > .300)
+- Interaction Patterns:
+  - Tabs manage cognitive load; selections add to an applied splits list
+  - Multi-select and category scoping build compound queries
+- Note: "Auto PT" sets a context-appropriate playing time minimum to suppress noise
+
+### 3. Time-Based Filters
+- Description: Aligns analysis to specific periods without rebuilding the query
+- Core Elements:
+  - Presets: Months, Day/Night, First/Second Half
+  - Predefined ranges: Last 7/30 days, specific seasons
+  - Custom date range via calendar picker
+- Interaction Patterns:
+  - Combining presets with custom ranges enables quick iteration on time windows
+
+### 4. Applied Splits & State Management
+- Description: Centralizes the active query state for review, removal, and reset
+- Core Elements:
+  - Chip list or summary tokens of active splits and filters
+  - Controls: Remove individual tokens, Reset, Auto PT toggle
+- Interaction Patterns:
+  - Edits are reversible and localized; no need to dive back into nested menus
+
+### 5. Statistic View Selector
+- Description: Switches the data table’s column schema to match analytical intent
+- Core Elements:
+  - Presets like Standard, Advanced, Batted Balls
+- Interaction Patterns:
+  - One-click column set switching; sort state applies to the current view
+
+### 6. Data Grid Display
+- Description: Presents query results for ranking, scanning, and drill-through
+- Core Elements:
+  - Sortable headers; pagination and page-size controls
+  - Player links to profile pages
+  - Export Data button above the grid
+- Interaction Patterns:
+  - Click-to-sort re-ranks without re-querying filters
+  - Export provides the current slice for external analysis
+
+### 7. Custom Player Tool
+- Description: Purpose-built comparison list that bypasses the leaderboard’s rank-first model
+- Core Elements:
+  - Search/add players, maintain a custom list, show split-aligned stats
+- Interaction Patterns:
+  - Shares the same split/time context; isolates a subset for direct comparison
+
+## Best Ideas
+
+### 1. Progressive disclosure via Quick vs. Advanced splits
+- Why It Works: Reduces initial cognitive load; common tasks are one click away while advanced users can opt into depth
+- Where It Breaks Down: Advanced options can become hard to discover if hidden by default; consider subtle prompts or usage-based surfacing
+
+### 2. Applied Splits as a persistent query summary
+- Why It Works: Externalizes state so users can verify and edit complex queries without retracing navigation
+- Where It Breaks Down: Long token lists can wrap or overflow; token labels need consistent, compact naming to remain scannable
+
+### 3. Granular filters grouped by analyst mental models
+- Why It Works: Categories like Handedness, Situation, and Count map to how questions are framed, accelerating lookup
+- Where It Breaks Down: Overlapping categories or ambiguous placement create friction; category definitions must be mutually understood
+
+### 4. Dual-purpose control panel that reconfigures downstream UI
+- Why It Works: Switching Batting/Pitching or Entity prunes irrelevant options, keeping the interface focused
+- Where It Breaks Down: Context switches that reset prior selections can feel destructive; preserve compatible state when possible and communicate what changed
+
+### 5. Separate "Custom Players" comparison module
+- Why It Works: Distinguishes discovery/ranking from head-to-head comparison so each workflow stays optimized
+- Where It Breaks Down: Split brain if users expect inline compare within the table; consider cross-links or "send selection to compare" affordances
+
+### 6. Immediate export at the point of analysis
+- Why It Works: Acknowledges external workflows; shortens the path from insight to modeling
+- Where It Breaks Down: Limited formats, lack of column selection, or excluding sort/filter state reduces usefulness; clearly encode query parameters in the export
+
+## Metadata
+
+### Data Density
+- High control density up front balanced by tabbed disclosure
+- Dense, sortable table with preset column schemas rather than fully custom column builders
+- Time filters, applied tokens, and view toggles coexist without crowding the grid
+
+### Notable Omissions
+- Saved views/presets and easy share links for a query state (naming, pinning)
+- Inline metric definitions/tooltips on column headers within the grid (glossary may exist elsewhere but isn’t specified here)
+- Multi-column sort, pinned columns, or column-level customization beyond preset views
+- Lightweight visualizations (sparklines, distribution overlays) for context at a glance
+- Empty-state guidance when filters return no results; undo/history of query edits
+- Mobile-first patterns for deep filtering; keyboard shortcuts for power users
+- API linkage or reproducible query URLs documented alongside Export
+
+### Misc Notes
+- Link to "Traditional Leaderboards" provides a simpler pathway for basic tasks
+- "Auto PT" is a pragmatic noise filter worth generalizing to other domains as a "context-aware minimum sample size"
+- Data freshness and source credits build trust; player links support drill-through

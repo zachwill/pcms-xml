@@ -1,0 +1,193 @@
+# Basketball-Reference — Player Page (Damian Lillard)
+
+## Overview
+
+### Description
+A player hub that aggregates Damian Lillard’s identity, bio, accolades, quick stat snapshot, deep season-by-season data, and related context (news, awards, contracts). It centralizes navigation to logs, splits, shooting, and premium research tools (Stathead).
+
+### Main UI Patterns
+- Primary pattern: Data table
+- Supporting patterns: Profile header, in-page anchor navigation, tabbed content switcher (Regular Season vs Playoffs)
+
+### Notes
+- Uses progressive disclosure: identity and summary at top; dense, structured tables below
+- Embeds comparative context (career vs latest season, league-adjusted metrics, similarity scores)
+- Table-level “Share & Export” turns static tables into reusable assets
+- Integrates freemium prompts (Stathead insights) as content, not just ads
+
+## Key Modules
+
+### 1. Header and Primary Navigation
+- Description: Provides site-wide context (Sports Reference network), discovery (Players/Teams/Seasons), and fast access via search and account tools
+- Core Elements:
+  - Sports Reference network bar
+  - Site logo and primary nav (Players, Teams, Seasons, Leaders, Scores, WNBA, Draft, Stathead)
+  - Global search
+  - Account/Stathead entry points
+- Interaction Patterns:
+  - Hover/expand menus
+  - Search autocomplete
+  - Persistent global navigation
+
+### 2. Player Identity Block (photo, name, bio)
+- Description: Establishes who the player is and key facts
+- Core Elements:
+  - Headshot; name and nicknames
+  - Position/shooting hand; height/weight
+  - Team; birth details; family ties; schools
+  - Draft info; debut; experience
+- Interaction Patterns:
+  - Static, scan-first list
+  - Links to teams, schools, and related entities
+
+### 3. Accolades “Bling” Bar
+- Description: Snapshot of major honors to set career stature at a glance
+- Core Elements:
+  - Icon-driven list (e.g., All-Star count, All-NBA)
+- Interaction Patterns:
+  - Direct links to award pages or filtered leaderboards (when applicable)
+- Notes:
+  - Doubles as an “authority” signal before stats
+
+### 4. Uniform Numbers Strip
+- Description: Visual record of jersey numbers across teams/seasons
+- Core Elements:
+  - Number badges by team
+- Interaction Patterns:
+  - Static display with optional links to season/team context
+
+### 5. Statistical Summary Pullout (recent season vs career)
+- Description: Quick performance context without reading tables
+- Core Elements:
+  - Per-game PTS/REB/AST; key percentages (FG%, 3P%, FT%)
+  - Two columns: latest season vs career
+- Interaction Patterns:
+  - Static comparison with links to full tables for depth
+
+### 6. Player-Specific Sub-Navigation (inner_nav)
+- Description: In-page navigation to sections and related sub-pages
+- Core Elements:
+  - Anchors to Per Game, Totals, Advanced, Shooting, etc.
+  - Links to logs, splits, shooting detail
+- Interaction Patterns:
+  - Anchor jumps and cross-page navigation to specialized views
+
+### 7. Main Statistical Tables (tabbed Regular Season / Playoffs)
+- Description: Core data matrix for longitudinal and situational analysis
+- Core Elements:
+  - Tabs: Regular Season, Playoffs
+  - Categories:
+    - Per Game
+    - Totals
+    - Per 36
+    - Per 100
+    - Advanced
+    - Adjusted Shooting
+    - Play-by-Play
+    - Shooting Detail
+    - Game Highs
+    - Playoff Series
+- Interaction Patterns:
+  - Tab switching
+  - Column scanning
+  - Table toolbars for share/export
+- Notes:
+  - Standardized layouts optimize comparability across seasons and categories
+
+### 8. Table Tools: Share & Export
+- Description: Converts on-page tables into research artifacts
+- Core Elements:
+  - Share/embed links
+  - CSV/Excel export
+- Interaction Patterns:
+  - Click-to-copy
+  - Download in common formats
+- Notes:
+  - Lowers friction for analysis and content creation
+
+### 9. Context and Engagement (Stathead Insights; Similarity Scores)
+- Description: Adds historical comps and prompts deeper queries
+- Core Elements:
+  - Career similarity comps
+  - Trivia-style insights
+  - Stathead calls to action (Game Finder, Streak Finder)
+- Interaction Patterns:
+  - Click-through to premium tools
+  - Compare-linked entities
+- Notes:
+  - Freemium funnel embedded as useful content
+
+### 10. Supplemental Career Context
+- Description: Rounds out the player file
+- Core Elements:
+  - Player news feed
+  - College stats
+  - Leaderboards, awards, and honors
+  - Transactions, salaries, contracts
+  - FAQ with common questions
+- Interaction Patterns:
+  - Linked references
+  - Chronological logs
+
+### 11. Footer
+- Description: Full-site navigation, contacts, credits, policies
+- Core Elements:
+  - Expanded menu
+  - Social links
+  - Provider credits
+  - Legal
+- Interaction Patterns:
+  - Site-wide discovery and support access
+
+## Best Ideas
+
+### 1. Accolades “Bling” Bar
+- Why It Works: Upfront honor badges anchor reputation before details; users can calibrate expectations quickly
+- Where It Breaks Down: Counts lack context (e.g., era strength, team context); not filterable by competition type
+
+### 2. Season vs Career Summary Pullout
+- Why It Works: A two-column compare compresses trend detection into a glance without extra charts
+- Where It Breaks Down: Per-game framing can mislead for minute or pace changes; no quick per-possession toggle
+
+### 3. Tabbed Regular Season / Playoffs Switch
+- Why It Works: Segments two mental models of performance without duplicating layout; reduces initial screen load
+- Where It Breaks Down: Hidden-by-default tab can reduce discoverability for casual users
+
+### 4. League-Adjusted Shooting (contextualized percentages)
+- Why It Works: Normalizes for era and pace, enabling cross-era reasoning with the same table scaffolding
+- Where It Breaks Down: Requires literacy in adjusted metrics; limited inline definitions
+
+### 5. Table-Level Share & Export
+- Why It Works: Meets analyst workflows at the source; reduces copy/paste errors; encourages proper citation
+- Where It Breaks Down: Controls can be visually subtle; batch exporting multiple tables isn’t obvious
+
+### 6. Similarity Scores and Insights as Content
+- Why It Works: Converts a static profile into a discovery path; frames questions that premium tools answer
+- Where It Breaks Down: Similarity heuristics are opaque; can oversimplify player archetypes
+
+### 7. Player-Specific Anchor Nav
+- Why It Works: Reduces scroll cost on dense pages; provides a mental map of the content hierarchy
+- Where It Breaks Down: If not sticky, users lose it during long scrolls; anchors don’t indicate completion or last viewed
+
+### 8. Comprehensive Career Hub (transactions, salaries, awards)
+- Why It Works: Consolidates disparate sources into one file; supports quick cross-referencing within the same session
+- Where It Breaks Down: Lists are long and text-heavy; limited filters by team, date range, contract type
+
+## Metadata
+
+### Data Density
+- High density with layered disclosure: identity and accolades up top; standardized, columnar tables below
+- Consistent row-per-season pattern across categories supports scanning and export
+
+### Notable Omissions
+- Interactive visualizations (trend lines, shot charts) on the page
+- Inline metric definitions/tooltips for advanced stats
+- Saved views or personalization (pinning favorite tables/columns)
+- Side-by-side player comparison within the page
+- Batch export across multiple tables; API link surfaced on-page
+- Strong mobile affordances for wide tables (frozen headers/columns, column selector)
+
+### Misc Notes
+- Freemium integration is content-led (Insights, Similarity) rather than intrusive prompts
+- Uniform numbers add identity texture but little analysis value; consider linking to seasons when worn
+- FAQ likely captures SEO demand for common queries and offloads basic support

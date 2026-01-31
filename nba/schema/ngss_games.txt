@@ -1,0 +1,58 @@
+### nba.ngss_games
+
+- game_id text PRIMARY KEY
+- ngss_game_id text UNIQUE
+- league_code text
+- league_name text
+- season_id text
+- season_name text
+- season_type integer
+- game_status integer
+- winner_type integer
+- game_date_local date
+- game_time_local time
+- game_date_time_local timestamptz
+- game_date_time_utc timestamptz
+- game_time_home time
+- game_time_away time
+- game_time_et time
+- time_actual timestamptz
+- time_end_actual timestamptz
+- attendance integer
+- duration_minutes integer
+- home_team_id integer
+- home_score integer
+- away_team_id integer
+- away_score integer
+- arena_id integer
+- arena_name text
+- last_game_data_update timestamptz
+- needs_reprocessing timestamptz
+- is_sold_out boolean
+- memos text[]
+- is_target_score_ending boolean
+- target_score_period integer
+- ruleset_id integer
+- ruleset_json jsonb
+- game_json jsonb
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- UNIQUE (ngss_game_id)
+- INDEX ON (game_id)
+- INDEX ON (game_date_time_utc)
+- INDEX ON (home_team_id)
+- INDEX ON (away_team_id)
+
+#### Notes
+- `game_id` is the official NBA 10-digit ID (extracted from NGSS mapping if available, or joined later).
+- `ngss_game_id` is the Genius Sports UUID/ID.
+- `season_type`, `game_status`, `winner_type` are stored as integers (enums in NGSS).
+- `duration_minutes` is NGSS `Duration` (usually in minutes).
+- `ruleset_json`: Stores the full payload from `/Games/{gameId}/ruleset` which contains detailed game configuration (shot clock, period length, coach challenges, etc.).
+- `game_json`: Stores the full raw JSON payload from the NGSS `/Games/{gameId}` endpoint.
+- `memos` are captured as a text array.
+- This table exists specifically to capture NGSS-unique metadata (like rulesets and granular timestamps) that the official NBA APIs might omit.

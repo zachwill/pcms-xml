@@ -1,0 +1,94 @@
+### games
+
+This table is the central registry for all games across supported SportRadar basketball leagues. It combines schedule information (from Daily/Season Schedule) and high-level results (from Game Summary/Boxscore). It is designed to be the single source of truth for a game's state, metadata, and core outcome.
+
+- game_id text PRIMARY KEY — SportRadar UUID for the game (e.g., "83b02e80-91ae-45ec-b1a6-4f5018f442c9")
+- source_api text NOT NULL — One of: 'nba', 'ncaa', 'gleague', 'intl'
+- season_id text NOT NULL — FK to `sr.seasons`
+- status text — Current status: 'scheduled', 'inprogress', 'closed', 'cancelled', 'postponed'
+- coverage text — Level of data coverage (e.g., 'full', 'all-plays', 'boxscore')
+- scheduled_at timestamptz NOT NULL — Date and time the game is scheduled to start
+- lead_changes integer — Total number of lead changes
+- times_tied integer — Total number of times the score was tied
+- clock text — Current game clock (e.g., "00:00" or "10:24")
+- quarter integer — Current quarter or period number
+- is_track_on_court boolean — Whether SportRadar is tracking real-time positional data
+- entry_mode text — How the data is being entered (e.g., 'WEBSOCKET', 'MANUAL')
+- duration text — Total duration of the game (e.g., "2:13")
+- attendance integer — Total game attendance
+
+**Team Info (Denormalized)**
+- away_sr_team_id text NOT NULL — FK to `sr.teams`
+- away_team_name text
+- away_team_alias text
+- away_pts integer — Final or current points scored by away team
+- home_sr_team_id text NOT NULL — FK to `sr.teams`
+- home_team_name text
+- home_team_alias text
+- home_pts integer — Final or current points scored by home team
+
+**Series & Postseason Info (NBA/G-League)**
+- series_id text — FK to `sr.series` for playoff series grouping
+- series_game_number integer — Game number within the series (1-7)
+
+**Tournament & Postseason Info (NCAA)**
+- tournament_id text — FK to `sr.tournaments`
+- round_name text — e.g., "First Round", "Sweet 16"
+- bracket_name text — e.g., "South Regional"
+- region_name text — e.g., "Louisville"
+
+**Tournament Seeding**
+- home_seed integer — Tournament/playoff seed for home team
+- away_seed integer — Tournament/playoff seed for away team
+- neutral_site boolean DEFAULT false — Whether game is at a neutral venue (IST, Showcase, Global Games)
+
+**External References**
+- reference text — Official league ID (NBA.com / Elias ID, e.g., "0022400405")
+
+**Venue Info**
+- venue_id text
+- venue_name text
+- venue_capacity integer
+- venue_address text
+- venue_city text
+- venue_state text
+- venue_zip text
+- venue_country text
+- venue_lat text
+- venue_lng text
+- venue_sr_id text — SportRadar global venue ID (e.g., "sr:venue:6054")
+
+**International Context (INTL only)**
+- category_id text — SportRadar category ID (e.g., "sr:category:111" for Germany)
+- category_name text — Human-readable category (e.g., "Germany")
+- competition_id text — FK to `sr.competitions`
+- stage_type text — e.g., "cup", "league"
+- stage_phase text — e.g., "regular season", "playoffs"
+- group_id text — Group ID for group-stage games
+- group_name text — e.g., "Group A", "Group B"
+- cup_round_id text — Cup round ID for tournament brackets
+- cup_round_number integer — Current game number in the leg/round
+- cup_round_total_games integer — Total games in this cup round
+
+**Context & Metadata**
+- title text — Special game title (e.g., "Game 1", "NBA Finals Game 7")
+- season_year integer — 4-digit year for quick filtering
+- season_type text — PRE, REG, PST, etc.
+- broadcast_json jsonb — Array of broadcast objects (network, type, locale)
+- time_zones_json jsonb — Map of time zones for home, away, and venue
+- summary_json jsonb — The full raw JSON response from the Game Summary or Boxscore endpoint
+
+**Constraints:**
+- `PRIMARY KEY (game_id)`
+- `INDEX (scheduled_at)`
+- `INDEX (season_id)`
+- `INDEX (home_sr_team_id, away_sr_team_id)`
+- `INDEX (series_id)` — For playoff series grouping
+- `INDEX (tournament_id)` — For NCAA tournament grouping
+- `INDEX (competition_id)` — For INTL competition grouping
+
+**Notes:**
+- This table is the "Master Game Record". It is updated by Schedule, Summary, and Boxscore endpoints.
+- Summary/Boxscore data is typically more "authoritative" for final results, but Schedule data provides the backbone before the game starts.
+- We merge `game_summaries` into this table because the fields are nearly 100% overlapping and they share the same `game_id` PK.
+- `summary_json` stores the high-fidelity result payload, while the table columns provide queryable access to common fields.

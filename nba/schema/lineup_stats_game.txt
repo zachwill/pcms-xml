@@ -1,0 +1,43 @@
+### nba.lineup_stats_game
+
+- game_id text REFERENCES nba.games(game_id)
+- league_id text
+- season_year integer
+- season_label text
+- season_type text
+- team_id integer REFERENCES nba.teams(team_id)
+- player_ids integer[] -- Array of nba_id (sorted)
+- per_mode text
+- measure_type text
+- gp integer
+- min interval
+- off_rating numeric(5,2)
+- def_rating numeric(5,2)
+- net_rating numeric(5,2)
+- ast_pct numeric(5,4)
+- ast_tov numeric(5,2)
+- ast_ratio numeric(5,2)
+- oreb_pct numeric(5,4)
+- dreb_pct numeric(5,4)
+- reb_pct numeric(5,4)
+- tm_tov_pct numeric(5,4)
+- efg_pct numeric(5,4)
+- ts_pct numeric(5,4)
+- usg_pct numeric(5,4)
+- pace numeric(6,2)
+- pie numeric(5,4)
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- PRIMARY KEY (game_id, team_id, player_ids, per_mode, measure_type)
+- INDEX ON (game_id)
+- INDEX ON (team_id)
+- INDEX ON (player_ids)
+
+#### Notes
+- Sourced from Query Tool endpoints like `/game/lineups`.
+- This table stores per-game lineup splits (minutes and advanced metrics) and is separate from season-level lineup aggregates.
+- `league_id`/`season_*` are denormalized for query convenience; they can be derived from `nba.games` but are stored here to avoid joins.

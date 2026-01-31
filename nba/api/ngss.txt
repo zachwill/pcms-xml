@@ -1,0 +1,4112 @@
+openapi: 3.0.1
+info:
+  title: NBA NGSS Central REST Feed
+  description: NBA NGSS Central REST Feed
+  contact:
+    name: Genius Sports
+    url: "http://www.geniussports.com"
+    email: ngss.support@geniussports.com
+paths:
+  "/games/{gameId}/boxscore":
+    get:
+      tags[1]: BoxScore
+      parameters[6]:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.BoxScore
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.BoxScore
+            "text/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.BoxScore
+            "application/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.BoxScore
+            "text/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.BoxScore
+  "/games/{gameId}/boxscorePeriod":
+    get:
+      tags[1]: BoxScore
+      parameters[6]:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Periods.BoxScorePeriod
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Periods.BoxScorePeriod
+            "text/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Periods.BoxScorePeriod
+            "application/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Periods.BoxScorePeriod
+            "text/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Periods.BoxScorePeriod
+  "/games/{gameId}/boxscorereport":
+    get:
+      tags[1]: BoxScore
+      parameters[6]:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.BoxScoreReport
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.BoxScoreReport
+            "text/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.BoxScoreReport
+            "application/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.BoxScoreReport
+            "text/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.BoxScoreReport
+  "/Games/{gameId}/rosters":
+    get:
+      tags[1]: Games
+      parameters[7]:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: language
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Language
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Rosters
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Rosters
+            "text/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Rosters
+            "application/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Rosters
+            "text/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Rosters
+  "/Games/{gameId}/officials":
+    get:
+      tags[1]: Games
+      parameters[7]:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: language
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Language
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Officials
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Officials
+            "text/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Officials
+            "application/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Officials
+            "text/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Officials
+  "/Games/{gameId}":
+    get:
+      tags[1]: Games
+      parameters[6]:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "text/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "application/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "text/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+  "/Games/{gameId}/ruleset":
+    get:
+      tags[1]: Games
+      parameters[6]:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.Ruleset
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.Ruleset
+            "text/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.Ruleset
+            "application/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.Ruleset
+            "text/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.Ruleset
+  "/Games/updated":
+    get:
+      tags[1]: Games
+      parameters[7]:
+        - name: fromLastGameDataUpdate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: toLastGameDataUpdate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+  "/Leagues":
+    get:
+      tags[1]: Leagues
+      parameters[5]:
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.League
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.League
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.League
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.League
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.League
+  "/Leagues/{leagueCode}/seasons":
+    get:
+      tags[1]: Leagues
+      parameters[7]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: year
+          in: query
+          schema:
+            type: integer
+            format: int32
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Season
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Season
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Season
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Season
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Season
+  "/Leagues/{leagueCode}/games":
+    get:
+      tags[1]: Leagues
+      parameters[15]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: FromDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+            nullable: true
+        - name: ToDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+            nullable: true
+        - name: FromDateUtc
+          in: query
+          schema:
+            type: string
+            format: date-time
+            nullable: true
+        - name: ToDateUtc
+          in: query
+          schema:
+            type: string
+            format: date-time
+            nullable: true
+        - name: ArenaId
+          in: query
+          schema:
+            type: integer
+            format: int32
+            nullable: true
+        - name: TeamId
+          in: query
+          schema:
+            type: integer
+            format: int32
+            nullable: true
+        - name: GameType
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.GameType
+        - name: FromLastGameDataUpdate
+          in: query
+          schema:
+            type: string
+            format: date-time
+            nullable: true
+        - name: ToLastGameDataUpdate
+          in: query
+          schema:
+            type: string
+            format: date-time
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+  "/Leagues/{leagueCode}/seasons/{seasonId}/games":
+    get:
+      tags[1]: Leagues
+      parameters[16]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: seasonId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: FromDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+            nullable: true
+        - name: ToDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+            nullable: true
+        - name: FromDateUtc
+          in: query
+          schema:
+            type: string
+            format: date-time
+            nullable: true
+        - name: ToDateUtc
+          in: query
+          schema:
+            type: string
+            format: date-time
+            nullable: true
+        - name: ArenaId
+          in: query
+          schema:
+            type: integer
+            format: int32
+            nullable: true
+        - name: TeamId
+          in: query
+          schema:
+            type: integer
+            format: int32
+            nullable: true
+        - name: GameType
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.GameType
+        - name: FromLastGameDataUpdate
+          in: query
+          schema:
+            type: string
+            format: date-time
+            nullable: true
+        - name: ToLastGameDataUpdate
+          in: query
+          schema:
+            type: string
+            format: date-time
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game
+  "/Leagues/{leagueCode}/seasons/{seasonId}/teamleaders/{statistic}":
+    get:
+      tags[1]: Leagues
+      parameters[8]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: seasonId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: statistic
+          in: path
+          required: true
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.StatisticType
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamSeasonLeaderStatistics
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamSeasonLeaderStatistics
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamSeasonLeaderStatistics
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamSeasonLeaderStatistics
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamSeasonLeaderStatistics
+  "/Leagues/{leagueCode}/seasons/{seasonId}/standings":
+    get:
+      tags[1]: Leagues
+      parameters[7]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: seasonId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Standing
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Standing
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Standing
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Standing
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Standing
+  "/Leagues/{leagueCode}/statistics/playercareer":
+    get:
+      tags[1]: Leagues
+      parameters[6]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerCareerStatistics
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerCareerStatistics
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerCareerStatistics
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerCareerStatistics
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerCareerStatistics
+  "/Leagues/{leagueCode}/seasons/{seasonId}/statistics/players":
+    get:
+      tags[1]: Leagues
+      parameters[7]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: seasonId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerSeasonStatistics
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerSeasonStatistics
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerSeasonStatistics
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerSeasonStatistics
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerSeasonStatistics
+  "/Leagues/{leagueCode}/seasons/{seasonId}/statistics/teams":
+    get:
+      tags[1]: Leagues
+      parameters[7]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: seasonId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamSeasonStatistics
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamSeasonStatistics
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamSeasonStatistics
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamSeasonStatistics
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamSeasonStatistics
+  "/Leagues/{leagueCode}/seasons/{seasonId}/personleaders/{statistic}":
+    get:
+      tags[1]: Leagues
+      parameters[8]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: seasonId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: statistic
+          in: path
+          required: true
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.StatisticType
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PersonSeasonLeaderStatistics
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PersonSeasonLeaderStatistics
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PersonSeasonLeaderStatistics
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PersonSeasonLeaderStatistics
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PersonSeasonLeaderStatistics
+  "/Leagues/{leagueCode}/seasons/{seasonId}/teams":
+    get:
+      tags[1]: Leagues
+      parameters[7]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: seasonId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Team
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Team
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Team
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Team
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Team
+  "/Leagues/{leagueCode}/seasons/{seasonId}/persons":
+    get:
+      tags[1]: Leagues
+      parameters[7]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: seasonId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Person
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Person
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Person
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Person
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Person
+  "/Leagues/{leagueCode}/arenas":
+    get:
+      tags[1]: Leagues
+      parameters[6]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Arena
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Arena
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Arena
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Arena
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Arena
+  "/Leagues/{leagueCode}/seasons/{seasonId}/series":
+    get:
+      tags[1]: Leagues
+      parameters[7]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: seasonId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayoffSeries
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayoffSeries
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayoffSeries
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayoffSeries
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayoffSeries
+  "/Leagues/{leagueCode}/seasons/{seasonId}/seasonsubtypes":
+    get:
+      tags[1]: Leagues
+      parameters[7]:
+        - name: leagueCode
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: seasonId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubTypeName
+            "application/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubTypeName
+            "text/json":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubTypeName
+            "application/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubTypeName
+            "text/xml":
+              schema:
+                type: array
+                items:
+                  "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubTypeName
+  "/games/{gameId}/playbyplay":
+    get:
+      tags[1]: PlayByPlay
+      parameters[7]:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: language
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Language
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.PlayByPlay
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.PlayByPlay
+            "text/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.PlayByPlay
+            "application/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.PlayByPlay
+            "text/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.PlayByPlay
+  "/games/{gameId}/scoreboard":
+    get:
+      tags[1]: Scoreboard
+      parameters[6]:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            nullable: true
+        - name: Limit
+          in: query
+          schema:
+            maximum: 500
+            minimum: 0
+            type: integer
+            format: int32
+        - name: Offset
+          in: query
+          schema:
+            maximum: 2147483647
+            minimum: 0
+            type: integer
+            format: int32
+        - name: ResponseOk
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: Format
+          in: query
+          schema:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat
+        - name: x-api-key
+          in: header
+          description: API KEY for calls
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            "text/plain":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Scoreboards.Scoreboard
+            "application/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Scoreboards.Scoreboard
+            "text/json":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Scoreboards.Scoreboard
+            "application/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Scoreboards.Scoreboard
+            "text/xml":
+              schema:
+                "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Scoreboards.Scoreboard
+components:
+  schemas:
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.ResponseFormat:
+      enum[2]: Json,Xml
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.PlayerStatus:
+      enum[2]: Active,Inactive
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.NotPlayingReason:
+      enum[66]: DnpCoach,DnpInjury,DnpRest,DnpPersonal,DnpTradePending,DnpSuspended,DnpGLeague,DnpGLeagueOnAssignment,DnpGLeagueTwoWay,DnpNotWithTeam,DnpTeamSuspension,DnpLeagueSuspension,DnpHealthAndSafetyProtocols,DnpReturnToCompetitionReconditioning,DnpIneligibleToPlay,DndCoach,DndInjury,DndRest,DndPersonal,DndTradePending,DndSuspended,DndGLeague,DndGLeagueOnAssignment,DndGLeagueTwoWay,DndNotWithTeam,DndTeamSuspension,DndLeagueSuspension,DndHealthAndSafetyProtocols,DndReturnToCompetitionReconditioning,DndIneligibleToPlay,NwtCoach,NwtInjury,NwtRest,NwtPersonal,NwtTrade,NwtSuspended,NwtGLeague,NwtGLeagueOnAssignment,NwtGLeagueTwoWay,NwtNotWithTeam,NwtTeamSuspension,NwtLeagueSuspension,NwtHealthAndSafetyProtocols,NwtReturnToCompetitionReconditioning,NwtIneligibleToPlay,InactiveCoach,InactiveInjury,InactiveRest,InactivePersonal,InactiveTradePending,InactiveSuspended,InactiveGLeague,InactiveGLeagueOnAssignment,InactiveGLeagueTwoWay,InactiveNotWithTeam,InactiveTeamSuspension,InactiveLeagueSuspension,InactiveHealthAndSafetyProtocols,InactiveReturnToCompetitionReconditioning,InactiveNotWithTeamReturnToCompetitionReconditioning,InactiveIneligibleToPlay,DnpConcussionProtocol,DndConcussionProtocol,NwtConcussionProtocol,InactiveConcussionProtocol,InactivePregnancyChildbirth
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerPosition:
+      enum[11]: Guard,GuardForward,PointGuard,ShootingGuard,Forward,SmallForward,PowerForward,Center,ForwardCenter,ForwardGuard,CenterForward
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo:
+      enum[2]: No,Yes
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.PlayerStatistics:
+      type: object
+      properties:
+        Assists:
+          type: integer
+          format: int32
+        AssistsTurnoverRatio:
+          type: number
+          format: double
+        Blocks:
+          type: integer
+          format: int32
+        BlocksReceived:
+          type: integer
+          format: int32
+        DefensiveRating:
+          type: number
+          format: double
+          nullable: true
+        Efficiency:
+          type: number
+          format: double
+          nullable: true
+        EfficiencyGameScore:
+          type: number
+          format: double
+        FastBreakPointsAttempted:
+          type: integer
+          format: int32
+        FastBreakPointsMade:
+          type: integer
+          format: int32
+        FastBreakPointsPercentage:
+          type: number
+          format: double
+        FieldGoalsAttempted:
+          type: integer
+          format: int32
+        FieldGoalsEffectivePercentage:
+          type: number
+          format: double
+        FieldGoalsMade:
+          type: integer
+          format: int32
+        FieldGoalsPercentage:
+          type: number
+          format: double
+        FoulsOffensive:
+          type: integer
+          format: int32
+        FoulsDrawn:
+          type: integer
+          format: int32
+        FoulsPersonal:
+          type: integer
+          format: int32
+        FoulsTechnical:
+          type: integer
+          format: int32
+        FreeThrowsAttempted:
+          type: integer
+          format: int32
+        FreeThrowsMade:
+          type: integer
+          format: int32
+        FreeThrowsPercentage:
+          type: number
+          format: double
+        Minus:
+          type: number
+          format: double
+        Minutes:
+          type: string
+          nullable: true
+        MinutesCalculated:
+          type: string
+          nullable: true
+        OffensiveRating:
+          type: number
+          format: double
+          nullable: true
+        Plus:
+          type: number
+          format: double
+        PlusMinusPoints:
+          type: number
+          format: double
+        Points:
+          type: integer
+          format: int32
+        PointsFastBreak:
+          type: integer
+          format: int32
+        PointsInThePaint:
+          type: integer
+          format: int32
+        PointsInThePaintAttempted:
+          type: integer
+          format: int32
+        PointsInThePaintMade:
+          type: integer
+          format: int32
+        PointsInThePaintPercentage:
+          type: number
+          format: double
+        PointsSecondChance:
+          type: integer
+          format: int32
+        ReboundsDefensive:
+          type: integer
+          format: int32
+        ReboundsDefensivePercentage:
+          type: number
+          format: double
+        ReboundsOffensive:
+          type: integer
+          format: int32
+        ReboundsOffensivePercentage:
+          type: number
+          format: double
+        ReboundsPercentage:
+          type: number
+          format: double
+        ReboundsTotal:
+          type: integer
+          format: int32
+        SecondChancePointsAttempted:
+          type: integer
+          format: int32
+        SecondChancePointsMade:
+          type: integer
+          format: int32
+        SecondChancePointsPercentage:
+          type: number
+          format: double
+        Steals:
+          type: integer
+          format: int32
+        StealsPercentage:
+          type: number
+          format: double
+        ThreePointersAttempted:
+          type: integer
+          format: int32
+        ThreePointersMade:
+          type: integer
+          format: int32
+        ThreePointersPercentage:
+          type: number
+          format: double
+        TrueShootingAttempts:
+          type: number
+          format: double
+        TrueShootingPercentage:
+          type: number
+          format: double
+        Turnovers:
+          type: integer
+          format: int32
+        TurnoversPercentage:
+          type: number
+          format: double
+        TwoPointersAttempted:
+          type: integer
+          format: int32
+        TwoPointersMade:
+          type: integer
+          format: int32
+        TwoPointersPercentage:
+          type: number
+          format: double
+        MinutesDouble:
+          type: number
+          format: double
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Player:
+      type: object
+      properties:
+        Status:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.PlayerStatus
+        NotPlayingReason:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.NotPlayingReason
+        NotPlayingDescription:
+          type: string
+          nullable: true
+        Order:
+          type: integer
+          format: int32
+        PersonId:
+          type: integer
+          format: int32
+        JerseyNumber:
+          type: string
+          nullable: true
+        Position:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerPosition
+        IsStarter:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo
+        IsOnCourt:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo
+        HasPlayed:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo
+        Statistics:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.PlayerStatistics
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.TeamStatistics:
+      type: object
+      properties:
+        Assists:
+          type: integer
+          format: int32
+        AssistsTurnoverRatio:
+          type: number
+          format: double
+        BenchPoints:
+          type: integer
+          format: int32
+        BiggestLead:
+          type: integer
+          format: int32
+        BiggestLeadScore:
+          type: string
+          nullable: true
+        BiggestScoringRun:
+          type: integer
+          format: int32
+        BiggestScoringRunScore:
+          type: string
+          nullable: true
+        Blocks:
+          type: integer
+          format: int32
+        BlocksReceived:
+          type: integer
+          format: int32
+        DefensivePointsPerPossession:
+          type: number
+          format: double
+        DefensiveRating:
+          type: number
+          format: double
+        Efficiency:
+          type: number
+          format: double
+          nullable: true
+        FastBreakPointsAttempted:
+          type: integer
+          format: int32
+        FastBreakPointsMade:
+          type: integer
+          format: int32
+        FastBreakPointsPercentage:
+          type: number
+          format: double
+        FieldGoalsAttempted:
+          type: integer
+          format: int32
+        FieldGoalsEffectiveAdjusted:
+          type: number
+          format: double
+        FieldGoalsMade:
+          type: integer
+          format: int32
+        FieldGoalsPercentage:
+          type: number
+          format: double
+        FoulsOffensive:
+          type: integer
+          format: int32
+        FoulsDrawn:
+          type: integer
+          format: int32
+        FoulsPersonal:
+          type: integer
+          format: int32
+        FoulsTeam:
+          type: integer
+          format: int32
+        FoulsTechnical:
+          type: integer
+          format: int32
+        FoulsTeamTechnical:
+          type: integer
+          format: int32
+        FreeThrowsAttempted:
+          type: integer
+          format: int32
+        FreeThrowsMade:
+          type: integer
+          format: int32
+        FreeThrowsPercentage:
+          type: number
+          format: double
+        LeadChanges:
+          type: integer
+          format: int32
+        Minutes:
+          type: string
+          nullable: true
+        MinutesCalculated:
+          type: string
+          nullable: true
+        OffensivePointsPerPossession:
+          type: number
+          format: double
+        OffensiveRating:
+          type: number
+          format: double
+        Pace:
+          type: number
+          format: double
+          nullable: true
+        Points:
+          type: integer
+          format: int32
+        PointsAgainst:
+          type: integer
+          format: int32
+        PointsFastBreak:
+          type: integer
+          format: int32
+        PointsFromTurnovers:
+          type: integer
+          format: int32
+        PointsInThePaint:
+          type: integer
+          format: int32
+        PointsInThePaintAttempted:
+          type: integer
+          format: int32
+        PointsInThePaintMade:
+          type: integer
+          format: int32
+        PointsInThePaintPercentage:
+          type: number
+          format: double
+        PointsSecondChance:
+          type: integer
+          format: int32
+        Possessions:
+          type: number
+          format: double
+        PossessionsOpponent:
+          type: number
+          format: double
+        ReboundsDefensive:
+          type: integer
+          format: int32
+        ReboundsOffensive:
+          type: integer
+          format: int32
+        ReboundsPersonal:
+          type: integer
+          format: int32
+        ReboundsTeam:
+          type: integer
+          format: int32
+        ReboundsTeamDefensive:
+          type: integer
+          format: int32
+        ReboundsTeamOffensive:
+          type: integer
+          format: int32
+        ReboundsTotal:
+          type: integer
+          format: int32
+        SecondChancePointsAttempted:
+          type: integer
+          format: int32
+        SecondChancePointsMade:
+          type: integer
+          format: int32
+        SecondChancePointsPercentage:
+          type: number
+          format: double
+        Steals:
+          type: integer
+          format: int32
+        ThreePointsAttempted:
+          type: integer
+          format: int32
+        ThreePointsMade:
+          type: integer
+          format: int32
+        ThreePointsPercentage:
+          type: number
+          format: double
+        TimeLeading:
+          type: string
+          nullable: true
+        TimesTied:
+          type: integer
+          format: int32
+        TransitionDefence:
+          type: number
+          format: double
+          nullable: true
+        TransitionOffence:
+          type: number
+          format: double
+          nullable: true
+        TrueShootingAttempts:
+          type: number
+          format: double
+        TrueShootingPercentage:
+          type: number
+          format: double
+        Turnovers:
+          type: integer
+          format: int32
+        TurnoversTeam:
+          type: integer
+          format: int32
+        TurnoversTotal:
+          type: integer
+          format: int32
+        TwoPointersAttempted:
+          type: integer
+          format: int32
+        TwoPointersMade:
+          type: integer
+          format: int32
+        TwoPointersPercentage:
+          type: number
+          format: double
+        TeamFieldGoalAttempts:
+          type: integer
+          format: int32
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Team:
+      type: object
+      properties:
+        TeamId:
+          type: integer
+          format: int32
+        Players:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Player
+          nullable: true
+        Statistics:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.TeamStatistics
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.BoxScore:
+      type: object
+      properties:
+        GameId:
+          type: string
+          nullable: true
+        HomeTeam:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Team
+        AwayTeam:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Team
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PeriodType:
+      enum[2]: Regular,Overtime
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Period:
+      type: object
+      properties:
+        PeriodNumber:
+          type: integer
+          format: int32
+        PeriodType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PeriodType
+        PeriodSequenceNumber:
+          type: integer
+          format: int32
+        HomeTeam:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Team
+        AwayTeam:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Team
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Periods.BoxScorePeriod:
+      type: object
+      properties:
+        GameId:
+          type: string
+          nullable: true
+        Periods:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Period
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Status:
+      enum[7]: Ready,Pregame,Oncourt,Inprogress,PeriodBreak,Finished,FinalBox
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Game:
+      type: object
+      properties:
+        GameId:
+          type: string
+          nullable: true
+        LeagueName:
+          type: string
+          nullable: true
+        SeasonName:
+          type: string
+          nullable: true
+        Attendance:
+          type: integer
+          format: int32
+        IsSoldOut:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo
+        Status:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Status
+        PeriodType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PeriodType
+        Period:
+          type: integer
+          format: int32
+        Clock:
+          type: string
+          nullable: true
+        GameTimeLocal:
+          type: string
+          format: date-time
+        Duration:
+          type: integer
+          format: int32
+        ArenaName:
+          type: string
+          nullable: true
+        ArenaCity:
+          type: string
+          nullable: true
+        ArenaState:
+          type: string
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.OfficialAssignment:
+      enum[4]: OfficialOne,OfficialTwo,OfficialThree,Alternate
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.GameOperationsManager.Client.DataContracts.PersonName:
+      type: object
+      properties:
+        LanguageCode:
+          type: string
+          nullable: true
+        FirstName:
+          type: string
+          nullable: true
+        FamilyName:
+          type: string
+          nullable: true
+        Name:
+          type: string
+          nullable: true
+        NameInitial:
+          type: string
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Official:
+      type: object
+      properties:
+        PersonId:
+          type: integer
+          format: int32
+        Name:
+          type: string
+          nullable: true
+        NameInitial:
+          type: string
+          nullable: true
+        FirstName:
+          type: string
+          nullable: true
+        FamilyName:
+          type: string
+          nullable: true
+        JerseyNumber:
+          type: string
+          nullable: true
+        Assignment:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.OfficialAssignment
+        Names:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.GameOperationsManager.Client.DataContracts.PersonName
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.GameStats:
+      type: object
+      properties:
+        LeadChanges:
+          type: integer
+          format: int32
+        TimesTied:
+          type: integer
+          format: int32
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Player:
+      type: object
+      properties:
+        PersonId:
+          type: integer
+          format: int32
+        Name:
+          type: string
+          nullable: true
+        NameInitial:
+          type: string
+          nullable: true
+        FirstName:
+          type: string
+          nullable: true
+        FamilyName:
+          type: string
+          nullable: true
+        JerseyNumber:
+          type: string
+          nullable: true
+        IsStarter:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo
+        Position:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerPosition
+        TeamId:
+          type: integer
+          format: int32
+          nullable: true
+        Status:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.PlayerStatus
+        NotPlayingReason:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.NotPlayingReason
+        NotPlayingDescription:
+          type: string
+          nullable: true
+        Names:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.GameOperationsManager.Client.DataContracts.PersonName
+          nullable: true
+        Memo:
+          type: string
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.StaffRole:
+      enum[14]: HeadCoach,AssistantHeadCoach,AssociateHeadCoach,AssistantCoach,Trainer,AssistantTrainer,StrengthAndConditioningCoach,AsistantStrengthAndConditioningCoach,AdvanceScout,Director,AssistantPlayerDevelopmentCoach,LeadAssistantCoach,AssistantCoachPlayerPerformance,InterimHeadCoach
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Staff:
+      type: object
+      properties:
+        PersonId:
+          type: integer
+          format: int32
+        Name:
+          type: string
+          nullable: true
+        NameInitial:
+          type: string
+          nullable: true
+        FirstName:
+          type: string
+          nullable: true
+        FamilyName:
+          type: string
+          nullable: true
+        Role:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.StaffRole
+        Names:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.GameOperationsManager.Client.DataContracts.PersonName
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Foul:
+      type: object
+      properties:
+        Type:
+          type: string
+          nullable: true
+        PeriodType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PeriodType
+        Period:
+          type: integer
+          format: int32
+        Clock:
+          type: string
+          nullable: true
+        PersonId:
+          type: integer
+          format: int32
+        TeamId:
+          type: integer
+          format: int32
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.LeaderStatistic:
+      type: object
+      properties:
+        Value:
+          type: integer
+          format: int32
+        Persons:
+          type: array
+          items:
+            type: integer
+            format: int32
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Leaders:
+      type: object
+      properties:
+        Points:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.LeaderStatistic
+        Rebounds:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.LeaderStatistic
+        Assists:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.LeaderStatistic
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Total:
+      type: object
+      properties:
+        Score:
+          type: integer
+          format: int32
+        Leaders:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Leaders
+        Players:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Player
+          nullable: true
+        Statistics:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.TeamStatistics
+        StatisticsStarters:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.PlayerStatistics
+        StatisticsBench:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.PlayerStatistics
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Period:
+      type: object
+      properties:
+        Score:
+          type: integer
+          format: int32
+        Leaders:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Leaders
+        Players:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Player
+          nullable: true
+        Statistics:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.TeamStatistics
+        StatisticsStarters:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.PlayerStatistics
+        StatisticsBench:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.PlayerStatistics
+        PeriodNumber:
+          type: integer
+          format: int32
+        PeriodType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PeriodType
+        PeriodSequenceNumber:
+          type: integer
+          format: int32
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Team:
+      type: object
+      properties:
+        TeamId:
+          type: integer
+          format: int32
+        TeamName:
+          type: string
+          nullable: true
+        TeamCity:
+          type: string
+          nullable: true
+        TeamTricode:
+          type: string
+          nullable: true
+        Wins:
+          type: integer
+          format: int32
+        Losses:
+          type: integer
+          format: int32
+        Roster:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Player
+          nullable: true
+        Staff:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Staff
+          nullable: true
+        TechnicalFouls:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Foul
+          nullable: true
+        FlagrantFouls:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Foul
+          nullable: true
+        Total:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Total
+        Periods:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Period
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.BoxScoreReport:
+      type: object
+      properties:
+        Game:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Game
+        Officials:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Official
+          nullable: true
+        GameStats:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.GameStats
+        HomeTeam:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Team
+        AwayTeam:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.BoxScores.Report.Team
+        Memo:
+          type: array
+          items:
+            type: string
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.GameType:
+      enum[4]: All,PreSeason,Regular,Playoff
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonType:
+      enum[6]: All,PreSeason,Regular,Playoff,AllStar,Exhibition
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.GameStatus:
+      enum[7]: Bye,Scheduled,Inprogress,Finished,Postponed,Cancelled,Suspended
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Winner:
+      enum[3]: None,Home,Away
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamInfo:
+      type: object
+      properties:
+        TeamName:
+          type: string
+          nullable: true
+        TeamCity:
+          type: string
+          nullable: true
+        TeamNameInternational:
+          type: string
+          nullable: true
+        TeamTricode:
+          type: string
+          nullable: true
+        TeamTricodeInternational:
+          type: string
+          nullable: true
+        Division:
+          type: string
+          nullable: true
+        Conference:
+          type: string
+          nullable: true
+        Timezone:
+          type: string
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Arena:
+      type: object
+      properties:
+        LeagueCode:
+          type: string
+          nullable: true
+        ArenaId:
+          type: integer
+          format: int32
+        ArenaName:
+          type: string
+          nullable: true
+        ArenaCode:
+          type: string
+          nullable: true
+        ArenaNameInternational:
+          type: string
+          nullable: true
+        ArenaCodeInternational:
+          type: string
+          nullable: true
+        City:
+          type: string
+          nullable: true
+        State:
+          type: string
+          nullable: true
+        Country:
+          type: string
+          nullable: true
+        Timezone:
+          type: string
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Game:
+      type: object
+      properties:
+        GameId:
+          type: string
+          nullable: true
+        LeagueCode:
+          type: string
+          nullable: true
+        LeagueName:
+          type: string
+          nullable: true
+        SeasonId:
+          type: string
+          nullable: true
+        SeasonName:
+          type: string
+          nullable: true
+        SeasonType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonType
+        GameStatus:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.GameStatus
+        Winner:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Winner
+        GameDateTimeLocal:
+          type: string
+          format: date-time
+        GameTimeLocal:
+          type: string
+          nullable: true
+        GameDateTimeUtc:
+          type: string
+          format: date-time
+        GameTimeUtc:
+          type: string
+          nullable: true
+        GameTimeHome:
+          type: string
+          nullable: true
+        GameTimeAway:
+          type: string
+          nullable: true
+        GameEt:
+          type: string
+          nullable: true
+        TimeActual:
+          type: string
+          format: date-time
+          nullable: true
+        TimeEndActual:
+          type: string
+          format: date-time
+          nullable: true
+        Attendance:
+          type: integer
+          format: int32
+          nullable: true
+        Duration:
+          type: integer
+          format: int32
+          nullable: true
+        HomeId:
+          type: integer
+          format: int32
+          nullable: true
+        HomeScore:
+          type: integer
+          format: int32
+          nullable: true
+        HomeTeam:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamInfo
+        AwayId:
+          type: integer
+          format: int32
+          nullable: true
+        AwayScore:
+          type: integer
+          format: int32
+          nullable: true
+        AwayTeam:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamInfo
+        Arena:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Arena
+        LastGameDataUpdate:
+          type: string
+          format: date-time
+          nullable: true
+        NeedsReprocessing:
+          type: string
+          format: date-time
+          nullable: true
+        IsSoldOut:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo
+        Memos:
+          type: array
+          items:
+            type: string
+          nullable: true
+        TargetScoreEnding:
+          type: boolean
+        TargetScorePeriod:
+          type: integer
+          format: int32
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Language:
+      enum[2]: EnUs,ZhCn
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamStatus:
+      enum[2]: Active,Inactive
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Team:
+      type: object
+      properties:
+        LeagueCode:
+          type: string
+          nullable: true
+        SeasonId:
+          type: string
+          nullable: true
+        TeamId:
+          type: integer
+          format: int32
+        TeamName:
+          type: string
+          nullable: true
+        TeamCity:
+          type: string
+          nullable: true
+        TeamTricode:
+          type: string
+          nullable: true
+        TeamNameInternational:
+          type: string
+          nullable: true
+        TeamCityInternational:
+          type: string
+          nullable: true
+        TeamTricodeInternational:
+          type: string
+          nullable: true
+        Division:
+          type: string
+          nullable: true
+        Conference:
+          type: string
+          nullable: true
+        Status:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamStatus
+        Timezone:
+          type: string
+          nullable: true
+        PlayersList:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Player
+          nullable: true
+        StaffList:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Staff
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Rosters:
+      type: object
+      properties:
+        GameId:
+          type: string
+          nullable: true
+        HomeTeam:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Team
+        AwayTeam:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Team
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Officials:
+      type: object
+      properties:
+        GameId:
+          type: string
+          nullable: true
+        OfficialsList:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Official
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.DoesJumpBallAlter:
+      enum[2]: No,Yes
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.HasOfficialJersey:
+      enum[2]: No,Yes
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.HasDeadBallRebounds:
+      enum[2]: No,Yes
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.TimeoutMaximumRules:
+      type: object
+      properties:
+        PeriodType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PeriodType
+        PeriodNumber:
+          type: integer
+          format: int32
+        ClockStart:
+          type: string
+          nullable: true
+        ClockEnd:
+          type: string
+          nullable: true
+        MaximumValue:
+          type: integer
+          format: int32
+        LastMinutesOfTargetScoreGame:
+          type: boolean
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.DetailedTimeoutConfiguration:
+      type: object
+      properties:
+        Length:
+          type: integer
+          format: int32
+        GivenForGame:
+          type: integer
+          format: int32
+        GivenForHalf1:
+          type: integer
+          format: int32
+        GivenForHalf2:
+          type: integer
+          format: int32
+        GivenForOverTime:
+          type: integer
+          format: int32
+        MaximumRules:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.TimeoutMaximumRules
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.TimeoutConfiguration:
+      type: object
+      properties:
+        Full:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.DetailedTimeoutConfiguration
+        Short:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.DetailedTimeoutConfiguration
+        Reset:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.DetailedTimeoutConfiguration
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.FoulTypeConfiguration:
+      type: object
+      properties:
+        UseTransitionTakeFoul:
+          type: boolean
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.EndGameMode:
+      enum[2]: Clock,TargetScore
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.PeriodLengthConfiguration:
+      type: object
+      properties:
+        PeriodType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PeriodType
+        PeriodNumber:
+          type: integer
+          format: int32
+        Length:
+          type: integer
+          format: int32
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.PeriodLengthsConfiguration:
+      type: object
+      properties:
+        Periods:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.PeriodLengthConfiguration
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.TargetScoreConfiguration:
+      type: object
+      properties:
+        FinalPeriodType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PeriodType
+        TargetScoreCriterion:
+          type: integer
+          format: int32
+        LastMinutesTargetScoreCriterion:
+          type: integer
+          format: int32
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.Ruleset:
+      type: object
+      properties:
+        GameId:
+          type: string
+          nullable: true
+        RulesetId:
+          type: integer
+          format: int32
+        RulesetName:
+          type: string
+          nullable: true
+        NumberOfRegulationPeriods:
+          type: integer
+          format: int32
+        PeriodLengthRegulation:
+          type: integer
+          format: int32
+        PeriodLengthOvertime:
+          type: integer
+          format: int32
+        ShotClockLength:
+          type: integer
+          format: int32
+        UseCoachChallenge:
+          type: boolean
+        CoachChallengeCount:
+          type: integer
+          format: int32
+          nullable: true
+        AdditionalCoachChallengeCount:
+          type: integer
+          format: int32
+          nullable: true
+        DoesJumpBallAlter:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.DoesJumpBallAlter
+        HasOfficialJersey:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.HasOfficialJersey
+        HasDeadBallRebouds:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.HasDeadBallRebounds
+        NumberOfOfficials:
+          type: integer
+          format: int32
+        NumberOfPlayers:
+          type: integer
+          format: int32
+        MaxFoulsPlayer:
+          type: integer
+          format: int32
+        CourtConfigurationId:
+          type: integer
+          format: int32
+        SimpleZoneId:
+          type: integer
+          format: int32
+          nullable: true
+        DetailZoneId:
+          type: integer
+          format: int32
+          nullable: true
+        Timeouts:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.TimeoutConfiguration
+        SuddenDeathOvertimeNumber:
+          type: integer
+          format: int32
+          nullable: true
+        FoulTypes:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.FoulTypeConfiguration
+        EndGameMode:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.EndGameMode
+        PeriodLengthsConfiguration:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.PeriodLengthsConfiguration
+        TargetScoreConfiguration:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Ruleset.TargetScoreConfiguration
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.ServiceHost.Infrastructure.Contracts.HealthCheckMessageDto:
+      type: object
+      properties:
+        ApplicationName:
+          type: string
+          nullable: true
+        ApplicationVersion:
+          type: string
+          nullable: true
+        MachineName:
+          type: string
+          nullable: true
+        UtcTimestamp:
+          type: string
+          format: date-time
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.League:
+      type: object
+      properties:
+        LeagueCode:
+          type: string
+          nullable: true
+        LeagueName:
+          type: string
+          nullable: true
+        LeagueAbbrev:
+          type: string
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Season:
+      type: object
+      properties:
+        SeasonId:
+          type: string
+          nullable: true
+        SeasonName:
+          type: string
+          nullable: true
+        Year:
+          type: integer
+          format: int32
+        SeasonType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonType
+        LeagueCode:
+          type: string
+          nullable: true
+        LeagueName:
+          type: string
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.StatisticType:
+      enum[3]: SPoints,SRebounds,SAssists
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubType:
+      enum[5]: All,PlayoffRound1,PlayoffRound2,PlayoffRound3,PlayoffRound4
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamSeasonLeaderStatistics:
+      type: object
+      properties:
+        TeamId:
+          type: integer
+          format: int32
+        SeasonId:
+          type: string
+          nullable: true
+        Value:
+          type: integer
+          format: int32
+        Games:
+          type: integer
+          format: int32
+        PerGame:
+          type: number
+          format: double
+        Statistic:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.StatisticType
+        LeagueCode:
+          type: string
+          nullable: true
+        SeasonSubType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubType
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Standing:
+      type: object
+      properties:
+        TeamId:
+          type: integer
+          format: int32
+        LeagueCode:
+          type: string
+          nullable: true
+        SeasonId:
+          type: string
+          nullable: true
+        Division:
+          type: string
+          nullable: true
+        Conference:
+          type: string
+          nullable: true
+        Games:
+          type: integer
+          format: int32
+        Wins:
+          type: integer
+          format: int32
+        Losses:
+          type: integer
+          format: int32
+        GamesBehind:
+          type: number
+          format: double
+        ConferenceWins:
+          type: integer
+          format: int32
+        ConferenceLosses:
+          type: integer
+          format: int32
+        ConferenceRank:
+          type: integer
+          format: int32
+        ConferenceGamesBehind:
+          type: number
+          format: double
+        DivisionWins:
+          type: integer
+          format: int32
+        DivisionLosses:
+          type: integer
+          format: int32
+        HomeWins:
+          type: integer
+          format: int32
+        HomeLosses:
+          type: integer
+          format: int32
+        RoadWins:
+          type: integer
+          format: int32
+        RoadLosses:
+          type: integer
+          format: int32
+        Last10Wins:
+          type: integer
+          format: int32
+        Last10Losses:
+          type: integer
+          format: int32
+        Streak:
+          type: integer
+          format: int32
+        LeagueRank:
+          type: integer
+          format: int32
+        DivisionRank:
+          type: integer
+          format: int32
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerCareerStatistics:
+      type: object
+      properties:
+        PersonId:
+          type: integer
+          format: int32
+        Name:
+          type: string
+          nullable: true
+        NameI:
+          type: string
+          nullable: true
+        FirstName:
+          type: string
+          nullable: true
+        FamilyName:
+          type: string
+          nullable: true
+        SeasonId:
+          type: string
+          nullable: true
+        LeagueCode:
+          type: string
+          nullable: true
+        TeamId:
+          type: integer
+          format: int32
+        TeamName:
+          type: string
+          nullable: true
+        TeamCity:
+          type: string
+          nullable: true
+        Games:
+          type: integer
+          format: int32
+        GamesStarted:
+          type: integer
+          format: int32
+        Minutes:
+          type: string
+          nullable: true
+        MinutesPerGame:
+          type: string
+          nullable: true
+        FieldGoalsMade:
+          type: integer
+          format: int32
+        FieldGoalsAttempted:
+          type: integer
+          format: int32
+        FieldGoalsPercentage:
+          type: number
+          format: double
+        ThreePointersMade:
+          type: integer
+          format: int32
+        ThreePointersAttempted:
+          type: integer
+          format: int32
+        ThreePointersPercentage:
+          type: number
+          format: double
+        FreeThrowsMade:
+          type: integer
+          format: int32
+        FreeThrowsAttempted:
+          type: integer
+          format: int32
+        FreeThrowsPercentage:
+          type: number
+          format: double
+        ReboundsOffensive:
+          type: integer
+          format: int32
+        ReboundsOffensivePerGame:
+          type: number
+          format: double
+        ReboundsDefensive:
+          type: integer
+          format: int32
+        ReboundsDefensivePerGame:
+          type: number
+          format: double
+        Rebounds:
+          type: integer
+          format: int32
+        ReboundsPerGame:
+          type: number
+          format: double
+        Assists:
+          type: integer
+          format: int32
+        AssistsPerGame:
+          type: number
+          format: double
+        Blocks:
+          type: integer
+          format: int32
+        BlocksPerGame:
+          type: number
+          format: double
+        Fouls:
+          type: integer
+          format: int32
+        FoulsPerGame:
+          type: number
+          format: double
+        Steals:
+          type: integer
+          format: int32
+        StealsPerGame:
+          type: number
+          format: double
+        Turnovers:
+          type: integer
+          format: int32
+        TurnoversPerGame:
+          type: number
+          format: double
+        PointsFastBreak:
+          type: integer
+          format: int32
+        PointsLayup:
+          type: integer
+          format: int32
+        PointsDunk:
+          type: integer
+          format: int32
+        Points:
+          type: integer
+          format: int32
+        PointsPerGame:
+          type: number
+          format: double
+        SeasonSubType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubType
+        StatisticSeasonType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonType
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerSeasonStatistics:
+      type: object
+      properties:
+        PersonId:
+          type: integer
+          format: int32
+        Name:
+          type: string
+          nullable: true
+        NameI:
+          type: string
+          nullable: true
+        FirstName:
+          type: string
+          nullable: true
+        FamilyName:
+          type: string
+          nullable: true
+        SeasonId:
+          type: string
+          nullable: true
+        LeagueCode:
+          type: string
+          nullable: true
+        TeamId:
+          type: integer
+          format: int32
+        TeamName:
+          type: string
+          nullable: true
+        TeamCity:
+          type: string
+          nullable: true
+        Games:
+          type: integer
+          format: int32
+        GamesStarted:
+          type: integer
+          format: int32
+        Minutes:
+          type: string
+          nullable: true
+        MinutesPerGame:
+          type: string
+          nullable: true
+        FieldGoalsMade:
+          type: integer
+          format: int32
+        FieldGoalsAttempted:
+          type: integer
+          format: int32
+        FieldGoalsPercentage:
+          type: number
+          format: double
+        ThreePointersMade:
+          type: integer
+          format: int32
+        ThreePointersAttempted:
+          type: integer
+          format: int32
+        ThreePointersPercentage:
+          type: number
+          format: double
+        FreeThrowsMade:
+          type: integer
+          format: int32
+        FreeThrowsAttempted:
+          type: integer
+          format: int32
+        FreeThrowsPercentage:
+          type: number
+          format: double
+        ReboundsOffensive:
+          type: integer
+          format: int32
+        ReboundsOffensivePerGame:
+          type: number
+          format: double
+        ReboundsDefensive:
+          type: integer
+          format: int32
+        ReboundsDefensivePerGame:
+          type: number
+          format: double
+        Rebounds:
+          type: integer
+          format: int32
+        ReboundsPerGame:
+          type: number
+          format: double
+        Assists:
+          type: integer
+          format: int32
+        AssistsPerGame:
+          type: number
+          format: double
+        Blocks:
+          type: integer
+          format: int32
+        BlocksPerGame:
+          type: number
+          format: double
+        Fouls:
+          type: integer
+          format: int32
+        FoulsPerGame:
+          type: number
+          format: double
+        Steals:
+          type: integer
+          format: int32
+        StealsPerGame:
+          type: number
+          format: double
+        Turnovers:
+          type: integer
+          format: int32
+        TurnoversPerGame:
+          type: number
+          format: double
+        PointsFastBreak:
+          type: integer
+          format: int32
+        PointsLayup:
+          type: integer
+          format: int32
+        PointsDunk:
+          type: integer
+          format: int32
+        Points:
+          type: integer
+          format: int32
+        PointsPerGame:
+          type: number
+          format: double
+        SeasonSubType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubType
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.TeamSeasonStatistics:
+      type: object
+      properties:
+        TeamId:
+          type: integer
+          format: int32
+        SeasonId:
+          type: string
+          nullable: true
+        SeasonSubType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubType
+        LeagueCode:
+          type: string
+          nullable: true
+        FieldGoalsMade:
+          type: integer
+          format: int32
+        FieldGoalsAttempted:
+          type: integer
+          format: int32
+        FieldGoalsPercentage:
+          type: number
+          format: double
+        ThreePointersMade:
+          type: integer
+          format: int32
+        ThreePointersAttempted:
+          type: integer
+          format: int32
+        ThreePointersPercentage:
+          type: number
+          format: double
+        FreeThrowsMade:
+          type: integer
+          format: int32
+        FreeThrowsAttempted:
+          type: integer
+          format: int32
+        FreeThrowsPercentage:
+          type: number
+          format: double
+        ReboundsOffensive:
+          type: integer
+          format: int32
+        ReboundsOffensivePerGame:
+          type: number
+          format: double
+        ReboundsDefensive:
+          type: integer
+          format: int32
+        ReboundsDefensivePerGame:
+          type: number
+          format: double
+        Rebounds:
+          type: integer
+          format: int32
+        ReboundsPerGame:
+          type: number
+          format: double
+        Assists:
+          type: integer
+          format: int32
+        AssistsPerGame:
+          type: number
+          format: double
+        Fouls:
+          type: integer
+          format: int32
+        FoulsPerGame:
+          type: number
+          format: double
+        Steals:
+          type: integer
+          format: int32
+        StealsPerGame:
+          type: number
+          format: double
+        Turnovers:
+          type: integer
+          format: int32
+        TurnoversPerGame:
+          type: number
+          format: double
+        Blocks:
+          type: integer
+          format: int32
+        BlocksPerGame:
+          type: number
+          format: double
+        PointsFastBreak:
+          type: integer
+          format: int32
+        PointsFastBreakPerGame:
+          type: number
+          format: double
+        BiggestLead:
+          type: integer
+          format: int32
+        PointsLayup:
+          type: integer
+          format: int32
+        PointsLayupPerGame:
+          type: number
+          format: double
+        PointsDunk:
+          type: integer
+          format: int32
+        PointsDunkPerGame:
+          type: number
+          format: double
+        FoulsOffensive:
+          type: integer
+          format: int32
+        ReboundsOffensiveLive:
+          type: integer
+          format: int32
+        ReboundsDefensiveLive:
+          type: integer
+          format: int32
+        ReboundsDeadBall:
+          type: integer
+          format: int32
+        Points:
+          type: integer
+          format: int32
+        PointsPerGame:
+          type: number
+          format: double
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PersonSeasonLeaderStatistics:
+      type: object
+      properties:
+        PersonId:
+          type: integer
+          format: int32
+        SeasonId:
+          type: string
+          nullable: true
+        LeagueCode:
+          type: string
+          nullable: true
+        Statistic:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.StatisticType
+        Value:
+          type: integer
+          format: int32
+        Games:
+          type: integer
+          format: int32
+        PerGame:
+          type: number
+          format: double
+        SeasonSubType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubType
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Person:
+      type: object
+      properties:
+        PersonId:
+          type: integer
+          format: int32
+        Name:
+          type: string
+          nullable: true
+        NameInitial:
+          type: string
+          nullable: true
+        FirstName:
+          type: string
+          nullable: true
+        FamilyName:
+          type: string
+          nullable: true
+        JerseyNumber:
+          type: string
+          nullable: true
+        TeamId:
+          type: integer
+          format: int32
+          nullable: true
+        Position:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayerPosition
+        IsPlayer:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo
+        IsOfficial:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo
+        IsTeamStaff:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo
+        TeamRole:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.StaffRole
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayoffSeries:
+      type: object
+      properties:
+        LeagueCode:
+          type: string
+          nullable: true
+        SeasonId:
+          type: string
+          nullable: true
+        SeasonSubType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubType
+        SeriesId:
+          type: integer
+          format: int32
+        SeriesName:
+          type: string
+          nullable: true
+        Team1Id:
+          type: integer
+          format: int32
+        Team2Id:
+          type: integer
+          format: int32
+        Team1Seed:
+          type: integer
+          format: int32
+        Team2Seed:
+          type: integer
+          format: int32
+        Team1SeriesRecord:
+          type: integer
+          format: int32
+        Team2SeriesRecord:
+          type: integer
+          format: int32
+        Team1Conference:
+          type: string
+          nullable: true
+        Team2Conference:
+          type: string
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubTypeName:
+      type: object
+      properties:
+        LeagueCode:
+          type: string
+          nullable: true
+        SeasonId:
+          type: string
+          nullable: true
+        SeasonSubType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.SeasonSubType
+        Name:
+          type: string
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.ActionType:
+      enum[21]: Game,Period,TwoPoints,ThreePoints,FreeThrow,JumpBall,Assist,Block,Rebound,Foul,Timeout,Steal,Turnover,Substitution,Violation,Ejection,Stoppage,InstantReplay,FoulOn,Memo,Heave
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.SubType:
+      enum[82]: None,Start,End,Dunk,Layup,Hook,Jumpshot,FirstOfOne,FirstOfTwo,FirstOfThree,SecondOfTwo,SecondOfThree,ThirdOfThree,Tap,Won,Lost,Recovered,Received,Defensive,Offensive,Drawn,Personal,Technical,Full,Short,Officials,Commercial,Reset,TooManyPlayers,ExcessTimeout,OffensiveFoul,BasketFromBelow,SwingingElbows,PunchedBall,OppositeBasket,Palming,JumpballViolation,LaneViolation,IsolationViolation,IllegalPick,Inbound,DiscontinueDribble,LostBall,OffensiveGoalTending,BallHandling,BadPass,OverAndBack,BackCourt,DoubleDribble,OutOfBounds,EquipmentMalfunction,BloodRule,CourtCleanup,Other,Injury,Traveling,ShotClock,ThreeSecViolation,FiveSecViolation,EightSecViolation,OffensiveKickedBall,IllegalAssist,IllegalOutOfBoundScreen,FiveSecBackToTheBasket,TenSecFreeThrowShooter,SubstitutionIn,SubstitutionOut,DelayOfGame,DefensiveGoalTending,DefensiveThreeSeconds,Lane,JumpBall,KickedBall,DoubleLane,Request,Challenge,AltercationRequest,OneForOne,OneForTwo,OneForThree,ReplayCenter,HeldBall
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.Descriptor:
+      enum[90]: None,AlleyOop,AwayFromPlay,BadPass,Bank,Bench,Blocked,Blocking,Charge,ClearPath,Cutting,CuttingFingerRoll,DeadBall,DefensiveThreeSeconds,DefensiveGoalTending,Delay,Double,DoubleViolation,Driving,DrivingBank,DrivingFingerRoll,DrivingFloating,DrivingFloatingBank,DrivingReverse,Elbow,ExcessTimeout,Fadeaway,FadeawayBank,FastBreak,FingerRoll,Flagrant,FlagrantType1,FlagrantType2,Floating,Flopping,FreethrowFirst,FreethrowSecond,FreethrowThird,FromTurnover,RimHanging,HeldBall,Inbound,Indirect,LodgedBall,LooseBall,LostBall,NonUnsportsmanLike,OffensiveCharge,OffTheBall,OutOfBounds,OverTurned,PlayerControl,Pullup,PullupBank,Punching,Putback,Reverse,Running,RunningAlleyOop,RunningFingerRoll,RunningPullup,RunningReverse,SecondChance,Shooting,ShootingBlock,StartPeriod,Step,StepBack,StepBackBank,Support,Take,Taunting,Technical,Tip,TooManyPlayers,Turnaround,TurnaroundBank,TurnaroundFadeaway,TurnaroundFadeawayBank,UnclearPass,UnsportsmanLike,Rebound,ContestedPossession,Violation,DoubleFoul,TransitionTake,Stands,Challenge,ReplayCenter,Changed
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.Qualifier:
+      enum[19]: SecondChance,FastBreak,FromTurnover,DefensiveGoalTending,PointsInThePaint,Blocked,Team,Technical,SecondTechnical,SecondFlagrantType1,FlagrantType2,Bench,OneFreeThrow,TwoFreeThrows,ThreeFreeThrows,Deadball,StartPeriod,InPenalty,Mandatory
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.Side:
+      enum[3]: Blank,Left,Right
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.Player:
+      type: object
+      properties:
+        PersonId:
+          type: integer
+          format: int32
+        Name:
+          type: string
+          nullable: true
+        NameInitial:
+          type: string
+          nullable: true
+        FirstName:
+          type: string
+          nullable: true
+        FamilyName:
+          type: string
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.Action:
+      type: object
+      properties:
+        ActionNumber:
+          type: integer
+          format: int32
+        Clock:
+          type: string
+          nullable: true
+        ShotClock:
+          type: string
+          nullable: true
+        TimeActual:
+          type: string
+          nullable: true
+        Period:
+          type: integer
+          format: int32
+        PeriodNumber:
+          type: integer
+          format: int32
+        PeriodType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PeriodType
+        TeamId:
+          type: integer
+          format: int32
+          nullable: true
+        TeamTricode:
+          type: string
+          nullable: true
+        ActionType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.ActionType
+        Success:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo
+        SubType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.SubType
+        Descriptor:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.Descriptor
+        Qualifiers:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.Qualifier
+          nullable: true
+        Value:
+          type: string
+          nullable: true
+        PreviousAction:
+          type: integer
+          format: int32
+          nullable: true
+        PersonId:
+          type: integer
+          format: int32
+        Name:
+          type: string
+          nullable: true
+        NameI:
+          type: string
+          nullable: true
+        FirstName:
+          type: string
+          nullable: true
+        FamilyName:
+          type: string
+          nullable: true
+        X:
+          type: number
+          format: double
+        Y:
+          type: number
+          format: double
+        Area:
+          type: string
+          nullable: true
+        AreaDetail:
+          type: string
+          nullable: true
+        Side:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.Side
+        ShotDistance:
+          type: number
+          format: float
+          nullable: true
+        Possession:
+          type: integer
+          format: int32
+        ScoreHome:
+          type: string
+          nullable: true
+        ScoreAway:
+          type: string
+          nullable: true
+        PlayerTotal:
+          type: integer
+          format: int32
+        Description:
+          type: string
+          nullable: true
+        Edited:
+          type: string
+          nullable: true
+        PlayersHome:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.Player
+          nullable: true
+        HomePlayersIds:
+          type: array
+          items:
+            type: integer
+            format: int32
+          nullable: true
+        PlayersAway:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.Player
+          nullable: true
+        AwayPlayersIds:
+          type: array
+          items:
+            type: integer
+            format: int32
+          nullable: true
+        PlayersPlusMinusHome:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.Player
+          nullable: true
+        PlayersPlusMinusHomeIds:
+          type: array
+          items:
+            type: integer
+            format: int32
+          nullable: true
+        PlayersPlusMinusAway:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.Player
+          nullable: true
+        PlayersPlusMinusAwayIds:
+          type: array
+          items:
+            type: integer
+            format: int32
+          nullable: true
+        LinkedActionsIds:
+          type: array
+          items:
+            type: integer
+            format: int32
+          nullable: true
+        OfficialId:
+          type: integer
+          format: int32
+          nullable: true
+        OrderNumber:
+          type: integer
+          format: int32
+        IsTargetScoreLastPeriod:
+          type: boolean
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.PlayByPlay:
+      type: object
+      properties:
+        GameId:
+          type: string
+          nullable: true
+        Actions:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PlayByPlays.Action
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PeriodStatus:
+      enum[4]: Pending,Started,Ended,Confirmed
+      type: string
+      format: int32
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Scoreboards.Period:
+      type: object
+      properties:
+        PeriodSequenceNumber:
+          type: integer
+          format: int32
+        PeriodNumber:
+          type: integer
+          format: int32
+        PeriodType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PeriodType
+        Score:
+          type: integer
+          format: int32
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Scoreboards.Team:
+      type: object
+      properties:
+        TeamId:
+          type: integer
+          format: int32
+        Score:
+          type: integer
+          format: int32
+        Fouls:
+          type: integer
+          format: int32
+        FoulsToGive:
+          type: integer
+          format: int32
+        InBonus:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo
+        TimeoutsRemaining:
+          type: integer
+          format: int32
+        TimeoutsShortRemaining:
+          type: integer
+          format: int32
+        ChallengesRemaining:
+          type: integer
+          format: int32
+        Periods:
+          type: array
+          items:
+            "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Scoreboards.Period
+          nullable: true
+      additionalProperties: false
+    GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Scoreboards.Scoreboard:
+      type: object
+      properties:
+        GameId:
+          type: string
+          nullable: true
+        Status:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Status
+        PeriodType:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PeriodType
+        PeriodSequenceNumber:
+          type: integer
+          format: int32
+        PeriodNumber:
+          type: integer
+          format: int32
+        PeriodStatus:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.PeriodStatus
+        Clock:
+          type: string
+          nullable: true
+        ShotClock:
+          type: string
+          nullable: true
+        ClockRunning:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo
+        HomeTeam:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Scoreboards.Team
+        AwayTeam:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.Scoreboards.Team
+        Attendance:
+          type: integer
+          format: int32
+        Sellout:
+          "$ref": #/components/schemas/GeniusSports.LiveStats.Basketball.Ngss.RestApi.Host.DataContracts.YesNo
+        TargetScoreEnding:
+          type: boolean
+        TargetScorePeriod:
+          type: integer
+          format: int32
+          nullable: true
+        TargetScore:
+          type: integer
+          format: int32
+          nullable: true
+      additionalProperties: false

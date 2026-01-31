@@ -1,0 +1,86 @@
+### nba.player_stats_aggregated
+
+- nba_id integer REFERENCES nba.players(nba_id)
+- team_id integer REFERENCES nba.teams(team_id) -- Use 0 for season-long totals if player was on multiple teams
+- season_year integer
+- season_label text
+- season_type text
+- per_mode text
+- measure_type text
+- games_played integer
+- minutes numeric(8,2)
+- fgm numeric(8,2)
+- fga numeric(8,2)
+- fg_pct numeric(5,4)
+- fg3m numeric(8,2)
+- fg3a numeric(8,2)
+- fg3_pct numeric(5,4)
+- fg2m numeric(8,2)
+- fg2a numeric(8,2)
+- fg2_pct numeric(5,4)
+- ftm numeric(8,2)
+- fta numeric(8,2)
+- ft_pct numeric(5,4)
+- oreb numeric(8,2)
+- dreb numeric(8,2)
+- reb numeric(8,2)
+- ast numeric(8,2)
+- stl numeric(8,2)
+- blk numeric(8,2)
+- tov numeric(8,2)
+- pf numeric(8,2)
+- pts numeric(8,2)
+- plus_minus numeric(8,2)
+- double_doubles integer
+- triple_doubles integer
+- off_rating numeric(6,2)
+- def_rating numeric(6,2)
+- net_rating numeric(6,2)
+- ast_pct numeric(5,4)
+- ast_tov numeric(6,2)
+- ast_ratio numeric(6,2)
+- oreb_pct numeric(5,4)
+- dreb_pct numeric(5,4)
+- reb_pct numeric(5,4)
+- tm_tov_pct numeric(5,4)
+- efg_pct numeric(5,4)
+- ts_pct numeric(5,4)
+- usg_pct numeric(5,4)
+- pace numeric(6,2)
+- pie numeric(5,4)
+- poss numeric(10,2)
+- fta_rate numeric(6,3)
+- pts_off_tov numeric(8,2)
+- pts_2nd_chance numeric(8,2)
+- pts_fb numeric(8,2)
+- pts_paint numeric(8,2)
+- opp_pts_off_tov numeric(8,2)
+- opp_pts_2nd_chance numeric(8,2)
+- opp_pts_fb numeric(8,2)
+- opp_pts_paint numeric(8,2)
+- nba_fantasy_pts numeric(10,2)
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- PRIMARY KEY (nba_id, team_id, season_year, season_type, per_mode, measure_type)
+- INDEX ON (nba_id)
+- INDEX ON (team_id)
+- INDEX ON (season_year, season_type)
+- INDEX ON (season_label)
+
+#### Notes
+- `nba_id` and `team_id` refer to the player and the team they played for in that specific aggregation.
+- **Season-long "Totals"**: If a player played for multiple teams during a season, the API provides a row with `teamId=0` (or `null`/`TOT` in some formats) to represent the combined season total. We preserve this by allowing `team_id` in the PK. Queries for "season-long stats" should filter for the specific `team_id` (e.g., 0 for combined, or a specific team ID for splits).
+- `season_year` is the starting year of the season (e.g., 2023 for the 2023-24 season).
+- `season_label` is the display string for the season (e.g., "2023-24").
+- `season_type`: e.g., "Regular Season", "Playoffs", "Pre Season", "PlayIn".
+- `per_mode`: The aggregation mode from the API (e.g., "Totals", "PerGame", "Per36", "Per100Possessions").
+- `measure_type`: The set of stats (e.g., "Base", "Advanced", "Misc", "Scoring", "Usage").
+- Most stat columns are `numeric` to accommodate both "Totals" (integers) and "PerGame" / "PerPossession" (floats) without loss of precision.
+- `minutes`: Stored as `numeric` here because aggregated values are often decimal averages (e.g., 34.5 mins per game).
+- `double_doubles`, `triple_doubles`: Counts of specific milestones.
+- This table stores data from the `/api/stats/player` endpoint (Player Stats) which provides over 130 measures.
+- We include common measures from "Base", "Advanced", and "Misc" types.

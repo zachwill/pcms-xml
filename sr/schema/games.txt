@@ -1,0 +1,115 @@
+### game_team_stats
+
+Detailed team-level statistics for a single game. This table denormalizes key metrics for easy aggregation and comparison across games.
+
+- game_id text — FK to `sr.games`
+- sr_team_id text — FK to `sr.teams`
+- source_api text NOT NULL
+- opposite_sr_team_id text — ID of the opponent team
+- is_home boolean — Whether the team was the home team
+- pts integer — Final points scored by this team
+- minutes text — Total team minutes (usually "240:00" for regulation)
+- fgm integer
+- fga integer
+- fg_pct numeric(5,2)
+- fg3m integer
+- fg3a integer
+- fg3_pct numeric(5,2)
+- fg2m integer — Calculated: fgm - fg3m
+- fg2a integer — Calculated: fga - fg3a
+- fg2_pct numeric(5,2) — Calculated: fg2m / fg2a
+- ftm integer
+- fta integer
+- ft_pct numeric(5,2)
+- oreb integer
+- dreb integer
+- reb integer
+- ast integer
+- stl integer
+- blk integer
+- tov integer
+- pf integer
+- tech_fouls integer
+- flagrant_fouls integer
+- pts_in_paint integer
+- fast_break_pts integer
+- second_chance_pts integer
+- pts_off_turnovers integer
+- biggest_lead integer
+- ts_att numeric(7,2)
+- ts_pct numeric(5,2)
+- efg_pct numeric(5,2)
+- bench_pts integer
+- PRIMARY KEY (game_id, sr_team_id)
+
+### game_player_stats
+
+Detailed player-level statistics for a single game. This table allows for granular analysis of player performance and building boxscore UIs.
+
+- game_id text — FK to `sr.games`
+- sr_id text — FK to `sr.players`
+- sr_team_id text — FK to `sr.teams`
+- source_api text NOT NULL
+- is_played boolean DEFAULT true — Whether the player actually stepped on the court
+- is_starter boolean DEFAULT false — Whether the player started the game
+- minutes text — Minutes played (format "MM:SS")
+- seconds_played integer — Derived numeric seconds for easier math
+- pts integer
+- fgm integer
+- fga integer
+- fg_pct numeric(5,2)
+- fg3m integer
+- fg3a integer
+- fg3_pct numeric(5,2)
+- fg2m integer — Calculated: fgm - fg3m
+- fg2a integer — Calculated: fga - fg3a
+- fg2_pct numeric(5,2) — Calculated: fg2m / fg2a
+- ftm integer
+- fta integer
+- ft_pct numeric(5,2)
+- oreb integer
+- dreb integer
+- reb integer
+- ast integer
+- stl integer
+- blk integer
+- tov integer
+- pf integer
+- tech_fouls integer
+- flagrant_fouls integer
+- plus_minus integer — Plus/Minus score while the player was on the court
+- efficiency integer — SportRadar efficiency rating
+- efficiency_game_score numeric(5,2) — Game score calculation
+- double_double boolean
+- triple_double boolean
+- pts_in_paint integer
+- second_chance_pts integer
+- pts_off_turnovers integer
+- ast_tov_ratio numeric(5,2)
+- fouls_drawn integer
+- blocked_att integer — Number of times the player's shots were blocked
+- ts_att numeric(7,2)
+- ts_pct numeric(5,2)
+- efg_pct numeric(5,2)
+- PRIMARY KEY (game_id, sr_id)
+
+### game_period_scores
+
+Period-by-period (quarter/overtime) scoring for each team.
+
+- game_id text — FK to `sr.games`
+- sr_team_id text — FK to `sr.teams`
+- period_number integer — 1, 2, 3, 4 for quarters; 5+ for overtimes
+- period_type text — 'quarter' or 'overtime'
+- sequence integer — The order of the period
+- pts integer — Points scored by the team in this specific period
+- source_api text NOT NULL
+- PRIMARY KEY (game_id, sr_team_id, period_number, period_type)
+
+NOTES:
+- These tables are populated from the `Game Summary` and `Game Boxscore` endpoints.
+- High-level game results and metadata are stored in the unified `sr.games` table (see `schedule.txt`).
+- `game_player_stats` and `game_team_stats` use standard basketball metrics and include derived advanced stats where provided by SportRadar.
+- `fg2m`, `fg2a`, and `fg2_pct` are explicitly stored and should be calculated during ingestion if not provided by the API.
+- Primary keys are designed for UPSERT-friendly ingestion.
+- Provenance columns are included in every table to allow for independent auditing and re-processing.

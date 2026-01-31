@@ -1,0 +1,104 @@
+# Dunks & Threes — Player Page (Jaylen Brown)
+
+## Overview
+
+### Description
+Provides a complete player performance profile. Combines bio and team context with season-by-season advanced metrics, career and in-season EPM trends, and a detailed game log. The “Actual” tab (default) shows observed outcomes; “Expected” and “Shooting” are alternative views.
+
+### Main UI Patterns
+- Profile dashboard with tabbed detail views
+- Dense, color-coded data table with raw/percentile toggle
+- Stacked time-series charts
+- Interactive game log with season selector
+
+### Notes
+- Progressive disclosure from high-level context (bio, depth chart, schedule) to season tables to game-level detail
+- Percentile heatmap normalizes interpretation across seasons and stats
+- Career chart overlays league distribution via per-season box plots for immediate comparative context
+- Utility features (search, voice beta, theme toggle) are accessible but unobtrusive
+
+## Key Modules
+
+### 1. Player Summary
+- Description: Establishes identity and context quickly—who the player is, where he plays, age/draft info, and role context
+- Core Elements: Name, position, physicals, team logo; draft/age/college or country
+- Interaction Patterns: Passive summary; links via team logo/name likely route to team pages (implied by nav model)
+- Notes: Sets anchor for subsequent performance data; reduces need to cross-navigate for basics
+
+### 2. Team Depth Chart + Upcoming Games
+- Description: Situates the player within team role and near-term opponents, which affects minutes, usage, and matchup expectations
+- Core Elements: Position-based depth chart with player highlighted; next five games with opponents/dates
+- Interaction Patterns: Passive reference; no noted filters
+- Notes: Lightweight context module that answers common follow-ups without leaving the page
+
+### 3. Content Tabs (Expected, Actual, Shooting)
+- Description: Segments analysis modes (observed results vs. model-based vs. shot detail) to reduce cognitive load
+- Core Elements: Three tabs; “Actual” active in this view
+- Interaction Patterns: Tab switch persists main layout but swaps data sources/metrics
+- Notes: Clear separation of conceptual frames (outcomes vs. expectations) avoids mixed interpretations
+
+### 4. Advanced Stats Table
+- Description: Season-level breakdown across role, efficiency, location, rebounding, handling, defense—enables longitudinal comparison
+- Core Elements: Columns grouped by category (Role/Usage; Estimated +/-; Efficiency/TS%; Location splits; Rebound; Handle; Defense); toggle for raw numbers vs. league percentile; color scale from red to green; mini bar charts for shot frequency by area
+- Interaction Patterns: Sortable columns; sticky headers on scroll; hover tooltips with metric definitions; percentile toggle for rapid context switching
+- Notes: Heatmap plus percentiles provides instant comparative read without secondary lookups
+
+### 5. Trend Visualizations
+- Description: Converts tabular seasons and games into trajectories to detect improvement, consistency, and slumps
+- Core Elements: Career EPM line with per-season box plots (5th/25th/50th/75th/95th); current-season game-by-game EPM with 5-game moving average
+- Interaction Patterns: Passive viewing; smoothing applied by default
+- Notes: Box plots convey league context at a glance; moving average reduces noise without losing directionality
+
+### 6. Game Log
+- Description: Ground truth of game outcomes and per-game stats; supports drill-down from season aggregates
+- Core Elements: Season selector tabs; row per game with traditional and advanced stats; win/loss color accents
+- Interaction Patterns: Tab switch for season; sortable columns likely consistent with table behavior
+- Notes: Completes the funnel from overview to atomic events
+
+### 7. Global Navigation and Utilities
+- Description: Ensures discoverability and personalization (search, voice beta, theme, account)
+- Core Elements: Primary menu (Ratings, EPM, Teams/Players, Stats/Tools, Predictions, About); Teams/Players dropdown grouped by conference; search, voice, theme toggle, login/subscribe
+- Interaction Patterns: Persistent header; dropdowns and icon actions
+
+## Best Ideas
+
+### 1. Percentile Toggle + Heatmap in Dense Tables
+- Why It Works: Converts absolute stats into relative context without extra clicks. Color assists preattentive scanning; the toggle preserves access to raw values when needed
+- Where It Breaks Down: Tail compression—extreme values can look similar at the 95th+ percentile; color reliance can hinder color-blind users without alternative cues or patterns
+- Notes: Combine with numeric percentile text or doubly encode to improve accessibility
+
+### 2. Progressive Disclosure from Summary to Game Log
+- Why It Works: Matches analyst workflow: orient → compare seasons → inspect trends → audit individual games. Reduces early cognitive load and keeps deep data available
+- Where It Breaks Down: Long pages can make re-finding sections tedious without section TOC or in-page jump links
+
+### 3. Trend Lines with League Box-Plot Overlays
+- Why It Works: A single chart shows player trajectory and league distribution, enabling season-over-season benchmarking without switching views
+- Where It Breaks Down: Mixed encodings can overwhelm on smaller screens; box plots need concise legends and hover details to be interpretable
+
+### 4. Context Panels (Depth Chart + Upcoming Schedule) on the Player Page
+- Why It Works: Supplies role and opponent context adjacent to performance data, preventing context switching to team/schedule pages
+- Where It Breaks Down: Static snapshots can go stale; lacks filters (e.g., projected lineups, injury status) to reflect imminent changes
+
+### 5. Table Affordances that Teach and Guide (Sorting, Sticky Headers, Tooltips)
+- Why It Works: Sorting supports quick pattern finding; sticky headers maintain orientation; tooltips reduce jargon cost by defining metrics in place
+- Where It Breaks Down: Sorting interactions plus percentile toggles can create state complexity; persistent indicators of active sort and mode mitigate confusion
+
+## Metadata
+
+### Data Density
+High. Broad metric coverage across seasons and games. Readability aided by color encoding, grouping, sticky headers, and tooltips.
+
+### Notable Omissions
+- Comparison tools: no side-by-side player compare or cohort benchmarks on this view
+- Filters/splits: no visible filters for opponent, home/away, lineup/on-off, clutch time, or date ranges in the game log and charts
+- Export/sharing: no CSV export, image download, or deep-link to a specific table state
+- Methodology transparency: no inline explanation for EPM model versions or season-to-season changes; no minutes/possessions thresholds shown for percentiles
+- Accessibility: color-blind safe alternatives to red–green scale not evident
+- Customization: smoothing window on game chart not adjustable; percentile bucketing not configurable
+- Mobile/responsive behavior not described; long tables may be challenging without column pinning on small screens
+
+### Misc Notes
+- Voice search marked beta; theme toggle supports light/dark
+- Subscription gating indicated (“Subscribe for complete access”)
+- League navigation via Teams/Players dropdown accelerates cross-entity exploration
+- Win/loss color accents in game log provide quick outcome parsing

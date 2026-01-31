@@ -1,0 +1,65 @@
+### standings
+
+This table stores the official league standings and records for teams. It covers NBA, NCAA, G-League, and International collections. It merges data from both "standings" and "rankings" (for NBA) endpoints to provide a complete view of a team's performance and playoff positioning.
+
+- sr_team_id text NOT NULL
+- season_id text NOT NULL
+- source_api text NOT NULL — 'nba', 'gleague', 'ncaa', 'intl'
+- conference_id text
+- conference_name text
+- conference_rank integer
+- conference_wins integer
+- conference_losses integer
+- division_id text
+- division_name text
+- division_rank integer
+- division_wins integer
+- division_losses integer
+- wins integer NOT NULL DEFAULT 0
+- losses integer NOT NULL DEFAULT 0
+- win_pct numeric(5,3) — e.g., 0.650
+- games_behind numeric(4,1)
+- conference_games_behind numeric(4,1)
+- clinching_status text — e.g., 'x', 'y', 'z', 'p', 'w' (NBA/G-League)
+- streak text — e.g., 'W3', 'L1'
+- home_wins integer
+- home_losses integer
+- road_wins integer
+- road_losses integer
+- last_10_wins integer
+- last_10_losses integer
+- pts_for numeric(7,2) — Points scored by the team
+- pts_against numeric(7,2) — Points allowed by the team
+- pts_diff numeric(6,2) — Point differential
+- records_json jsonb — Full records object for detailed splits (e.g., vs. over .500, by month)
+
+**Constraints:**
+- PRIMARY KEY (season_id, sr_team_id)
+
+### rankings
+
+This table stores team rankings from external polls (AP, USA Today) and algorithmic ranking systems (NET, RPI) primarily used in NCAA. It allows tracking team positions over the course of a season.
+
+- sr_team_id text NOT NULL
+- season_id text NOT NULL
+- source_api text NOT NULL
+- type text NOT NULL — 'poll', 'net', 'rpi'
+- name text NOT NULL — 'AP', 'USA Today', 'NET', 'RPI'
+- week text NOT NULL — 'PRE', 'W1', 'W2', ..., 'PST', 'PSTF', or 'CUR' for non-weekly rankings
+- rank integer — Current rank; may be > 25 for "Also Receiving Votes"
+- prev_rank integer — Rank in the previous period
+- pts integer — Total points or votes received in a poll
+- first_place_votes integer — Number of first-place votes received
+- rating numeric(7,3) — Metric score (e.g., RPI rating or NET value)
+- strength_of_schedule numeric(7,3) — SOS metric if provided
+
+**Constraints:**
+- PRIMARY KEY (season_id, type, name, week, sr_team_id)
+
+NOTES:
+- The `standings` table is designed to be the authoritative source for a team's win/loss record and official league-sanctioned ranking (Conference/Division).
+- The `rankings` table is used for volatile or third-party rankings like the AP Poll or NET.
+- NBA "Rankings" data (Clinching Status, Conf Rank) is merged into the `standings` table as it refers to the same entity.
+- `win_pct` is stored as a numeric with 3 decimal places for precision.
+- `games_behind` can be a half-game (e.g., 2.5), hence `numeric(4,1)`.
+- All tables support UPSERT via their Primary Keys to ensure we always have the latest data for a given period/team.

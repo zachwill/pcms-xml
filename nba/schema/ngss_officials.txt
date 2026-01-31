@@ -1,0 +1,24 @@
+### nba.ngss_officials
+
+- game_id text REFERENCES nba.games(game_id)
+- ngss_official_id text
+- first_name text
+- last_name text
+- jersey_num text
+- official_type text
+- assignment text
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- PRIMARY KEY (game_id, ngss_official_id)
+- INDEX ON (game_id)
+
+#### Notes
+- `game_id` is the official 10-digit NBA game identifier.
+- This table stores game officials attribution specifically from the NGSS `/Games/{gameId}/officials` endpoint.
+- NGSS often provides more granular official data (like assignment/type) than the standard NBA stats API.
+- `official_type`: e.g., "Official", "Replay Center".
+- `assignment`: e.g., "Crew Chief", "Referee", "Umpire".

@@ -1,0 +1,84 @@
+### teams
+
+- sr_team_id text PRIMARY KEY
+- source_api text NOT NULL
+- name text
+- alias text
+- market text
+- reference text — Official league ID (NBA.com / Elias ID)
+
+**Hierarchy**
+- venue_id text
+- conference_id text
+- conference_name text
+- division_id text
+- division_name text
+
+**International Context**
+- country text — Country name (critical for INTL)
+- country_code text — ISO country code (e.g., "DE", "ES")
+- competition_id text — FK to `sr.competitions` (INTL)
+
+**G-League Affiliation**
+- affiliated_sr_team_id text — Parent NBA team (G-League only)
+
+**Extended Metadata**
+- owner text — Team owner name
+- founded integer — Year founded
+- championships_won integer
+- playoff_appearances integer
+- team_colors_json jsonb — Array of team colors
+
+**Roster Data**
+- roster_json jsonb
+- depth_chart_json jsonb
+
+### player_transfers
+
+Tracks player movement between teams, specifically from the NBA Daily Transfers endpoint.
+
+- transfer_id text PRIMARY KEY -- Generated or SportRadar UUID
+- sr_id text NOT NULL
+- source_api text NOT NULL
+- from_sr_team_id text
+- to_sr_team_id text
+- transfer_date date
+- transfer_type text -- e.g., 'assigned', 'recalled', 'waived', 'signed'
+- desc text
+- PRIMARY KEY (transfer_id)
+
+### roster_entries
+
+- sr_team_id text
+- sr_id text
+- full_name text
+- first_name text
+- last_name text
+- position text
+- primary_position text
+- jersey_number text
+- experience text
+- birth_place text
+- birthdate date
+- updated_at timestamptz
+- source_api text
+- PRIMARY KEY (sr_team_id, sr_id)
+
+### depth_charts
+
+- sr_team_id text
+- sr_id text
+- position text
+- depth_order integer
+- source_api text
+- PRIMARY KEY (sr_team_id, sr_id, position)
+
+NOTES:
+- The `teams` table is a wide table capturing identity and hierarchy (Conference/Division).
+- `roster_json` and `depth_chart_json` in the `teams` table store the raw data for provenance and quick access.
+- `roster_entries` and `depth_charts` tables are normalized for easier querying of player-team relationships and depth charts.
+- `source_api` is used to distinguish between NBA, NCAA, GLeague, and Intl as per AGENTS.md.
+- `affiliated_sr_team_id` links G-League teams to their parent NBA franchise.
+- `country` and `country_code` are primarily used for INTL teams but may be populated for NBA/NCAA as well.
+- Primary keys and Unique constraints are set up for UPSERT friendliness.
+- Schema name `sr` is assumed from project context.

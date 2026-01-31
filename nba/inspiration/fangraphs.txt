@@ -1,0 +1,111 @@
+# FanGraphs — League Leaders
+
+## Overview
+
+### Description
+A single-page leaderboard tool for building and viewing MLB leaders across batting, pitching, and fielding at player, team, or league level. Users define the population, time window, and situational splits, then inspect results in a sortable, exportable data grid.
+
+### Main UI Patterns
+- Control panel above a data table (control panel + data table)
+- Secondary toolbar for stat presets (column-set switcher)
+- Spreadsheet-style data grid with fixed identity columns
+
+### Notes
+- Clear separation between “asking the question” (filters) and “seeing the answer” (grid)
+- Column header tooltips supply definitions for advanced metrics
+- One interface supports simple season views through highly specific, situational queries
+
+## Key Modules
+
+### 1. Global Navigation and Page Header
+- Description: Grounds users in site context and provides shortcuts to related leaderboards.
+- Core Elements:
+  - Site-wide navigation bar
+  - Page title (“Major League Leaders”)
+  - Links to related tools (e.g., Splits Leaderboards, WAR Leaderboards)
+- Interaction Patterns: Simple link navigation.
+- Notes: Keeps users oriented across adjacent analytical views.
+
+### 2. Master Control Panel
+- Description: Defines the dataset by composing filters across domain, population, time, and qualifications.
+- Core Elements:
+  - Primary Data Type: Buttons for Batting/Pitching/Fielding; Player/Team/League scope
+  - Population Filters: Multi-select leagues; team dropdown; status checkboxes (e.g., Active Roster)
+  - Time and Date: Single season; multi-season ranges; in-season date ranges
+  - Granular Splits & Attributes: Primary position vs. position played; handedness; situational splits (e.g., vs RHP, home/away, RISP)
+  - Qualification & Thresholds: Minimum PA/IP; “Qualified” default; custom thresholds
+- Interaction Patterns:
+  - Independent filters that combine to produce a specific query
+  - Logical grouping by facet in rows; changes refresh the grid
+- Notes: The breadth of splits enables deep, situational analysis without leaving the page.
+
+### 3. Stat Group and Preset Navigation
+- Description: Manages column complexity by swapping curated metric sets.
+- Core Elements:
+  - Preset groups (e.g., Dashboard, Standard, Advanced, Batted Ball, Value)
+  - Data-source-specific sets (e.g., Statcast, Pitch Info)
+- Interaction Patterns: One-click preset selection reconfigures visible columns.
+- Notes: Reduces cognitive load when hundreds of metrics exist.
+
+### 4. Leaderboard Data Grid
+- Description: Primary results display for exploration and ranking.
+- Core Elements:
+  - Fixed left columns (rank, player name)
+  - Sortable headers; tooltip definitions per metric
+  - Pagination; page-size controls; CSV/Export
+- Interaction Patterns:
+  - Click to sort; hover for definitions; horizontal scroll for wide sets
+- Notes: Pinned identity columns preserve context during wide-table exploration.
+
+### 5. Footer
+- Description: Surfaces data provenance and recency.
+- Core Elements:
+  - Last update timestamp
+  - Credits and links to data providers
+- Interaction Patterns: Static links/info.
+- Notes: Builds trust by making sources and update cadence visible.
+
+## Best Ideas
+
+### 1. Composable, layered filtering
+- Why It Works: Independent controls (domain, population, time, splits, thresholds) combine to define precise cohorts without forcing complex query syntax.
+- Where It Breaks Down: Volume of controls can intimidate new users; interactions can involve frequent back-and-forth if filters conflict or aren’t summarized clearly.
+
+### 2. Stat presets as “lenses”
+- Why It Works: Curated column sets let users shift analytical perspective quickly instead of manually selecting metrics.
+- Where It Breaks Down: Presets can hide important metrics or lack personalization if users cannot create/save custom sets.
+
+### 3. Controls separated from data
+- Why It Works: Keeps mental model clean: configure first, analyze second. Reduces accidental UI interference during analysis.
+- Where It Breaks Down: If the control panel isn’t sticky, users may need to scroll back to adjust filters, adding friction.
+
+### 4. Column header tooltips (definitions on demand)
+- Why It Works: Lowers the barrier to using advanced stats by embedding explanations exactly where needed.
+- Where It Breaks Down: Hover-only patterns don’t translate to touch devices; short definitions may lack formulas, units, or links to deeper documentation.
+
+### 5. Fixed identity columns in a wide table
+- Why It Works: Preserves who/what the row refers to while scanning many metrics via horizontal scroll and sorting.
+- Where It Breaks Down: Wide tables still strain scanning; lack of multi-sort or grouping can limit more nuanced rank logic.
+
+### 6. Single-view architecture
+- Why It Works: Minimizes navigation; one place handles season leaders, short windows, and situational splits end-to-end.
+- Where It Breaks Down: A single page with many states can be cognitively heavy; guidance or templates may be needed for common tasks.
+
+## Metadata
+
+### Data Density
+High. The grid supports many columns with horizontal scrolling and sortable headers; presets help manage the volume.
+
+### Notable Omissions
+- Not mentioned in the source description; absence here may indicate either not present or not emphasized.
+- Save/share of filter configurations or custom column presets
+- Side-by-side player comparison or pinning rows for persistent reference
+- Multi-sort, group-by, or pivot operations
+- Embedded visualizations (distributions, trendlines, small multiples)
+- Keyboard shortcuts, accessibility specifics, or robust touch support for tooltips
+- Filter summary chips/breadcrumbs and a prominent “reset” control
+- API/permalink generation for sharing exact query states
+
+### Misc Notes
+- Export and data-source credits support auditability and workflow integration
+- Quick links to adjacent leaderboards help users traverse related analyses without losing context

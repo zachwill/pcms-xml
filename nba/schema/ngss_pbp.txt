@@ -1,0 +1,20 @@
+### nba.ngss_pbp
+
+- game_id text REFERENCES nba.games(game_id)
+- ngss_game_id text
+- ngss_pbp_json jsonb
+
+- created_at timestamptz
+- updated_at timestamptz
+- fetched_at timestamptz
+
+#### Constraints & Indexes
+- PRIMARY KEY (game_id)
+- INDEX ON (ngss_game_id)
+- INDEX USING gin (ngss_pbp_json)
+
+#### Notes
+- Following the "PBP Guidance" in `AGENTS.md`, this table stores **one row per game** containing the full NGSS (Genius Sports) Play-by-Play event stream.
+- We use the official `game_id` as the primary key/link, but also store `ngss_game_id` for cross-referencing.
+- `ngss_pbp_json` is preferred over the official PBP when fields like challenge context, officials attribution, or "who called it" details are required.
+- Storing as JSONB prevents premature schema explosion.
