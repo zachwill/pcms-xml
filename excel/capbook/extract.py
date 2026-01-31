@@ -62,6 +62,10 @@ def extract_tax_rates(
         SELECT
             league_lk,
             salary_year,
+            ROW_NUMBER() OVER (
+                PARTITION BY league_lk, salary_year
+                ORDER BY lower_limit
+            ) AS bracket_number,
             lower_limit,
             upper_limit,
             tax_rate_non_repeater,
@@ -71,12 +75,13 @@ def extract_tax_rates(
         FROM pcms.league_tax_rates
         WHERE league_lk = %(league)s
           AND salary_year BETWEEN %(base_year)s AND %(base_year)s + 5
-        ORDER BY salary_year, lower_limit
+        ORDER BY salary_year, bracket_number
     """
     rows = fetch_all(sql, {"league": league, "base_year": base_year})
     columns = [
         "league_lk",
         "salary_year",
+        "bracket_number",
         "lower_limit",
         "upper_limit",
         "tax_rate_non_repeater",

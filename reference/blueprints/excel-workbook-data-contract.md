@@ -132,6 +132,10 @@ Do the same for tax/apron/options/guarantees if included.
 
 **Primary key:** `(league_lk, salary_year, bracket_number)`
 
+**Note:** `pcms.league_tax_rates` does *not* currently store `bracket_number`.
+For the workbook export, derive it deterministically as:
+- `bracket_number = ROW_NUMBER() OVER (PARTITION BY league_lk, salary_year ORDER BY lower_limit)`
+
 **Required columns:**
 - `league_lk`
 - `salary_year`

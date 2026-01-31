@@ -33,7 +33,7 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
 - [x] Implement helper: `get_git_sha()` (used by workbook `META`)
 
 - [x] Implement `META` sheet writer:
-  - fields: refreshed_at, base_year, as_of_date, exporter_git_sha, validation_status
+  - fields: refreshed_at, base_year, as_of_date, league_lk, data_contract_version, exporter_git_sha, validation_status
   - add a visible "FAILED" banner cell if validations fail
   - implemented in `excel/capbook/sheets/meta.py`
 
@@ -48,21 +48,17 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
   - Always set explicit headers and a deterministic table range
   - Returns (end_row, end_col) for chaining; handles empty rows; auto-fits columns
 
-- [ ] Audit existing UI conventions in `web/src/features/SalaryBook/` and codify them as Excel format constants in `excel/capbook/xlsx.py`:
-  - `MINIMUM` display for min contracts (`PlayerRow.tsx`)
-  - `% of cap` formatting conventions (`playerRowHelpers.ts`)
-  - option/guarantee/consent/restriction color semantics (`badges/*`, `TradeRestrictions.tsx`)
+- [x] Implement dataset extract: `tbl_system_values` → `DATA_system_values`
 
-- [ ] Implement dataset extract: `tbl_system_values` → `DATA_system_values`
+- [x] Implement dataset extract: `tbl_tax_rates` → `DATA_tax_rates`
+  - include a deterministic `bracket_number` (derived from ordering by `lower_limit`)
 
-- [ ] Implement dataset extract: `tbl_tax_rates` → `DATA_tax_rates`
-
-- [ ] Implement dataset extract: `tbl_team_salary_warehouse` → `DATA_team_salary_warehouse` (base_year..base_year+5)
+- [x] Implement dataset extract: `tbl_team_salary_warehouse` → `DATA_team_salary_warehouse` (base_year..base_year+5)
 
 - [ ] Implement dataset extract: `tbl_salary_book_warehouse` → `DATA_salary_book_warehouse`
   - Export **relative-year columns** (cap_y0..cap_y5, tax_y0..tax_y5, apron_y0..apron_y5) based on `--base-year`
 
-- [ ] Implement dataset extract: `tbl_salary_book_yearly` → `DATA_salary_book_yearly` (base_year..base_year+5)
+- [x] Implement dataset extract: `tbl_salary_book_yearly` → `DATA_salary_book_yearly` (base_year..base_year+5)
 
 - [ ] Implement dataset extract: `tbl_cap_holds_warehouse` → `DATA_cap_holds_warehouse`
 
@@ -72,8 +68,10 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
 
 - [ ] Implement dataset extract: `tbl_draft_picks_warehouse` → `DATA_draft_picks_warehouse`
 
-- [ ] Add build step: run SQL assertions (`queries/sql/run_all.sql`) before writing workbook.
+- [x] Add build step: run SQL assertions (`queries/sql/run_all.sql`) before writing workbook.
   - If assertions fail: set `META.validation_status = FAILED` and include error message(s)
+
+- [ ] Harden exporter: if any dataset extract/write crashes, still emit a workbook with `META.validation_status = FAILED` and the exception text (truncated)
 
 - [ ] Add build step: lightweight reconciliation summary written to `META` (even if partial v1)
   - Example: for a sample team/year confirm `cap_total = cap_rost + cap_fa + cap_term + cap_2way`
@@ -92,5 +90,10 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
   - show selected team/year totals from `DATA_team_salary_warehouse`
   - show row counts + basic sums from drilldown tables
   - show a visible delta (even if it's not 0 yet)
+
+- [ ] Audit existing UI conventions in `web/src/features/SalaryBook/` and codify them as Excel format constants in `excel/capbook/xlsx.py`:
+  - `MINIMUM` display for min contracts (`PlayerRow.tsx`)
+  - `% of cap` formatting conventions (`playerRowHelpers.ts`)
+  - option/guarantee/consent/restriction color semantics (`badges/*`, `TradeRestrictions.tsx`)
 
 - [ ] Document local usage in `excel/AGENTS.md` once CLI stabilizes

@@ -57,6 +57,9 @@ DATA_SHEETS = [
     "DATA_draft_picks_warehouse",
 ]
 
+# See: reference/blueprints/excel-workbook-data-contract.md
+DATA_CONTRACT_VERSION = "v1-2026-01-31"
+
 
 def get_git_sha() -> str:
     """Return the current git commit SHA (short), or 'unknown' if unavailable."""
@@ -99,6 +102,8 @@ def build_capbook(
         "refreshed_at": datetime.utcnow().isoformat(),
         "base_year": base_year,
         "as_of_date": as_of.isoformat(),
+        "league_lk": league,
+        "data_contract_version": DATA_CONTRACT_VERSION,
         "exporter_git_sha": get_git_sha(),
         "validation_status": "PASS",
         "validation_errors": [],

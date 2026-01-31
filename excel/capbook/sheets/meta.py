@@ -6,6 +6,8 @@ Fields:
 - refreshed_at: UTC timestamp of workbook generation
 - base_year: Base salary year (e.g., 2025)
 - as_of_date: As-of date for the snapshot
+- league_lk: League code (e.g., NBA)
+- data_contract_version: Version string for the Postgres→Excel data contract
 - exporter_git_sha: Git commit SHA of the exporter
 - validation_status: PASS or FAILED
 - validation_errors: Error messages if validation failed
@@ -47,6 +49,8 @@ def write_meta_sheet(
             - refreshed_at (str): ISO timestamp
             - base_year (int): Base salary year
             - as_of_date (str): ISO date
+            - league_lk (str): League code (e.g., "NBA")
+            - data_contract_version (str): Data contract version string
             - exporter_git_sha (str): Git commit SHA
             - validation_status (str): "PASS" or "FAILED"
             - validation_errors (list[str]): Error messages
@@ -84,6 +88,16 @@ def write_meta_sheet(
     # as_of_date
     worksheet.write(row, COL_LABEL, "as_of_date")
     worksheet.write(row, COL_VALUE, build_meta.get("as_of_date", ""))
+    row += 1
+
+    # league_lk
+    worksheet.write(row, COL_LABEL, "league_lk")
+    worksheet.write(row, COL_VALUE, build_meta.get("league_lk", ""))
+    row += 1
+
+    # data_contract_version
+    worksheet.write(row, COL_LABEL, "data_contract_version")
+    worksheet.write(row, COL_VALUE, build_meta.get("data_contract_version", ""))
     row += 1
 
     # exporter_git_sha
