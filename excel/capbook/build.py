@@ -36,6 +36,7 @@ from .extract import (
     extract_exceptions_warehouse,
     extract_draft_picks_warehouse,
 )
+from .reconcile import reconcile_team_salary_warehouse
 from .xlsx import create_standard_formats, write_table
 from .sheets import UI_STUB_WRITERS, write_home_stub, write_meta_sheet
 
@@ -228,6 +229,24 @@ def build_capbook(
             except Exception as e:  # noqa: BLE001
                 _mark_failed(build_meta, f"Dataset extract crashed: {key}: {e}\n{traceback.format_exc()}")
                 extracted[key] = ([], [])
+
+        # Step 2.5: Lightweight reconciliation (v1)
+        # Verify that totals match bucket sums in team_salary_warehouse
+        team_salary_data = extracted.get("team_salary_warehouse", ([], []))
+        if team_salary_data[1]:  # We have rows to reconcile
+            try:
+                reconcile_summary = reconcile_team_salary_warehouse(team_salary_data[1])
+                build_meta.update(reconcile_summary.as_dict())
+                if not reconcile_summary.passed:
+                    _mark_failed(
+                        build_meta,
+                        f"Reconciliation failed: {reconcile_summary.failed_checks}/{reconcile_summary.total_checks} checks failed",
+                    )
+            except Exception as e:  # noqa: BLE001
+                _mark_failed(build_meta, f"Reconciliation crashed: {e}\n{traceback.format_exc()}")
+        else:
+            # No data to reconcile - mark as not run
+            build_meta["reconcile_passed"] = None
 
         # Step 3: Write DATA tables (continue-on-error; ensure stable table names when possible)
         for spec in dataset_specs:

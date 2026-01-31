@@ -11,6 +11,7 @@ Fields:
 - exporter_git_sha: Git commit SHA of the exporter
 - validation_status: PASS or FAILED
 - validation_errors: Error messages if validation failed
+- reconcile_*: Lightweight reconciliation summary (v1)
 
 If validation fails, a prominent "FAILED" banner is displayed.
 """
@@ -25,6 +26,8 @@ from xlsxwriter.worksheet import Worksheet
 # Layout constants
 COL_LABEL = 0
 COL_VALUE = 1
+COL_VALUE2 = 2  # For reconciliation details
+COL_VALUE3 = 3
 BANNER_START_ROW = 0
 FIELDS_START_ROW = 3
 
@@ -41,6 +44,7 @@ def write_meta_sheet(
     - A prominent validation status banner (PASS or FAILED)
     - Key-value pairs for metadata fields
     - Error details if validation failed
+    - Reconciliation summary (v1)
 
     Args:
         worksheet: The META worksheet
@@ -54,13 +58,16 @@ def write_meta_sheet(
             - exporter_git_sha (str): Git commit SHA
             - validation_status (str): "PASS" or "FAILED"
             - validation_errors (list[str]): Error messages
+            - reconcile_* (various): Reconciliation summary fields
     """
     validation_status = build_meta.get("validation_status", "UNKNOWN")
     validation_errors = build_meta.get("validation_errors", [])
 
     # Set column widths for readability
-    worksheet.set_column(COL_LABEL, COL_LABEL, 22)  # Label column
+    worksheet.set_column(COL_LABEL, COL_LABEL, 26)  # Label column
     worksheet.set_column(COL_VALUE, COL_VALUE, 60)  # Value column
+    worksheet.set_column(COL_VALUE2, COL_VALUE2, 15)  # Reconcile detail
+    worksheet.set_column(COL_VALUE3, COL_VALUE3, 15)  # Reconcile detail
 
     # === Validation status banner ===
     # This is the most important visual element - analysts should see status immediately
@@ -124,3 +131,74 @@ def write_meta_sheet(
             error_text = str(error)[:1000] if error else ""
             worksheet.write(row, COL_LABEL, error_text)
             row += 1
+
+    # === Reconciliation summary (v1) ===
+    row += 1  # Blank row
+    worksheet.write(row, COL_LABEL, "Reconciliation Summary", formats["header"])
+    row += 1
+
+    reconcile_passed = build_meta.get("reconcile_passed")
+    reconcile_total = build_meta.get("reconcile_total_checks", 0)
+    reconcile_failed = build_meta.get("reconcile_failed_checks", 0)
+
+    if reconcile_passed is None:
+        # Reconciliation was not run (perhaps data extraction failed)
+        worksheet.write(row, COL_LABEL, "reconcile_status")
+        worksheet.write(row, COL_VALUE, "NOT RUN", formats["alert_warn"])
+        row += 1
+    else:
+        # Reconciliation status
+        worksheet.write(row, COL_LABEL, "reconcile_status")
+        if reconcile_passed:
+            worksheet.write(row, COL_VALUE, "PASS", formats["alert_ok"])
+        else:
+            worksheet.write(row, COL_VALUE, "FAILED", formats["alert_fail"])
+        row += 1
+
+        # Check counts
+        worksheet.write(row, COL_LABEL, "reconcile_total_checks")
+        worksheet.write(row, COL_VALUE, reconcile_total)
+        row += 1
+
+        worksheet.write(row, COL_LABEL, "reconcile_passed_checks")
+        worksheet.write(row, COL_VALUE, build_meta.get("reconcile_passed_checks", 0))
+        row += 1
+
+        worksheet.write(row, COL_LABEL, "reconcile_failed_checks")
+        if reconcile_failed > 0:
+            worksheet.write(row, COL_VALUE, reconcile_failed, formats["alert_fail"])
+        else:
+            worksheet.write(row, COL_VALUE, 0)
+        row += 1
+
+        # Show failures if any
+        failures = build_meta.get("reconcile_failures", [])
+        if failures:
+            row += 1  # Blank row
+            worksheet.write(row, COL_LABEL, "Reconciliation Failures:", formats["header"])
+            worksheet.write(row, COL_VALUE, "Team/Year")
+            worksheet.write(row, COL_VALUE2, "Check")
+            worksheet.write(row, COL_VALUE3, "Delta")
+            row += 1
+
+            for fail in failures[:10]:  # Limit display
+                team_year = f"{fail.get('team_code', '?')}/{fail.get('salary_year', '?')}"
+                worksheet.write(row, COL_LABEL, "")
+                worksheet.write(row, COL_VALUE, team_year)
+                worksheet.write(row, COL_VALUE2, fail.get("check", ""))
+                worksheet.write(row, COL_VALUE3, fail.get("delta", 0), formats["alert_fail"])
+                row += 1
+
+        # Show sample checks for audit transparency
+        sample_checks = build_meta.get("reconcile_sample_checks", [])
+        if sample_checks and reconcile_passed:
+            row += 1  # Blank row
+            worksheet.write(row, COL_LABEL, "Sample Checks (passed):", formats["header"])
+            row += 1
+
+            for check in sample_checks[:3]:  # Just a few samples
+                team_year = f"{check.get('team_code', '?')}/{check.get('salary_year', '?')}"
+                check_name = check.get("check", "")
+                worksheet.write(row, COL_LABEL, f"  ✓ {team_year}")
+                worksheet.write(row, COL_VALUE, check_name)
+                row += 1

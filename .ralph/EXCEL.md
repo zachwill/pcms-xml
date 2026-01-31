@@ -73,8 +73,10 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
 
 - [x] Harden exporter: if any dataset extract/write crashes, still emit a workbook with `META.validation_status = FAILED` and the exception text (truncated)
 
-- [ ] Add build step: lightweight reconciliation summary written to `META` (even if partial v1)
+- [x] Add build step: lightweight reconciliation summary written to `META` (even if partial v1)
   - Example: for a sample team/year confirm `cap_total = cap_rost + cap_fa + cap_term + cap_2way`
+  - Implemented in `excel/capbook/reconcile.py`
+  - Also added missing `apron_rost/fa/term/2way` columns to team_salary_warehouse extract
 
 - [ ] Implement workbook-defined names for cockpit command bar inputs:
   - `SelectedTeam`, `SelectedYear`, `AsOfDate`, `SelectedMode`
