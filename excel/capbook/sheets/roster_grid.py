@@ -1,5 +1,5 @@
 """
-ROSTER_GRID sheet writer — full roster/ledger view with reconciliation.
+ROSTER_GRID sheet writer - full roster/ledger view with reconciliation.
 
 This module implements:
 1. Shared command bar (read-only reference to TEAM_COCKPIT)
@@ -87,13 +87,63 @@ COLUMN_WIDTHS = {
 
 
 # =============================================================================
+# Formula Helpers
+# =============================================================================
+
+
+def _salary_book_choose(col_base: str) -> str:
+    """Return an Excel CHOOSE() expression selecting the correct *_y{0..5} column.
+
+    The workbook exports salary_book_warehouse as relative-year columns
+    (cap_y0..cap_y5, tax_y0..tax_y5, etc.) relative to META.base_year.
+
+    SelectedYear is an absolute salary_year; we map it to a relative offset:
+        idx = (SelectedYear - MetaBaseYear) + 1
+
+    Returns an expression (no leading '=') suitable for embedding in formulas.
+    """
+
+    cols = ",".join(
+        f"tbl_salary_book_warehouse[{col_base}_y{i}]" for i in range(6)
+    )
+    return f"CHOOSE(SelectedYear-MetaBaseYear+1,{cols})"
+
+
+def _salary_book_sumproduct(is_two_way: str | None = None) -> str:
+    """SUMPRODUCT of selected-year cap amounts from tbl_salary_book_warehouse.
+
+    Args:
+        is_two_way: "TRUE" / "FALSE" to filter, or None for all rows.
+
+    Returns expression (no leading '=')
+    """
+
+    cap_sel = _salary_book_choose("cap")
+    base = f"(tbl_salary_book_warehouse[team_code]=SelectedTeam)"
+    if is_two_way is not None:
+        base += f"*(tbl_salary_book_warehouse[is_two_way]={is_two_way})"
+    return f"SUMPRODUCT({base}*{cap_sel})"
+
+
+def _salary_book_countproduct(is_two_way: str) -> str:
+    """Count rows with selected-year cap amount > 0 via SUMPRODUCT."""
+
+    cap_sel = _salary_book_choose("cap")
+    return (
+        "SUMPRODUCT(--(tbl_salary_book_warehouse[team_code]=SelectedTeam),"
+        f"--(tbl_salary_book_warehouse[is_two_way]={is_two_way}),"
+        f"--({cap_sel}>0))"
+    )
+
+
+# =============================================================================
 # Format Helpers
 # =============================================================================
 
 def _create_roster_formats(workbook: Workbook) -> dict[str, Any]:
     """Create formats specific to the roster grid."""
     formats = {}
-    
+
     # Section headers
     formats["section_header"] = workbook.add_format({
         "bold": True,
@@ -101,7 +151,7 @@ def _create_roster_formats(workbook: Workbook) -> dict[str, Any]:
         "bg_color": "#E5E7EB",  # gray-200
         "bottom": 1,
     })
-    
+
     # Column headers
     formats["col_header"] = workbook.add_format({
         "bold": True,
@@ -110,14 +160,14 @@ def _create_roster_formats(workbook: Workbook) -> dict[str, Any]:
         "align": "center",
         "bottom": 1,
     })
-    
+
     # Money format
     formats["money"] = workbook.add_format({"num_format": FMT_MONEY})
     formats["money_bold"] = workbook.add_format({"num_format": FMT_MONEY, "bold": True})
-    
+
     # Percent format
     formats["percent"] = workbook.add_format({"num_format": FMT_PERCENT, "align": "center"})
-    
+
     # Badge formats (option/guarantee/trade)
     formats["badge_po"] = workbook.add_format({
         "bg_color": "#DBEAFE",  # blue-100
@@ -137,7 +187,7 @@ def _create_roster_formats(workbook: Workbook) -> dict[str, Any]:
         "align": "center",
         "font_size": 9,
     })
-    
+
     formats["badge_gtd"] = workbook.add_format({
         "font_color": "#166534",  # green-800
         "align": "center",
@@ -155,7 +205,7 @@ def _create_roster_formats(workbook: Workbook) -> dict[str, Any]:
         "align": "center",
         "font_size": 9,
     })
-    
+
     # Trade restriction badges
     formats["badge_no_trade"] = workbook.add_format({
         "bg_color": "#FEE2E2",
@@ -175,7 +225,7 @@ def _create_roster_formats(workbook: Workbook) -> dict[str, Any]:
         "align": "center",
         "font_size": 9,
     })
-    
+
     # Minimum contract label
     formats["min_label"] = workbook.add_format({
         "italic": True,
@@ -183,7 +233,7 @@ def _create_roster_formats(workbook: Workbook) -> dict[str, Any]:
         "font_size": 9,
         "align": "center",
     })
-    
+
     # Bucket labels
     formats["bucket_rost"] = workbook.add_format({
         "font_size": 9,
@@ -205,7 +255,7 @@ def _create_roster_formats(workbook: Workbook) -> dict[str, Any]:
         "font_color": "#6B7280",  # gray-500
         "italic": True,
     })
-    
+
     # Subtotal row
     formats["subtotal"] = workbook.add_format({
         "bold": True,
@@ -216,7 +266,7 @@ def _create_roster_formats(workbook: Workbook) -> dict[str, Any]:
         "bold": True,
         "top": 1,
     })
-    
+
     # Reconciliation section
     formats["reconcile_header"] = workbook.add_format({
         "bold": True,
@@ -243,7 +293,7 @@ def _create_roster_formats(workbook: Workbook) -> dict[str, Any]:
         "font_color": "#991B1B",  # red-800
         "bold": True,
     })
-    
+
     return formats
 
 
@@ -258,23 +308,26 @@ def _write_column_headers(
     year_labels: list[str],
 ) -> int:
     """Write the column headers for the roster grid.
-    
+
     Returns next row.
     """
     fmt = formats["col_header"]
-    
+
     worksheet.write(row, COL_BUCKET, "Bucket", fmt)
     worksheet.write(row, COL_NAME, "Name", fmt)
     worksheet.write(row, COL_OPTION, "Opt", fmt)
     worksheet.write(row, COL_GUARANTEE, "GTD", fmt)
     worksheet.write(row, COL_TRADE, "Trade", fmt)
     worksheet.write(row, COL_MIN_LABEL, "Type", fmt)
-    
+
     for i, label in enumerate(year_labels):
-        worksheet.write(row, COL_CAP_Y0 + i, label, fmt)
-    
+        if isinstance(label, str) and label.startswith("="):
+            worksheet.write_formula(row, COL_CAP_Y0 + i, label, fmt)
+        else:
+            worksheet.write(row, COL_CAP_Y0 + i, label, fmt)
+
     worksheet.write(row, COL_PCT_CAP, "% Cap", fmt)
-    
+
     return row + 1
 
 
@@ -286,181 +339,145 @@ def _write_roster_section(
     roster_formats: dict[str, Any],
 ) -> tuple[int, int]:
     """Write the roster rows section (from tbl_salary_book_warehouse).
-    
+
     Uses formulas that filter by SelectedTeam. Rows are formula-driven.
     For v1, we write a fixed number of formula rows (50) that show data
     when available and blank when not.
-    
+
     Returns (next_row, data_start_row) for reconciliation formulas.
     """
     section_fmt = roster_formats["section_header"]
-    
+
     # Section header
     worksheet.merge_range(row, COL_BUCKET, row, COL_PCT_CAP, "ROSTER (Active Contracts)", section_fmt)
     row += 1
-    
+
     # Note about formula-driven display
     worksheet.write(row, COL_BUCKET, "Showing players for selected team (SelectedTeam)", roster_formats["reconcile_label"])
     row += 1
-    
+
     # Column headers
-    # Year labels: use formula to get base year + offset
-    year_labels = ["Y0", "Y1", "Y2", "Y3", "Y4", "Y5"]
+    # Year labels: show absolute years from MetaBaseYear
+    year_labels = [
+        "=MetaBaseYear+0",
+        "=MetaBaseYear+1",
+        "=MetaBaseYear+2",
+        "=MetaBaseYear+3",
+        "=MetaBaseYear+4",
+        "=MetaBaseYear+5",
+    ]
     row = _write_column_headers(worksheet, row, roster_formats, year_labels)
-    
+
     data_start_row = row
-    
+
     # Write formula rows for roster players
     # We use a fixed set of rows with IFERROR(INDEX/MATCH) formulas
     # that return blank if no matching player exists.
-    
+
     # For MVP: use formulas that pull from the table based on row position
     # This approach uses AGGREGATE + SMALL to get unique players sorted by cap_y0
-    
+
     num_roster_rows = 40  # Fixed allocation for roster rows
-    
+
+    cap_sel = _salary_book_choose("cap")
+    option_sel = _salary_book_choose("option")
+    gtd_full_sel = _salary_book_choose("is_fully_guaranteed")
+    gtd_part_sel = _salary_book_choose("is_partially_guaranteed")
+    gtd_non_sel = _salary_book_choose("is_non_guaranteed")
+
+    criteria = "((tbl_salary_book_warehouse[team_code]=SelectedTeam)*(tbl_salary_book_warehouse[is_two_way]=FALSE))"
+
     for i in range(1, num_roster_rows + 1):
-        # Player name (Nth player by cap_y0 desc, for selected team, not two-way)
-        # Using AGGREGATE(15,6,...) = SMALL ignoring errors
-        name_formula = (
-            f"=IFERROR(INDEX(tbl_salary_book_warehouse[player_name],"
-            f"MATCH(AGGREGATE(14,6,"
-            f"(tbl_salary_book_warehouse[cap_y0])/"
-            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_salary_book_warehouse[is_two_way]=FALSE)),"
-            f"{i}),"
-            f"(tbl_salary_book_warehouse[cap_y0])/"
-            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_salary_book_warehouse[is_two_way]=FALSE)),0)),\"\")"
-        )
-        
-        # Helper: get player_id for this row's player (to use in other lookups)
-        # Since we're matching by cap_y0 value, we need consistent lookups
-        cap_value_formula = (
-            f"AGGREGATE(14,6,"
-            f"(tbl_salary_book_warehouse[cap_y0])/"
-            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_salary_book_warehouse[is_two_way]=FALSE)),"
-            f"{i})"
-        )
-        
-        def _lookup(col: str) -> str:
-            """Build lookup formula for a column."""
-            return (
-                f"=IFERROR(INDEX(tbl_salary_book_warehouse[{col}],"
-                f"MATCH({cap_value_formula},"
-                f"(tbl_salary_book_warehouse[cap_y0])/"
-                f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-                f"(tbl_salary_book_warehouse[is_two_way]=FALSE)),0)),\"\")"
-            )
-        
-        # Bucket (ROST for standard contracts)
+        # Nth largest selected-year cap amount for SelectedTeam (non-two-way)
+        cap_value_expr = f"AGGREGATE(14,6,({cap_sel})/({criteria}),{i})"
+        match_expr = f"MATCH({cap_value_expr},({cap_sel})/({criteria}),0)"
+
+        name_expr = f'IFERROR(INDEX(tbl_salary_book_warehouse[player_name],{match_expr}),"" )'
+
+        def _lookup_expr(col: str) -> str:
+            return f'IFERROR(INDEX(tbl_salary_book_warehouse[{col}],{match_expr}),"" )'
+
+        # Bucket (ROST)
         worksheet.write_formula(
-            row, COL_BUCKET,
-            f'=IF({name_formula}<>"","ROST","")',
-            roster_formats["bucket_rost"]
+            row,
+            COL_BUCKET,
+            f'=IF({name_expr}<>"","ROST","")',
+            roster_formats["bucket_rost"],
         )
-        
+
         # Player name
-        worksheet.write_formula(row, COL_NAME, name_formula)
-        
-        # Option badge (for base year = y0)
-        # option_y0 contains PO/TO/ETO or blank
-        option_formula = _lookup("option_y0")
-        worksheet.write_formula(row, COL_OPTION, option_formula)
-        
-        # Guarantee status
-        # Use is_fully_guaranteed_y0, is_partially_guaranteed_y0, is_non_guaranteed_y0
-        guarantee_formula = (
-            f"=IFERROR(IF(INDEX(tbl_salary_book_warehouse[is_fully_guaranteed_y0],"
-            f"MATCH({cap_value_formula},"
-            f"(tbl_salary_book_warehouse[cap_y0])/"
-            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_salary_book_warehouse[is_two_way]=FALSE)),0))=TRUE,\"GTD\","
-            f"IF(INDEX(tbl_salary_book_warehouse[is_partially_guaranteed_y0],"
-            f"MATCH({cap_value_formula},"
-            f"(tbl_salary_book_warehouse[cap_y0])/"
-            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_salary_book_warehouse[is_two_way]=FALSE)),0))=TRUE,\"PRT\","
-            f"IF(INDEX(tbl_salary_book_warehouse[is_non_guaranteed_y0],"
-            f"MATCH({cap_value_formula},"
-            f"(tbl_salary_book_warehouse[cap_y0])/"
-            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_salary_book_warehouse[is_two_way]=FALSE)),0))=TRUE,\"NG\",\"\"))),\"\")"
+        worksheet.write_formula(row, COL_NAME, f"={name_expr}")
+
+        # Option badge (selected year)
+        option_expr = f'IFERROR(INDEX({option_sel},{match_expr}),"" )'
+        worksheet.write_formula(row, COL_OPTION, f"={option_expr}")
+
+        # Guarantee status (selected year)
+        guarantee_expr = (
+            f'IFERROR('
+            f'IF(INDEX({gtd_full_sel},{match_expr})=TRUE,"GTD",'
+            f'IF(INDEX({gtd_part_sel},{match_expr})=TRUE,"PRT",'
+            f'IF(INDEX({gtd_non_sel},{match_expr})=TRUE,"NG",""))),'
+            f'"" )'
         )
-        worksheet.write_formula(row, COL_GUARANTEE, guarantee_formula)
-        
+        worksheet.write_formula(row, COL_GUARANTEE, f"={guarantee_expr}")
+
         # Trade restriction
-        # Check is_no_trade, is_trade_bonus, is_trade_restricted_now
-        trade_formula = (
-            f"=IFERROR(IF(INDEX(tbl_salary_book_warehouse[is_no_trade],"
-            f"MATCH({cap_value_formula},"
-            f"(tbl_salary_book_warehouse[cap_y0])/"
-            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_salary_book_warehouse[is_two_way]=FALSE)),0))=TRUE,\"NTC\","
-            f"IF(INDEX(tbl_salary_book_warehouse[is_trade_bonus],"
-            f"MATCH({cap_value_formula},"
-            f"(tbl_salary_book_warehouse[cap_y0])/"
-            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_salary_book_warehouse[is_two_way]=FALSE)),0))=TRUE,\"Kicker\","
-            f"IF(INDEX(tbl_salary_book_warehouse[is_trade_restricted_now],"
-            f"MATCH({cap_value_formula},"
-            f"(tbl_salary_book_warehouse[cap_y0])/"
-            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_salary_book_warehouse[is_two_way]=FALSE)),0))=TRUE,\"Restricted\",\"\"))),\"\")"
+        trade_expr = (
+            f'IFERROR('
+            f'IF(INDEX(tbl_salary_book_warehouse[is_no_trade],{match_expr})=TRUE,"NTC",'
+            f'IF(INDEX(tbl_salary_book_warehouse[is_trade_bonus],{match_expr})=TRUE,"Kicker",'
+            f'IF(INDEX(tbl_salary_book_warehouse[is_trade_restricted_now],{match_expr})=TRUE,"Restricted",""))),'
+            f'"" )'
         )
-        worksheet.write_formula(row, COL_TRADE, trade_formula)
-        
+        worksheet.write_formula(row, COL_TRADE, f"={trade_expr}")
+
         # Minimum contract label
-        min_formula = (
-            f"=IFERROR(IF(INDEX(tbl_salary_book_warehouse[is_min_contract],"
-            f"MATCH({cap_value_formula},"
-            f"(tbl_salary_book_warehouse[cap_y0])/"
-            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_salary_book_warehouse[is_two_way]=FALSE)),0))=TRUE,\"MINIMUM\",\"\"),\"\")"
+        min_expr = (
+            f'IFERROR(IF(INDEX(tbl_salary_book_warehouse[is_min_contract],{match_expr})=TRUE,"MINIMUM",""),"" )'
         )
-        worksheet.write_formula(row, COL_MIN_LABEL, min_formula, roster_formats["min_label"])
-        
-        # Salary columns (cap_y0 through cap_y5)
+        worksheet.write_formula(row, COL_MIN_LABEL, f"={min_expr}", roster_formats["min_label"])
+
+        # Salary columns (cap_y0..cap_y5)
         for yi in range(6):
-            col_name = f"cap_y{yi}"
-            sal_formula = _lookup(col_name)
-            worksheet.write_formula(row, COL_CAP_Y0 + yi, sal_formula, roster_formats["money"])
-        
-        # % of cap (cap_y0 / salary_cap_amount from system_values for SelectedYear)
-        pct_formula = (
-            f"=IFERROR({_lookup('cap_y0')}/"
-            f"SUMIFS(tbl_system_values[salary_cap_amount],"
-            f"tbl_system_values[salary_year],SelectedYear),\"\")"
+            worksheet.write_formula(
+                row,
+                COL_CAP_Y0 + yi,
+                f"={_lookup_expr(f'cap_y{yi}')}" ,
+                roster_formats["money"],
+            )
+
+        # % of cap (selected-year cap amount / salary cap for SelectedYear)
+        pct_expr = (
+            f'IFERROR({cap_value_expr}/'
+            f'SUMIFS(tbl_system_values[salary_cap_amount],tbl_system_values[salary_year],SelectedYear),"" )'
         )
-        worksheet.write_formula(row, COL_PCT_CAP, pct_formula, roster_formats["percent"])
-        
+        worksheet.write_formula(row, COL_PCT_CAP, f"={pct_expr}", roster_formats["percent"])
+
         row += 1
-    
+
     data_end_row = row - 1
-    
-    # Subtotal row for ROST bucket
+
+    # Subtotal row for ROST bucket (selected year)
     worksheet.write(row, COL_NAME, "Roster Subtotal:", roster_formats["subtotal_label"])
-    
-    # Sum of cap_y0 for roster (non-two-way) players
-    # Use SUMIFS on salary_book_warehouse
-    subtotal_formula = (
-        "=SUMIFS(tbl_salary_book_warehouse[cap_y0],"
-        "tbl_salary_book_warehouse[team_code],SelectedTeam,"
-        "tbl_salary_book_warehouse[is_two_way],FALSE)"
+
+    worksheet.write_formula(
+        row,
+        COL_CAP_Y0,
+        f"={_salary_book_sumproduct(is_two_way='FALSE')}",
+        roster_formats["subtotal"],
     )
-    worksheet.write_formula(row, COL_CAP_Y0, subtotal_formula, roster_formats["subtotal"])
-    
-    # Count of roster players
-    count_formula = (
-        "=COUNTIFS(tbl_salary_book_warehouse[team_code],SelectedTeam,"
-        "tbl_salary_book_warehouse[is_two_way],FALSE,"
-        "tbl_salary_book_warehouse[cap_y0],\">0\")"
+
+    # Count of roster players with selected-year cap > 0
+    worksheet.write_formula(
+        row,
+        COL_BUCKET,
+        f"={_salary_book_countproduct('FALSE')}",
+        roster_formats["subtotal_label"],
     )
-    worksheet.write_formula(row, COL_BUCKET, count_formula, roster_formats["subtotal_label"])
-    
+
     row += 2  # Blank row
-    
+
     return row, data_start_row
 
 
@@ -472,85 +489,83 @@ def _write_twoway_section(
     roster_formats: dict[str, Any],
 ) -> int:
     """Write the two-way contracts section.
-    
+
     Returns next row.
     """
     section_fmt = roster_formats["section_header"]
-    
+
     # Section header
     worksheet.merge_range(row, COL_BUCKET, row, COL_PCT_CAP, "TWO-WAY CONTRACTS", section_fmt)
     row += 1
-    
+
     # Column headers
-    year_labels = ["Y0", "Y1", "Y2", "Y3", "Y4", "Y5"]
+    year_labels = [
+        "=MetaBaseYear+0",
+        "=MetaBaseYear+1",
+        "=MetaBaseYear+2",
+        "=MetaBaseYear+3",
+        "=MetaBaseYear+4",
+        "=MetaBaseYear+5",
+    ]
     row = _write_column_headers(worksheet, row, roster_formats, year_labels)
-    
+
     # Two-way rows (fewer slots - typically max 3 per team)
     num_twoway_rows = 6
-    
+
+    cap_sel = _salary_book_choose("cap")
+    criteria = "((tbl_salary_book_warehouse[team_code]=SelectedTeam)*(tbl_salary_book_warehouse[is_two_way]=TRUE))"
+
     for i in range(1, num_twoway_rows + 1):
-        cap_value_formula = (
-            f"AGGREGATE(14,6,"
-            f"(tbl_salary_book_warehouse[cap_y0])/"
-            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_salary_book_warehouse[is_two_way]=TRUE)),"
-            f"{i})"
-        )
-        
-        name_formula = (
-            f"=IFERROR(INDEX(tbl_salary_book_warehouse[player_name],"
-            f"MATCH({cap_value_formula},"
-            f"(tbl_salary_book_warehouse[cap_y0])/"
-            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_salary_book_warehouse[is_two_way]=TRUE)),0)),\"\")"
-        )
-        
-        def _lookup_2way(col: str) -> str:
-            return (
-                f"=IFERROR(INDEX(tbl_salary_book_warehouse[{col}],"
-                f"MATCH({cap_value_formula},"
-                f"(tbl_salary_book_warehouse[cap_y0])/"
-                f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-                f"(tbl_salary_book_warehouse[is_two_way]=TRUE)),0)),\"\")"
-            )
-        
+        cap_value_expr = f"AGGREGATE(14,6,({cap_sel})/({criteria}),{i})"
+        match_expr = f"MATCH({cap_value_expr},({cap_sel})/({criteria}),0)"
+
+        name_expr = f'IFERROR(INDEX(tbl_salary_book_warehouse[player_name],{match_expr}),"" )'
+
+        def _lookup_expr(col: str) -> str:
+            return f'IFERROR(INDEX(tbl_salary_book_warehouse[{col}],{match_expr}),"" )'
+
         # Bucket (2WAY)
         worksheet.write_formula(
-            row, COL_BUCKET,
-            f'=IF({name_formula}<>"","2WAY","")',
-            roster_formats["bucket_2way"]
+            row,
+            COL_BUCKET,
+            f'=IF({name_expr}<>"","2WAY","")',
+            roster_formats["bucket_2way"],
         )
-        
-        worksheet.write_formula(row, COL_NAME, name_formula)
+
+        worksheet.write_formula(row, COL_NAME, f"={name_expr}")
         worksheet.write(row, COL_OPTION, "")  # Two-ways don't have options
         worksheet.write(row, COL_GUARANTEE, "")
         worksheet.write(row, COL_TRADE, "")
         worksheet.write(row, COL_MIN_LABEL, "")
-        
+
         for yi in range(6):
-            sal_formula = _lookup_2way(f"cap_y{yi}")
-            worksheet.write_formula(row, COL_CAP_Y0 + yi, sal_formula, roster_formats["money"])
-        
+            worksheet.write_formula(
+                row,
+                COL_CAP_Y0 + yi,
+                f"={_lookup_expr(f'cap_y{yi}')}" ,
+                roster_formats["money"],
+            )
+
         row += 1
-    
-    # Subtotal for two-way
+
+    # Subtotal for two-way (selected year)
     worksheet.write(row, COL_NAME, "Two-Way Subtotal:", roster_formats["subtotal_label"])
-    subtotal_formula = (
-        "=SUMIFS(tbl_salary_book_warehouse[cap_y0],"
-        "tbl_salary_book_warehouse[team_code],SelectedTeam,"
-        "tbl_salary_book_warehouse[is_two_way],TRUE)"
+    worksheet.write_formula(
+        row,
+        COL_CAP_Y0,
+        f"={_salary_book_sumproduct(is_two_way='TRUE')}",
+        roster_formats["subtotal"],
     )
-    worksheet.write_formula(row, COL_CAP_Y0, subtotal_formula, roster_formats["subtotal"])
-    
-    count_formula = (
-        "=COUNTIFS(tbl_salary_book_warehouse[team_code],SelectedTeam,"
-        "tbl_salary_book_warehouse[is_two_way],TRUE,"
-        "tbl_salary_book_warehouse[cap_y0],\">0\")"
+
+    worksheet.write_formula(
+        row,
+        COL_BUCKET,
+        f"={_salary_book_countproduct('TRUE')}",
+        roster_formats["subtotal_label"],
     )
-    worksheet.write_formula(row, COL_BUCKET, count_formula, roster_formats["subtotal_label"])
-    
+
     row += 2
-    
+
     return row
 
 
@@ -562,15 +577,15 @@ def _write_cap_holds_section(
     roster_formats: dict[str, Any],
 ) -> int:
     """Write the cap holds section (bucket = FA).
-    
+
     Returns next row.
     """
     section_fmt = roster_formats["section_header"]
-    
+
     # Section header
     worksheet.merge_range(row, COL_BUCKET, row, COL_PCT_CAP, "CAP HOLDS (Free Agent Rights)", section_fmt)
     row += 1
-    
+
     # Simplified column headers for holds
     fmt = roster_formats["col_header"]
     worksheet.write(row, COL_BUCKET, "Bucket", fmt)
@@ -584,66 +599,51 @@ def _write_cap_holds_section(
         worksheet.write(row, COL_CAP_Y0 + yi, "", fmt)
     worksheet.write(row, COL_PCT_CAP, "% Cap", fmt)
     row += 1
-    
+
     # Cap hold rows
     num_hold_rows = 15
-    
+
     for i in range(1, num_hold_rows + 1):
-        cap_value_formula = (
-            f"AGGREGATE(14,6,"
-            f"(tbl_cap_holds_warehouse[cap_amount])/"
-            f"((tbl_cap_holds_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_cap_holds_warehouse[salary_year]=SelectedYear)),"
-            f"{i})"
-        )
-        
-        name_formula = (
-            f"=IFERROR(INDEX(tbl_cap_holds_warehouse[player_name],"
-            f"MATCH({cap_value_formula},"
-            f"(tbl_cap_holds_warehouse[cap_amount])/"
-            f"((tbl_cap_holds_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_cap_holds_warehouse[salary_year]=SelectedYear)),0)),\"\")"
-        )
-        
-        def _lookup_hold(col: str) -> str:
-            return (
-                f"=IFERROR(INDEX(tbl_cap_holds_warehouse[{col}],"
-                f"MATCH({cap_value_formula},"
-                f"(tbl_cap_holds_warehouse[cap_amount])/"
-                f"((tbl_cap_holds_warehouse[team_code]=SelectedTeam)*"
-                f"(tbl_cap_holds_warehouse[salary_year]=SelectedYear)),0)),\"\")"
-            )
-        
+        criteria = "((tbl_cap_holds_warehouse[team_code]=SelectedTeam)*(tbl_cap_holds_warehouse[salary_year]=SelectedYear))"
+        cap_value_expr = f"AGGREGATE(14,6,(tbl_cap_holds_warehouse[cap_amount])/({criteria}),{i})"
+        match_expr = f"MATCH({cap_value_expr},(tbl_cap_holds_warehouse[cap_amount])/({criteria}),0)"
+
+        name_expr = f'IFERROR(INDEX(tbl_cap_holds_warehouse[player_name],{match_expr}),"" )'
+
+        def _lookup_expr(col: str) -> str:
+            return f'IFERROR(INDEX(tbl_cap_holds_warehouse[{col}],{match_expr}),"" )'
+
         # Bucket (FA)
         worksheet.write_formula(
-            row, COL_BUCKET,
-            f'=IF({name_formula}<>"","FA","")',
-            roster_formats["bucket_fa"]
+            row,
+            COL_BUCKET,
+            f'=IF({name_expr}<>"","FA","")',
+            roster_formats["bucket_fa"],
         )
-        
-        worksheet.write_formula(row, COL_NAME, name_formula)
-        
+
+        worksheet.write_formula(row, COL_NAME, f"={name_expr}")
+
         # FA designation (RFA/UFA/etc.)
-        worksheet.write_formula(row, COL_OPTION, _lookup_hold("free_agent_designation_lk"))
+        worksheet.write_formula(row, COL_OPTION, f"={_lookup_expr('free_agent_designation_lk')}")
         worksheet.write(row, COL_GUARANTEE, "")
-        
+
         # FA status
-        worksheet.write_formula(row, COL_TRADE, _lookup_hold("free_agent_status_lk"))
+        worksheet.write_formula(row, COL_TRADE, f"={_lookup_expr('free_agent_status_lk')}")
         worksheet.write(row, COL_MIN_LABEL, "")
-        
+
         # Amount
-        worksheet.write_formula(row, COL_CAP_Y0, _lookup_hold("cap_amount"), roster_formats["money"])
-        
+        cap_amount_expr = _lookup_expr("cap_amount")
+        worksheet.write_formula(row, COL_CAP_Y0, f"={cap_amount_expr}", roster_formats["money"])
+
         # % of cap
-        pct_formula = (
-            f"=IFERROR({_lookup_hold('cap_amount')}/"
-            f"SUMIFS(tbl_system_values[salary_cap_amount],"
-            f"tbl_system_values[salary_year],SelectedYear),\"\")"
+        pct_expr = (
+            f'IFERROR({cap_amount_expr}/'
+            f'SUMIFS(tbl_system_values[salary_cap_amount],tbl_system_values[salary_year],SelectedYear),"" )'
         )
-        worksheet.write_formula(row, COL_PCT_CAP, pct_formula, roster_formats["percent"])
-        
+        worksheet.write_formula(row, COL_PCT_CAP, f"={pct_expr}", roster_formats["percent"])
+
         row += 1
-    
+
     # Subtotal for holds
     worksheet.write(row, COL_NAME, "Holds Subtotal:", roster_formats["subtotal_label"])
     subtotal_formula = (
@@ -652,16 +652,16 @@ def _write_cap_holds_section(
         "tbl_cap_holds_warehouse[salary_year],SelectedYear)"
     )
     worksheet.write_formula(row, COL_CAP_Y0, subtotal_formula, roster_formats["subtotal"])
-    
+
     count_formula = (
         "=COUNTIFS(tbl_cap_holds_warehouse[team_code],SelectedTeam,"
         "tbl_cap_holds_warehouse[salary_year],SelectedYear,"
         "tbl_cap_holds_warehouse[cap_amount],\">0\")"
     )
     worksheet.write_formula(row, COL_BUCKET, count_formula, roster_formats["subtotal_label"])
-    
+
     row += 2
-    
+
     return row
 
 
@@ -673,15 +673,15 @@ def _write_dead_money_section(
     roster_formats: dict[str, Any],
 ) -> int:
     """Write the dead money section (bucket = TERM).
-    
+
     Returns next row.
     """
     section_fmt = roster_formats["section_header"]
-    
+
     # Section header
     worksheet.merge_range(row, COL_BUCKET, row, COL_PCT_CAP, "DEAD MONEY (Terminated Contracts)", section_fmt)
     row += 1
-    
+
     # Column headers
     fmt = roster_formats["col_header"]
     worksheet.write(row, COL_BUCKET, "Bucket", fmt)
@@ -695,65 +695,49 @@ def _write_dead_money_section(
         worksheet.write(row, COL_CAP_Y0 + yi, "", fmt)
     worksheet.write(row, COL_PCT_CAP, "% Cap", fmt)
     row += 1
-    
+
     # Dead money rows
     num_dead_rows = 10
-    
+
     for i in range(1, num_dead_rows + 1):
-        cap_value_formula = (
-            f"AGGREGATE(14,6,"
-            f"(tbl_dead_money_warehouse[cap_value])/"
-            f"((tbl_dead_money_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_dead_money_warehouse[salary_year]=SelectedYear)),"
-            f"{i})"
-        )
-        
-        name_formula = (
-            f"=IFERROR(INDEX(tbl_dead_money_warehouse[player_name],"
-            f"MATCH({cap_value_formula},"
-            f"(tbl_dead_money_warehouse[cap_value])/"
-            f"((tbl_dead_money_warehouse[team_code]=SelectedTeam)*"
-            f"(tbl_dead_money_warehouse[salary_year]=SelectedYear)),0)),\"\")"
-        )
-        
-        def _lookup_dead(col: str) -> str:
-            return (
-                f"=IFERROR(INDEX(tbl_dead_money_warehouse[{col}],"
-                f"MATCH({cap_value_formula},"
-                f"(tbl_dead_money_warehouse[cap_value])/"
-                f"((tbl_dead_money_warehouse[team_code]=SelectedTeam)*"
-                f"(tbl_dead_money_warehouse[salary_year]=SelectedYear)),0)),\"\")"
-            )
-        
+        criteria = "((tbl_dead_money_warehouse[team_code]=SelectedTeam)*(tbl_dead_money_warehouse[salary_year]=SelectedYear))"
+        cap_value_expr = f"AGGREGATE(14,6,(tbl_dead_money_warehouse[cap_value])/({criteria}),{i})"
+        match_expr = f"MATCH({cap_value_expr},(tbl_dead_money_warehouse[cap_value])/({criteria}),0)"
+
+        name_expr = f'IFERROR(INDEX(tbl_dead_money_warehouse[player_name],{match_expr}),"" )'
+
+        def _lookup_expr(col: str) -> str:
+            return f'IFERROR(INDEX(tbl_dead_money_warehouse[{col}],{match_expr}),"" )'
+
         # Bucket (TERM)
         worksheet.write_formula(
-            row, COL_BUCKET,
-            f'=IF({name_formula}<>"","TERM","")',
-            roster_formats["bucket_term"]
+            row,
+            COL_BUCKET,
+            f'=IF({name_expr}<>"","TERM","")',
+            roster_formats["bucket_term"],
         )
-        
-        worksheet.write_formula(row, COL_NAME, name_formula)
+
+        worksheet.write_formula(row, COL_NAME, f"={name_expr}")
         worksheet.write(row, COL_OPTION, "")
         worksheet.write(row, COL_GUARANTEE, "")
-        
+
         # Waive date
-        waive_date_formula = _lookup_dead("waive_date")
-        worksheet.write_formula(row, COL_TRADE, waive_date_formula)
+        worksheet.write_formula(row, COL_TRADE, f"={_lookup_expr('waive_date')}")
         worksheet.write(row, COL_MIN_LABEL, "")
-        
+
         # Amount
-        worksheet.write_formula(row, COL_CAP_Y0, _lookup_dead("cap_value"), roster_formats["money"])
-        
+        cap_amount_expr = _lookup_expr("cap_value")
+        worksheet.write_formula(row, COL_CAP_Y0, f"={cap_amount_expr}", roster_formats["money"])
+
         # % of cap
-        pct_formula = (
-            f"=IFERROR({_lookup_dead('cap_value')}/"
-            f"SUMIFS(tbl_system_values[salary_cap_amount],"
-            f"tbl_system_values[salary_year],SelectedYear),\"\")"
+        pct_expr = (
+            f'IFERROR({cap_amount_expr}/'
+            f'SUMIFS(tbl_system_values[salary_cap_amount],tbl_system_values[salary_year],SelectedYear),"" )'
         )
-        worksheet.write_formula(row, COL_PCT_CAP, pct_formula, roster_formats["percent"])
-        
+        worksheet.write_formula(row, COL_PCT_CAP, f"={pct_expr}", roster_formats["percent"])
+
         row += 1
-    
+
     # Subtotal for dead money
     worksheet.write(row, COL_NAME, "Dead Money Subtotal:", roster_formats["subtotal_label"])
     subtotal_formula = (
@@ -762,16 +746,16 @@ def _write_dead_money_section(
         "tbl_dead_money_warehouse[salary_year],SelectedYear)"
     )
     worksheet.write_formula(row, COL_CAP_Y0, subtotal_formula, roster_formats["subtotal"])
-    
+
     count_formula = (
         "=COUNTIFS(tbl_dead_money_warehouse[team_code],SelectedTeam,"
         "tbl_dead_money_warehouse[salary_year],SelectedYear,"
         "tbl_dead_money_warehouse[cap_value],\">0\")"
     )
     worksheet.write_formula(row, COL_BUCKET, count_formula, roster_formats["subtotal_label"])
-    
+
     row += 2
-    
+
     return row
 
 
@@ -783,46 +767,58 @@ def _write_reconciliation_block(
     roster_formats: dict[str, Any],
 ) -> int:
     """Write the reconciliation block comparing grid sums to warehouse totals.
-    
+
     This is the critical section that proves the ledger is trustworthy.
-    
+
     Returns next row.
     """
     reconcile_header = roster_formats["reconcile_header"]
     label_fmt = roster_formats["reconcile_label"]
     value_fmt = roster_formats["reconcile_value"]
-    
+
     # Section header
     worksheet.merge_range(row, COL_BUCKET, row, COL_PCT_CAP, "RECONCILIATION (vs DATA_team_salary_warehouse)", reconcile_header)
     row += 1
     row += 1  # Blank row
-    
+
     # Column labels
     worksheet.write(row, COL_NAME, "", label_fmt)
     worksheet.write(row, COL_CAP_Y0, "Grid Sum", roster_formats["col_header"])
     worksheet.write(row, COL_CAP_Y1, "Warehouse", roster_formats["col_header"])
     worksheet.write(row, COL_CAP_Y2, "Delta", roster_formats["col_header"])
     row += 1
-    
+
     # Define the bucket comparisons
     buckets = [
-        ("Roster (ROST)", "cap_rost", 
-         "SUMIFS(tbl_salary_book_warehouse[cap_y0],tbl_salary_book_warehouse[team_code],SelectedTeam,tbl_salary_book_warehouse[is_two_way],FALSE)"),
-        ("Two-Way (2WAY)", "cap_2way",
-         "SUMIFS(tbl_salary_book_warehouse[cap_y0],tbl_salary_book_warehouse[team_code],SelectedTeam,tbl_salary_book_warehouse[is_two_way],TRUE)"),
-        ("Holds (FA)", "cap_fa",
-         "SUMIFS(tbl_cap_holds_warehouse[cap_amount],tbl_cap_holds_warehouse[team_code],SelectedTeam,tbl_cap_holds_warehouse[salary_year],SelectedYear)"),
-        ("Dead Money (TERM)", "cap_term",
-         "SUMIFS(tbl_dead_money_warehouse[cap_value],tbl_dead_money_warehouse[team_code],SelectedTeam,tbl_dead_money_warehouse[salary_year],SelectedYear)"),
+        (
+            "Roster (ROST)",
+            "cap_rost",
+            _salary_book_sumproduct(is_two_way="FALSE"),
+        ),
+        (
+            "Two-Way (2WAY)",
+            "cap_2way",
+            _salary_book_sumproduct(is_two_way="TRUE"),
+        ),
+        (
+            "Holds (FA)",
+            "cap_fa",
+            "SUMIFS(tbl_cap_holds_warehouse[cap_amount],tbl_cap_holds_warehouse[team_code],SelectedTeam,tbl_cap_holds_warehouse[salary_year],SelectedYear)",
+        ),
+        (
+            "Dead Money (TERM)",
+            "cap_term",
+            "SUMIFS(tbl_dead_money_warehouse[cap_value],tbl_dead_money_warehouse[team_code],SelectedTeam,tbl_dead_money_warehouse[salary_year],SelectedYear)",
+        ),
     ]
-    
+
     for label, warehouse_col, grid_formula in buckets:
         worksheet.write(row, COL_NAME, label, label_fmt)
-        
+
         # Grid sum (from our formulas above)
         grid_cell = f"={grid_formula}"
         worksheet.write_formula(row, COL_CAP_Y0, grid_cell, value_fmt)
-        
+
         # Warehouse value
         warehouse_formula = (
             f"=SUMIFS(tbl_team_salary_warehouse[{warehouse_col}],"
@@ -830,13 +826,13 @@ def _write_reconciliation_block(
             f"tbl_team_salary_warehouse[salary_year],SelectedYear)"
         )
         worksheet.write_formula(row, COL_CAP_Y1, warehouse_formula, value_fmt)
-        
+
         # Delta (grid - warehouse)
         delta_cell_grid = xlsxwriter.utility.xl_rowcol_to_cell(row, COL_CAP_Y0)
         delta_cell_warehouse = xlsxwriter.utility.xl_rowcol_to_cell(row, COL_CAP_Y1)
         delta_formula = f"={delta_cell_grid}-{delta_cell_warehouse}"
         worksheet.write_formula(row, COL_CAP_Y2, delta_formula, value_fmt)
-        
+
         # Conditional formatting for delta
         worksheet.conditional_format(row, COL_CAP_Y2, row, COL_CAP_Y2, {
             "type": "cell",
@@ -850,21 +846,21 @@ def _write_reconciliation_block(
             "value": 0,
             "format": roster_formats["reconcile_delta_nonzero"],
         })
-        
+
         row += 1
-    
+
     # Total row
     row += 1
     worksheet.write(row, COL_NAME, "TOTAL (cap_total)", roster_formats["subtotal_label"])
-    
+
     # Total grid sum (sum all buckets)
     total_grid_formula = (
-        "=SUMIFS(tbl_salary_book_warehouse[cap_y0],tbl_salary_book_warehouse[team_code],SelectedTeam)"
+        f"={_salary_book_sumproduct()}"
         "+SUMIFS(tbl_cap_holds_warehouse[cap_amount],tbl_cap_holds_warehouse[team_code],SelectedTeam,tbl_cap_holds_warehouse[salary_year],SelectedYear)"
         "+SUMIFS(tbl_dead_money_warehouse[cap_value],tbl_dead_money_warehouse[team_code],SelectedTeam,tbl_dead_money_warehouse[salary_year],SelectedYear)"
     )
     worksheet.write_formula(row, COL_CAP_Y0, total_grid_formula, roster_formats["subtotal"])
-    
+
     # Warehouse cap_total
     total_warehouse_formula = (
         "=SUMIFS(tbl_team_salary_warehouse[cap_total],"
@@ -872,12 +868,12 @@ def _write_reconciliation_block(
         "tbl_team_salary_warehouse[salary_year],SelectedYear)"
     )
     worksheet.write_formula(row, COL_CAP_Y1, total_warehouse_formula, roster_formats["subtotal"])
-    
+
     # Total delta
     total_delta_grid = xlsxwriter.utility.xl_rowcol_to_cell(row, COL_CAP_Y0)
     total_delta_warehouse = xlsxwriter.utility.xl_rowcol_to_cell(row, COL_CAP_Y1)
     worksheet.write_formula(row, COL_CAP_Y2, f"={total_delta_grid}-{total_delta_warehouse}", roster_formats["subtotal"])
-    
+
     worksheet.conditional_format(row, COL_CAP_Y2, row, COL_CAP_Y2, {
         "type": "cell",
         "criteria": "==",
@@ -890,19 +886,19 @@ def _write_reconciliation_block(
         "value": 0,
         "format": roster_formats["reconcile_delta_nonzero"],
     })
-    
+
     row += 2
-    
+
     # Reconciliation status message
     status_formula = (
         f"=IF({total_delta_grid}-{total_delta_warehouse}=0,"
-        f"\"✓ Reconciled — grid sums match warehouse totals\","
-        f"\"⚠ MISMATCH — grid sums differ from warehouse totals\")"
+        f"\"✓ Reconciled - grid sums match warehouse totals\","
+        f"\"⚠ MISMATCH - grid sums differ from warehouse totals\")"
     )
     worksheet.write_formula(row, COL_NAME, status_formula)
     worksheet.merge_range(row, COL_NAME, row, COL_CAP_Y2, "", roster_formats["reconcile_label"])
     worksheet.write_formula(row, COL_NAME, status_formula)
-    
+
     # Conditional formatting for status row
     worksheet.conditional_format(row, COL_NAME, row, COL_CAP_Y2, {
         "type": "formula",
@@ -914,9 +910,9 @@ def _write_reconciliation_block(
         "criteria": f"={total_delta_grid}<>{total_delta_warehouse}",
         "format": roster_formats["reconcile_delta_nonzero"],
     })
-    
+
     row += 2
-    
+
     return row
 
 
@@ -960,35 +956,35 @@ def write_roster_grid(
     # Sheet title
     worksheet.write(0, 0, "ROSTER GRID", formats["header"])
     worksheet.write(1, 0, "Full roster/ledger view with explicit bucket classification")
-    
+
     # Write read-only command bar
     write_command_bar_readonly(workbook, worksheet, formats)
-    
+
     # Set column widths
     for col, width in COLUMN_WIDTHS.items():
         worksheet.set_column(col, col, width)
-    
+
     # Create roster-specific formats
     roster_formats = _create_roster_formats(workbook)
-    
+
     # Content starts after command bar
     content_row = get_content_start_row()
-    
+
     # 1. Roster section (active contracts)
     content_row, roster_data_start = _write_roster_section(workbook, worksheet, content_row, formats, roster_formats)
-    
+
     # 2. Two-way section
     content_row = _write_twoway_section(workbook, worksheet, content_row, formats, roster_formats)
-    
+
     # 3. Cap holds section
     content_row = _write_cap_holds_section(workbook, worksheet, content_row, formats, roster_formats)
-    
+
     # 4. Dead money section
     content_row = _write_dead_money_section(workbook, worksheet, content_row, formats, roster_formats)
-    
+
     # 5. Reconciliation block
     content_row = _write_reconciliation_block(workbook, worksheet, content_row, formats, roster_formats)
-    
+
     # Sheet protection
     worksheet.protect(options={
         "objects": True,

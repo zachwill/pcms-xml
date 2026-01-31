@@ -83,11 +83,14 @@ COCKPIT_SHEET_NAME = "TEAM_COCKPIT"
 # =============================================================================
 
 DEFAULT_MODE = "Cap"
-DEFAULT_ROSTER_FILL_TARGET = 14
+
+# NOTE: Fill rows are not implemented yet. Default to OFF (0) so the workbook
+# does not imply that generated assumptions are active.
+DEFAULT_ROSTER_FILL_TARGET = 0  # 0 = off
 DEFAULT_ROSTER_FILL_TYPE = "Vet Min"
 DEFAULT_COUNT_2WAY_ROSTER = False
 DEFAULT_COUNT_2WAY_TOTALS = False
-DEFAULT_SHOW_EXISTS_ONLY = True
+DEFAULT_SHOW_EXISTS_ONLY = False
 DEFAULT_ACTIVE_PLAN = "Baseline"
 
 
@@ -316,16 +319,16 @@ def write_command_bar_editable(
     # =========================================================================
     
     # Roster Fill Target
-    worksheet.write(ROW_ROSTER_FILL_TARGET, COL_LABEL_2, "Roster Fill Target:", label_fmt)
+    worksheet.write(ROW_ROSTER_FILL_TARGET, COL_LABEL_2, "Roster Fill Target (0=off):", label_fmt)
     worksheet.write(ROW_ROSTER_FILL_TARGET, COL_INPUT_2, DEFAULT_ROSTER_FILL_TARGET, input_fmt)
     
     worksheet.data_validation(
         ROW_ROSTER_FILL_TARGET, COL_INPUT_2, ROW_ROSTER_FILL_TARGET, COL_INPUT_2,
         {
             "validate": "list",
-            "source": [12, 14, 15],
+            "source": [0, 12, 14, 15],
             "input_title": "Roster Fill Target",
-            "input_message": "Target roster size for fill rows",
+            "input_message": "0 = off; otherwise target roster size for fill rows",
         },
     )
     
@@ -373,7 +376,7 @@ def write_command_bar_editable(
     
     # Show Exists-Only Rows
     worksheet.write(ROW_SHOW_EXISTS_ONLY, COL_LABEL_2, "Show Exists-Only?:", label_fmt)
-    worksheet.write(ROW_SHOW_EXISTS_ONLY, COL_INPUT_2, "Yes", input_bool_fmt)
+    worksheet.write(ROW_SHOW_EXISTS_ONLY, COL_INPUT_2, "No", input_bool_fmt)
     
     worksheet.data_validation(
         ROW_SHOW_EXISTS_ONLY, COL_INPUT_2, ROW_SHOW_EXISTS_ONLY, COL_INPUT_2,

@@ -185,26 +185,43 @@ def _warehouse_sumifs(column: str) -> str:
     )
 
 
-def _salary_book_sumifs(column: str, is_two_way: bool = False) -> str:
-    """Build SUMIFS formula for salary_book_warehouse filtered by SelectedTeam."""
+def _salary_book_choose(col_base: str) -> str:
+    """Select the appropriate *_y{0..5} column for SelectedYear.
+
+    salary_book_warehouse exports relative-year columns (cap_y0..cap_y5, tax_y0..tax_y5,
+    apron_y0..apron_y5) relative to MetaBaseYear.
+
+    Returns an expression (no leading '=') suitable for embedding in SUMPRODUCT.
+    """
+
+    cols = ",".join(f"tbl_salary_book_warehouse[{col_base}_y{i}]" for i in range(6))
+    return f"CHOOSE(SelectedYear-MetaBaseYear+1,{cols})"
+
+
+def _salary_book_sumproduct(col_base: str, *, is_two_way: bool) -> str:
+    """Sum selected-year amounts from salary_book_warehouse via SUMPRODUCT."""
+
     two_way_val = "TRUE" if is_two_way else "FALSE"
+    sel = _salary_book_choose(col_base)
     return (
-        f"SUMIFS(tbl_salary_book_warehouse[{column}],"
-        f"tbl_salary_book_warehouse[team_code],SelectedTeam,"
-        f"tbl_salary_book_warehouse[is_two_way],{two_way_val})"
+        "SUMPRODUCT("
+        "(tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
+        f"(tbl_salary_book_warehouse[is_two_way]={two_way_val})*"
+        f"{sel}"
+        ")"
     )
 
 
-def _salary_book_countifs(is_two_way: bool = False, with_cap: bool = True) -> str:
-    """Build COUNTIFS formula for salary_book_warehouse."""
+def _salary_book_countproduct(*, is_two_way: bool) -> str:
+    """Count salary_book rows with selected-year cap > 0 via SUMPRODUCT."""
+
     two_way_val = "TRUE" if is_two_way else "FALSE"
-    base = (
-        f"COUNTIFS(tbl_salary_book_warehouse[team_code],SelectedTeam,"
-        f"tbl_salary_book_warehouse[is_two_way],{two_way_val}"
+    cap_sel = _salary_book_choose("cap")
+    return (
+        "SUMPRODUCT(--(tbl_salary_book_warehouse[team_code]=SelectedTeam),"
+        f"--(tbl_salary_book_warehouse[is_two_way]={two_way_val}),"
+        f"--({cap_sel}>0))"
     )
-    if with_cap:
-        base += ',tbl_salary_book_warehouse[cap_y0],">0"'
-    return base + ")"
 
 
 def _cap_holds_sumifs(column: str) -> str:
@@ -280,8 +297,8 @@ def _write_summary_banner(
     
     # Calculate total delta = sum of all bucket drilldowns - warehouse total
     total_drilldown = (
-        f"({_salary_book_sumifs('cap_y0', is_two_way=False)})"
-        f"+({_salary_book_sumifs('cap_y0', is_two_way=True)})"
+        f"({_salary_book_sumproduct('cap', is_two_way=False)})"
+        f"+({_salary_book_sumproduct('cap', is_two_way=True)})"
         f"+({_cap_holds_sumifs('cap_amount')})"
         f"+({_dead_money_sumifs('cap_value')})"
     )
@@ -339,10 +356,10 @@ def _write_cap_reconciliation_section(
     
     # Bucket reconciliation rows
     buckets = [
-        ("Roster (ROST)", "cap_rost", _salary_book_sumifs("cap_y0", is_two_way=False), 
-         "tbl_salary_book_warehouse (is_two_way=FALSE)"),
-        ("Two-Way (2WAY)", "cap_2way", _salary_book_sumifs("cap_y0", is_two_way=True),
-         "tbl_salary_book_warehouse (is_two_way=TRUE)"),
+        ("Roster (ROST)", "cap_rost", _salary_book_sumproduct("cap", is_two_way=False),
+         "tbl_salary_book_warehouse (selected-year cap; is_two_way=FALSE)"),
+        ("Two-Way (2WAY)", "cap_2way", _salary_book_sumproduct("cap", is_two_way=True),
+         "tbl_salary_book_warehouse (selected-year cap; is_two_way=TRUE)"),
         ("FA Holds (FA)", "cap_fa", _cap_holds_sumifs("cap_amount"),
          "tbl_cap_holds_warehouse"),
         ("Dead Money (TERM)", "cap_term", _dead_money_sumifs("cap_value"),
@@ -401,8 +418,8 @@ def _write_cap_reconciliation_section(
     
     # Drilldown total (sum of all buckets)
     drilldown_total = (
-        f"={_salary_book_sumifs('cap_y0', is_two_way=False)}"
-        f"+{_salary_book_sumifs('cap_y0', is_two_way=True)}"
+        f"={_salary_book_sumproduct('cap', is_two_way=False)}"
+        f"+{_salary_book_sumproduct('cap', is_two_way=True)}"
         f"+{_cap_holds_sumifs('cap_amount')}"
         f"+{_dead_money_sumifs('cap_value')}"
     )
@@ -458,11 +475,11 @@ def _write_tax_reconciliation_section(
     headers = ["Bucket", "Warehouse", "Drilldown", "Delta", "Status", "Notes"]
     row = _write_column_headers(worksheet, row, audit_formats, headers)
     
-    # Tax bucket rows - note: we use tax columns from warehouse but cap columns from drilldown tables
-    # because drilldown tables only have cap_amount / cap_value
+    # Tax bucket rows. salary_book_warehouse provides tax_y*, cap_holds_warehouse provides tax_amount,
+    # and dead_money_warehouse provides tax_value.
     buckets = [
-        ("Roster (ROST)", "tax_rost", _salary_book_sumifs("tax_y0", is_two_way=False)),
-        ("Two-Way (2WAY)", "tax_2way", _salary_book_sumifs("tax_y0", is_two_way=True)),
+        ("Roster (ROST)", "tax_rost", _salary_book_sumproduct("tax", is_two_way=False)),
+        ("Two-Way (2WAY)", "tax_2way", _salary_book_sumproduct("tax", is_two_way=True)),
         ("FA Holds (FA)", "tax_fa", _cap_holds_sumifs("tax_amount")),
         ("Dead Money (TERM)", "tax_term", _dead_money_sumifs("tax_value")),
     ]
@@ -500,8 +517,8 @@ def _write_tax_reconciliation_section(
     worksheet.write_formula(row, COL_WAREHOUSE, f"={_warehouse_sumifs('tax_total')}", audit_formats["money_total"])
     
     drilldown_total = (
-        f"={_salary_book_sumifs('tax_y0', is_two_way=False)}"
-        f"+{_salary_book_sumifs('tax_y0', is_two_way=True)}"
+        f"={_salary_book_sumproduct('tax', is_two_way=False)}"
+        f"+{_salary_book_sumproduct('tax', is_two_way=True)}"
         f"+{_cap_holds_sumifs('tax_amount')}"
         f"+{_dead_money_sumifs('tax_value')}"
     )
@@ -556,10 +573,10 @@ def _write_row_counts_section(
     
     # Row count comparisons
     counts = [
-        ("Roster contracts", "roster_row_count", _salary_book_countifs(is_two_way=False),
-         "Players with cap_y0 > 0, is_two_way=FALSE"),
-        ("Two-way contracts", "two_way_row_count", _salary_book_countifs(is_two_way=True),
-         "Players with cap_y0 > 0, is_two_way=TRUE"),
+        ("Roster contracts", "roster_row_count", _salary_book_countproduct(is_two_way=False),
+         "Players with selected-year cap > 0, is_two_way=FALSE"),
+        ("Two-way contracts", "two_way_row_count", _salary_book_countproduct(is_two_way=True),
+         "Players with selected-year cap > 0, is_two_way=TRUE"),
         ("FA holds", None, _cap_holds_countifs(), "cap_holds_warehouse for year"),
         ("Dead money entries", None, _dead_money_countifs(), "dead_money_warehouse for year"),
     ]
