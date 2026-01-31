@@ -236,6 +236,98 @@ def _write_validation_banner(
     return row + 1
 
 
+def _mode_drilldown_sum_formula() -> str:
+    """Build formula to sum drilldowns for SelectedMode (Cap/Tax/Apron).
+    
+    Uses CHOOSE(MATCH(SelectedMode,...)) to select the right column base (cap/tax/apron)
+    across salary_book, cap_holds, and dead_money warehouses.
+    
+    Returns an expression (no leading '=') suitable for use in formulas.
+    """
+    # For salary_book_warehouse: need CHOOSE for relative-year columns
+    # cap_y0..cap_y5, tax_y0..tax_y5, apron_y0..apron_y5
+    def salary_book_mode_choose(mode_col: str) -> str:
+        """Choose expression for salary_book_warehouse by mode and year."""
+        cols = ",".join(f"tbl_salary_book_warehouse[{mode_col}_y{{i}}]" for i in range(6))
+        return f"CHOOSE(SelectedYear-MetaBaseYear+1,{cols})"
+    
+    # Build the SUMPRODUCT for salary_book (both is_two_way=TRUE and FALSE)
+    # Mode-aware: CHOOSE(MATCH(SelectedMode,{"Cap","Tax","Apron"},0), cap_expr, tax_expr, apron_expr)
+    cap_sb = (
+        "SUMPRODUCT((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
+        f"CHOOSE(SelectedYear-MetaBaseYear+1,"
+        + ",".join(f"tbl_salary_book_warehouse[cap_y{i}]" for i in range(6))
+        + "))"
+    )
+    tax_sb = (
+        "SUMPRODUCT((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
+        f"CHOOSE(SelectedYear-MetaBaseYear+1,"
+        + ",".join(f"tbl_salary_book_warehouse[tax_y{i}]" for i in range(6))
+        + "))"
+    )
+    apron_sb = (
+        "SUMPRODUCT((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
+        f"CHOOSE(SelectedYear-MetaBaseYear+1,"
+        + ",".join(f"tbl_salary_book_warehouse[apron_y{i}]" for i in range(6))
+        + "))"
+    )
+    salary_book_sum = (
+        f'CHOOSE(MATCH(SelectedMode,{{"Cap","Tax","Apron"}},0),'
+        f'{cap_sb},{tax_sb},{apron_sb})'
+    )
+    
+    # cap_holds_warehouse: cap_amount, tax_amount, apron_amount
+    cap_holds_sum = (
+        f'CHOOSE(MATCH(SelectedMode,{{"Cap","Tax","Apron"}},0),'
+        "SUMIFS(tbl_cap_holds_warehouse[cap_amount],"
+        "tbl_cap_holds_warehouse[team_code],SelectedTeam,"
+        "tbl_cap_holds_warehouse[salary_year],SelectedYear),"
+        "SUMIFS(tbl_cap_holds_warehouse[tax_amount],"
+        "tbl_cap_holds_warehouse[team_code],SelectedTeam,"
+        "tbl_cap_holds_warehouse[salary_year],SelectedYear),"
+        "SUMIFS(tbl_cap_holds_warehouse[apron_amount],"
+        "tbl_cap_holds_warehouse[team_code],SelectedTeam,"
+        "tbl_cap_holds_warehouse[salary_year],SelectedYear))"
+    )
+    
+    # dead_money_warehouse: cap_value, tax_value, apron_value
+    dead_money_sum = (
+        f'CHOOSE(MATCH(SelectedMode,{{"Cap","Tax","Apron"}},0),'
+        "SUMIFS(tbl_dead_money_warehouse[cap_value],"
+        "tbl_dead_money_warehouse[team_code],SelectedTeam,"
+        "tbl_dead_money_warehouse[salary_year],SelectedYear),"
+        "SUMIFS(tbl_dead_money_warehouse[tax_value],"
+        "tbl_dead_money_warehouse[team_code],SelectedTeam,"
+        "tbl_dead_money_warehouse[salary_year],SelectedYear),"
+        "SUMIFS(tbl_dead_money_warehouse[apron_value],"
+        "tbl_dead_money_warehouse[team_code],SelectedTeam,"
+        "tbl_dead_money_warehouse[salary_year],SelectedYear))"
+    )
+    
+    return f"({salary_book_sum}+{cap_holds_sum}+{dead_money_sum})"
+
+
+def _mode_warehouse_total_formula() -> str:
+    """Build formula to get warehouse total for SelectedMode.
+    
+    Uses CHOOSE(MATCH(SelectedMode,...)) to select cap_total, tax_total, or apron_total.
+    
+    Returns an expression (no leading '=') suitable for use in formulas.
+    """
+    return (
+        f'CHOOSE(MATCH(SelectedMode,{{"Cap","Tax","Apron"}},0),'
+        "SUMIFS(tbl_team_salary_warehouse[cap_total],"
+        "tbl_team_salary_warehouse[team_code],SelectedTeam,"
+        "tbl_team_salary_warehouse[salary_year],SelectedYear),"
+        "SUMIFS(tbl_team_salary_warehouse[tax_total],"
+        "tbl_team_salary_warehouse[team_code],SelectedTeam,"
+        "tbl_team_salary_warehouse[salary_year],SelectedYear),"
+        "SUMIFS(tbl_team_salary_warehouse[apron_total],"
+        "tbl_team_salary_warehouse[team_code],SelectedTeam,"
+        "tbl_team_salary_warehouse[salary_year],SelectedYear))"
+    )
+
+
 def _write_alert_stack(
     workbook: Workbook,
     worksheet: Worksheet,
@@ -247,7 +339,8 @@ def _write_alert_stack(
     Alerts are formula-driven and show/hide based on conditions:
     - Validation failed
     - Fill rows are enabled (policy toggle)
-    - Reconciliation delta (future)
+    - Two-way in totals info
+    - Reconciliation delta (mode-aware)
     
     Returns:
         Next available row
@@ -277,7 +370,27 @@ def _write_alert_stack(
     })
     row += 1
     
-    # Alert 2: Fill rows enabled (using RosterFillTarget named range)
+    # Alert 2: Reconciliation delta (mode-aware)
+    # Compute: drilldown sum - warehouse total for SelectedMode
+    drilldown_sum = _mode_drilldown_sum_formula()
+    warehouse_total = _mode_warehouse_total_formula()
+    delta_expr = f"({drilldown_sum}-{warehouse_total})"
+    
+    # Formula: show alert if delta != 0 (with $1 tolerance for floating point)
+    reconcile_alert_formula = (
+        f'=IF(ABS({delta_expr})>=1,'
+        f'"⚠ Unreconciled drilldowns vs warehouse: $"&TEXT(ABS({delta_expr}),"#,##0")&" ("&SelectedMode&") — see AUDIT_AND_RECONCILE",'
+        '"")'
+    )
+    worksheet.write_formula(row, COL_READOUT_LABEL, reconcile_alert_formula, alert_row_fmt)
+    worksheet.conditional_format(row, COL_READOUT_LABEL, row, COL_READOUT_DESC, {
+        "type": "formula",
+        "criteria": f"=ABS({delta_expr})>=1",
+        "format": workbook.add_format({"bg_color": "#FEE2E2", "font_color": "#991B1B"}),  # red-100 / red-800
+    })
+    row += 1
+    
+    # Alert 3: Fill rows enabled (using RosterFillTarget named range)
     worksheet.write_formula(
         row, COL_READOUT_LABEL,
         '=IF(RosterFillTarget>0,"⚙ Fill rows enabled (target: "&RosterFillTarget&") — generated rows included","")',
@@ -290,7 +403,7 @@ def _write_alert_stack(
     })
     row += 1
     
-    # Alert 3: Two-way contracts included in totals
+    # Alert 4: Two-way contracts included in totals
     worksheet.write_formula(
         row, COL_READOUT_LABEL,
         '=IF(CountTwoWayInTotals="Yes","ℹ Two-way contracts included in totals","")',

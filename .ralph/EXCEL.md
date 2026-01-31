@@ -42,7 +42,7 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
   - FAIL message should name which totals are mismatched (Cap/Tax/Apron) and show deltas
 
 ### 3) TEAM_COCKPIT: surface a reconciliation delta alert (mode-aware)
-- [ ] Add a cockpit alert row: `Unreconciled drilldowns vs warehouse: $X (SelectedMode)`
+- [x] Add a cockpit alert row: `Unreconciled drilldowns vs warehouse: $X (SelectedMode)`
   - Compute delta as: (salary_book for SelectedTeam + holds + dead_money) − warehouse total for SelectedMode/SelectedYear
   - Conditional formatting: non-zero delta shows red and points to `AUDIT_AND_RECONCILE`
   - Keep headline totals authoritative (still sourced from `tbl_team_salary_warehouse`)
