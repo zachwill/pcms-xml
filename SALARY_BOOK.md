@@ -161,9 +161,6 @@ psql "$POSTGRES_URL" -v ON_ERROR_STOP=1 -f queries/sql/run_all.sql
 
 ## Related docs
 
-- `TODO.md` — roadmap + invariants
-- `SEAN.md` — tool mapping + current state
 - `AGENTS.md` — ingestion context + “what counts” rules
-- `SCHEMA.md` — schema reference
 - `import_pcms_data.flow/contracts.inline_script.py` — how contracts/salaries are imported
 - `queries/README.md` — how we structure runnable SQL checks
