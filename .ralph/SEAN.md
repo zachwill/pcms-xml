@@ -79,7 +79,7 @@ rg -n "'<Sheet Name>'!" reference/warehouse/*.json
 
 ### Trade tooling
 - [x] Spec: `machine.json` (trade machine)
-- [ ] Spec: `exceptions.json`
+- [x] Spec: `exceptions.json`
 - [ ] Spec: `trade_bonus_amounts.json`
 
 ### Draft picks
