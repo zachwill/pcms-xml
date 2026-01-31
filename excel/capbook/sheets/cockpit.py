@@ -405,7 +405,22 @@ def _write_alert_stack(
     })
     row += 1
     
-    # Alert 4: Two-way contracts included in totals
+    # Alert 4: ShowExistsOnlyRows NOT YET IMPLEMENTED warning
+    # Per backlog item 4: When ShowExistsOnlyRows = "Yes", show a loud warning that
+    # no EXISTS_ONLY rows are currently implemented
+    worksheet.write_formula(
+        row, COL_READOUT_LABEL,
+        '=IF(ShowExistsOnlyRows="Yes","🚧 EXISTS-ONLY ROWS NOT YET IMPLEMENTED — ShowExistsOnlyRows has no effect (no exists-only section exists yet)","")',
+        alert_row_fmt
+    )
+    worksheet.conditional_format(row, COL_READOUT_LABEL, row, COL_READOUT_DESC, {
+        "type": "formula",
+        "criteria": '=ShowExistsOnlyRows="Yes"',
+        "format": workbook.add_format({"bg_color": "#FEE2E2", "font_color": "#991B1B", "bold": True}),  # red-100 / red-800 + bold
+    })
+    row += 1
+    
+    # Alert 5: Two-way contracts included in totals
     worksheet.write_formula(
         row, COL_READOUT_LABEL,
         '=IF(CountTwoWayInTotals="Yes","ℹ Two-way contracts included in totals","")',

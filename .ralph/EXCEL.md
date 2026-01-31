@@ -51,7 +51,8 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
 - [x] When `RosterFillTarget > 0`, show a **loud** "NOT YET IMPLEMENTED" warning
   - Display in both `TEAM_COCKPIT` and `BUDGET_LEDGER`
   - Explicitly state that no generated fill rows are currently being applied
-- [ ] When `ShowExistsOnlyRows = "Yes"`, show a "NOT YET IMPLEMENTED" warning
+- [x] When `ShowExistsOnlyRows = "Yes"`, show a "NOT YET IMPLEMENTED" warning
+  - Display in both `TEAM_COCKPIT` and `BUDGET_LEDGER`
   - Until EXISTS_ONLY rows actually exist, don't imply the toggle does anything
 
 ### 5) ROSTER_GRID: implement EXISTS_ONLY rows + wire `ShowExistsOnlyRows`

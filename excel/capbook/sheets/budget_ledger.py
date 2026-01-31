@@ -694,6 +694,39 @@ def _write_policy_warnings(
     
     row += 1
     
+    # ShowExistsOnlyRows NOT YET IMPLEMENTED warning
+    # Per backlog item 4: When ShowExistsOnlyRows = "Yes", show a loud warning that
+    # no EXISTS_ONLY rows are currently implemented
+    worksheet.write_formula(
+        row, COL_LABEL,
+        '=IF(ShowExistsOnlyRows="Yes","🚧 EXISTS-ONLY ROWS NOT YET IMPLEMENTED","")',
+        warning_fmt
+    )
+    worksheet.write_formula(
+        row, COL_CAP,
+        '=IF(ShowExistsOnlyRows="Yes","ShowExistsOnlyRows has no effect","")',
+        warning_fmt
+    )
+    worksheet.write_formula(
+        row, COL_NOTES,
+        '=IF(ShowExistsOnlyRows="Yes","No exists-only section exists yet — set to No to hide this warning","")',
+        workbook.add_format({
+            "bg_color": "#FEE2E2",
+            "font_color": "#991B1B",
+            "font_size": 9,
+            "italic": True,
+        })
+    )
+    
+    # Conditional formatting to highlight the entire row when warning is active
+    worksheet.conditional_format(row, COL_LABEL, row, COL_NOTES, {
+        "type": "formula",
+        "criteria": '=ShowExistsOnlyRows="Yes"',
+        "format": warning_fmt,
+    })
+    
+    row += 1
+    
     # Blank row for spacing (only shows if warning is active, otherwise row is empty)
     row += 1
     
