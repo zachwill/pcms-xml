@@ -30,5 +30,5 @@ shared/
 *.xml
 
 # Lock files (optional - uncomment if needed)
-# package-lock.json
-# bun.lockb
+package-lock.json
+bun.lock*
