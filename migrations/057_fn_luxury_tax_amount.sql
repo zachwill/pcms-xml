@@ -136,19 +136,16 @@ AS $$
     SELECT
         tsw.team_code,
         tsw.salary_year,
-        tsw.tax_amount AS tax_salary,
-        lsv.tax_level_amount AS tax_level,
-        GREATEST(0, tsw.tax_amount - lsv.tax_level_amount) AS over_tax_amount,
+        tsw.tax_total AS tax_salary,
+        tsw.tax_level_amount AS tax_level,
+        GREATEST(0, tsw.tax_total - tsw.tax_level_amount) AS over_tax_amount,
         tsw.is_repeater_taxpayer AS is_repeater,
         pcms.fn_luxury_tax_amount(
             tsw.salary_year,
-            GREATEST(0, tsw.tax_amount - lsv.tax_level_amount),
+            GREATEST(0, tsw.tax_total - tsw.tax_level_amount),
             tsw.is_repeater_taxpayer
         ) AS luxury_tax_owed
     FROM pcms.team_salary_warehouse tsw
-    JOIN pcms.league_system_values lsv
-        ON lsv.salary_year = tsw.salary_year
-        AND lsv.league_lk = 'NBA'
     WHERE tsw.team_code = p_team_code
       AND tsw.salary_year = p_salary_year
 $$;
@@ -192,19 +189,16 @@ AS $$
     SELECT
         tsw.team_code,
         tsw.salary_year,
-        tsw.tax_amount AS tax_salary,
-        lsv.tax_level_amount AS tax_level,
-        GREATEST(0, tsw.tax_amount - lsv.tax_level_amount) AS over_tax_amount,
+        tsw.tax_total AS tax_salary,
+        tsw.tax_level_amount AS tax_level,
+        GREATEST(0, tsw.tax_total - tsw.tax_level_amount) AS over_tax_amount,
         tsw.is_repeater_taxpayer AS is_repeater,
         pcms.fn_luxury_tax_amount(
             tsw.salary_year,
-            GREATEST(0, tsw.tax_amount - lsv.tax_level_amount),
+            GREATEST(0, tsw.tax_total - tsw.tax_level_amount),
             tsw.is_repeater_taxpayer
         ) AS luxury_tax_owed
     FROM pcms.team_salary_warehouse tsw
-    JOIN pcms.league_system_values lsv
-        ON lsv.salary_year = tsw.salary_year
-        AND lsv.league_lk = 'NBA'
     WHERE tsw.salary_year = p_salary_year
     ORDER BY luxury_tax_owed DESC
 $$;

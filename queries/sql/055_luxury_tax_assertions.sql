@@ -148,21 +148,22 @@ BEGIN
 
   SELECT tax_rate_non_repeater, base_charge_non_repeater INTO bracket2_rate, base_charge_1
   FROM pcms.league_tax_rates
-  WHERE salary_year = 2025 AND league_lk = 'NBA' AND lower_limit = bracket_width;
+  WHERE salary_year = 2025 AND league_lk = 'NBA' AND lower_limit = bracket_width + 1;
 
   IF bracket2_rate IS NULL THEN
     RAISE EXCEPTION 'Bracket 2 (lower_limit=%) not found for 2025', bracket_width;
   END IF;
 
-  -- Test $1M into bracket 2
-  over_tax := bracket_width + 1000000;
+  -- Test $1M into bracket 2 (bracket 2 starts at upper_limit + 1)
+  over_tax := bracket_width + 1 + 1000000;
 
   -- Expected: base_charge_1 + $1M × bracket2_rate
   expected_tax := base_charge_1 + (1000000 * bracket2_rate)::bigint;
 
   SELECT pcms.fn_luxury_tax_amount(2025, over_tax, false) INTO tax_owed;
 
-  IF tax_owed IS DISTINCT FROM expected_tax THEN
+  -- Allow $1 rounding tolerance
+  IF ABS(tax_owed - expected_tax) > 1 THEN
     RAISE EXCEPTION 'Tax %M over (bracket 2): expected %, got %', (over_tax/1000000.0)::numeric(10,2), expected_tax, tax_owed;
   END IF;
 END

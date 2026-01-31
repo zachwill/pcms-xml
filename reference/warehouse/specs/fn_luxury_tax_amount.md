@@ -132,7 +132,7 @@ SELECT * FROM pcms.fn_all_teams_luxury_tax(2025);
 |--------|-------|--------------|
 | Tax brackets/rates | `pcms.league_tax_rates` | `salary_year`, `lower_limit`, `upper_limit`, `tax_rate_*`, `base_charge_*` |
 | Tax level threshold | `pcms.league_system_values` | `tax_level_amount` |
-| Team tax salary | `pcms.team_salary_warehouse` | `tax_amount`, `is_repeater_taxpayer` |
+| Team tax salary | `pcms.team_salary_warehouse` | `tax_total`, `is_repeater_taxpayer` |
 
 ---
 
