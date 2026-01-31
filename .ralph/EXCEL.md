@@ -83,7 +83,7 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
   - Place them in `TEAM_COCKPIT` and define names via `workbook.define_name(...)`
   - Implemented in `excel/capbook/sheets/cockpit.py`
 
-- [ ] Add data validation dropdown for `SelectedTeam` based on distinct `team_code` values
+- [x] Add data validation dropdown for `SelectedTeam` based on distinct `team_code` values
 
 - [ ] Implement minimal `TEAM_COCKPIT` readouts driven from `DATA_team_salary_warehouse`:
   - cap position, tax position, room under apron 1/2, roster count, repeater flag

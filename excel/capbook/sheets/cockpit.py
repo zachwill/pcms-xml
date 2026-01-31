@@ -78,6 +78,23 @@ def write_team_cockpit_with_command_bar(
     worksheet.write(ROW_TEAM, COL_INPUT, default_team)
     define_named_cell(workbook, "SelectedTeam", "TEAM_COCKPIT", ROW_TEAM, COL_INPUT)
 
+    # Add data validation dropdown for team selection if we have team codes
+    if team_codes:
+        worksheet.data_validation(
+            ROW_TEAM,
+            COL_INPUT,
+            ROW_TEAM,
+            COL_INPUT,
+            {
+                "validate": "list",
+                "source": team_codes,
+                "input_title": "Select Team",
+                "input_message": "Choose a team from the dropdown",
+                "error_title": "Invalid Team",
+                "error_message": "Please select a valid team code from the list",
+            },
+        )
+
     # --- Year input ---
     worksheet.write(ROW_YEAR, COL_LABEL, "Salary Year:")
     base_year = build_meta.get("base_year", 2025)
