@@ -1,24 +1,31 @@
-"""
+"""excel.capbook.build
+
 Workbook build orchestration.
 
 The main entrypoint is build_capbook(), which:
-1. Runs SQL assertions (fail-fast)
-2. Extracts datasets from Postgres
-3. Generates the workbook (UI sheets + DATA_* sheets)
-4. Writes META for reproducibility
+1) (Optionally) runs SQL assertions (validations)
+2) Extracts datasets from Postgres
+3) Generates a self-contained workbook (UI sheets + DATA_* tables)
+4) Writes META so every snapshot is reproducible
+
+Supervisor rule (see reference/blueprints/*):
+- On validation or export failure, we still emit a workbook artifact and mark it
+  loudly as FAILED in META + HOME.
 """
 
 from __future__ import annotations
 
 import subprocess
-from datetime import date, datetime
+import traceback
+from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import xlsxwriter
 
 from .db import run_sql_assertions
 from .extract import (
+    DatasetExtractError,
     extract_system_values,
     extract_tax_rates,
     extract_team_salary_warehouse,
@@ -30,7 +37,7 @@ from .extract import (
     extract_draft_picks_warehouse,
 )
 from .xlsx import create_standard_formats, write_table
-from .sheets import write_meta_sheet, UI_STUB_WRITERS, write_home_stub
+from .sheets import UI_STUB_WRITERS, write_home_stub, write_meta_sheet
 
 
 # Sheet names per the blueprint
@@ -68,6 +75,7 @@ DATA_CONTRACT_VERSION = "v1-2026-01-31"
 
 def get_git_sha() -> str:
     """Return the current git commit SHA (short), or 'unknown' if unavailable."""
+
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
@@ -77,9 +85,19 @@ def get_git_sha() -> str:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
     return "unknown"
+
+
+def _truncate(s: str, limit: int = 2000) -> str:
+    s = s or ""
+    return s if len(s) <= limit else s[:limit] + "…"
+
+
+def _mark_failed(build_meta: dict[str, Any], message: str) -> None:
+    build_meta["validation_status"] = "FAILED"
+    build_meta.setdefault("validation_errors", []).append(_truncate(message))
 
 
 def build_capbook(
@@ -90,21 +108,15 @@ def build_capbook(
     *,
     skip_assertions: bool = False,
 ) -> dict[str, Any]:
-    """
-    Build the Excel cap workbook.
+    """Build the Excel cap workbook.
 
-    Args:
-        out_path: Output file path (.xlsx)
-        base_year: Base salary year (e.g., 2025)
-        as_of: As-of date for the snapshot
-        league: League code (default: NBA)
-        skip_assertions: If True, skip SQL assertions (use for testing)
-
-    Returns:
-        dict with build metadata (validation_status, errors, etc.)
+    Important behavior:
+    - If any validation/extract/write step fails, we *still emit* a workbook and
+      mark META.validation_status = FAILED.
     """
+
     build_meta: dict[str, Any] = {
-        "refreshed_at": datetime.utcnow().isoformat(),
+        "refreshed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "base_year": base_year,
         "as_of_date": as_of.isoformat(),
         "league_lk": league,
@@ -114,154 +126,164 @@ def build_capbook(
         "validation_errors": [],
     }
 
-    # Step 1: Run SQL assertions
-    if not skip_assertions:
-        passed, output = run_sql_assertions()
-        if not passed:
-            build_meta["validation_status"] = "FAILED"
-            build_meta["validation_errors"].append(output[:2000])  # Truncate
-
-    # Step 2: Extract datasets
-    datasets: dict[str, tuple[list[str], list[dict[str, Any]]]] = {}
-
-    datasets["system_values"] = extract_system_values(base_year, league)
-    datasets["tax_rates"] = extract_tax_rates(base_year, league)
-    datasets["team_salary_warehouse"] = extract_team_salary_warehouse(base_year)
-    datasets["salary_book_warehouse"] = extract_salary_book_warehouse(base_year, league)
-    datasets["salary_book_yearly"] = extract_salary_book_yearly(base_year, league)
-    datasets["cap_holds_warehouse"] = extract_cap_holds_warehouse(base_year)
-    datasets["dead_money_warehouse"] = extract_dead_money_warehouse(base_year)
-    datasets["exceptions_warehouse"] = extract_exceptions_warehouse(base_year)
-    datasets["draft_picks_warehouse"] = extract_draft_picks_warehouse(base_year)
-
-    # Step 3: Generate workbook
+    # We create the workbook early so we can always emit an artifact.
     workbook = xlsxwriter.Workbook(str(out_path))
-    formats = create_standard_formats(workbook)
 
-    # Create UI sheets (stubs)
-    ui_worksheets = {}
-    for name in UI_SHEETS:
-        ui_worksheets[name] = workbook.add_worksheet(name)
+    try:
+        formats = create_standard_formats(workbook)
 
-    # Create DATA sheets
-    data_worksheets = {}
-    for name in DATA_SHEETS:
-        ws = workbook.add_worksheet(name)
-        ws.hide()  # Hide DATA_* sheets
-        data_worksheets[name] = ws
+        # Create UI sheets
+        ui_worksheets: dict[str, Any] = {}
+        for name in UI_SHEETS:
+            ui_worksheets[name] = workbook.add_worksheet(name)
 
-    # Write META sheet (full metadata for reproducibility)
-    write_meta_sheet(ui_worksheets["META"], formats, build_meta)
+        # Create DATA sheets (hidden + protected)
+        data_worksheets: dict[str, Any] = {}
+        for name in DATA_SHEETS:
+            ws = workbook.add_worksheet(name)
+            ws.hide()
+            ws.protect()
+            data_worksheets[name] = ws
 
-    # Write HOME sheet (summary with navigation)
-    write_home_stub(ui_worksheets["HOME"], formats, build_meta)
+        # Step 1: SQL assertions
+        if not skip_assertions:
+            try:
+                passed, output = run_sql_assertions()
+                if not passed:
+                    _mark_failed(build_meta, f"SQL assertions failed:\n{output}")
+            except Exception as e:  # noqa: BLE001
+                _mark_failed(build_meta, f"SQL assertions crashed: {e}\n{traceback.format_exc()}")
 
-    # Write UI sheet stubs (structure for future implementation)
-    for sheet_name, writer_fn in UI_STUB_WRITERS.items():
-        if sheet_name in ui_worksheets:
-            writer_fn(ui_worksheets[sheet_name], formats)
+        # Step 2: Extract datasets (continue-on-error; create empty tables on failure)
+        DatasetExtractor = Callable[[], tuple[list[str], list[dict[str, Any]]]]
 
-    # Write DATA tables
-    if datasets.get("system_values"):
-        cols, rows = datasets["system_values"]
-        write_table(
-            data_worksheets["DATA_system_values"],
-            "tbl_system_values",
-            0,
-            0,
-            cols,
-            rows,
-        )
+        dataset_specs: list[dict[str, Any]] = [
+            {
+                "key": "system_values",
+                "sheet": "DATA_system_values",
+                "table": "tbl_system_values",
+                "extract": lambda: extract_system_values(base_year, league),
+            },
+            {
+                "key": "tax_rates",
+                "sheet": "DATA_tax_rates",
+                "table": "tbl_tax_rates",
+                "extract": lambda: extract_tax_rates(base_year, league),
+            },
+            {
+                "key": "team_salary_warehouse",
+                "sheet": "DATA_team_salary_warehouse",
+                "table": "tbl_team_salary_warehouse",
+                "extract": lambda: extract_team_salary_warehouse(base_year),
+            },
+            {
+                "key": "salary_book_warehouse",
+                "sheet": "DATA_salary_book_warehouse",
+                "table": "tbl_salary_book_warehouse",
+                "extract": lambda: extract_salary_book_warehouse(base_year, league),
+            },
+            {
+                "key": "salary_book_yearly",
+                "sheet": "DATA_salary_book_yearly",
+                "table": "tbl_salary_book_yearly",
+                "extract": lambda: extract_salary_book_yearly(base_year, league),
+            },
+            {
+                "key": "cap_holds_warehouse",
+                "sheet": "DATA_cap_holds_warehouse",
+                "table": "tbl_cap_holds_warehouse",
+                "extract": lambda: extract_cap_holds_warehouse(base_year),
+            },
+            {
+                "key": "dead_money_warehouse",
+                "sheet": "DATA_dead_money_warehouse",
+                "table": "tbl_dead_money_warehouse",
+                "extract": lambda: extract_dead_money_warehouse(base_year),
+            },
+            {
+                "key": "exceptions_warehouse",
+                "sheet": "DATA_exceptions_warehouse",
+                "table": "tbl_exceptions_warehouse",
+                "extract": lambda: extract_exceptions_warehouse(base_year),
+            },
+            {
+                "key": "draft_picks_warehouse",
+                "sheet": "DATA_draft_picks_warehouse",
+                "table": "tbl_draft_picks_warehouse",
+                "extract": lambda: extract_draft_picks_warehouse(base_year),
+            },
+        ]
 
-    if datasets.get("tax_rates"):
-        cols, rows = datasets["tax_rates"]
-        write_table(
-            data_worksheets["DATA_tax_rates"],
-            "tbl_tax_rates",
-            0,
-            0,
-            cols,
-            rows,
-        )
+        extracted: dict[str, tuple[list[str], list[dict[str, Any]]]] = {}
 
-    if datasets.get("team_salary_warehouse"):
-        cols, rows = datasets["team_salary_warehouse"]
-        write_table(
-            data_worksheets["DATA_team_salary_warehouse"],
-            "tbl_team_salary_warehouse",
-            0,
-            0,
-            cols,
-            rows,
-        )
+        for spec in dataset_specs:
+            key = spec["key"]
+            extract_fn: DatasetExtractor = spec["extract"]
+            try:
+                cols, rows = extract_fn()
+                extracted[key] = (cols, rows)
+            except DatasetExtractError as e:
+                _mark_failed(build_meta, f"Dataset extract failed: {e.dataset_name}: {e.original}")
+                extracted[key] = (e.columns, [])
+            except Exception as e:  # noqa: BLE001
+                _mark_failed(build_meta, f"Dataset extract crashed: {key}: {e}\n{traceback.format_exc()}")
+                extracted[key] = ([], [])
 
-    if datasets.get("salary_book_yearly"):
-        cols, rows = datasets["salary_book_yearly"]
-        write_table(
-            data_worksheets["DATA_salary_book_yearly"],
-            "tbl_salary_book_yearly",
-            0,
-            0,
-            cols,
-            rows,
-        )
+        # Step 3: Write DATA tables (continue-on-error; ensure stable table names when possible)
+        for spec in dataset_specs:
+            key = spec["key"]
+            sheet_name = spec["sheet"]
+            table_name = spec["table"]
 
-    if datasets.get("salary_book_warehouse"):
-        cols, rows = datasets["salary_book_warehouse"]
-        write_table(
-            data_worksheets["DATA_salary_book_warehouse"],
-            "tbl_salary_book_warehouse",
-            0,
-            0,
-            cols,
-            rows,
-        )
+            cols, rows = extracted.get(key, ([], []))
+            if not cols:
+                _mark_failed(build_meta, f"Missing schema for dataset {key}; cannot create table {table_name}.")
+                continue
 
-    if datasets.get("cap_holds_warehouse"):
-        cols, rows = datasets["cap_holds_warehouse"]
-        write_table(
-            data_worksheets["DATA_cap_holds_warehouse"],
-            "tbl_cap_holds_warehouse",
-            0,
-            0,
-            cols,
-            rows,
-        )
+            try:
+                write_table(
+                    data_worksheets[sheet_name],
+                    table_name,
+                    0,
+                    0,
+                    cols,
+                    rows,
+                )
+            except Exception as e:  # noqa: BLE001
+                _mark_failed(
+                    build_meta,
+                    f"Failed writing table {table_name} on sheet {sheet_name}: {e}\n{traceback.format_exc()}",
+                )
 
-    if datasets.get("dead_money_warehouse"):
-        cols, rows = datasets["dead_money_warehouse"]
-        write_table(
-            data_worksheets["DATA_dead_money_warehouse"],
-            "tbl_dead_money_warehouse",
-            0,
-            0,
-            cols,
-            rows,
-        )
+        # Step 4: Write UI sheet stubs (structure for future implementation)
+        for sheet_name, writer_fn in UI_STUB_WRITERS.items():
+            if sheet_name in ui_worksheets:
+                try:
+                    writer_fn(ui_worksheets[sheet_name], formats)
+                except Exception as e:  # noqa: BLE001
+                    _mark_failed(build_meta, f"UI stub writer crashed for {sheet_name}: {e}")
 
-    if datasets.get("exceptions_warehouse"):
-        cols, rows = datasets["exceptions_warehouse"]
-        write_table(
-            data_worksheets["DATA_exceptions_warehouse"],
-            "tbl_exceptions_warehouse",
-            0,
-            0,
-            cols,
-            rows,
-        )
+        # META + HOME (write last so they reflect failures above)
+        write_meta_sheet(ui_worksheets["META"], formats, build_meta)
+        write_home_stub(ui_worksheets["HOME"], formats, build_meta)
 
-    if datasets.get("draft_picks_warehouse"):
-        cols, rows = datasets["draft_picks_warehouse"]
-        write_table(
-            data_worksheets["DATA_draft_picks_warehouse"],
-            "tbl_draft_picks_warehouse",
-            0,
-            0,
-            cols,
-            rows,
-        )
+    except Exception as e:  # noqa: BLE001
+        # Last-resort: ensure we mark failed. We may not be able to fully render
+        # the UI, but we still want the workbook to close cleanly.
+        _mark_failed(build_meta, f"Unhandled exporter crash: {e}\n{traceback.format_exc()}")
+        try:
+            # If sheets exist, attempt to write META/HOME.
+            ws_meta = workbook.get_worksheet_by_name("META")
+            ws_home = workbook.get_worksheet_by_name("HOME")
+            formats = create_standard_formats(workbook)
+            if ws_meta is not None:
+                write_meta_sheet(ws_meta, formats, build_meta)
+            if ws_home is not None:
+                write_home_stub(ws_home, formats, build_meta)
+        except Exception:
+            pass
 
-    # Close workbook
-    workbook.close()
+    finally:
+        workbook.close()
 
     return build_meta

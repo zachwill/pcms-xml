@@ -40,7 +40,7 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
 - [x] Implement workbook skeleton creation (code, not a template):
   - Create UI sheets (empty stubs to start): `HOME`, `TEAM_COCKPIT`, `ROSTER_GRID`, `BUDGET_LEDGER`, `PLAN_MANAGER`, `PLAN_JOURNAL`, `TRADE_MACHINE`, `SIGNINGS_AND_EXCEPTIONS`, `WAIVE_BUYOUT_STRETCH`, `ASSETS`, `AUDIT_AND_RECONCILE`, `RULES_REFERENCE`
   - Create data sheets: `DATA_system_values`, `DATA_tax_rates`, `DATA_team_salary_warehouse`, `DATA_salary_book_warehouse`, `DATA_salary_book_yearly`, `DATA_cap_holds_warehouse`, `DATA_dead_money_warehouse`, `DATA_exceptions_warehouse`, `DATA_draft_picks_warehouse`
-  - Hide `DATA_*` sheets
+  - Hide + protect `DATA_*` sheets
   - Implemented in `excel/capbook/sheets/ui_stubs.py` with dedicated stub writers per blueprint
 
 - [x] Add XlsxWriter helper to write an Excel Table with a stable name:
@@ -71,7 +71,7 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
 - [x] Add build step: run SQL assertions (`queries/sql/run_all.sql`) before writing workbook.
   - If assertions fail: set `META.validation_status = FAILED` and include error message(s)
 
-- [ ] Harden exporter: if any dataset extract/write crashes, still emit a workbook with `META.validation_status = FAILED` and the exception text (truncated)
+- [x] Harden exporter: if any dataset extract/write crashes, still emit a workbook with `META.validation_status = FAILED` and the exception text (truncated)
 
 - [ ] Add build step: lightweight reconciliation summary written to `META` (even if partial v1)
   - Example: for a sample team/year confirm `cap_total = cap_rost + cap_fa + cap_term + cap_2way`
@@ -91,9 +91,13 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
   - show row counts + basic sums from drilldown tables
   - show a visible delta (even if it's not 0 yet)
 
-- [ ] Audit existing UI conventions in `web/src/features/SalaryBook/` and codify them as Excel format constants in `excel/capbook/xlsx.py`:
-  - `MINIMUM` display for min contracts (`PlayerRow.tsx`)
-  - `% of cap` formatting conventions (`playerRowHelpers.ts`)
-  - option/guarantee/consent/restriction color semantics (`badges/*`, `TradeRestrictions.tsx`)
+- [x] Align Excel badge color mapping + format constants with `web/src/features/SalaryBook/`:
+  - Option colors (`OptionBadge.tsx`)
+  - Guarantee colors (`GuaranteeBadge.tsx`)
+  - Trade restriction colors (`TradeRestrictions.tsx`)
+
+- [ ] Implement `MINIMUM` display semantics in Excel UI (based on `is_min_contract` / `min_contract_lookup_value`)
+
+- [ ] Implement `% of cap` display formatting helper (mirror `playerRowHelpers.ts`)
 
 - [ ] Document local usage in `excel/AGENTS.md` once CLI stabilizes

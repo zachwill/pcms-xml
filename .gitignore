@@ -33,3 +33,11 @@ npm-debug.log*
 # Lock files (optional - uncomment if needed)
 package-lock.json
 bun.lock*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.venv/
