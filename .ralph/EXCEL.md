@@ -1,109 +1,103 @@
-# Excel Cap Workbook - Backlog
+# Excel Cap Workbook — Task Backlog
 
-Build a new, self-contained, Sean-style Excel cap workbook **generated from code** (Python + XlsxWriter) and powered by Postgres (`pcms.*`).
+Build a new, self-contained Sean-style Excel cap workbook **generated from code** (Python + XlsxWriter) and powered by Postgres (`pcms.*`).
 
 **Canon:** `reference/blueprints/README.md` (start there)
 
-This backlog is intentionally concrete. The Excel agent should do **one task per iteration**, commit, and exit.
+---
 
-## Rules
+## Rules (non-negotiable)
 
 - The workbook is a **build artifact**. Prefer deterministic code-gen over manual Excel editing.
-- Prefer **single-file** workbook output (portable/offline). No external workbook links.
+- Single-file workbook output (portable/offline). **No external workbook links.**
 - Prefer **warehouse-backed** extracts (`pcms.*_warehouse`, `pcms.salary_book_yearly`).
 - Use `shared/` for generated artifacts (gitignored).
 - All money amounts are **dollars (int)** unless explicitly documented.
 - Record `META` fields so every workbook snapshot is reproducible.
-- When implementing **Excel UI formatting** (labels, colors, badges), reuse existing conventions from `web/src/features/SalaryBook/`.
-  - Examples: `MINIMUM` label for min contracts, `% of cap` display, option/guarantee/restriction colors.
+- When adding/changing datasets, update:
+  - `reference/blueprints/excel-workbook-data-contract.md`
+  - `DATA_CONTRACT_VERSION` in `excel/capbook/build.py`
+- Reuse UI formatting conventions from `web/src/features/SalaryBook/`.
+- **One task per iteration.** Each checkbox below is one iteration; sub-bullets are required deliverables.
 
-## Tasks
+---
 
-- [x] Create Python module skeleton under `excel/capbook/` (multiple files; keep it small):
-  - `excel/capbook/db.py` - connect + query helpers + run assertions
-  - `excel/capbook/extract.py` - dataset extract functions per data contract
-  - `excel/capbook/xlsx.py` - XlsxWriter helpers (formats, tables, named ranges)
-  - `excel/capbook/build.py` - orchestrate workbook build (calls extract + sheet writers)
+## Backlog (ordered)
 
-- [x] Create `excel/export_capbook.py` entrypoint (PEP-723 style like other scripts) that:
-  - depends on `xlsxwriter` + `psycopg[binary]`
-  - accepts `--out`, `--base-year`, `--as-of` (and optional `--league` default NBA)
-  - calls `capbook.build.build_capbook(...)`
+### Phase 0 — Baseline scaffold (already done)
+- [x] Baseline exporter + workbook scaffold
+  - Module structure + CLI entrypoint
+  - Base `DATA_*` extracts + tables
+  - UI stubs + META + validation handling
+  - TEAM_COCKPIT v1 readouts
+  - XlsxWriter helpers + badge color mapping
 
-- [x] Implement helper: `get_git_sha()` (used by workbook `META`)
+### Phase 1 — Data contract expansion (tables first)
+- [ ] Expand core `DATA_*` tables + contract
+  - Add `DATA_rookie_scale` (from `pcms.rookie_scale_amounts`, base_year..+5, league)
+  - Add `DATA_minimum_scale` (from `pcms.league_salary_scales` or equivalent)
+  - Expand `DATA_system_values` with key constants (MLE, BAE, TPE allowance, etc.; verify in `SCHEMA.md`)
+  - Update `DATA_SHEETS`, `dataset_specs`, and data contract doc
+  - Bump `DATA_CONTRACT_VERSION`
 
-- [x] Implement `META` sheet writer:
-  - fields: refreshed_at, base_year, as_of_date, league_lk, data_contract_version, exporter_git_sha, validation_status
-  - add a visible "FAILED" banner cell if validations fail
-  - implemented in `excel/capbook/sheets/meta.py`
+### Phase 2 — Shared command bar + named ranges
+- [ ] Implement shared command bar across **all UI sheets**
+  - Create `excel/capbook/sheets/command_bar.py` helper + use in every UI sheet
+  - Add plan selectors + named ranges: `ActivePlan`, `ComparePlanA/B/C/D`
+  - Add policy toggles + named ranges: `RosterFillTarget`, `RosterFillType`, `CountTwoWayInRoster`, `CountTwoWayInTotals`, `ShowExistsOnlyRows`
+  - Add input styling (`formats["input"]`), unlock inputs, protect UI sheets
+  - Define named ranges for META fields (`MetaValidationStatus`, `MetaRefreshedAt`, `MetaBaseYear`, `MetaAsOfDate`, `MetaDataContractVersion`)
 
-- [x] Implement workbook skeleton creation (code, not a template):
-  - Create UI sheets (empty stubs to start): `HOME`, `TEAM_COCKPIT`, `ROSTER_GRID`, `BUDGET_LEDGER`, `PLAN_MANAGER`, `PLAN_JOURNAL`, `TRADE_MACHINE`, `SIGNINGS_AND_EXCEPTIONS`, `WAIVE_BUYOUT_STRETCH`, `ASSETS`, `AUDIT_AND_RECONCILE`, `RULES_REFERENCE`
-  - Create data sheets: `DATA_system_values`, `DATA_tax_rates`, `DATA_team_salary_warehouse`, `DATA_salary_book_warehouse`, `DATA_salary_book_yearly`, `DATA_cap_holds_warehouse`, `DATA_dead_money_warehouse`, `DATA_exceptions_warehouse`, `DATA_draft_picks_warehouse`
-  - Hide + protect `DATA_*` sheets
-  - Implemented in `excel/capbook/sheets/ui_stubs.py` with dedicated stub writers per blueprint
+### Phase 3 — TEAM_COCKPIT (alerts + drivers)
+- [ ] Implement cockpit alert stack + drivers
+  - Validation banner referencing `MetaValidationStatus`
+  - Alert stack formulas (validation failed, reconcile delta, fill rows on)
+  - Quick drivers: top cap hits, top dead money, top holds
+  - “Minimum contracts” count + total readout (using `is_min_contract`)
 
-- [x] Add XlsxWriter helper to write an Excel Table with a stable name:
-  - Example: `write_table(worksheet, table_name, start_row, start_col, columns, rows)`
-  - Always set explicit headers and a deterministic table range
-  - Returns (end_row, end_col) for chaining; handles empty rows; auto-fits columns
+### Phase 4 — ROSTER_GRID (ledger view v1)
+- [ ] Implement roster ledger view with reconciliation
+  - Layout + shared command bar
+  - Roster rows (salary book wide table + badges + bucket flags)
+  - Cap holds section (bucket = FA) + dead money section (bucket = TERM)
+  - Totals + reconciliation block vs `DATA_team_salary_warehouse`
+  - `MINIMUM` label semantics + `% of cap` display helper
 
-- [x] Implement dataset extract: `tbl_system_values` → `DATA_system_values`
+### Phase 5 — BUDGET_LEDGER (authoritative totals v1)
+- [ ] Implement budget ledger snapshot + derived totals
+  - Snapshot totals from `DATA_team_salary_warehouse`
+  - Placeholder plan delta section (zeros for now)
+  - Derived totals + delta vs snapshot
 
-- [x] Implement dataset extract: `tbl_tax_rates` → `DATA_tax_rates`
-  - include a deterministic `bracket_number` (derived from ordering by `lower_limit`)
+### Phase 6 — AUDIT_AND_RECONCILE (minimal explainability)
+- [ ] Implement audit + reconciliation section
+  - Totals from `DATA_team_salary_warehouse`
+  - Sums from roster/holds/dead money
+  - Visible deltas + conditional formatting
+  - Row counts + counts-vs-exists summary
 
-- [x] Implement dataset extract: `tbl_team_salary_warehouse` → `DATA_team_salary_warehouse` (base_year..base_year+5)
+### Phase 7 — Scenario engine baseline
+- [ ] Implement PLAN tables + wiring
+  - `PLAN_MANAGER` table (Plan ID, name, notes, created_at)
+  - `PLAN_JOURNAL` input table with validation for Action Type
+  - Wire `ActivePlan` validation list from `PLAN_MANAGER`
+  - Plan delta summary in `BUDGET_LEDGER` sourced from `PLAN_JOURNAL`
 
-- [x] Implement dataset extract: `tbl_salary_book_warehouse` → `DATA_salary_book_warehouse`
-  - Export **relative-year columns** (cap_y0..cap_y5, tax_y0..tax_y5, apron_y0..apron_y5) based on `--base-year`
+### Phase 8 — Subsystem sheets (inputs → journal stubs)
+- [ ] Implement subsystem sheet v1 layouts
+  - TRADE_MACHINE lanes A–D (inputs + outgoing/incoming totals)
+  - SIGNINGS_AND_EXCEPTIONS input table + delta columns
+  - WAIVE_BUYOUT_STRETCH input table + delta columns
+  - ASSETS inventory (exceptions + draft picks) filtered by `SelectedTeam`
 
-- [x] Implement dataset extract: `tbl_salary_book_yearly` → `DATA_salary_book_yearly` (base_year..base_year+5)
+### Phase 9 — RULES_REFERENCE (memory aids)
+- [ ] Implement rules reference tables + notes
+  - Tax rates table (from `DATA_tax_rates`)
+  - Minimum + rookie scale tables (from new datasets)
+  - Salary matching tiers table (static)
+  - Apron gate / hard-cap trigger notes (static)
 
-- [x] Implement dataset extract: `tbl_cap_holds_warehouse` → `DATA_cap_holds_warehouse`
-
-- [x] Implement dataset extract: `tbl_dead_money_warehouse` → `DATA_dead_money_warehouse`
-
-- [x] Implement dataset extract: `tbl_exceptions_warehouse` → `DATA_exceptions_warehouse`
-
-- [x] Implement dataset extract: `tbl_draft_picks_warehouse` → `DATA_draft_picks_warehouse`
-
-- [x] Add build step: run SQL assertions (`queries/sql/run_all.sql`) before writing workbook.
-  - If assertions fail: set `META.validation_status = FAILED` and include error message(s)
-
-- [x] Harden exporter: if any dataset extract/write crashes, still emit a workbook with `META.validation_status = FAILED` and the exception text (truncated)
-
-- [x] Add build step: lightweight reconciliation summary written to `META` (even if partial v1)
-  - Example: for a sample team/year confirm `cap_total = cap_rost + cap_fa + cap_term + cap_2way`
-  - Implemented in `excel/capbook/reconcile.py`
-  - Also added missing `apron_rost/fa/term/2way` columns to team_salary_warehouse extract
-
-- [x] Implement workbook-defined names for cockpit command bar inputs:
-  - `SelectedTeam`, `SelectedYear`, `AsOfDate`, `SelectedMode`
-  - Place them in `TEAM_COCKPIT` and define names via `workbook.define_name(...)`
-  - Implemented in `excel/capbook/sheets/cockpit.py`
-
-- [x] Add data validation dropdown for `SelectedTeam` based on distinct `team_code` values
-
-- [x] Implement minimal `TEAM_COCKPIT` readouts driven from `DATA_team_salary_warehouse`:
-  - cap position, tax position, room under apron 1/2, roster count, repeater flag
-  - keep it formula-light; correctness + reconciliation beats polish
-  - Uses SUMIFS formulas referencing tbl_team_salary_warehouse with SelectedTeam/SelectedYear
-  - Also shows cap_total/tax_total vs thresholds for context
-
-- [x] Implement minimal `AUDIT_AND_RECONCILE` section:
-  - show selected team/year totals from `DATA_team_salary_warehouse`
-  - show row counts + basic sums from drilldown tables
-  - show a visible delta (even if it's not 0 yet)
-  - Implemented in `excel/capbook/sheets/audit.py`
-
-- [x] Align Excel badge color mapping + format constants with `web/src/features/SalaryBook/`:
-  - Option colors (`OptionBadge.tsx`)
-  - Guarantee colors (`GuaranteeBadge.tsx`)
-  - Trade restriction colors (`TradeRestrictions.tsx`)
-
-- [ ] Implement `MINIMUM` display semantics in Excel UI (based on `is_min_contract` / `min_contract_lookup_value`)
-
-- [ ] Implement `% of cap` display formatting helper (mirror `playerRowHelpers.ts`)
-
-- [ ] Document local usage in `excel/AGENTS.md` once CLI stabilizes
+### Phase 10 — Docs + integration
+- [ ] Documentation + workflow integration
+  - Update `excel/AGENTS.md` with current CLI usage + dataset list
+  - Add Windmill step to build workbook after PCMS refresh (import flow)
