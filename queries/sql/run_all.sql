@@ -23,3 +23,6 @@
 \ir 051_draft_picks_warehouses_assertions.sql
 \ir 052_player_rights_warehouse_assertions.sql
 \ir 053_draft_assets_warehouse_assertions.sql
+
+-- Luxury tax primitives
+\ir 055_luxury_tax_assertions.sql

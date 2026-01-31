@@ -176,6 +176,6 @@ Compare results to Sean's `team_summary.json` col AB values.
 
 ## 10. TODO / Follow-ups
 
-- [ ] Validate 2025 rates reflect new CBA (1.0 non-repeater, 3.0 repeater for bracket 1)
-- [ ] Add unit tests in `queries/sql/` for tax calculation edge cases
+- [x] Validate 2025 rates reflect new CBA (1.0 non-repeater, 3.0 repeater for bracket 1) — covered in `055_luxury_tax_assertions.sql` test #4
+- [x] Add unit tests in `queries/sql/` for tax calculation edge cases — see `queries/sql/055_luxury_tax_assertions.sql` (13 assertion tests)
 - [ ] Consider adding `fn_luxury_tax_from_salary(salary_year, team_tax_salary, is_repeater)` that auto-subtracts tax level
