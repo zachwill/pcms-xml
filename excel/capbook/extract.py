@@ -201,8 +201,156 @@ def extract_salary_book_yearly(
     return columns, rows
 
 
+def extract_salary_book_warehouse(
+    base_year: int, league: str = "NBA"
+) -> tuple[list[str], list[dict[str, Any]]]:
+    """
+    Extract tbl_salary_book_warehouse dataset with relative-year columns.
+
+    Exports salary columns as relative-year (cap_y0..cap_y5, tax_y0..tax_y5, apron_y0..apron_y5)
+    based on base_year, per the data contract.
+
+    Returns (columns, rows) for DATA_salary_book_warehouse sheet.
+    """
+    # Build year mapping: y0 = base_year, y1 = base_year + 1, etc.
+    years = [base_year + i for i in range(6)]
+
+    # Build dynamic column aliases for relative-year columns
+    # cap_YYYY -> cap_yN, tax_YYYY -> tax_yN, apron_YYYY -> apron_yN, etc.
+    def year_cols(prefix: str) -> str:
+        """Generate aliased column selects for a year-based prefix."""
+        return ", ".join(
+            f"{prefix}_{years[i]} AS {prefix}_y{i}" for i in range(6)
+        )
+
+    sql = f"""
+        SELECT
+            -- Identity
+            player_id,
+            player_name,
+            team_code,
+            league_lk,
+            contract_id,
+            version_number,
+
+            -- Demographics
+            birth_date,
+            age,
+            agent_name,
+
+            -- Two-way status
+            is_two_way,
+
+            -- Salary columns (relative years: cap_y0..cap_y5)
+            {year_cols("cap")},
+
+            -- Tax columns (relative years: tax_y0..tax_y5)
+            {year_cols("tax")},
+
+            -- Apron columns (relative years: apron_y0..apron_y5)
+            {year_cols("apron")},
+
+            -- Option columns (relative years)
+            {year_cols("option")},
+            {year_cols("option_decision")},
+
+            -- Guarantee columns (relative years)
+            {year_cols("guaranteed_amount")},
+            {year_cols("is_fully_guaranteed")},
+            {year_cols("is_partially_guaranteed")},
+            {year_cols("is_non_guaranteed")},
+
+            -- Trade fields
+            is_poison_pill,
+            poison_pill_amount,
+            is_no_trade,
+            is_trade_bonus,
+            trade_bonus_percent,
+            trade_kicker_display,
+            player_consent_lk,
+            is_trade_consent_required_now,
+            is_trade_preconsented,
+            trade_restriction_lookup_value,
+            trade_restriction_end_date,
+            is_trade_restricted_now,
+
+            -- Contract classification
+            contract_type_lookup_value,
+            signed_method_lookup_value,
+            exception_type_lookup_value,
+            min_contract_lookup_value,
+            is_min_contract
+
+        FROM pcms.salary_book_warehouse
+        WHERE league_lk = %(league)s
+        ORDER BY team_code, player_name
+    """
+    rows = fetch_all(sql, {"league": league})
+
+    # Define columns in the same order as SELECT (for stable contract)
+    columns = [
+        # Identity
+        "player_id",
+        "player_name",
+        "team_code",
+        "league_lk",
+        "contract_id",
+        "version_number",
+        # Demographics
+        "birth_date",
+        "age",
+        "agent_name",
+        # Two-way
+        "is_two_way",
+    ]
+
+    # Add relative-year salary columns
+    for prefix in ["cap", "tax", "apron"]:
+        for i in range(6):
+            columns.append(f"{prefix}_y{i}")
+
+    # Add relative-year option columns
+    for prefix in ["option", "option_decision"]:
+        for i in range(6):
+            columns.append(f"{prefix}_y{i}")
+
+    # Add relative-year guarantee columns
+    for prefix in [
+        "guaranteed_amount",
+        "is_fully_guaranteed",
+        "is_partially_guaranteed",
+        "is_non_guaranteed",
+    ]:
+        for i in range(6):
+            columns.append(f"{prefix}_y{i}")
+
+    # Add trade and contract classification columns
+    columns.extend(
+        [
+            "is_poison_pill",
+            "poison_pill_amount",
+            "is_no_trade",
+            "is_trade_bonus",
+            "trade_bonus_percent",
+            "trade_kicker_display",
+            "player_consent_lk",
+            "is_trade_consent_required_now",
+            "is_trade_preconsented",
+            "trade_restriction_lookup_value",
+            "trade_restriction_end_date",
+            "is_trade_restricted_now",
+            "contract_type_lookup_value",
+            "signed_method_lookup_value",
+            "exception_type_lookup_value",
+            "min_contract_lookup_value",
+            "is_min_contract",
+        ]
+    )
+
+    return columns, rows
+
+
 # TODO: Implement remaining extract functions per data contract:
-# - extract_salary_book_warehouse (wide, with relative-year columns)
 # - extract_cap_holds_warehouse
 # - extract_dead_money_warehouse
 # - extract_exceptions_warehouse

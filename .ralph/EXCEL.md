@@ -55,7 +55,7 @@ This backlog is intentionally concrete. The Excel agent should do **one task per
 
 - [x] Implement dataset extract: `tbl_team_salary_warehouse` → `DATA_team_salary_warehouse` (base_year..base_year+5)
 
-- [ ] Implement dataset extract: `tbl_salary_book_warehouse` → `DATA_salary_book_warehouse`
+- [x] Implement dataset extract: `tbl_salary_book_warehouse` → `DATA_salary_book_warehouse`
   - Export **relative-year columns** (cap_y0..cap_y5, tax_y0..tax_y5, apron_y0..apron_y5) based on `--base-year`
 
 - [x] Implement dataset extract: `tbl_salary_book_yearly` → `DATA_salary_book_yearly` (base_year..base_year+5)

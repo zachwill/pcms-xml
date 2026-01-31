@@ -22,6 +22,7 @@ from .extract import (
     extract_system_values,
     extract_tax_rates,
     extract_team_salary_warehouse,
+    extract_salary_book_warehouse,
     extract_salary_book_yearly,
 )
 from .xlsx import create_standard_formats, write_table
@@ -122,10 +123,10 @@ def build_capbook(
     datasets["system_values"] = extract_system_values(base_year, league)
     datasets["tax_rates"] = extract_tax_rates(base_year, league)
     datasets["team_salary_warehouse"] = extract_team_salary_warehouse(base_year)
+    datasets["salary_book_warehouse"] = extract_salary_book_warehouse(base_year, league)
     datasets["salary_book_yearly"] = extract_salary_book_yearly(base_year, league)
 
     # TODO: Extract remaining datasets per data contract
-    # datasets["salary_book_warehouse"] = extract_salary_book_warehouse(...)
     # datasets["cap_holds_warehouse"] = extract_cap_holds_warehouse(...)
     # datasets["dead_money_warehouse"] = extract_dead_money_warehouse(...)
     # datasets["exceptions_warehouse"] = extract_exceptions_warehouse(...)
@@ -197,6 +198,17 @@ def build_capbook(
         write_table(
             data_worksheets["DATA_salary_book_yearly"],
             "tbl_salary_book_yearly",
+            0,
+            0,
+            cols,
+            rows,
+        )
+
+    if datasets.get("salary_book_warehouse"):
+        cols, rows = datasets["salary_book_warehouse"]
+        write_table(
+            data_worksheets["DATA_salary_book_warehouse"],
+            "tbl_salary_book_warehouse",
             0,
             0,
             cols,
