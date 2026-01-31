@@ -3,6 +3,9 @@
  *
  * Redesigned to match the KPI styling used in the Team Header, Exceptions,
  * and Draft Assets rows.
+ *
+ * Uses dark styling (black in light mode) to visually separate from the next
+ * team's header row.
  */
 
 import React from "react";
@@ -45,16 +48,16 @@ function StickyLabelCell({
         "w-52 pl-4 shrink-0",
         "sticky left-0 z-[1]",
         "after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px",
-        "after:bg-border/30",
-        "relative"
+        "after:bg-zinc-600 dark:after:bg-zinc-500",
+        "relative",
+        "bg-zinc-900 dark:bg-zinc-800"
       )}
-      style={{ backgroundColor: "var(--muted, #f4f4f5)" }}
     >
       <div className="grid grid-cols-[40px_1fr] items-center h-full">
-        <div className="flex items-center justify-start text-muted-foreground">
+        <div className="flex items-center justify-start text-zinc-400">
           {icon}
         </div>
-        <div className="pl-1 min-w-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="pl-1 min-w-0 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
           {children}
         </div>
       </div>
@@ -116,7 +119,7 @@ export function TotalsFooter({
   showTaxAprons = true,
 }: TotalsFooterProps) {
   return (
-    <div style={{ backgroundColor: "var(--muted, #f4f4f5)" }}>
+    <div className="bg-zinc-900 dark:bg-zinc-800">
       {/* Roster Cost Row */}
       <div className="h-12 flex items-center text-xs">
         <StickyLabelCell icon={<Sigma className="w-4 h-4" aria-hidden="true" />}>
@@ -131,6 +134,7 @@ export function TotalsFooter({
                 <KpiCell
                   label={`${String(year).slice(2)}-${String(year + 1).slice(2)}`}
                   value={data ? formatters.compactCurrency(data.cap_total) : "—"}
+                  dark
                 />
               </div>
             );
@@ -157,6 +161,7 @@ export function TotalsFooter({
                   label={`${String(year).slice(2)}-${String(year + 1).slice(2)}`}
                   value={capSpace !== null ? formatRoomAmount(capSpace) : "—"}
                   variant={capSpace !== null && capSpace < 0 ? "negative" : "positive"}
+                  dark
                 />
               </div>
             );
@@ -183,6 +188,7 @@ export function TotalsFooter({
                     label={status.label}
                     value={status.value}
                     variant={status.variant}
+                    dark
                   />
                 </div>
               );

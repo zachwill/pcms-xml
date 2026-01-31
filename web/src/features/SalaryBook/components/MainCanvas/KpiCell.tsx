@@ -8,6 +8,8 @@ export interface KpiCellProps {
   value?: React.ReactNode;
   title?: string;
   variant?: KpiVariant;
+  /** Use dark styling (for totals footer) */
+  dark?: boolean;
   className?: string;
   labelClassName?: string;
   valueClassName?: string;
@@ -22,11 +24,19 @@ const valueColorClasses: Record<KpiVariant, string> = {
   muted: "text-muted-foreground/60",
 };
 
+const darkValueColorClasses: Record<KpiVariant, string> = {
+  default: "text-zinc-100",
+  positive: "text-green-400",
+  negative: "text-red-400",
+  muted: "text-zinc-500",
+};
+
 export function KpiCell({
   label,
   value,
   title,
   variant = "default",
+  dark = false,
   className,
   labelClassName,
   valueClassName,
@@ -41,10 +51,13 @@ export function KpiCell({
     <div
       className={cx(
         "w-20 h-10",
-        "bg-zinc-200/80 dark:bg-zinc-700/80 rounded",
+        "rounded",
         "flex flex-col items-center justify-center",
         "text-center",
         "px-1",
+        dark
+          ? "bg-zinc-700 dark:bg-zinc-600"
+          : "bg-zinc-200/80 dark:bg-zinc-700/80",
         className
       )}
       title={title}
@@ -52,7 +65,8 @@ export function KpiCell({
       {hasLabel && (
         <span
           className={cx(
-            "text-[9px] uppercase tracking-wide text-muted-foreground font-medium leading-none",
+            "text-[9px] uppercase tracking-wide font-medium leading-none",
+            dark ? "text-zinc-400" : "text-muted-foreground",
             labelClassName
           )}
         >
@@ -74,7 +88,7 @@ export function KpiCell({
           className={cx(
             "text-xs tabular-nums font-semibold leading-tight",
             hasLabel && "mt-0.5",
-            valueColorClasses[variant],
+            dark ? darkValueColorClasses[variant] : valueColorClasses[variant],
             valueClassName
           )}
         >

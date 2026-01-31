@@ -158,6 +158,19 @@ salaryBookRouter.get("/players", async (req) => {
       s.contract_type_code,
       s.contract_type_lookup_value,
 
+      s.signed_method_code,
+      s.signed_method_lookup_value,
+      s.team_exception_id,
+      s.exception_type_code,
+      s.exception_type_lookup_value,
+      s.min_contract_code,
+      s.min_contract_lookup_value,
+      COALESCE(s.is_min_contract, false)::boolean as is_min_contract,
+      s.trade_restriction_code,
+      s.trade_restriction_lookup_value,
+      s.trade_restriction_end_date,
+      COALESCE(s.is_trade_restricted_now, false)::boolean as is_trade_restricted_now,
+
       COALESCE(s.is_trade_consent_required_now, false)::boolean as is_trade_consent_required_now,
       COALESCE(s.is_trade_preconsented, false)::boolean as is_trade_preconsented,
       s.player_consent_lk
@@ -543,6 +556,19 @@ salaryBookRouter.get("/player/:playerId", async (req) => {
 
       s.contract_type_code,
       s.contract_type_lookup_value,
+
+      s.signed_method_code,
+      s.signed_method_lookup_value,
+      s.team_exception_id,
+      s.exception_type_code,
+      s.exception_type_lookup_value,
+      s.min_contract_code,
+      s.min_contract_lookup_value,
+      COALESCE(s.is_min_contract, false)::boolean as is_min_contract,
+      s.trade_restriction_code,
+      s.trade_restriction_lookup_value,
+      s.trade_restriction_end_date,
+      COALESCE(s.is_trade_restricted_now, false)::boolean as is_trade_restricted_now,
 
       COALESCE(s.is_trade_consent_required_now, false)::boolean as is_trade_consent_required_now,
       COALESCE(s.is_trade_preconsented, false)::boolean as is_trade_preconsented,

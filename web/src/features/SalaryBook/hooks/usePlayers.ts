@@ -100,6 +100,22 @@ interface PlayerApiResponse {
   contract_type_code: string | null;
   contract_type_lookup_value: string | null;
 
+  // Contract signing metadata (from salary_book_warehouse)
+  signed_method_code: string | null;
+  signed_method_lookup_value: string | null;
+  team_exception_id: string | null;
+  exception_type_code: string | null;
+  exception_type_lookup_value: string | null;
+  min_contract_code: string | null;
+  min_contract_lookup_value: string | null;
+  is_min_contract: boolean;
+
+  // Trade restriction metadata (from salary_book_warehouse)
+  trade_restriction_code: string | null;
+  trade_restriction_lookup_value: string | null;
+  trade_restriction_end_date: string | null;
+  is_trade_restricted_now: boolean;
+
   is_trade_consent_required_now: boolean;
   is_trade_preconsented: boolean;
   player_consent_lk: string | null;
@@ -234,6 +250,20 @@ function mapApiToPlayer(data: PlayerApiResponse): SalaryBookPlayer {
 
     contract_type_code: data.contract_type_code,
     contract_type_lookup_value: data.contract_type_lookup_value,
+
+    signed_method_code: data.signed_method_code,
+    signed_method_lookup_value: data.signed_method_lookup_value,
+    team_exception_id: data.team_exception_id,
+    exception_type_code: data.exception_type_code,
+    exception_type_lookup_value: data.exception_type_lookup_value,
+    min_contract_code: data.min_contract_code,
+    min_contract_lookup_value: data.min_contract_lookup_value,
+    is_min_contract: data.is_min_contract,
+
+    trade_restriction_code: data.trade_restriction_code,
+    trade_restriction_lookup_value: data.trade_restriction_lookup_value,
+    trade_restriction_end_date: data.trade_restriction_end_date,
+    is_trade_restricted_now: data.is_trade_restricted_now,
 
     is_trade_consent_required_now: data.is_trade_consent_required_now,
     is_trade_preconsented: data.is_trade_preconsented,

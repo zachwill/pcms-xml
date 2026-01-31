@@ -46,6 +46,7 @@ function getSalaryCellStyle(
   option: ContractOption,
   isCurrentSeason: boolean,
   isConsentRequired: boolean,
+  isTradeRestrictedNow: boolean,
   isNoTrade: boolean,
   isPoisonPill: boolean,
   isTradeBonus: boolean,
@@ -198,6 +199,12 @@ function getSalaryCellStyle(
       bgClass = "bg-red-100/60 dark:bg-red-900/30";
       textClass = "text-red-700 dark:text-red-300";
       tooltips.push("Player Consent Required");
+    }
+
+    if (isTradeRestrictedNow) {
+      bgClass = "bg-red-100/60 dark:bg-red-900/30";
+      textClass = "text-red-700 dark:text-red-300";
+      tooltips.push("Trade Restricted");
     }
 
     if (isPoisonPill) {
@@ -403,6 +410,13 @@ function SalaryYearCell({
 
   const priorYearSalary = getSalary(player, year - 1);
 
+  // Trade restriction applies in current season if any of these flags are set
+  const isTradeRestrictedCell =
+    isCurrentSeason &&
+    (player.is_trade_consent_required_now ||
+      player.is_trade_restricted_now ||
+      isPoisonPillNow);
+
   const cellStyle =
     salary !== null
       ? getSalaryCellStyle(
@@ -410,6 +424,7 @@ function SalaryYearCell({
           option,
           isCurrentSeason,
           player.is_trade_consent_required_now,
+          player.is_trade_restricted_now,
           player.is_no_trade,
           isPoisonPillNow,
           player.is_trade_bonus,
@@ -425,6 +440,11 @@ function SalaryYearCell({
   const pctCapPercentile = getPctCapPercentile(player, year);
   const pctCapDisplay = formatPctCapWithBlocks(pctCap, pctCapPercentile);
 
+  // Minimum contracts: don't show pct-cap; just show "MINIMUM" under the salary.
+  const underSalaryDisplay = player.is_min_contract
+    ? { label: "MINIMUM", blocks: "" }
+    : pctCapDisplay;
+
   const cell = (
     <div
       className={cx(
@@ -438,7 +458,7 @@ function SalaryYearCell({
       title={cellStyle.tooltipText ?? undefined}
     >
       {showTwoWayBadge ? (
-        <PlayerSalary amount={salary} showTwoWayBadge />
+        <PlayerSalary amount={salary} showTwoWayBadge isTradeRestricted={isTradeRestrictedCell} />
       ) : isEmptySalary ? (
         <PlayerSalary amount={salary} className="text-sm" />
       ) : (
@@ -452,7 +472,7 @@ function SalaryYearCell({
           </div>
           {/* Row B: Percent of cap with percentile blocks */}
           <div className="h-[16px] -mt-px flex items-start justify-center">
-            {pctCapDisplay && (
+            {underSalaryDisplay && (
               <span
                 className={cx(
                   "text-[10px] leading-none tabular-nums whitespace-nowrap",
@@ -461,9 +481,9 @@ function SalaryYearCell({
                   cellStyle.textClass ? "opacity-80" : "text-muted-foreground/80"
                 )}
               >
-                {pctCapDisplay.label}
-                {pctCapDisplay.blocks && (
-                  <span className="ml-0.5 opacity-70">{pctCapDisplay.blocks}</span>
+                {underSalaryDisplay.label}
+                {underSalaryDisplay.blocks && (
+                  <span className="ml-0.5 opacity-70">{underSalaryDisplay.blocks}</span>
                 )}
               </span>
             )}
@@ -662,7 +682,9 @@ export const PlayerRow = memo(PlayerRowInner, (prevProps, nextProps) => {
     p1.is_trade_consent_required_now === p2.is_trade_consent_required_now &&
     p1.is_no_trade === p2.is_no_trade &&
     p1.is_trade_bonus === p2.is_trade_bonus &&
-    p1.trade_bonus_percent === p2.trade_bonus_percent
+    p1.trade_bonus_percent === p2.trade_bonus_percent &&
+    p1.is_trade_restricted_now === p2.is_trade_restricted_now &&
+    p1.is_min_contract === p2.is_min_contract
   );
 });
 

@@ -149,6 +149,38 @@ export interface SalaryBookPlayer {
   contract_type_lookup_value: string | null;
 
   /**
+   * How the contract was signed (Bird/MLE/BAE/minimum/etc).
+   */
+  signed_method_code: string | null;
+  signed_method_lookup_value: string | null;
+
+  /**
+   * If signed using a specific exception instance (e.g. Taxpayer MLE), capture it.
+   */
+  team_exception_id: string | null;
+  exception_type_code: string | null;
+  exception_type_lookup_value: string | null;
+
+  /**
+   * Minimum contract classification from the signing transaction.
+   */
+  min_contract_code: string | null;
+  min_contract_lookup_value: string | null;
+
+  /**
+   * Convenience boolean derived from min_contract_code.
+   */
+  is_min_contract: boolean;
+
+  /**
+   * Trade restriction metadata (e.g. EX6MO). `is_trade_restricted_now` is a best-effort boolean.
+   */
+  trade_restriction_code: string | null;
+  trade_restriction_lookup_value: string | null;
+  trade_restriction_end_date: string | null;
+  is_trade_restricted_now: boolean;
+
+  /**
    * Player trade-consent restriction (derived from contract version_json).
    * If true, show the red "Consent" badge under the current season.
    */

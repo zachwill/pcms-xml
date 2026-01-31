@@ -15,20 +15,23 @@ export interface PlayerSalaryProps {
   amount: number | null;
   /** Render a two-way badge instead of a number */
   showTwoWayBadge?: boolean;
+  /** Whether the player is trade-restricted (colors the badge red) */
+  isTradeRestricted?: boolean;
   /** Width of the numeric slot (default 6ch, use 7ch for totals) */
   slotWidth?: string;
   className?: string;
 }
 
-function TwoWaySalaryBadge() {
+function TwoWaySalaryBadge({ isTradeRestricted = false }: { isTradeRestricted?: boolean }) {
   return (
     <span
       className={cx(
         "inline-flex items-center justify-center",
         "text-[10px] px-1.5 py-0.5 rounded",
-        "bg-gray-200 dark:bg-gray-700",
-        "text-gray-600 dark:text-gray-300",
-        "font-medium"
+        "font-medium",
+        isTradeRestricted
+          ? "bg-red-200 dark:bg-red-900/50 text-red-700 dark:text-red-300"
+          : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
       )}
     >
       Two-Way
@@ -50,11 +53,12 @@ function formatSalary(amount: number | null): string {
 export function PlayerSalary({
   amount,
   showTwoWayBadge = false,
+  isTradeRestricted = false,
   slotWidth = "6ch",
   className,
 }: PlayerSalaryProps) {
   if (showTwoWayBadge) {
-    return <TwoWaySalaryBadge />;
+    return <TwoWaySalaryBadge isTradeRestricted={isTradeRestricted} />;
   }
 
   const label = formatSalary(amount);
