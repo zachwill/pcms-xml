@@ -10,8 +10,11 @@ export interface PlayerDetailResponse {
   player_id: number;
   player_name: string;
   team_code: string;
+  position: string | null;
   age: number | null;
   years_of_service: number | null;
+
+  bird_rights: "BIRD" | "EARLY_BIRD" | "NON_BIRD" | null;
 
   cap_2025: number | null;
   cap_2026: number | null;
@@ -42,6 +45,17 @@ export interface PlayerDetailResponse {
   contract_type_code: string | null;
   contract_type_lookup_value: string | null;
 
+  signed_method_code: string | null;
+  signed_method_lookup_value: string | null;
+  exception_type_lookup_value: string | null;
+
+  min_contract_lookup_value: string | null;
+  is_min_contract: boolean;
+
+  trade_restriction_lookup_value: string | null;
+  trade_restriction_end_date: string | null;
+  is_trade_restricted_now: boolean;
+
   is_trade_consent_required_now: boolean;
   is_trade_preconsented: boolean;
   player_consent_lk: string | null;
@@ -65,8 +79,11 @@ function normalizePlayer(data: any): PlayerDetailResponse {
     player_id: Number(data.player_id),
     player_name: String(data.player_name ?? ""),
     team_code: String(data.team_code ?? ""),
+    position: data.position ?? null,
     age: asNumberOrNull(data.age),
     years_of_service: asNumberOrNull(data.years_of_service),
+
+    bird_rights: data.bird_rights ?? null,
 
     cap_2025: asNumberOrNull(data.cap_2025),
     cap_2026: asNumberOrNull(data.cap_2026),
@@ -96,6 +113,17 @@ function normalizePlayer(data: any): PlayerDetailResponse {
 
     contract_type_code: data.contract_type_code ?? null,
     contract_type_lookup_value: data.contract_type_lookup_value ?? null,
+
+    signed_method_code: data.signed_method_code ?? null,
+    signed_method_lookup_value: data.signed_method_lookup_value ?? null,
+    exception_type_lookup_value: data.exception_type_lookup_value ?? null,
+
+    min_contract_lookup_value: data.min_contract_lookup_value ?? null,
+    is_min_contract: !!data.is_min_contract,
+
+    trade_restriction_lookup_value: data.trade_restriction_lookup_value ?? null,
+    trade_restriction_end_date: data.trade_restriction_end_date ?? null,
+    is_trade_restricted_now: !!data.is_trade_restricted_now,
 
     is_trade_consent_required_now: !!data.is_trade_consent_required_now,
     is_trade_preconsented: !!data.is_trade_preconsented,

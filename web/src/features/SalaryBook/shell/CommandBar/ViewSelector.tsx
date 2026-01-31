@@ -16,12 +16,14 @@ interface ViewSelectorProps<T extends string> {
   title: string;
   views: AppView<T>[];
   activeView: T;
+  onViewChange?: (view: T) => void;
 }
 
 export function ViewSelector<T extends string>({
   title,
   views,
   activeView,
+  onViewChange,
 }: ViewSelectorProps<T>) {
   return (
     <div className="space-y-1">
@@ -32,8 +34,7 @@ export function ViewSelector<T extends string>({
       <RadioGroup
         aria-label={title}
         value={activeView}
-        // Placeholder: router/state driven later.
-        onValueChange={() => {}}
+        onValueChange={(value) => onViewChange?.(value as T)}
         className="flex flex-col gap-1"
       >
         {views.map((view) => {

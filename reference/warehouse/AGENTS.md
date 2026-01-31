@@ -2,9 +2,11 @@
 
 **Updated: 2026-01-30**
 
-This folder contains Sean's **current Excel workbook** exported as JSON. These are the newest analyst sheets — use these as the primary reference for understanding how a salary-cap analyst models contracts, trades, and team financials.
+This folder contains Sean's **current Excel workbook** exported as JSON. These are the newest analyst sheets — use these as the primary **evidence** for *how the workbook currently behaves* (formulas, layouts, dependencies).
 
-> The older `reference/sean/` folder contains a previous version of these sheets. Prefer this folder for current mental models.
+For design intent / mental models / a proposed from-scratch rebuild, see: `reference/blueprints/README.md`.
+
+> The older `reference/sean/` folder contains a previous version of these sheets. Prefer this folder for current workbook evidence.
 
 ---
 

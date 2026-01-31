@@ -101,6 +101,7 @@ export function PlayerDetail({ entity, className }: PlayerDetailProps) {
         playerName={player.player_name}
         teamCode={player.team_code}
         teamName={teamName}
+        position={player.position}
         age={player.age}
         experience={player.years_of_service}
       />
@@ -112,6 +113,11 @@ export function PlayerDetail({ entity, className }: PlayerDetailProps) {
         agentName={player.agent_name}
         agencyName={player.agency_name}
         onAgentClick={player.agent_id ? handleAgentClick : undefined}
+        contractType={player.contract_type_lookup_value ?? player.contract_type_code}
+        signedUsing={player.signed_method_lookup_value}
+        exceptionType={player.exception_type_lookup_value}
+        minContract={player.is_min_contract ? player.min_contract_lookup_value : null}
+        birdRights={player.bird_rights}
       />
 
       <YearByYearBreakdown years={years} />

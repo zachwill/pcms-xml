@@ -73,6 +73,7 @@ export function PlayerHeader({
 }) {
   // Build metadata line (matching PlayerRow format)
   const metaParts: string[] = [];
+  if (position) metaParts.push(position);
   if (age) metaParts.push(`${Number(age).toFixed(1)} YRS`);
   if (experience !== null && experience !== undefined)
     metaParts.push(experience === 0 ? "Rookie" : `${experience} YOS`);

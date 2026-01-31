@@ -10,6 +10,7 @@ import React, {
 } from "react";
 
 import { useRegisterFilterChangeHandlers } from "@/state/filters";
+import type { SidebarViewKey } from "@/config/views";
 import { useScrollSpy, type ScrollState } from "./useScrollSpy";
 import { TEAM_ORDER, sortTeamsByOrder } from "./teamOrder";
 import {
@@ -49,9 +50,15 @@ export interface ShellTeamsContextValue {
   setLoadedTeams: (teams: string[]) => void;
 }
 
+export interface ShellViewsContextValue {
+  sidebarView: SidebarViewKey;
+  setSidebarView: (view: SidebarViewKey) => void;
+}
+
 const ShellScrollContext = createContext<ShellScrollContextValue | null>(null);
 const ShellSidebarContext = createContext<ShellSidebarContextValue | null>(null);
 const ShellTeamsContext = createContext<ShellTeamsContextValue | null>(null);
+const ShellViewsContext = createContext<ShellViewsContextValue | null>(null);
 
 // ============================================================================
 // Hooks
@@ -77,6 +84,14 @@ export function useShellTeamsContext() {
   const ctx = useContext(ShellTeamsContext);
   if (!ctx) {
     throw new Error("useShellTeamsContext must be used within <SalaryBookShellProvider>");
+  }
+  return ctx;
+}
+
+export function useShellViewsContext() {
+  const ctx = useContext(ShellViewsContext);
+  if (!ctx) {
+    throw new Error("useShellViewsContext must be used within <SalaryBookShellProvider>");
   }
   return ctx;
 }
@@ -185,6 +200,12 @@ export function SalaryBookShellProvider({
 
   const [loadedTeams, setLoadedTeams] = useState<string[]>(INITIAL_TEAMS);
 
+  // ---------------------------------------------------------------------------
+  // Sidebar view selection (Team view vs System Values)
+  // ---------------------------------------------------------------------------
+
+  const [sidebarView, setSidebarView] = useState<SidebarViewKey>("team-view");
+
   useEffect(() => {
     let timeoutId: number | null = null;
     let intervalId: number | null = null;
@@ -257,11 +278,21 @@ export function SalaryBookShellProvider({
     [loadedTeams]
   );
 
+  const viewsValue = useMemo<ShellViewsContextValue>(
+    () => ({
+      sidebarView,
+      setSidebarView,
+    }),
+    [sidebarView]
+  );
+
   return (
     <ShellScrollContext.Provider value={scrollValue}>
       <ShellTeamsContext.Provider value={teamsValue}>
         <ShellSidebarContext.Provider value={sidebarValue}>
-          {children}
+          <ShellViewsContext.Provider value={viewsValue}>
+            {children}
+          </ShellViewsContext.Provider>
         </ShellSidebarContext.Provider>
       </ShellTeamsContext.Provider>
     </ShellScrollContext.Provider>

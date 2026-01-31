@@ -1,4 +1,12 @@
 import { cx, formatters, focusRing } from "@/lib/utils";
+import type { BirdRights } from "../../../data";
+
+function birdRightsLabel(value: BirdRights | null | undefined): string | null {
+  if (!value) return null;
+  if (value === "BIRD") return "Bird";
+  if (value === "EARLY_BIRD") return "Early Bird";
+  return "Non-Bird";
+}
 
 /**
  * Contract summary card
@@ -10,6 +18,11 @@ export function ContractSummary({
   agentName,
   agencyName,
   onAgentClick,
+  contractType,
+  signedUsing,
+  exceptionType,
+  minContract,
+  birdRights,
 }: {
   totalValue: number;
   contractYears: number;
@@ -17,7 +30,20 @@ export function ContractSummary({
   agentName: string | null;
   agencyName: string | null;
   onAgentClick?: () => void;
+
+  /** Contract type label (e.g., Rookie Scale, Veteran Extension, etc) */
+  contractType?: string | null;
+  /** How the contract was signed (Bird/MLE/BAE/minimum/etc) */
+  signedUsing?: string | null;
+  /** If applicable, the specific exception instance type */
+  exceptionType?: string | null;
+  /** Minimum contract classification (if applicable) */
+  minContract?: string | null;
+  /** Bird rights shorthand derived from signing method */
+  birdRights?: BirdRights | null;
 }) {
+  const birdLabel = birdRightsLabel(birdRights);
+
   return (
     <div className="space-y-3">
       <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -45,6 +71,56 @@ export function ContractSummary({
             {contractYears} yr{contractYears !== 1 ? "s" : ""}
           </span>
         </div>
+
+        {/* Contract Type */}
+        {contractType && (
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-muted-foreground">Type</span>
+            <span className="text-sm font-medium text-right ml-4">
+              {contractType}
+            </span>
+          </div>
+        )}
+
+        {/* Signed Via */}
+        {signedUsing && (
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-muted-foreground">Signed Via</span>
+            <span className="text-sm font-medium text-right ml-4">
+              {signedUsing}
+            </span>
+          </div>
+        )}
+
+        {/* Exception */}
+        {exceptionType && (
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-muted-foreground">Exception</span>
+            <span className="text-sm font-medium text-right ml-4">
+              {exceptionType}
+            </span>
+          </div>
+        )}
+
+        {/* Minimum */}
+        {minContract && (
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-muted-foreground">Minimum</span>
+            <span className="text-sm font-medium text-right ml-4">
+              {minContract}
+            </span>
+          </div>
+        )}
+
+        {/* Bird Rights */}
+        {birdLabel && (
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-muted-foreground">Bird</span>
+            <span className="text-sm font-medium text-right ml-4">
+              {birdLabel}
+            </span>
+          </div>
+        )}
 
         {/* Two-Way Badge */}
         {isTwoWay && (

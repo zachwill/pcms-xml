@@ -18,6 +18,8 @@ export { SalaryBookPage } from "./pages/SalaryBookPage";
 export {
   useScrollSpy,
   useSidebarStack,
+  useTradeMachineContext,
+  type TradeMachineContextValue,
   type EntityType,
   type SidebarEntity,
   type SidebarMode,
@@ -25,6 +27,7 @@ export {
   type AgentEntity,
   type PickEntity,
   type TeamEntity,
+  type TradeEntity,
 } from "./hooks";
 
 // Data types
@@ -33,8 +36,18 @@ export type {
   SalaryBookPlayer,
   Team,
   TeamSalary,
+  TradeMode,
+  TradePlayer,
+  TradeState,
+  TradeEvaluationRequest,
+  TradeEvaluationRequestTeam,
+  TradeEvaluationResponse,
+  TradeEvaluationTeam,
+  TradeReasonCode,
   DraftPick,
   DraftPickSummary,
+  PlayerRight,
+  PlayerRightsKind,
   Agent,
   Agency,
 

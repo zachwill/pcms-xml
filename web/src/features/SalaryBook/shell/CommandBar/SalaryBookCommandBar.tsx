@@ -14,12 +14,17 @@ import { cx } from "@/lib/utils";
 import { FilterToggles } from "./FilterToggles";
 import { TeamSelectorGrid } from "./TeamSelectorGrid";
 import { ViewSelector } from "./ViewSelector";
+import { Button } from "@/components/ui";
 import {
   MAIN_VIEWS,
   SIDEBAR_VIEWS,
   type MainViewKey,
   type SidebarViewKey,
 } from "@/config/views";
+import {
+  useShellSidebarContext,
+  useShellViewsContext,
+} from "@/features/SalaryBook/shell";
 
 export const SALARY_BOOK_COMMAND_BAR_HEIGHT = 130;
 
@@ -27,6 +32,19 @@ export const SALARY_BOOK_COMMAND_BAR_HEIGHT = 130;
  * SalaryBookCommandBar — Main export
  */
 export function SalaryBookCommandBar() {
+  const { sidebarView, setSidebarView } = useShellViewsContext();
+  const { currentEntity, pushEntity, popEntity } = useShellSidebarContext();
+
+  const isTradeOpen = currentEntity?.type === "trade";
+
+  const handleTradeToggle = () => {
+    if (isTradeOpen) {
+      popEntity();
+    } else {
+      pushEntity({ type: "trade" });
+    }
+  };
+
   return (
     <div
       className={cx(
@@ -54,6 +72,23 @@ export function SalaryBookCommandBar() {
       {/* Vertical divider */}
       <div className="h-20 w-px bg-border self-center" />
 
+      {/* Trade mode */}
+      <div className="min-w-[4.5rem] space-y-1">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          Mode
+        </div>
+        <Button
+          variant={isTradeOpen ? "primary" : "secondary"}
+          size="xs"
+          onClick={handleTradeToggle}
+        >
+          Trade
+        </Button>
+      </div>
+
+      {/* Vertical divider */}
+      <div className="h-20 w-px bg-border self-center" />
+
       {/* Views: placeholder (Salary Book is the only active view right now) */}
       <div className="min-w-[4.5rem]">
         <ViewSelector<MainViewKey>
@@ -63,12 +98,13 @@ export function SalaryBookCommandBar() {
         />
       </div>
 
-      {/* Sidebar Views: placeholder */}
+      {/* Sidebar Views */}
       <div className="min-w-[4.5rem]">
         <ViewSelector<SidebarViewKey>
           title="Sidebar"
           views={SIDEBAR_VIEWS}
-          activeView="team-view"
+          activeView={sidebarView}
+          onViewChange={setSidebarView}
         />
       </div>
     </div>

@@ -71,7 +71,9 @@ export function TeamHeader({
   twoWayCount,
   isActive = false,
 }: TeamHeaderProps) {
-  const { pushEntity } = useShellSidebarContext();
+  const { pushEntity, currentEntity } = useShellSidebarContext();
+
+  const isTradeMode = currentEntity?.type === "trade";
 
   const [logoErrored, setLogoErrored] = React.useState(false);
 
@@ -86,6 +88,8 @@ export function TeamHeader({
 
   // Handle team name click → push Team entity to sidebar
   const handleTeamClick = () => {
+    if (isTradeMode) return;
+
     const entity: TeamEntity = {
       type: "team",
       teamCode,

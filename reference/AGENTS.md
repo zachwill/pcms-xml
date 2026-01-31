@@ -4,19 +4,28 @@ This folder contains **reference materials for understanding PCMS data and analy
 
 ## Current Structure
 
-### `warehouse/` — **Primary Reference (use this)**
-Sean's **current Excel workbook** exported as JSON files + detailed specs. This is the canonical source for understanding how a salary-cap analyst models contracts, trades, and team financials.
+### `blueprints/` — Design Reference (mental models + intended workbook architecture)
+These docs capture the *design intent* for Sean-style tooling: how analysts think, what must reconcile, cockpit UX rules, and a proposed from-scratch workbook layout.
+
+Start here when designing new sheets/tools.
+
+- `blueprints/README.md` — Index
+- `blueprints/mental-models-and-design-principles.md`
+- `blueprints/excel-cap-book-blueprint.md`
+
+### `warehouse/` — Evidence (current workbook export + specs)
+Sean's **current Excel workbook** exported as JSON files + detailed specs. Use this to validate outputs, trace formulas, and understand how the current workbook behaves.
 
 - `warehouse/*.json` — Raw Excel sheet exports (one JSON file per worksheet)
-- `warehouse/specs/*.md` — 36 evidence-based spec documents analyzing each sheet
+- `warehouse/specs/*.md` — Evidence-based spec documents analyzing each sheet
 - `warehouse/AGENTS.md` — Guide to the warehouse structure
 
 **Key specs:**
-- `specs/00-index.md` — Workbook overview + dependency graph
-- `specs/y.md` — Y Warehouse (central salary matrix)
-- `specs/fn_luxury_tax_amount.md` — Luxury tax calculation primitive
-- `specs/machine.md` — Trade Machine logic
-- `specs/buyout-waiver-math.md` — Buyout/waiver scenario formulas
+- `warehouse/specs/00-index.md` — Workbook overview + dependency graph
+- `warehouse/specs/y.md` — Y Warehouse (central salary matrix)
+- `warehouse/specs/fn_luxury_tax_amount.md` — Luxury tax calculation primitive
+- `warehouse/specs/machine.md` — Trade Machine logic
+- `warehouse/specs/buyout-waiver-math.md` — Buyout/waiver scenario formulas
 
 ### `TODO.md`
 Tracks validation work comparing our `pcms.*` warehouse tables to Sean's Excel outputs.

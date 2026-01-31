@@ -21,15 +21,18 @@ import { cx, focusRing } from "@/lib/utils";
 import {
   useShellScrollContext,
   useShellSidebarContext,
+  useShellViewsContext,
   useSidebarTransition,
   type SidebarEntity,
 } from "@/features/SalaryBook/shell";
 import { useTeams } from "../../hooks";
 import { durations, easings } from "@/lib/animate";
 import { TeamContext } from "./TeamContext";
+import { SystemValuesView } from "./SystemValuesView";
 import { PlayerDetail } from "./PlayerDetail";
 import { AgentDetail } from "./AgentDetail";
 import { PickDetail } from "./PickDetail";
+import { TradeMachineView } from "./TradeMachineView";
 import { BackButtonTeamBadge } from "./BackButtonTeamBadge";
 
 // ============================================================================
@@ -112,6 +115,8 @@ function EntityDetail({ entity }: { entity: SidebarEntity }) {
       return <PickDetail entity={entity} />;
     case "team":
       return <TeamDetailPlaceholder entity={entity} />;
+    case "trade":
+      return <TradeMachineView />;
     default:
       // TypeScript exhaustiveness check
       const _exhaustive: never = entity;
@@ -146,6 +151,7 @@ export interface RightPanelProps {
 export function RightPanel({ className }: RightPanelProps) {
   const { currentEntity, popEntity } = useShellSidebarContext();
   const { activeTeam } = useShellScrollContext();
+  const { sidebarView } = useShellViewsContext();
 
   const {
     stagedEntity,
@@ -300,7 +306,7 @@ export function RightPanel({ className }: RightPanelProps) {
         EntityDetail starts with top-14 padding to stay clear of the header.
       */}
       <div className="absolute inset-0 overflow-hidden">
-        {/* Base Layer: Team Context (utilizes full height) */}
+        {/* Base Layer: Sidebar View (utilizes full height) */}
         <div
           className={cx(
             "absolute inset-0 overflow-y-auto overscroll-y-contain pt-2 px-4 pb-4 transition-opacity duration-300",
@@ -308,7 +314,7 @@ export function RightPanel({ className }: RightPanelProps) {
           )}
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          <TeamContext />
+          {sidebarView === "system-values" ? <SystemValuesView /> : <TeamContext />}
         </div>
 
         {/* 

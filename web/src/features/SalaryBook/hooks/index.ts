@@ -7,6 +7,8 @@
 export {
   useScrollSpy,
   useSidebarStack,
+  useTradeMachineContext,
+  type TradeMachineContextValue,
   type EntityType,
   type SidebarEntity,
   type SidebarMode,
@@ -14,6 +16,7 @@ export {
   type AgentEntity,
   type PickEntity,
   type TeamEntity,
+  type TradeEntity,
   type ScrollState,
   type ScrollSpyResult,
 } from "@/features/SalaryBook/shell";
@@ -24,6 +27,7 @@ export { usePicks, type UsePicksReturn } from "./usePicks";
 export { useCapHolds, type UseCapHoldsReturn } from "./useCapHolds";
 export { useExceptions, type UseExceptionsReturn } from "./useExceptions";
 export { useDeadMoney, type UseDeadMoneyReturn } from "./useDeadMoney";
+export { usePlayerRights, type UsePlayerRightsReturn } from "./usePlayerRights";
 export {
   useAgent,
   type UseAgentReturn,
@@ -42,3 +46,9 @@ export {
   type UseTwoWayCapacityReturn,
   type TwoWayCapacity,
 } from "./useTwoWayCapacity";
+export { useSystemValues, type UseSystemValuesReturn } from "./useSystemValues";
+export { useTaxRates, type UseTaxRatesReturn } from "./useTaxRates";
+export {
+  useTradeEvaluation,
+  type UseTradeEvaluationReturn,
+} from "./useTradeEvaluation";

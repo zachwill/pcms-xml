@@ -15,7 +15,8 @@ This root `AGENTS.md` is intentionally a **directory map** — most detailed con
 - SQL assertions: `queries/AGENTS.md`
 
 ### Sean-style salary-cap / trade tooling
-- High-level doc: `SALARY_BOOK.md`
+- Mental models + workbook design blueprints: `reference/blueprints/README.md`
+- High-level doc (data + primitives): `SALARY_BOOK.md`
 - Evidence/specs (current workbook): `reference/warehouse/AGENTS.md`
 - DB primitives + caches: `migrations/AGENTS.md`
 - Assertion tests: `queries/AGENTS.md`

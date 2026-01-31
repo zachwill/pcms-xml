@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
  * useSidebarStack — Manages sidebar entity navigation (intentionally shallow)
  */
 
-export type EntityType = "player" | "agent" | "pick" | "team";
+export type EntityType = "player" | "agent" | "pick" | "team" | "trade";
 
 interface BaseEntity {
   type: EntityType;
@@ -37,7 +37,16 @@ export interface TeamEntity extends BaseEntity {
   teamName: string;
 }
 
-export type SidebarEntity = PlayerEntity | AgentEntity | PickEntity | TeamEntity;
+export interface TradeEntity extends BaseEntity {
+  type: "trade";
+}
+
+export type SidebarEntity =
+  | PlayerEntity
+  | AgentEntity
+  | PickEntity
+  | TeamEntity
+  | TradeEntity;
 
 export type SidebarMode = "default" | "entity";
 

@@ -119,6 +119,9 @@ interface PlayerApiResponse {
   is_trade_consent_required_now: boolean;
   is_trade_preconsented: boolean;
   player_consent_lk: string | null;
+
+  // Derived fields returned by API
+  bird_rights: "BIRD" | "EARLY_BIRD" | "NON_BIRD" | null;
 }
 
 /**
@@ -269,8 +272,8 @@ function mapApiToPlayer(data: PlayerApiResponse): SalaryBookPlayer {
     is_trade_preconsented: data.is_trade_preconsented,
     player_consent_lk: data.player_consent_lk,
 
+    bird_rights: data.bird_rights ?? null,
     // Fields not returned by current API — set to null
-    bird_rights: null,
     free_agency_type: null,
     free_agency_year: null,
     contract_years: null,

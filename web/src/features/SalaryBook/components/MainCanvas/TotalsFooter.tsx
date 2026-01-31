@@ -9,7 +9,7 @@
  */
 
 import React from "react";
-import { Sigma, Wallet, ShieldAlert } from "lucide-react";
+import { Sigma, Wallet, ShieldAlert, Receipt } from "lucide-react";
 import { cx, formatters } from "@/lib/utils";
 import { KpiCell } from "./KpiCell";
 import type { TeamSalary } from "../../data";
@@ -117,6 +117,7 @@ function buildStatus(yearData?: TeamSalary) {
 export function TotalsFooter({
   salaryByYear,
   showTaxAprons = true,
+  showLuxuryTax = false,
 }: TotalsFooterProps) {
   return (
     <div className="bg-zinc-900 dark:bg-zinc-800">
@@ -188,6 +189,37 @@ export function TotalsFooter({
                     label={status.label}
                     value={status.value}
                     variant={status.variant}
+                    dark
+                  />
+                </div>
+              );
+            })}
+
+            <div className="w-24 shrink-0" />
+            <div className="w-40 pr-4 shrink-0" />
+          </div>
+        </div>
+      )}
+
+      {/* Luxury Tax Bill Row */}
+      {showLuxuryTax && (
+        <div className="h-12 flex items-center text-xs">
+          <StickyLabelCell icon={<Receipt className="w-4 h-4" aria-hidden="true" />}>
+            Luxury Tax
+          </StickyLabelCell>
+
+          <div className="flex items-center">
+            {SALARY_YEARS.map((year) => {
+              const data = salaryByYear.get(year);
+              const bill = data?.luxury_tax_bill ?? null;
+
+              return (
+                <div key={year} className="w-24 shrink-0 flex justify-center">
+                  <KpiCell
+                    label={`${String(year).slice(2)}-${String(year + 1).slice(2)}`}
+                    value={bill !== null ? formatters.compactCurrency(bill) : "—"}
+                    variant={bill !== null && bill > 0 ? "negative" : "muted"}
+                    title={bill !== null ? "Luxury tax owed" : "Under tax"}
                     dark
                   />
                 </div>

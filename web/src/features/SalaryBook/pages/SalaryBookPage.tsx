@@ -7,6 +7,7 @@
 import { ThreePaneFrame } from "@/layouts/ThreePaneFrame";
 import {
   SalaryBookShellProvider,
+  TradeMachineProvider,
 } from "@/features/SalaryBook/shell";
 import {
   SalaryBookCommandBar,
@@ -18,12 +19,14 @@ import { RightPanel } from "../components/RightPanel";
 export function SalaryBookPage() {
   return (
     <SalaryBookShellProvider topOffset={0}>
-      <ThreePaneFrame
-        header={<SalaryBookCommandBar />}
-        headerHeight={SALARY_BOOK_COMMAND_BAR_HEIGHT}
-        main={<MainCanvas />}
-        right={<RightPanel />}
-      />
+      <TradeMachineProvider>
+        <ThreePaneFrame
+          header={<SalaryBookCommandBar />}
+          headerHeight={SALARY_BOOK_COMMAND_BAR_HEIGHT}
+          main={<MainCanvas />}
+          right={<RightPanel />}
+        />
+      </TradeMachineProvider>
     </SalaryBookShellProvider>
   );
 }

@@ -14,6 +14,7 @@ import { cx } from "@/lib/utils";
 import {
   useShellScrollContext,
   useShellSidebarContext,
+  useTradeMachineContext,
   type PlayerEntity,
   type AgentEntity,
   type PickEntity,
@@ -28,7 +29,7 @@ import {
   useDeadMoney,
   useTeams,
 } from "../../hooks";
-import type { SalaryBookPlayer, DraftPick } from "../../data";
+import type { SalaryBookPlayer, DraftPick, TradePlayer } from "../../data";
 import { TeamHeader } from "./TeamHeader";
 import { SalaryTable } from "./SalaryTable";
 
@@ -110,8 +111,11 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
   // useScrollSpy sets data-faded on section elements at boundary crossings.
   // No per-frame JS needed — CSS transitions handle the animation.
   const { registerSection } = useShellScrollContext();
-  const { pushEntity } = useShellSidebarContext();
+  const { pushEntity, currentEntity } = useShellSidebarContext();
+  const { togglePlayer, selectedPlayerIds } = useTradeMachineContext();
   const { filters } = useFilters();
+
+  const isTradeMode = currentEntity?.type === "trade";
 
   // Ref for scroll-linked header content fade effect.
   // This targets the CONTENT inside the sticky header (text, KPIs, column labels),
@@ -168,7 +172,28 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
   // Sidebar navigation handlers (memoized to prevent PlayerRow re-renders)
   // ========================================================================
 
+  const toTradePlayer = useCallback((player: SalaryBookPlayer): TradePlayer => {
+    const playerId = Number(player.player_id ?? player.id ?? 0);
+
+    return {
+      playerId,
+      playerName: player.player_name,
+      teamCode: player.team_code,
+      cap_2025: player.cap_2025,
+      cap_2026: player.cap_2026,
+      cap_2027: player.cap_2027,
+      cap_2028: player.cap_2028,
+      cap_2029: player.cap_2029,
+      cap_2030: player.cap_2030,
+    };
+  }, []);
+
   const handlePlayerClick = useCallback((player: SalaryBookPlayer) => {
+    if (isTradeMode) {
+      togglePlayer(toTradePlayer(player));
+      return;
+    }
+
     const entity: PlayerEntity = {
       type: "player",
       playerId: parseInt(player.id, 10) || 0,
@@ -176,10 +201,11 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
       teamCode: player.team_code,
     };
     pushEntity(entity);
-  }, [pushEntity]);
+  }, [isTradeMode, pushEntity, togglePlayer, toTradePlayer]);
 
   const handleAgentClick = useCallback((e: React.MouseEvent, player: SalaryBookPlayer) => {
     e.stopPropagation();
+    if (isTradeMode) return;
     if (!player.agent_id || !player.agent_name) return;
 
     const entity: AgentEntity = {
@@ -188,9 +214,11 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
       agentName: player.agent_name,
     };
     pushEntity(entity);
-  }, [pushEntity]);
+  }, [isTradeMode, pushEntity]);
 
   const handlePickClick = useCallback((pick: DraftPick) => {
+    if (isTradeMode) return;
+
     const entity: PickEntity = {
       type: "pick",
       teamCode: pick.team_code,
@@ -199,7 +227,7 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
       rawFragment: `${pick.origin_team_code} Round ${pick.round}`,
     };
     pushEntity(entity);
-  }, [pushEntity]);
+  }, [isTradeMode, pushEntity]);
 
   // ========================================================================
   // Loading / Error
@@ -273,6 +301,7 @@ export function TeamSection({ teamCode }: TeamSectionProps) {
         onPlayerClick={handlePlayerClick}
         onAgentClick={handleAgentClick}
         onPickClick={handlePickClick}
+        tradeSelectedIds={isTradeMode ? selectedPlayerIds : undefined}
       />
     </div>
   );

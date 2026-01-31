@@ -1,10 +1,10 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { cx, focusRing } from "@/lib/utils";
 
-type TabId = "cap" | "draft" | "injuries" | "stats";
+type TabId = "cap" | "draft" | "rights" | "injuries" | "stats";
 
 /**
- * Tab toggle for switching between Cap, Draft, Injuries, and Stats
+ * Tab toggle for switching between Cap, Draft, Rights, Injuries, and Stats
  *
  * Features a sliding indicator that animates between tabs (Silk-inspired pattern).
  * The indicator is a separate element that slides behind the buttons, creating
@@ -22,6 +22,7 @@ export function TabToggle({
   const tabs: { id: TabId; label: string }[] = [
     { id: "cap", label: "Cap" },
     { id: "draft", label: "Draft" },
+    { id: "rights", label: "Rights" },
     { id: "injuries", label: "Injuries" },
     { id: "stats", label: "Stats" },
   ];
@@ -82,7 +83,7 @@ export function TabToggle({
   return (
     <div
       ref={containerRef}
-      className="relative grid grid-cols-4 gap-1 p-1 rounded-lg bg-muted border border-border"
+      className="relative grid grid-cols-5 gap-1 p-1 rounded-lg bg-muted border border-border"
     >
       {/* Sliding indicator — positioned absolutely behind buttons */}
       <div

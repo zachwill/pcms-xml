@@ -301,6 +301,14 @@ export function CapOutlookTab({
                 value={currentSalary.room_under_second_apron}
                 valueClassName={getRoomUnderColorClass(currentSalary.room_under_second_apron)}
               />
+
+              {currentSalary.luxury_tax_bill !== null && (
+                <StatRow
+                  label="Luxury Tax Bill"
+                  value={currentSalary.luxury_tax_bill}
+                  valueClassName="text-red-500"
+                />
+              )}
             </>
           )}
         </div>

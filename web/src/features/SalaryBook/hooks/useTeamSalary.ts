@@ -53,6 +53,9 @@ interface TeamSalaryApiResponse {
   is_repeater_taxpayer: boolean | null;
   is_subject_to_apron: boolean | null;
   apron_level_lk: string | null;
+
+  luxury_tax_bill: number | string | null;
+
   refreshed_at: string | null;
 }
 
@@ -143,10 +146,12 @@ function mapApiToTeamSalaries(data: TeamSalaryApiResponse[]): TeamSalary[] {
     is_repeater_taxpayer: row.is_repeater_taxpayer,
     is_subject_to_apron: row.is_subject_to_apron,
     apron_level_lk: row.apron_level_lk,
+    luxury_tax_bill:
+      row.luxury_tax_bill === null ? null : asNumber(row.luxury_tax_bill, 0),
+
     refreshed_at: row.refreshed_at,
 
     // Not available in current warehouse snapshot
-    luxury_tax_bill: null,
     mid_level_exception: null,
     bi_annual_exception: null,
     traded_player_exception: null,

@@ -15,6 +15,6 @@ export const MAIN_VIEWS: AppView<MainViewKey>[] = [
 ];
 
 export const SIDEBAR_VIEWS: AppView<SidebarViewKey>[] = [
-  { key: "system-values", label: "System Values", enabled: false },
+  { key: "system-values", label: "System Values", enabled: true },
   { key: "team-view", label: "Team View", enabled: true },
 ];

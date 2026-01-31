@@ -7,7 +7,8 @@
  *
  * Tabs:
  * - Cap: financial health, cap space projections, tax thresholds
- * - Draft: placeholder for future picks/rights view
+ * - Draft: pick inventory and protections
+ * - Rights: draft rights + G League returning rights
  * - Injuries: placeholder for future availability view
  * - Stats: record, standings, efficiency metrics (future phase)
  */
@@ -20,6 +21,7 @@ import { TeamContextHeader } from "./TeamContextHeader";
 import { TabToggle, type TabId } from "./TabToggle";
 import { CapOutlookTab } from "./CapOutlookTab";
 import { DraftTab } from "./DraftTab";
+import { PlayerRightsTab } from "./PlayerRightsTab";
 import { InjuriesTab } from "./InjuriesTab";
 import { TeamStatsTab } from "./TeamStatsTab";
 import { TeamContextSkeleton, EmptyState } from "./TeamContextSkeleton";
@@ -44,9 +46,10 @@ export interface TeamContextProps {
  *
  * Content:
  * - Team header (logo, name, conference)
- * - Tab toggle (Cap / Draft / Injuries / Stats)
+ * - Tab toggle (Cap / Draft / Rights / Injuries / Stats)
  * - Cap: total salary, cap space, tax status, room under thresholds, projections
- * - Draft: placeholder for pick inventory + protections
+ * - Draft: pick inventory + protections
+ * - Rights: draft rights + G League returning rights
  * - Injuries: placeholder for availability report
  * - Stats: placeholder for future phase (record, standings, efficiency)
  *
@@ -114,6 +117,7 @@ export function TeamContext({ teamCode: teamCodeProp, className }: TeamContextPr
         />
       )}
       {activeTab === "draft" && <DraftTab teamCode={teamCode} />}
+      {activeTab === "rights" && <PlayerRightsTab teamCode={teamCode} />}
       {activeTab === "injuries" && <InjuriesTab teamCode={teamCode} />}
       {activeTab === "stats" && <TeamStatsTab teamCode={teamCode} />}
     </div>

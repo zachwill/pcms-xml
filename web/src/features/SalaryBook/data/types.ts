@@ -283,6 +283,141 @@ export interface TeamSalary {
 }
 
 /**
+ * League system values (pcms.league_system_values)
+ * 
+ * Used for the "System Values" sidebar view: cap/tax/apron lines, exception constants,
+ * and key season calendar dates.
+ */
+export interface LeagueSystemValues {
+  year: number;
+
+  // Core thresholds
+  salary_cap_amount: number | null;
+  tax_level_amount: number | null;
+  first_apron_amount: number | null;
+  second_apron_amount: number | null;
+  minimum_team_salary_amount: number | null;
+  tax_bracket_amount: number | null;
+
+  // Exceptions / constants
+  non_taxpayer_mid_level_amount: number | null;
+  taxpayer_mid_level_amount: number | null;
+  room_mid_level_amount: number | null;
+  bi_annual_amount: number | null;
+  two_way_salary_amount: number | null;
+  tpe_dollar_allowance: number | null;
+  max_trade_cash_amount: number | null;
+  international_player_payment_limit: number | null;
+
+  // Maximum salary thresholds
+  maximum_salary_25_pct: number | null;
+  maximum_salary_30_pct: number | null;
+  maximum_salary_35_pct: number | null;
+
+  // Season constants
+  scale_raise_rate: number | null;
+  days_in_season: number | null;
+
+  // Key dates (ISO date strings)
+  season_start_at: string | null;
+  season_end_at: string | null;
+  moratorium_start_at: string | null;
+  moratorium_end_at: string | null;
+  trade_deadline_at: string | null;
+  dec_15_trade_lift_at: string | null;
+  jan_15_trade_lift_at: string | null;
+  jan_10_guarantee_at: string | null;
+}
+
+/**
+ * League tax rate brackets (pcms.league_tax_rates)
+ * 
+ * Brackets are defined in "amount over the tax line" dollars.
+ */
+export interface LeagueTaxRate {
+  year: number;
+  lower_limit: number;
+  upper_limit: number | null;
+  tax_rate_non_repeater: number | null;
+  tax_rate_repeater: number | null;
+  base_charge_non_repeater: number | null;
+  base_charge_repeater: number | null;
+}
+
+/**
+ * Trade Machine types (Trade Machine v1)
+ */
+export type TradeMode = "expanded" | "standard";
+
+export interface TradePlayer {
+  playerId: number;
+  playerName: string;
+  teamCode: string;
+  cap_2025: number | null;
+  cap_2026: number | null;
+  cap_2027: number | null;
+  cap_2028: number | null;
+  cap_2029: number | null;
+  cap_2030: number | null;
+}
+
+export interface TradeState {
+  salaryYear: number;
+  mode: TradeMode;
+  primaryTeamCode: string | null;
+  secondaryTeamCode: string | null;
+  players: TradePlayer[];
+}
+
+export interface TradeEvaluationRequestTeam {
+  teamCode: string;
+  outgoingPlayerIds: number[];
+  incomingPlayerIds: number[];
+}
+
+export interface TradeEvaluationRequest {
+  salaryYear: number;
+  mode: TradeMode;
+  league: string;
+  teams: TradeEvaluationRequestTeam[];
+}
+
+export type TradeReasonCode =
+  | "ALLOWANCE_ZERO_FIRST_APRON"
+  | "MISSING_SYSTEM_VALUES"
+  | "MISSING_TEAM_SALARY"
+  | "MISSING_MATCHING_FORMULA"
+  | "INCOMING_EXCEEDS_MAX"
+  | "OUTGOING_PLAYERS_NOT_FOUND"
+  | "INCOMING_PLAYERS_NOT_FOUND";
+
+export interface TradeEvaluationTeam {
+  team_code: string;
+  outgoing_salary: number | null;
+  incoming_salary: number | null;
+  min_incoming: number | null;
+  max_incoming: number | null;
+  tpe_type: string | null;
+  is_trade_valid: boolean;
+  reason_codes: TradeReasonCode[];
+  baseline_apron_total: number | null;
+  post_trade_apron_total: number | null;
+  first_apron_amount: number | null;
+  is_padding_removed: boolean | null;
+  tpe_padding_amount: number | null;
+  tpe_dollar_allowance: number | null;
+  traded_rows_found: number | null;
+  replacement_rows_found: number | null;
+}
+
+export interface TradeEvaluationResponse {
+  salary_year: number;
+  mode: TradeMode;
+  league: string;
+  teams: TradeEvaluationTeam[];
+}
+
+/**
  * Draft pick summaries from pcms.draft_pick_summaries
  * Text descriptions of picks per team per year
  */
@@ -366,6 +501,35 @@ export interface DeadMoney {
 }
 
 /**
+ * Player rights rows from pcms.player_rights_warehouse
+ */
+export type PlayerRightsKind = "NBA_DRAFT_RIGHTS" | "DLG_RETURNING_RIGHTS";
+
+export interface PlayerRight {
+  id: string; // player_id
+  player_id: number;
+  player_name: string | null;
+  league_lk: string | null;
+
+  rights_team_id: number | null;
+  rights_team_code: string | null;
+  rights_kind: PlayerRightsKind;
+  rights_source: string | null;
+
+  source_trade_id: number | null;
+  source_trade_date: string | null;
+
+  draft_year: number | null;
+  draft_round: number | null;
+  draft_pick: number | null;
+  draft_team_id: number | null;
+  draft_team_code: string | null;
+
+  has_active_nba_contract: boolean | null;
+  needs_review: boolean | null;
+}
+
+/**
  * Agent data from pcms.agents
  */
 export interface Agent {
@@ -390,7 +554,7 @@ export interface Agency {
 /**
  * Sidebar entity types for navigation stack
  */
-export type EntityType = "player" | "team" | "agent" | "pick";
+export type EntityType = "player" | "team" | "agent" | "pick" | "trade";
 
 /**
  * Entity reference for sidebar stack

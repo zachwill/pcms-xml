@@ -59,6 +59,8 @@ export interface SalaryTableProps {
   onAgentClick: (e: React.MouseEvent, player: SalaryBookPlayer) => void;
   /** Called when a pick pill is clicked */
   onPickClick: (pick: DraftPick) => void;
+  /** Player IDs selected for trade (for row highlighting) */
+  tradeSelectedIds?: Set<number>;
   /**
    * Ref for the sticky header content (for scroll-linked opacity fade).
    * This targets the CONTENT inside the header, not the background container.
@@ -152,6 +154,7 @@ export function SalaryTable({
   onPlayerClick,
   onAgentClick,
   onPickClick,
+  tradeSelectedIds,
   stickyHeaderContentRef,
 }: SalaryTableProps) {
   const headerScrollRef = useRef<HTMLDivElement>(null);
@@ -283,16 +286,23 @@ export function SalaryTable({
         <div className="min-w-max" style={{ minWidth: MIN_TABLE_WIDTH }}>
           {/* Player rows */}
           <div className="[&>*:first-child]:mt-1">
-            {filteredPlayers.map((player) => (
-              <PlayerRow
-                key={player.id}
-                player={player}
-                onClick={() => onPlayerClick(player)}
-                onAgentClick={(e) => onAgentClick(e, player)}
-                showOptions={filters.contracts.options}
-                showTwoWay={filters.contracts.twoWay}
-              />
-            ))}
+            {filteredPlayers.map((player) => {
+              const playerId = Number(player.player_id ?? player.id);
+              const isTradeSelected = tradeSelectedIds?.has(playerId) ?? false;
+
+              return (
+                <PlayerRow
+                  key={player.id}
+                  player={player}
+                  onClick={() => onPlayerClick(player)}
+                  onAgentClick={(e) => onAgentClick(e, player)}
+                  showOptions={filters.contracts.options}
+                  showIncentives={filters.contracts.incentives}
+                  showTwoWay={filters.contracts.twoWay}
+                  isTradeSelected={isTradeSelected}
+                />
+              );
+            })}
           </div>
 
           {/* Empty state */}

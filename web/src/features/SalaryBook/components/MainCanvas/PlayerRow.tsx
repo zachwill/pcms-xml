@@ -12,7 +12,7 @@
  */
 
 import React, { memo } from "react";
-import { cx } from "@/lib/utils";
+import { cx, formatters } from "@/lib/utils";
 import type { SalaryBookPlayer } from "../../data";
 import type { ContractOption, GuaranteeType } from "../../data";
 import { PlayerSalary } from "./PlayerSalary";
@@ -236,8 +236,12 @@ export interface PlayerRowProps {
   onAgentClick: (e: React.MouseEvent) => void;
   /** Whether to show option badges (PO, TO, ETO) */
   showOptions?: boolean;
+  /** Whether to show incentive info (likely/unlikely bonuses) in hover/tooltips */
+  showIncentives?: boolean;
   /** Whether to show two-way contract badges */
   showTwoWay?: boolean;
+  /** Whether this row is selected for the trade machine */
+  isTradeSelected?: boolean;
 }
 
 // ============================================================================
@@ -257,9 +261,11 @@ const FALLBACK_HEADSHOT_DATA_URI =
 function PlayerRowContainer({
   onClick,
   children,
+  isTradeSelected = false,
 }: {
   onClick: () => void;
   children: React.ReactNode;
+  isTradeSelected?: boolean;
 }) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -271,6 +277,7 @@ function PlayerRowContainer({
   return (
     <div
       onClick={onClick}
+      data-trade-selected={isTradeSelected ? "true" : undefined}
       className={cx(
         // Group for hover state coordination
         "group cursor-pointer",
@@ -278,12 +285,15 @@ function PlayerRowContainer({
         "border-b border-border/50",
         // Silk pattern: disable pointer events (and thus hover/tooltips) during active scroll
         "[[data-scroll-state=scrolling]_&]:pointer-events-none",
-        // Hover highlights BOTH rows as one unit (subtle yellow)
-        "hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10",
         // Smooth transition for hover
-        "transition-colors duration-75"
+        "transition-colors duration-75",
+        // Trade selection tint or normal hover
+        isTradeSelected
+          ? "bg-primary/5 hover:bg-primary/10 dark:bg-primary/10 dark:hover:bg-primary/20"
+          : "hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10"
       )}
       role="button"
+      aria-pressed={isTradeSelected}
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
@@ -315,9 +325,11 @@ function PlayerHeadshot({ headshotUrl, alt }: { headshotUrl: string; alt: string
 function PlayerStickyColumn({
   player,
   rowName,
+  isTradeSelected = false,
 }: {
   player: SalaryBookPlayer;
   rowName: string;
+  isTradeSelected?: boolean;
 }) {
   const headshotUrl = `https://cdn.nba.com/headshots/nba/latest/1040x760/${player.player_id}.png`;
 
@@ -328,9 +340,11 @@ function PlayerStickyColumn({
         "sticky left-0 z-20",
         "relative",
         // Opaque background to prevent bleed-through while scrolling
-        "bg-background",
+        isTradeSelected ? "bg-primary/5" : "bg-background",
         // Match row hover/transition (subtle yellow)
-        "group-hover:bg-yellow-50/70 dark:group-hover:bg-yellow-900/10",
+        isTradeSelected
+          ? "group-hover:bg-primary/10 dark:group-hover:bg-primary/20"
+          : "group-hover:bg-yellow-50/70 dark:group-hover:bg-yellow-900/10",
         "transition-colors duration-75",
         // Separator on the right edge of the sticky column
         "after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px",
@@ -380,11 +394,13 @@ function SalaryYearCell({
   player,
   year,
   showOptions,
+  showIncentives,
   showTwoWay,
 }: {
   player: SalaryBookPlayer;
   year: (typeof SALARY_YEARS)[number];
   showOptions: boolean;
+  showIncentives: boolean;
   showTwoWay: boolean;
 }) {
   const salary = getSalary(player, year);
@@ -445,6 +461,49 @@ function SalaryYearCell({
     ? { label: "MINIMUM", blocks: "" }
     : pctCapDisplay;
 
+  // --------------------------------------------------------------------------
+  // Tooltip enrichment: incentives + guaranteed amounts
+  // --------------------------------------------------------------------------
+
+  const likelyBonus = Number((player as any)[`likely_bonus_${year}`] ?? 0) || 0;
+  const unlikelyBonus = Number((player as any)[`unlikely_bonus_${year}`] ?? 0) || 0;
+
+  const guaranteedAmountRaw = (player as any)[`guaranteed_amount_${year}`] as
+    | number
+    | null
+    | undefined;
+  const guaranteedAmount =
+    guaranteedAmountRaw === null || guaranteedAmountRaw === undefined
+      ? null
+      : Number(guaranteedAmountRaw);
+
+  const tooltipParts: string[] = [];
+  if (cellStyle.tooltipText) tooltipParts.push(cellStyle.tooltipText);
+
+  // Only show guaranteed amount when it is meaningfully different (partial/non-gtd years).
+  if (
+    guaranteedAmount !== null &&
+    salary !== null &&
+    Number(salary) > 0 &&
+    (guarantee === "PARTIAL" || guarantee === "NON-GTD") &&
+    guaranteedAmount !== Number(salary)
+  ) {
+    tooltipParts.push(`Guaranteed: ${formatters.compactCurrency(guaranteedAmount)}`);
+  }
+
+  if (showIncentives) {
+    if (likelyBonus > 0) {
+      tooltipParts.push(`Likely bonus: ${formatters.compactCurrency(likelyBonus)}`);
+    }
+    if (unlikelyBonus > 0) {
+      tooltipParts.push(
+        `Unlikely bonus: ${formatters.compactCurrency(unlikelyBonus)}`
+      );
+    }
+  }
+
+  const tooltipText = tooltipParts.length > 0 ? tooltipParts.join("\n") : null;
+
   const cell = (
     <div
       className={cx(
@@ -455,7 +514,7 @@ function SalaryYearCell({
         cellStyle.bgClass,
         cellStyle.textClass
       )}
-      title={cellStyle.tooltipText ?? undefined}
+      title={tooltipText ?? undefined}
     >
       {showTwoWayBadge ? (
         <PlayerSalary amount={salary} showTwoWayBadge isTradeRestricted={isTradeRestrictedCell} />
@@ -612,12 +671,14 @@ function PlayerRowInner({
   onClick,
   onAgentClick,
   showOptions = true,
+  showIncentives = true,
   showTwoWay = true,
+  isTradeSelected = false,
 }: PlayerRowProps) {
   const rowName = getPlayerRowName(player);
 
   return (
-    <PlayerRowContainer onClick={onClick}>
+    <PlayerRowContainer onClick={onClick} isTradeSelected={isTradeSelected}>
       {/*
         Layout note:
         Keep the entire "Player" area as ONE sticky column (w-52).
@@ -626,7 +687,11 @@ function PlayerRowInner({
       */}
       <div className="flex">
         {/* Sticky Player column (Headshot + Name + Details) */}
-        <PlayerStickyColumn player={player} rowName={rowName} />
+        <PlayerStickyColumn
+          player={player}
+          rowName={rowName}
+          isTradeSelected={isTradeSelected}
+        />
 
         {/* Non-sticky columns (Contract Years + Management) */}
         <div className="min-w-0 flex">
@@ -637,6 +702,7 @@ function PlayerRowInner({
               player={player}
               year={year}
               showOptions={showOptions}
+              showIncentives={showIncentives}
               showTwoWay={showTwoWay}
             />
           ))}
@@ -664,7 +730,9 @@ export const PlayerRow = memo(PlayerRowInner, (prevProps, nextProps) => {
 
   // Check filter toggles
   if (prevProps.showOptions !== nextProps.showOptions) return false;
+  if (prevProps.showIncentives !== nextProps.showIncentives) return false;
   if (prevProps.showTwoWay !== nextProps.showTwoWay) return false;
+  if (prevProps.isTradeSelected !== nextProps.isTradeSelected) return false;
 
   // Shallow compare the player object by checking key salary fields
   // (Deep compare is expensive, so we check the fields that affect rendering)

@@ -253,5 +253,7 @@ function getEntityId(entity: SidebarEntity): string {
       return `pick-${entity.teamCode}-${entity.draftYear}-${entity.draftRound}`;
     case "team":
       return `team-${entity.teamCode}`;
+    case "trade":
+      return "trade";
   }
 }

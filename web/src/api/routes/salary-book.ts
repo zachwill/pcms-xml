@@ -21,6 +21,50 @@ function getSql() {
   return sql;
 }
 
+// Cached feature flags for optional tables.
+//
+// Some deployments may not run the NBA Stats ingest, so `public.nba_players`
+// (used only for `position`) can be missing.
+let hasPublicNbaPlayersTable: boolean | null = null;
+async function getHasPublicNbaPlayersTable(): Promise<boolean> {
+  if (hasPublicNbaPlayersTable !== null) return hasPublicNbaPlayersTable;
+
+  const sql = getSql();
+  const rows = await sql`
+    SELECT to_regclass('public.nba_players') IS NOT NULL AS ok
+  `;
+
+  hasPublicNbaPlayersTable = !!rows?.[0]?.ok;
+  return hasPublicNbaPlayersTable;
+}
+
+// Trade evaluation helpers
+const TRADE_MODES = new Set([
+  "expanded",
+  "standard",
+  "aggregated_standard",
+  "transition",
+]);
+
+function normalizeTradeMode(value: unknown): string {
+  if (typeof value !== "string") return "expanded";
+  const mode = value.trim().toLowerCase();
+  return TRADE_MODES.has(mode) ? mode : "expanded";
+}
+
+function normalizeTeamCode(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const code = value.trim().toUpperCase();
+  return code.length > 0 ? code : null;
+}
+
+function normalizeIdArray(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id));
+}
+
 // GET /api/salary-book/teams
 // Fetch all NBA teams from pcms.teams
 salaryBookRouter.get("/teams", async () => {
@@ -52,6 +96,96 @@ salaryBookRouter.get("/teams", async () => {
   return Response.json(result);
 });
 
+// GET /api/salary-book/system-values?from=2025&to=2030
+// Fetch NBA league system values (cap/tax/apron lines, exception constants, key dates)
+salaryBookRouter.get("/system-values", async (req) => {
+  const url = new URL(req.url);
+  const from = Number(url.searchParams.get("from") ?? "2025");
+  const to = Number(url.searchParams.get("to") ?? "2030");
+
+  if (!Number.isFinite(from) || !Number.isFinite(to)) {
+    return Response.json({ error: "from/to must be numbers" }, { status: 400 });
+  }
+
+  const minYear = Math.min(from, to);
+  const maxYear = Math.max(from, to);
+
+  const sql = getSql();
+
+  const rows = await sql`
+    SELECT
+      salary_year as year,
+
+      salary_cap_amount::numeric,
+      tax_level_amount::numeric,
+      tax_apron_amount::numeric as first_apron_amount,
+      tax_apron2_amount::numeric as second_apron_amount,
+      minimum_team_salary_amount::numeric,
+      tax_bracket_amount::numeric,
+
+      non_taxpayer_mid_level_amount::numeric,
+      taxpayer_mid_level_amount::numeric,
+      room_mid_level_amount::numeric,
+      bi_annual_amount::numeric,
+      two_way_salary_amount::numeric,
+      tpe_dollar_allowance::numeric,
+      max_trade_cash_amount::numeric,
+      international_player_payment_limit::numeric,
+
+      maximum_salary_25_pct::numeric,
+      maximum_salary_30_pct::numeric,
+      maximum_salary_35_pct::numeric,
+
+      scale_raise_rate::numeric,
+      days_in_season,
+
+      season_start_at::date,
+      season_end_at::date,
+      moratorium_start_at::date,
+      moratorium_end_at::date,
+      trade_deadline_at::date,
+      dec_15_trade_lift_at::date,
+      jan_15_trade_lift_at::date,
+      jan_10_guarantee_at::date
+    FROM pcms.league_system_values
+    WHERE league_lk = 'NBA'
+      AND salary_year BETWEEN ${minYear} AND ${maxYear}
+    ORDER BY salary_year
+  `;
+
+  return Response.json(rows);
+});
+
+// GET /api/salary-book/tax-rates?year=2025
+// Fetch NBA luxury tax rate brackets (amount-over-tax → marginal rate)
+salaryBookRouter.get("/tax-rates", async (req) => {
+  const url = new URL(req.url);
+  const year = Number(url.searchParams.get("year") ?? "2025");
+
+  if (!Number.isFinite(year)) {
+    return Response.json({ error: "year must be a number" }, { status: 400 });
+  }
+
+  const sql = getSql();
+
+  const rows = await sql`
+    SELECT
+      salary_year as year,
+      lower_limit::numeric,
+      upper_limit::numeric,
+      tax_rate_non_repeater::numeric,
+      tax_rate_repeater::numeric,
+      base_charge_non_repeater::numeric,
+      base_charge_repeater::numeric
+    FROM pcms.league_tax_rates
+    WHERE league_lk = 'NBA'
+      AND salary_year = ${year}
+    ORDER BY lower_limit
+  `;
+
+  return Response.json(rows);
+});
+
 // GET /api/salary-book/players?team=:teamCode
 // Fetch player salaries from pcms.salary_book_warehouse
 salaryBookRouter.get("/players", async (req) => {
@@ -64,6 +198,14 @@ salaryBookRouter.get("/players", async (req) => {
 
   const sql = getSql();
 
+  const hasNbaPlayers = await getHasPublicNbaPlayersTable();
+  const positionExpr = hasNbaPlayers
+    ? sql.unsafe("np.primary_position")
+    : sql.unsafe("NULL::text");
+  const nbaPlayersJoin = hasNbaPlayers
+    ? sql.unsafe("LEFT JOIN public.nba_players np ON np.nba_id = s.player_id")
+    : sql.unsafe("");
+
   const players = await sql`
     SELECT
       s.player_id as id,
@@ -75,6 +217,7 @@ salaryBookRouter.get("/players", async (req) => {
       p.display_first_name,
       p.display_last_name,
       COALESCE(NULLIF(s.person_team_code, ''), s.team_code) as team_code,
+      ${positionExpr} as position,
       s.age,
       p.years_of_service,
       s.cap_2025::numeric,
@@ -173,9 +316,17 @@ salaryBookRouter.get("/players", async (req) => {
 
       COALESCE(s.is_trade_consent_required_now, false)::boolean as is_trade_consent_required_now,
       COALESCE(s.is_trade_preconsented, false)::boolean as is_trade_preconsented,
-      s.player_consent_lk
+      s.player_consent_lk,
+
+      CASE
+        WHEN s.signed_method_code = 'BRD' THEN 'BIRD'
+        WHEN s.signed_method_code = 'EBE' THEN 'EARLY_BIRD'
+        WHEN s.signed_method_code = 'NBE' THEN 'NON_BIRD'
+        ELSE NULL
+      END as bird_rights
     FROM pcms.salary_book_warehouse s
     LEFT JOIN pcms.people p ON s.player_id = p.person_id
+    ${nbaPlayersJoin}
     LEFT JOIN pcms.agents a ON s.agent_id = a.agent_id
     WHERE COALESCE(NULLIF(s.person_team_code, ''), s.team_code) = ${teamCode}
     ORDER BY
@@ -210,13 +361,13 @@ salaryBookRouter.get("/cap-holds", async (req) => {
       amount_type_lk,
 
       MAX(cap_amount) FILTER (WHERE salary_year = 2025)::numeric as cap_2025,
-      NULL::numeric as cap_2026,
-      NULL::numeric as cap_2027,
-      NULL::numeric as cap_2028,
-      NULL::numeric as cap_2029
+      MAX(cap_amount) FILTER (WHERE salary_year = 2026)::numeric as cap_2026,
+      MAX(cap_amount) FILTER (WHERE salary_year = 2027)::numeric as cap_2027,
+      MAX(cap_amount) FILTER (WHERE salary_year = 2028)::numeric as cap_2028,
+      MAX(cap_amount) FILTER (WHERE salary_year = 2029)::numeric as cap_2029
     FROM pcms.cap_holds_warehouse
     WHERE team_code = ${teamCode}
-      AND salary_year = 2025
+      AND salary_year BETWEEN 2025 AND 2029
     GROUP BY non_contract_amount_id, team_code, player_id, player_name, amount_type_lk
     ORDER BY cap_2025 DESC NULLS LAST, player_name ASC NULLS LAST
   `;
@@ -374,6 +525,17 @@ salaryBookRouter.get("/team-salary", async (req) => {
       is_repeater_taxpayer,
       is_subject_to_apron,
       apron_level_lk,
+
+      CASE
+        WHEN COALESCE(tax_total, 0) > COALESCE(tax_level_amount, 0)
+          THEN pcms.fn_luxury_tax_amount(
+            salary_year,
+            COALESCE(tax_total, 0) - COALESCE(tax_level_amount, 0),
+            COALESCE(is_repeater_taxpayer, false)
+          )
+        ELSE NULL
+      END::float8 as luxury_tax_bill,
+
       refreshed_at
     FROM pcms.team_salary_warehouse
     WHERE team_code = ${teamCode}
@@ -414,6 +576,53 @@ salaryBookRouter.get("/picks", async (req) => {
   `;
 
   return Response.json(picks);
+});
+
+// GET /api/salary-book/player-rights?team=:teamCode
+// Fetch draft rights / returning rights from pcms.player_rights_warehouse
+salaryBookRouter.get("/player-rights", async (req) => {
+  const url = new URL(req.url);
+  const teamCode = url.searchParams.get("team");
+
+  if (!teamCode) {
+    return Response.json({ error: "team parameter required" }, { status: 400 });
+  }
+
+  const sql = getSql();
+
+  const rights = await sql`
+    SELECT
+      player_id,
+      player_name,
+      league_lk,
+      rights_team_id,
+      rights_team_code,
+      rights_kind,
+      rights_source,
+      source_trade_id,
+      source_trade_date,
+      draft_year,
+      draft_round,
+      draft_pick,
+      draft_team_id,
+      draft_team_code,
+      has_active_nba_contract,
+      needs_review
+    FROM pcms.player_rights_warehouse
+    WHERE rights_team_code = ${teamCode}
+    ORDER BY
+      CASE rights_kind
+        WHEN 'NBA_DRAFT_RIGHTS' THEN 1
+        WHEN 'DLG_RETURNING_RIGHTS' THEN 2
+        ELSE 3
+      END,
+      draft_year DESC NULLS LAST,
+      draft_round NULLS LAST,
+      draft_pick NULLS LAST,
+      player_name ASC NULLS LAST
+  `;
+
+  return Response.json(rights);
 });
 
 // GET /api/salary-book/agent/:agentId
@@ -478,6 +687,14 @@ salaryBookRouter.get("/player/:playerId", async (req) => {
   const playerId = req.params.playerId;
   const sql = getSql();
 
+  const hasNbaPlayers = await getHasPublicNbaPlayersTable();
+  const positionExpr = hasNbaPlayers
+    ? sql.unsafe("np.primary_position")
+    : sql.unsafe("NULL::text");
+  const nbaPlayersJoin = hasNbaPlayers
+    ? sql.unsafe("LEFT JOIN public.nba_players np ON np.nba_id = s.player_id")
+    : sql.unsafe("");
+
   const players = await sql`
     SELECT
       s.player_id,
@@ -486,6 +703,7 @@ salaryBookRouter.get("/player/:playerId", async (req) => {
         s.player_name
       ) as player_name,
       COALESCE(NULLIF(s.person_team_code, ''), s.team_code) as team_code,
+      ${positionExpr} as position,
       s.age,
       p.years_of_service,
       s.cap_2025::numeric,
@@ -572,9 +790,17 @@ salaryBookRouter.get("/player/:playerId", async (req) => {
 
       COALESCE(s.is_trade_consent_required_now, false)::boolean as is_trade_consent_required_now,
       COALESCE(s.is_trade_preconsented, false)::boolean as is_trade_preconsented,
-      s.player_consent_lk
+      s.player_consent_lk,
+
+      CASE
+        WHEN s.signed_method_code = 'BRD' THEN 'BIRD'
+        WHEN s.signed_method_code = 'EBE' THEN 'EARLY_BIRD'
+        WHEN s.signed_method_code = 'NBE' THEN 'NON_BIRD'
+        ELSE NULL
+      END as bird_rights
     FROM pcms.salary_book_warehouse s
     LEFT JOIN pcms.people p ON s.player_id = p.person_id
+    ${nbaPlayersJoin}
     LEFT JOIN pcms.agents a ON s.agent_id = a.agent_id
     WHERE s.player_id = ${playerId}
     LIMIT 1
@@ -705,6 +931,172 @@ salaryBookRouter.get("/pick", async (req) => {
       asset_type: p.asset_type,
       description: p.description,
     })),
+  });
+});
+
+// POST /api/salary-book/trade-evaluate
+// Evaluate a 2-team player-only trade via pcms.fn_tpe_trade_math
+salaryBookRouter.post("/trade-evaluate", async (req) => {
+  const body = await req.json().catch(() => null);
+
+  if (!body || typeof body !== "object") {
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const salaryYear = Number((body as any).salaryYear ?? 2025);
+  if (!Number.isFinite(salaryYear)) {
+    return Response.json({ error: "salaryYear must be a number" }, { status: 400 });
+  }
+
+  const league = typeof (body as any).league === "string" ? (body as any).league : "NBA";
+  const mode = normalizeTradeMode((body as any).mode);
+
+  const teamInputs = Array.isArray((body as any).teams) ? (body as any).teams : [];
+  if (teamInputs.length === 0) {
+    return Response.json({ error: "teams are required" }, { status: 400 });
+  }
+
+  const teams = teamInputs
+    .map((team: any) => {
+      const teamCode = normalizeTeamCode(team?.teamCode);
+      if (!teamCode) return null;
+
+      return {
+        teamCode,
+        outgoingPlayerIds: normalizeIdArray(team?.outgoingPlayerIds),
+        incomingPlayerIds: normalizeIdArray(team?.incomingPlayerIds),
+      };
+    })
+    .filter(Boolean) as Array<{
+      teamCode: string;
+      outgoingPlayerIds: number[];
+      incomingPlayerIds: number[];
+    }>;
+
+  if (teams.length === 0) {
+    return Response.json({ error: "No valid teams provided" }, { status: 400 });
+  }
+
+  const sql = getSql();
+
+  const results = await Promise.all(
+    teams.map(async (team) => {
+      const outgoingArray = sql.array(team.outgoingPlayerIds, "INT");
+      const incomingArray = sql.array(team.incomingPlayerIds, "INT");
+
+      const rows = await sql`
+        SELECT
+          team_code,
+          salary_year,
+          tpe_type,
+          traded_pre_trade_salary_total::float8 as outgoing_salary,
+          replacement_post_salary_total::float8 as incoming_salary,
+          baseline_apron_total::float8 as baseline_apron_total,
+          post_trade_apron_total::float8 as post_trade_apron_total,
+          first_apron_amount::float8 as first_apron_amount,
+          is_padding_removed,
+          tpe_padding_amount::float8 as tpe_padding_amount,
+          tpe_dollar_allowance::float8 as tpe_dollar_allowance,
+          max_replacement_salary::float8 as max_incoming,
+          has_league_system_values,
+          has_team_salary,
+          traded_rows_found,
+          replacement_rows_found
+        FROM pcms.fn_tpe_trade_math(
+          ${team.teamCode},
+          ${salaryYear},
+          ${outgoingArray},
+          ${incomingArray},
+          ${mode},
+          ${league}
+        )
+      `;
+
+      const row = rows[0] ?? {};
+      const outgoingSalary = Number((row as any).outgoing_salary ?? 0);
+      const outgoingForRange = Number.isFinite(outgoingSalary)
+        ? Math.round(outgoingSalary)
+        : 0;
+
+      const ranges = await sql`
+        SELECT
+          min_incoming::float8 as min_incoming,
+          max_incoming::float8 as max_incoming
+        FROM pcms.fn_trade_salary_range(
+          ${outgoingForRange},
+          ${salaryYear},
+          ${mode},
+          ${league}
+        )
+      `;
+
+      const range = ranges[0] ?? null;
+
+      const reasonCodes: string[] = [];
+      if (!(row as any).has_league_system_values) {
+        reasonCodes.push("MISSING_SYSTEM_VALUES");
+      }
+      if (!(row as any).has_team_salary) {
+        reasonCodes.push("MISSING_TEAM_SALARY");
+      }
+      if ((row as any).is_padding_removed) {
+        reasonCodes.push("ALLOWANCE_ZERO_FIRST_APRON");
+      }
+      if ((row as any).max_incoming === null || (row as any).max_incoming === undefined) {
+        reasonCodes.push("MISSING_MATCHING_FORMULA");
+      }
+      if (
+        (row as any).max_incoming !== null &&
+        (row as any).max_incoming !== undefined &&
+        (row as any).incoming_salary !== null &&
+        (row as any).incoming_salary !== undefined &&
+        (row as any).incoming_salary > (row as any).max_incoming
+      ) {
+        reasonCodes.push("INCOMING_EXCEEDS_MAX");
+      }
+      if (
+        typeof (row as any).traded_rows_found === "number" &&
+        (row as any).traded_rows_found < team.outgoingPlayerIds.length
+      ) {
+        reasonCodes.push("OUTGOING_PLAYERS_NOT_FOUND");
+      }
+      if (
+        typeof (row as any).replacement_rows_found === "number" &&
+        (row as any).replacement_rows_found < team.incomingPlayerIds.length
+      ) {
+        reasonCodes.push("INCOMING_PLAYERS_NOT_FOUND");
+      }
+
+      const blockingReasons = reasonCodes.filter(
+        (reason) => reason !== "ALLOWANCE_ZERO_FIRST_APRON"
+      );
+
+      return {
+        team_code: team.teamCode,
+        outgoing_salary: (row as any).outgoing_salary ?? null,
+        incoming_salary: (row as any).incoming_salary ?? null,
+        min_incoming: range?.min_incoming ?? null,
+        max_incoming: (row as any).max_incoming ?? range?.max_incoming ?? null,
+        tpe_type: (row as any).tpe_type ?? mode,
+        is_trade_valid: blockingReasons.length === 0,
+        reason_codes: reasonCodes,
+        baseline_apron_total: (row as any).baseline_apron_total ?? null,
+        post_trade_apron_total: (row as any).post_trade_apron_total ?? null,
+        first_apron_amount: (row as any).first_apron_amount ?? null,
+        is_padding_removed: (row as any).is_padding_removed ?? null,
+        tpe_padding_amount: (row as any).tpe_padding_amount ?? null,
+        tpe_dollar_allowance: (row as any).tpe_dollar_allowance ?? null,
+        traded_rows_found: (row as any).traded_rows_found ?? null,
+        replacement_rows_found: (row as any).replacement_rows_found ?? null,
+      };
+    })
+  );
+
+  return Response.json({
+    salary_year: salaryYear,
+    mode,
+    league,
+    teams: results,
   });
 });
 
