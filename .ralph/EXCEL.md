@@ -1,8 +1,10 @@
-# Excel Cap Workbook - Task Backlog
+# Excel Cap Workbook — Audit Remediation Backlog
 
 Build a new, self-contained Sean-style Excel cap workbook **generated from code** (Python + XlsxWriter) and powered by Postgres (`pcms.*`).
 
-**Canon:** `reference/blueprints/README.md` (start there)
+This backlog reflects the post‑v2 audit. Core sheets exist; remaining work focuses on correctness, usability, and policy wiring.
+
+**Canon:** `reference/blueprints/README.md`
 
 ---
 
@@ -18,89 +20,55 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - `reference/blueprints/excel-workbook-data-contract.md`
   - `DATA_CONTRACT_VERSION` in `excel/capbook/build.py`
 - Reuse UI formatting conventions from `web/src/features/SalaryBook/`.
-- **One task per iteration.** Each checkbox below is one iteration; sub-bullets are required deliverables.
+- **One task per iteration.** Each checkbox below is one iteration; sub‑bullets are required deliverables.
 
 ---
 
 ## Backlog (ordered)
 
-### Phase 0 - Baseline scaffold (already done)
-- [x] Baseline exporter + workbook scaffold
-  - Module structure + CLI entrypoint
-  - Base `DATA_*` extracts + tables
-  - UI stubs + META + validation handling
-  - TEAM_COCKPIT v1 readouts
-  - XlsxWriter helpers + badge color mapping
+### 1) Make PLAN + subsystem input tables truly editable
+- [ ] Unlock input tables on protected sheets
+  - Apply unlocked input formats to `tbl_plan_manager`, `tbl_plan_journal`, `tbl_signings_input`, `tbl_waive_input`
+  - Confirm sheet protection still prevents formula overwrites but allows user edits
+  - Add a quick note in each sheet explaining editable zones
 
-### Phase 1 - Data contract expansion (tables first)
-- [x] Expand core `DATA_*` tables + contract
-  - Add `DATA_rookie_scale` (from `pcms.rookie_scale_amounts`, base_year..+5, league)
-  - Add `DATA_minimum_scale` (from `pcms.league_salary_scales`)
-  - Expand `DATA_system_values` with key constants (MLE, BAE, TPE allowance, etc.)
-  - Update `DATA_SHEETS`, `dataset_specs`, and data contract doc
-  - Bump `DATA_CONTRACT_VERSION` to v2-2026-01-31
+### 2) Wire ActivePlan filtering for plan deltas
+- [ ] Budget ledger plan deltas must respect `ActivePlan`
+  - Add named range `ActivePlanId` (lookup plan_id from `tbl_plan_manager[plan_name]=ActivePlan`)
+  - Update plan delta SUMIFS to filter by `plan_id = ActivePlanId`
+  - Add fallback behavior if ActivePlanId is blank
 
-### Phase 2 - Shared command bar + named ranges
-- [x] Implement shared command bar across **all UI sheets**
-  - Create `excel/capbook/sheets/command_bar.py` helper + use in every UI sheet
-  - Add plan selectors + named ranges: `ActivePlan`, `ComparePlanA/B/C/D`
-  - Add policy toggles + named ranges: `RosterFillTarget`, `RosterFillType`, `CountTwoWayInRoster`, `CountTwoWayInTotals`, `ShowExistsOnlyRows`
-  - Add input styling (`formats["input"]`), unlock inputs, protect UI sheets
-  - Define named ranges for META fields (`MetaValidationStatus`, `MetaRefreshedAt`, `MetaBaseYear`, `MetaAsOfDate`, `MetaDataContractVersion`)
+### 3) ROSTER_GRID structure + SelectedYear alignment
+- [ ] Add explicit “CountsTowardTotal” / “CountsTowardRoster” columns
+  - Make bucket logic explicit (ROST / 2WAY / FA / TERM / EXISTS_ONLY)
+  - Honor `CountTwoWayInRoster` + `CountTwoWayInTotals` toggles
+  - Ensure % of cap and MINIMUM label use **SelectedYear** values
+  - Fix subtotal placement so SelectedYear totals align with the displayed year column
 
-### Phase 3 — TEAM_COCKPIT (alerts + drivers)
-- [x] Implement cockpit alert stack + drivers
-  - Validation banner referencing `MetaValidationStatus`
-  - Alert stack formulas (validation failed, reconcile delta, fill rows on)
-  - Quick drivers: top cap hits, top dead money, top holds
-  - "Minimum contracts" count + total readout (using `is_min_contract`)
+### 4) ROSTER_GRID mode-aware amounts (Cap / Tax / Apron)
+- [ ] Make the roster grid amounts switch by `SelectedMode`
+  - Either add a mode-switch column (single-year display) **or** provide 3 side-by-side blocks
+  - Update reconciliation block to match the active mode
+  - Keep formulas compatible with relative‑year columns
 
-### Phase 4 - ROSTER_GRID (ledger view v1)
-- [x] Implement roster ledger view with reconciliation
-  - Layout + shared command bar
-  - Roster rows (salary book wide table + badges + bucket flags)
-  - Cap holds section (bucket = FA) + dead money section (bucket = TERM)
-  - Totals + reconciliation block vs `DATA_team_salary_warehouse`
-  - `MINIMUM` label semantics + `% of cap` display helper
+### 5) Apply badge formatting in ROSTER_GRID
+- [ ] Map option/guarantee/trade restriction text → colored badges
+  - Use XlsxWriter formats aligned to web UI colors
+  - Apply conditional formatting by cell value (PO/TO/ETO, GTD/PRT/NG, NTC/Kicker/Restricted)
 
-### Phase 5 - BUDGET_LEDGER (authoritative totals v1)
-- [x] Implement budget ledger snapshot + derived totals
-  - Snapshot totals from `DATA_team_salary_warehouse`
-  - Placeholder plan delta section (zeros for now)
-  - Derived totals + delta vs snapshot
+### 6) TEAM_COCKPIT drivers use SelectedYear
+- [ ] Update cockpit quick drivers + min totals to be SelectedYear‑aware
+  - Top cap hits should use SelectedYear (not always cap_y0)
+  - Min contract totals should use SelectedYear cap amounts
+  - Keep formulas stable with relative‑year columns
 
-### Phase 6 - AUDIT_AND_RECONCILE (minimal explainability)
-- [x] Implement audit + reconciliation section
-  - Totals from `DATA_team_salary_warehouse`
-  - Sums from roster/holds/dead money (salary_book, cap_holds, dead_money warehouses)
-  - Visible deltas + conditional formatting (green=OK, red=mismatch)
-  - Row counts + counts-vs-exists summary
-  - Summary banner with at-a-glance reconciliation status
-  - Policy assumptions section showing current toggle values
-  - Shared command bar (consistent with other UI sheets)
+### 7) AUDIT_AND_RECONCILE: add apron reconciliation
+- [ ] Add apron bucket + total reconciliation (warehouse vs drilldowns)
+  - Include apron deltas in the summary banner logic
+  - Keep conditional formatting consistent with cap/tax sections
 
-### Phase 7 - Scenario engine baseline
-- [x] Implement PLAN tables + wiring
-  - `PLAN_MANAGER` table (Plan ID, name, notes, created_at)
-  - `PLAN_JOURNAL` input table with validation for Action Type
-  - Wire `ActivePlan` validation list from `PLAN_MANAGER`
-  - Plan delta summary in `BUDGET_LEDGER` sourced from `PLAN_JOURNAL`
-
-### Phase 8 - Subsystem sheets (inputs → journal stubs)
-- [x] Implement subsystem sheet v1 layouts
-  - TRADE_MACHINE lanes A-D (inputs + outgoing/incoming totals)
-  - SIGNINGS_AND_EXCEPTIONS input table + delta columns
-  - WAIVE_BUYOUT_STRETCH input table + delta columns
-  - ASSETS inventory (exceptions + draft picks) filtered by `SelectedTeam`
-
-### Phase 9 - RULES_REFERENCE (memory aids)
-- [x] Implement rules reference tables + notes
-  - Tax rates table (from `DATA_tax_rates`)
-  - Minimum + rookie scale tables (from new datasets)
-  - Salary matching tiers table (static)
-  - Apron gate / hard-cap trigger notes (static)
-
-### Phase 10 - Docs + integration
-- [x] Documentation + workflow integration
-  - Update `excel/AGENTS.md` with current CLI usage + dataset list
-  - Add Windmill step to build workbook after PCMS refresh (import flow)
+### 8) Policy toggles actually affect outputs
+- [ ] Wire policy toggles into calculations
+  - `ShowExistsOnlyRows` should control display of non‑counting rows
+  - `RosterFillTarget` / `RosterFillType` should at least surface a visible “not yet implemented” warning
+  - Add simple policy summary warnings in TEAM_COCKPIT + AUDIT

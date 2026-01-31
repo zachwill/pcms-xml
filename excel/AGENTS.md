@@ -164,17 +164,6 @@ excel/
 
 ---
 
-## Windmill integration
-
-The workbook is automatically generated after every PCMS refresh via the Windmill flow (`import_pcms_data.flow/`).
-
-**Step i: Export cap workbook** runs after step h (Refresh caches):
-- Builds `./shared/capbook.xlsx`
-- Uses `base_year` from flow input (default: current year)
-- Uses `as_of` = today's date
-
-See `import_pcms_data.flow/export_capbook.inline_script.py` for the implementation.
-
 ---
 
 ## UI conventions (reuse existing decisions from `web/`)

@@ -920,14 +920,14 @@ def write_assets(
     # Placeholder for filtered data
     worksheet.write(
         content_row, 0,
-        "← Filtered from DATA_draft_picks_warehouse (tbl_draft_picks_warehouse) where owning_team=SelectedTeam",
+        "← Filtered from DATA_draft_picks_warehouse (tbl_draft_picks_warehouse) where team_code=SelectedTeam",
         sub_formats["note"],
     )
     content_row += 1
 
     worksheet.write(
         content_row, 0,
-        '=FILTER(tbl_draft_picks_warehouse, tbl_draft_picks_warehouse[owning_team_code]=SelectedTeam, "None")',
+        '=FILTER(tbl_draft_picks_warehouse, tbl_draft_picks_warehouse[team_code]=SelectedTeam, "None")',
         sub_formats["note"],
     )
     content_row += 3
