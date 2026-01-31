@@ -109,13 +109,13 @@ grep -nE "'<Sheet Name>'!" reference/warehouse/*.json
 ### Completed analysis
 
 - [x] Resolve **external workbook references** in formulas (e.g. `X!` and `[2]Exceptions Warehouse - 2024`) and map them to our in-repo sheets and/or `pcms.*` tables. → See `reference/warehouse/specs/external-refs.md`
-- [x] Validate **luxury tax parity** (analysis): Sean's `Tax Array` SUMPRODUCT vs `pcms.league_tax_rates` (and repeater flags from `pcms.tax_team_status`). → See `reference/warehouse/specs/tax_array.md` §8–10.
+- [x] Validate **luxury tax parity** (analysis): Sean's `Tax Array` SUMPRODUCT vs `pcms.league_tax_rates` (and repeater flags from `pcms.tax_team_status`). → See `reference/warehouse/specs/tax_array.md` §8-10.
 
 ### Next (tooling correctness blockers)
 
-- [ ] **Decide warehouse year horizon**: extend tool-facing warehouses to **2031** (Sean’s Y goes to 2031) vs keep 2025–2030.
-- [ ] **Minimum salary parity**: validate Sean’s multi-year minimum escalators (Years 2–5) + proration assumptions (`/174`) vs what we expose from `pcms.league_salary_scales` (Year 1 only today).
-- [ ] **Luxury tax primitive**: implement `pcms.fn_luxury_tax_amount(salary_year, over_tax_amount, is_repeater)` (or equivalent) using `pcms.league_tax_rates`, so UI tools can replicate the workbook’s "Tax Payment" outputs without SUMPRODUCT emulation.
+- [x] **Decide warehouse year horizon**: extend tool-facing warehouses to **2031** (Sean's Y goes to 2031) vs keep 2025–2030. → **Decision: Keep 2025–2030** (see `reference/warehouse/specs/year-horizon-decision.md`).
+- [ ] **Minimum salary parity**: validate Sean's multi-year minimum escalators (Years 2-5) + proration assumptions (`/174`) vs what we expose from `pcms.league_salary_scales` (Year 1 only today).
+- [ ] **Luxury tax primitive**: implement `pcms.fn_luxury_tax_amount(salary_year, over_tax_amount, is_repeater)` (or equivalent) using `pcms.league_tax_rates`, so UI tools can replicate the workbook's "Tax Payment" outputs without SUMPRODUCT emulation.
 
 ### Scenario math
 
