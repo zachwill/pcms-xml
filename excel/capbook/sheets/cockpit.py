@@ -1,10 +1,14 @@
 """
-TEAM_COCKPIT sheet writer with shared command bar and primary readouts.
+TEAM_COCKPIT sheet writer with shared command bar, alerts, and readouts.
 
 This module implements:
 1. The editable command bar (using command_bar.write_command_bar_editable)
-2. Primary readouts section driven by DATA_team_salary_warehouse
-3. Sheet protection with unlocked input cells
+2. Validation banner (references MetaValidationStatus)
+3. Alert stack section (validation, reconciliation, policy alerts)
+4. Primary readouts section driven by DATA_team_salary_warehouse
+5. Quick drivers panel (top cap hits, top dead money, top holds)
+6. Minimum contracts count + total (using is_min_contract)
+7. Sheet protection with unlocked input cells
 
 Per the blueprint (excel-cap-book-blueprint.md), the command bar is the
 workbook's "operating context" and should be consistent across all sheets.
@@ -17,7 +21,7 @@ from typing import Any
 from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
-from ..xlsx import FMT_MONEY
+from ..xlsx import FMT_MONEY, COLOR_ALERT_FAIL, COLOR_ALERT_WARN, COLOR_ALERT_OK
 from .command_bar import (
     write_command_bar_editable,
     get_content_start_row,
@@ -25,7 +29,7 @@ from .command_bar import (
 
 
 # =============================================================================
-# Primary Readouts Layout
+# Layout Constants
 # =============================================================================
 
 # Readouts start after the command bar
@@ -38,6 +42,18 @@ COL_READOUT_LABEL = 0
 COL_READOUT_VALUE = 1
 COL_READOUT_DESC = 2
 
+# Drivers panel column layout (right side)
+COL_DRIVERS_LABEL = 4
+COL_DRIVERS_PLAYER = 5
+COL_DRIVERS_VALUE = 6
+
+# Number of top rows to show in drivers
+TOP_N_DRIVERS = 5
+
+
+# =============================================================================
+# Formula Helpers
+# =============================================================================
 
 def _sumifs_formula(data_col: str) -> str:
     """Build SUMIFS formula to look up a value from tbl_team_salary_warehouse.
@@ -65,6 +81,534 @@ def _if_formula(data_col: str) -> str:
     )
 
 
+def _countifs_formula(table: str, filters: list[tuple[str, str]]) -> str:
+    """Build COUNTIFS formula with multiple conditions.
+    
+    Args:
+        table: Table name (without brackets)
+        filters: List of (column_name, criteria) tuples
+    
+    Returns:
+        Excel formula string
+    """
+    parts = []
+    for col, criteria in filters:
+        parts.append(f"{table}[{col}],{criteria}")
+    return f"=COUNTIFS({','.join(parts)})"
+
+
+def _sumifs_multi_formula(table: str, sum_col: str, filters: list[tuple[str, str]]) -> str:
+    """Build SUMIFS formula with multiple conditions.
+    
+    Args:
+        table: Table name (without brackets)
+        sum_col: Column to sum
+        filters: List of (column_name, criteria) tuples
+    
+    Returns:
+        Excel formula string
+    """
+    parts = [f"{table}[{sum_col}]"]
+    for col, criteria in filters:
+        parts.append(f"{table}[{col}],{criteria}")
+    return f"=SUMIFS({','.join(parts)})"
+
+
+def _large_formula(table: str, value_col: str, name_col: str, rank: int, filters: list[tuple[str, str]]) -> tuple[str, str]:
+    """Build formulas to get the Nth largest value and corresponding name.
+    
+    Returns (value_formula, name_formula) tuple.
+    Uses AGGREGATE(14,...) which ignores errors.
+    """
+    # For the value, we use AGGREGATE(14, 6, ..., rank) = LARGE ignoring errors
+    # We need to filter by team_code=SelectedTeam
+    # This is complex in Excel - we'll use a SUMPRODUCT approach with LARGE on array
+    
+    # Value formula: Get the Nth largest cap_y0 for the team
+    # AGGREGATE(14, 6, array, k) = LARGE(array, k) ignoring errors
+    value_formula = (
+        f"=IFERROR(AGGREGATE(14,6,"
+        f"({table}[{value_col}])/("
+        f"({table}[team_code]=SelectedTeam)"
+    )
+    for col, criteria in filters:
+        value_formula += f"*({table}[{col}]={criteria})"
+    value_formula += f"),{rank}),0)"
+    
+    # Name formula: INDEX/MATCH to find the name for this value
+    # Use MATCH with SUMPRODUCT for multi-criteria
+    name_formula = (
+        f"=IFERROR(INDEX({table}[{name_col}],"
+        f"MATCH(1,({table}[team_code]=SelectedTeam)"
+    )
+    for col, criteria in filters:
+        name_formula += f"*({table}[{col}]={criteria})"
+    name_formula += f"*({table}[{value_col}]=" + value_formula[1:] + f"),0)),\"\")"
+    
+    return value_formula, name_formula
+
+
+# =============================================================================
+# Write Functions
+# =============================================================================
+
+def _write_validation_banner(
+    workbook: Workbook,
+    worksheet: Worksheet,
+    formats: dict[str, Any],
+    row: int,
+) -> int:
+    """Write the validation status banner.
+    
+    This banner shows PASS/FAIL based on MetaValidationStatus.
+    Uses conditional formatting to highlight failures.
+    
+    Returns:
+        Next available row
+    """
+    # Create banner format
+    banner_fmt = workbook.add_format({
+        "bold": True,
+        "font_size": 12,
+        "align": "left",
+        "valign": "vcenter",
+    })
+    
+    # Write the banner cell with formula
+    worksheet.write_formula(
+        row, COL_READOUT_LABEL,
+        '=IF(MetaValidationStatus="PASS","✓ Data Validated","⚠ VALIDATION FAILED")',
+        banner_fmt
+    )
+    worksheet.merge_range(row, COL_READOUT_LABEL, row, COL_READOUT_DESC, "", banner_fmt)
+    
+    # Re-write after merge with formula
+    worksheet.write_formula(
+        row, COL_READOUT_LABEL,
+        '=IF(MetaValidationStatus="PASS","✓ Data Validated","⚠ VALIDATION FAILED")',
+        banner_fmt
+    )
+    
+    # Add conditional formatting
+    worksheet.conditional_format(row, COL_READOUT_LABEL, row, COL_READOUT_DESC, {
+        "type": "formula",
+        "criteria": '=MetaValidationStatus<>"PASS"',
+        "format": formats["alert_fail"],
+    })
+    worksheet.conditional_format(row, COL_READOUT_LABEL, row, COL_READOUT_DESC, {
+        "type": "formula",
+        "criteria": '=MetaValidationStatus="PASS"',
+        "format": formats["alert_ok"],
+    })
+    
+    return row + 1
+
+
+def _write_alert_stack(
+    workbook: Workbook,
+    worksheet: Worksheet,
+    formats: dict[str, Any],
+    row: int,
+) -> int:
+    """Write the alert stack section.
+    
+    Alerts are formula-driven and show/hide based on conditions:
+    - Validation failed
+    - Fill rows are enabled (policy toggle)
+    - Reconciliation delta (future)
+    
+    Returns:
+        Next available row
+    """
+    header_fmt = workbook.add_format({
+        "bold": True,
+        "font_size": 9,
+        "font_color": "#616161",
+    })
+    alert_row_fmt = workbook.add_format({
+        "font_size": 10,
+    })
+    
+    worksheet.write(row, COL_READOUT_LABEL, "ALERTS", header_fmt)
+    row += 1
+    
+    # Alert 1: Validation failed
+    worksheet.write_formula(
+        row, COL_READOUT_LABEL,
+        '=IF(MetaValidationStatus<>"PASS","⚠ Validation failed — check AUDIT_AND_RECONCILE","")',
+        alert_row_fmt
+    )
+    worksheet.conditional_format(row, COL_READOUT_LABEL, row, COL_READOUT_DESC, {
+        "type": "formula",
+        "criteria": '=MetaValidationStatus<>"PASS"',
+        "format": workbook.add_format({"bg_color": "#FEE2E2", "font_color": "#991B1B"}),  # red-100 / red-800
+    })
+    row += 1
+    
+    # Alert 2: Fill rows enabled (using RosterFillTarget named range)
+    worksheet.write_formula(
+        row, COL_READOUT_LABEL,
+        '=IF(RosterFillTarget>0,"⚙ Fill rows enabled (target: "&RosterFillTarget&") — generated rows included","")',
+        alert_row_fmt
+    )
+    worksheet.conditional_format(row, COL_READOUT_LABEL, row, COL_READOUT_DESC, {
+        "type": "formula",
+        "criteria": "=RosterFillTarget>0",
+        "format": workbook.add_format({"bg_color": "#FEF3C7", "font_color": "#92400E"}),  # amber-100 / amber-800
+    })
+    row += 1
+    
+    # Alert 3: Two-way contracts included in totals
+    worksheet.write_formula(
+        row, COL_READOUT_LABEL,
+        '=IF(CountTwoWayInTotals="Yes","ℹ Two-way contracts included in totals","")',
+        alert_row_fmt
+    )
+    worksheet.conditional_format(row, COL_READOUT_LABEL, row, COL_READOUT_DESC, {
+        "type": "formula",
+        "criteria": '=CountTwoWayInTotals="Yes"',
+        "format": workbook.add_format({"bg_color": "#DBEAFE", "font_color": "#1E40AF"}),  # blue-100 / blue-800
+    })
+    row += 1
+    
+    # Blank row for spacing
+    row += 1
+    
+    return row
+
+
+def _write_primary_readouts(
+    workbook: Workbook,
+    worksheet: Worksheet,
+    formats: dict[str, Any],
+    row: int,
+) -> int:
+    """Write the primary readouts section.
+    
+    Returns:
+        Next available row
+    """
+    # Create formats
+    money_fmt = workbook.add_format({"num_format": FMT_MONEY, "bold": True})
+    label_fmt = workbook.add_format({"bold": False})
+    bold_fmt = workbook.add_format({"bold": True})
+    section_header_fmt = workbook.add_format({
+        "bold": True,
+        "font_size": 9,
+        "font_color": "#616161",
+    })
+    
+    # Section header
+    worksheet.write(row, COL_READOUT_LABEL, "PRIMARY READOUTS", section_header_fmt)
+    worksheet.write(row, COL_READOUT_DESC, "(values update when Team/Year changes)")
+    row += 1
+    
+    # Cap Position
+    worksheet.write(row, COL_READOUT_LABEL, "Cap Position:", label_fmt)
+    worksheet.write_formula(row, COL_READOUT_VALUE, _sumifs_formula("over_cap"), money_fmt)
+    worksheet.write_formula(
+        row, COL_READOUT_DESC,
+        f'=IF({_sumifs_formula("over_cap")}>0,"over cap","cap room")',
+    )
+    row += 1
+    
+    # Tax Position
+    worksheet.write(row, COL_READOUT_LABEL, "Tax Position:", label_fmt)
+    worksheet.write_formula(row, COL_READOUT_VALUE, _sumifs_formula("room_under_tax"), money_fmt)
+    worksheet.write_formula(
+        row, COL_READOUT_DESC,
+        f'=IF({_sumifs_formula("room_under_tax")}>0,"under tax line","over tax line")',
+    )
+    row += 1
+    
+    # Room Under Apron 1
+    worksheet.write(row, COL_READOUT_LABEL, "Room Under Apron 1:", label_fmt)
+    worksheet.write_formula(row, COL_READOUT_VALUE, _sumifs_formula("room_under_apron1"), money_fmt)
+    worksheet.write_formula(
+        row, COL_READOUT_DESC,
+        f'=IF({_sumifs_formula("room_under_apron1")}>0,"under 1st apron","at/above 1st apron")',
+    )
+    row += 1
+    
+    # Room Under Apron 2
+    worksheet.write(row, COL_READOUT_LABEL, "Room Under Apron 2:", label_fmt)
+    worksheet.write_formula(row, COL_READOUT_VALUE, _sumifs_formula("room_under_apron2"), money_fmt)
+    worksheet.write_formula(
+        row, COL_READOUT_DESC,
+        f'=IF({_sumifs_formula("room_under_apron2")}>0,"under 2nd apron","at/above 2nd apron")',
+    )
+    row += 1
+    
+    # Roster Count
+    worksheet.write(row, COL_READOUT_LABEL, "Roster Count:", label_fmt)
+    worksheet.write_formula(row, COL_READOUT_VALUE, _sumifs_formula("roster_row_count"), bold_fmt)
+    worksheet.write_formula(
+        row, COL_READOUT_DESC,
+        f'="NBA roster + "&{_sumifs_formula("two_way_row_count")}&" two-way"',
+    )
+    row += 1
+    
+    # Repeater Status
+    worksheet.write(row, COL_READOUT_LABEL, "Repeater Status:", label_fmt)
+    worksheet.write_formula(
+        row, COL_READOUT_VALUE,
+        f'=IF({_if_formula("is_repeater_taxpayer")}=TRUE,"YES","NO")',
+        bold_fmt,
+    )
+    worksheet.write(row, COL_READOUT_DESC, "(repeater taxpayer if TRUE)", label_fmt)
+    row += 1
+    
+    # Cap Total (for reference)
+    worksheet.write(row, COL_READOUT_LABEL, "Cap Total:", label_fmt)
+    worksheet.write_formula(row, COL_READOUT_VALUE, _sumifs_formula("cap_total"), money_fmt)
+    worksheet.write_formula(
+        row, COL_READOUT_DESC,
+        f'="vs cap of "&TEXT({_sumifs_formula("salary_cap_amount")},"$#,##0")',
+    )
+    row += 1
+    
+    # Tax Total (for reference)
+    worksheet.write(row, COL_READOUT_LABEL, "Tax Total:", label_fmt)
+    worksheet.write_formula(row, COL_READOUT_VALUE, _sumifs_formula("tax_total"), money_fmt)
+    worksheet.write_formula(
+        row, COL_READOUT_DESC,
+        f'="vs tax line of "&TEXT({_sumifs_formula("tax_level_amount")},"$#,##0")',
+    )
+    row += 1
+    
+    # Blank row for spacing
+    row += 1
+    
+    return row
+
+
+def _write_minimum_contracts_readout(
+    workbook: Workbook,
+    worksheet: Worksheet,
+    formats: dict[str, Any],
+    row: int,
+) -> int:
+    """Write the minimum contracts count + total readout.
+    
+    Uses is_min_contract from tbl_salary_book_warehouse.
+    
+    Returns:
+        Next available row
+    """
+    money_fmt = workbook.add_format({"num_format": FMT_MONEY, "bold": True})
+    label_fmt = workbook.add_format({"bold": False})
+    section_header_fmt = workbook.add_format({
+        "bold": True,
+        "font_size": 9,
+        "font_color": "#616161",
+    })
+    
+    worksheet.write(row, COL_READOUT_LABEL, "MINIMUM CONTRACTS", section_header_fmt)
+    row += 1
+    
+    # Count of minimum contracts for selected team
+    # COUNTIFS on salary_book_warehouse where team_code=SelectedTeam AND is_min_contract=TRUE
+    worksheet.write(row, COL_READOUT_LABEL, "Min Contract Count:", label_fmt)
+    worksheet.write_formula(
+        row, COL_READOUT_VALUE,
+        "=COUNTIFS(tbl_salary_book_warehouse[team_code],SelectedTeam,"
+        "tbl_salary_book_warehouse[is_min_contract],TRUE)",
+    )
+    worksheet.write(row, COL_READOUT_DESC, "players on minimum contracts", label_fmt)
+    row += 1
+    
+    # Total salary for minimum contracts (cap_y0 for base year)
+    worksheet.write(row, COL_READOUT_LABEL, "Min Contract Total:", label_fmt)
+    worksheet.write_formula(
+        row, COL_READOUT_VALUE,
+        "=SUMIFS(tbl_salary_book_warehouse[cap_y0],"
+        "tbl_salary_book_warehouse[team_code],SelectedTeam,"
+        "tbl_salary_book_warehouse[is_min_contract],TRUE)",
+        money_fmt,
+    )
+    worksheet.write(row, COL_READOUT_DESC, "(base year cap amounts)", label_fmt)
+    row += 1
+    
+    # Blank row for spacing
+    row += 1
+    
+    return row
+
+
+def _write_quick_drivers(
+    workbook: Workbook,
+    worksheet: Worksheet,
+    formats: dict[str, Any],
+    start_row: int,
+) -> int:
+    """Write the quick drivers panel (right side).
+    
+    Shows:
+    - Top N cap hits (from salary_book_warehouse)
+    - Top N dead money (from dead_money_warehouse)
+    - Top N holds (from cap_holds_warehouse)
+    
+    Returns:
+        Next available row
+    """
+    money_fmt = workbook.add_format({"num_format": FMT_MONEY})
+    bold_fmt = workbook.add_format({"bold": True})
+    section_header_fmt = workbook.add_format({
+        "bold": True,
+        "font_size": 9,
+        "font_color": "#616161",
+    })
+    player_fmt = workbook.add_format({"align": "left"})
+    
+    # Column widths for drivers area
+    worksheet.set_column(COL_DRIVERS_LABEL, COL_DRIVERS_LABEL, 16)
+    worksheet.set_column(COL_DRIVERS_PLAYER, COL_DRIVERS_PLAYER, 20)
+    worksheet.set_column(COL_DRIVERS_VALUE, COL_DRIVERS_VALUE, 14)
+    
+    row = start_row
+    
+    # =========================================================================
+    # Top Cap Hits
+    # =========================================================================
+    worksheet.write(row, COL_DRIVERS_LABEL, "TOP CAP HITS", section_header_fmt)
+    worksheet.write(row, COL_DRIVERS_PLAYER, "Player", section_header_fmt)
+    worksheet.write(row, COL_DRIVERS_VALUE, "Amount", section_header_fmt)
+    row += 1
+    
+    # Use LARGE + INDEX/MATCH for top N
+    # We filter by team_code=SelectedTeam and is_two_way=FALSE (standard contracts)
+    for rank in range(1, TOP_N_DRIVERS + 1):
+        # Value: Nth largest cap_y0 for the team (excluding two-way)
+        value_formula = (
+            f"=IFERROR(AGGREGATE(14,6,"
+            f"(tbl_salary_book_warehouse[cap_y0])/"
+            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
+            f"(tbl_salary_book_warehouse[is_two_way]=FALSE))"
+            f",{rank}),0)"
+        )
+        
+        # Name: INDEX/MATCH to find player name with this value
+        # We need to match on team_code AND cap_y0 = the value we just computed
+        # This is tricky; we use a nested approach
+        name_formula = (
+            f"=IFERROR(INDEX(tbl_salary_book_warehouse[player_name],"
+            f"MATCH(1,(tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
+            f"(tbl_salary_book_warehouse[is_two_way]=FALSE)*"
+            f"(tbl_salary_book_warehouse[cap_y0]=AGGREGATE(14,6,"
+            f"(tbl_salary_book_warehouse[cap_y0])/"
+            f"((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
+            f"(tbl_salary_book_warehouse[is_two_way]=FALSE))"
+            f",{rank})),0)),\"\")"
+        )
+        
+        worksheet.write(row, COL_DRIVERS_LABEL, f"#{rank}")
+        worksheet.write_formula(row, COL_DRIVERS_PLAYER, name_formula, player_fmt)
+        worksheet.write_formula(row, COL_DRIVERS_VALUE, value_formula, money_fmt)
+        row += 1
+    
+    # Blank row
+    row += 1
+    
+    # =========================================================================
+    # Top Dead Money
+    # =========================================================================
+    worksheet.write(row, COL_DRIVERS_LABEL, "TOP DEAD MONEY", section_header_fmt)
+    worksheet.write(row, COL_DRIVERS_PLAYER, "Player", section_header_fmt)
+    worksheet.write(row, COL_DRIVERS_VALUE, "Amount", section_header_fmt)
+    row += 1
+    
+    for rank in range(1, TOP_N_DRIVERS + 1):
+        # Value: Nth largest cap_value for the team in dead_money_warehouse
+        value_formula = (
+            f"=IFERROR(AGGREGATE(14,6,"
+            f"(tbl_dead_money_warehouse[cap_value])/"
+            f"((tbl_dead_money_warehouse[team_code]=SelectedTeam)*"
+            f"(tbl_dead_money_warehouse[salary_year]=SelectedYear))"
+            f",{rank}),0)"
+        )
+        
+        name_formula = (
+            f"=IFERROR(INDEX(tbl_dead_money_warehouse[player_name],"
+            f"MATCH(1,(tbl_dead_money_warehouse[team_code]=SelectedTeam)*"
+            f"(tbl_dead_money_warehouse[salary_year]=SelectedYear)*"
+            f"(tbl_dead_money_warehouse[cap_value]=AGGREGATE(14,6,"
+            f"(tbl_dead_money_warehouse[cap_value])/"
+            f"((tbl_dead_money_warehouse[team_code]=SelectedTeam)*"
+            f"(tbl_dead_money_warehouse[salary_year]=SelectedYear))"
+            f",{rank})),0)),\"\")"
+        )
+        
+        worksheet.write(row, COL_DRIVERS_LABEL, f"#{rank}")
+        worksheet.write_formula(row, COL_DRIVERS_PLAYER, name_formula, player_fmt)
+        worksheet.write_formula(row, COL_DRIVERS_VALUE, value_formula, money_fmt)
+        row += 1
+    
+    # Dead money total for the team/year
+    worksheet.write(row, COL_DRIVERS_LABEL, "Total:", bold_fmt)
+    worksheet.write_formula(
+        row, COL_DRIVERS_VALUE,
+        "=SUMIFS(tbl_dead_money_warehouse[cap_value],"
+        "tbl_dead_money_warehouse[team_code],SelectedTeam,"
+        "tbl_dead_money_warehouse[salary_year],SelectedYear)",
+        money_fmt,
+    )
+    row += 1
+    
+    # Blank row
+    row += 1
+    
+    # =========================================================================
+    # Top Cap Holds
+    # =========================================================================
+    worksheet.write(row, COL_DRIVERS_LABEL, "TOP HOLDS", section_header_fmt)
+    worksheet.write(row, COL_DRIVERS_PLAYER, "Player", section_header_fmt)
+    worksheet.write(row, COL_DRIVERS_VALUE, "Amount", section_header_fmt)
+    row += 1
+    
+    for rank in range(1, TOP_N_DRIVERS + 1):
+        # Value: Nth largest cap_amount for the team in cap_holds_warehouse
+        value_formula = (
+            f"=IFERROR(AGGREGATE(14,6,"
+            f"(tbl_cap_holds_warehouse[cap_amount])/"
+            f"((tbl_cap_holds_warehouse[team_code]=SelectedTeam)*"
+            f"(tbl_cap_holds_warehouse[salary_year]=SelectedYear))"
+            f",{rank}),0)"
+        )
+        
+        name_formula = (
+            f"=IFERROR(INDEX(tbl_cap_holds_warehouse[player_name],"
+            f"MATCH(1,(tbl_cap_holds_warehouse[team_code]=SelectedTeam)*"
+            f"(tbl_cap_holds_warehouse[salary_year]=SelectedYear)*"
+            f"(tbl_cap_holds_warehouse[cap_amount]=AGGREGATE(14,6,"
+            f"(tbl_cap_holds_warehouse[cap_amount])/"
+            f"((tbl_cap_holds_warehouse[team_code]=SelectedTeam)*"
+            f"(tbl_cap_holds_warehouse[salary_year]=SelectedYear))"
+            f",{rank})),0)),\"\")"
+        )
+        
+        worksheet.write(row, COL_DRIVERS_LABEL, f"#{rank}")
+        worksheet.write_formula(row, COL_DRIVERS_PLAYER, name_formula, player_fmt)
+        worksheet.write_formula(row, COL_DRIVERS_VALUE, value_formula, money_fmt)
+        row += 1
+    
+    # Holds total for the team/year
+    worksheet.write(row, COL_DRIVERS_LABEL, "Total:", bold_fmt)
+    worksheet.write_formula(
+        row, COL_DRIVERS_VALUE,
+        "=SUMIFS(tbl_cap_holds_warehouse[cap_amount],"
+        "tbl_cap_holds_warehouse[team_code],SelectedTeam,"
+        "tbl_cap_holds_warehouse[salary_year],SelectedYear)",
+        money_fmt,
+    )
+    row += 1
+    
+    return row
+
+
+# =============================================================================
+# Main Writer
+# =============================================================================
+
 def write_team_cockpit_with_command_bar(
     workbook: Workbook,
     worksheet: Worksheet,
@@ -73,15 +617,19 @@ def write_team_cockpit_with_command_bar(
     team_codes: list[str] | None = None,
 ) -> None:
     """
-    Write TEAM_COCKPIT sheet with editable command bar and primary readouts.
+    Write TEAM_COCKPIT sheet with editable command bar, alerts, and readouts.
 
     The command bar provides the workbook's operating context:
     - SelectedTeam, SelectedYear, AsOfDate, SelectedMode
     - Policy toggles (roster fill, two-way counting, etc.)
     - Plan selectors (ActivePlan, ComparePlanA/B/C/D)
 
-    The primary readouts section shows key metrics from DATA_team_salary_warehouse:
-    - Cap position, Tax position, Apron room, Roster counts, Repeater status
+    The cockpit includes:
+    - Validation banner (PASS/FAIL status)
+    - Alert stack (validation, policy alerts)
+    - Primary readouts (cap/tax/apron positions, roster counts)
+    - Minimum contracts count + total
+    - Quick drivers panel (top cap hits, dead money, holds)
 
     Args:
         workbook: The XlsxWriter Workbook (needed for define_name and formats)
@@ -105,126 +653,34 @@ def write_team_cockpit_with_command_bar(
     )
     
     # =========================================================================
-    # Primary Readouts Section
+    # Content Sections (after command bar)
     # =========================================================================
     
-    readouts_start = _get_readouts_start_row()
-    
-    # Create formats
-    money_fmt = workbook.add_format({"num_format": FMT_MONEY, "bold": True})
-    label_fmt = workbook.add_format({"bold": False})
-    bold_fmt = workbook.add_format({"bold": True})
+    content_row = _get_readouts_start_row()
     
     # Column widths for readouts area
+    worksheet.set_column(COL_READOUT_LABEL, COL_READOUT_LABEL, 18)
+    worksheet.set_column(COL_READOUT_VALUE, COL_READOUT_VALUE, 14)
     worksheet.set_column(COL_READOUT_DESC, COL_READOUT_DESC, 30)
     
-    # Section header
-    worksheet.write(readouts_start, COL_READOUT_LABEL, "PRIMARY READOUTS", formats["header"])
-    worksheet.write(
-        readouts_start, COL_READOUT_DESC, "(values update when Team/Year changes)"
-    )
+    # 1. Validation banner
+    content_row = _write_validation_banner(workbook, worksheet, formats, content_row)
     
-    # Row assignments (relative to readouts_start)
-    row_cap = readouts_start + 1
-    row_tax = readouts_start + 2
-    row_apron1 = readouts_start + 3
-    row_apron2 = readouts_start + 4
-    row_roster = readouts_start + 5
-    row_repeater = readouts_start + 6
-    row_cap_total = readouts_start + 7
-    row_tax_total = readouts_start + 8
+    # Blank row
+    content_row += 1
     
-    # --- Cap Position ---
-    worksheet.write(row_cap, COL_READOUT_LABEL, "Cap Position:", label_fmt)
-    worksheet.write_formula(
-        row_cap, COL_READOUT_VALUE, _sumifs_formula("over_cap"), money_fmt
-    )
-    worksheet.write_formula(
-        row_cap,
-        COL_READOUT_DESC,
-        f'=IF({_sumifs_formula("over_cap")}>0,"over cap","cap room")',
-    )
-
-    # --- Tax Position ---
-    worksheet.write(row_tax, COL_READOUT_LABEL, "Tax Position:", label_fmt)
-    worksheet.write_formula(
-        row_tax, COL_READOUT_VALUE, _sumifs_formula("room_under_tax"), money_fmt
-    )
-    worksheet.write_formula(
-        row_tax,
-        COL_READOUT_DESC,
-        f'=IF({_sumifs_formula("room_under_tax")}>0,"under tax line","over tax line")',
-    )
-
-    # --- Room Under Apron 1 ---
-    worksheet.write(row_apron1, COL_READOUT_LABEL, "Room Under Apron 1:", label_fmt)
-    worksheet.write_formula(
-        row_apron1, COL_READOUT_VALUE, _sumifs_formula("room_under_apron1"), money_fmt
-    )
-    worksheet.write_formula(
-        row_apron1,
-        COL_READOUT_DESC,
-        f'=IF({_sumifs_formula("room_under_apron1")}>0,"under 1st apron","at/above 1st apron")',
-    )
-
-    # --- Room Under Apron 2 ---
-    worksheet.write(row_apron2, COL_READOUT_LABEL, "Room Under Apron 2:", label_fmt)
-    worksheet.write_formula(
-        row_apron2, COL_READOUT_VALUE, _sumifs_formula("room_under_apron2"), money_fmt
-    )
-    worksheet.write_formula(
-        row_apron2,
-        COL_READOUT_DESC,
-        f'=IF({_sumifs_formula("room_under_apron2")}>0,"under 2nd apron","at/above 2nd apron")',
-    )
-
-    # --- Roster Count ---
-    worksheet.write(row_roster, COL_READOUT_LABEL, "Roster Count:", label_fmt)
-    worksheet.write_formula(
-        row_roster,
-        COL_READOUT_VALUE,
-        _sumifs_formula("roster_row_count"),
-        bold_fmt,
-    )
-    worksheet.write_formula(
-        row_roster,
-        COL_READOUT_DESC,
-        f'="NBA roster + "&{_sumifs_formula("two_way_row_count")}&" two-way"',
-    )
-
-    # --- Repeater Status ---
-    worksheet.write(row_repeater, COL_READOUT_LABEL, "Repeater Status:", label_fmt)
-    worksheet.write_formula(
-        row_repeater,
-        COL_READOUT_VALUE,
-        f'=IF({_if_formula("is_repeater_taxpayer")}=TRUE,"YES","NO")',
-        bold_fmt,
-    )
-    worksheet.write(
-        row_repeater, COL_READOUT_DESC, "(repeater taxpayer if TRUE)", label_fmt
-    )
-
-    # --- Cap Total (for reference) ---
-    worksheet.write(row_cap_total, COL_READOUT_LABEL, "Cap Total:", label_fmt)
-    worksheet.write_formula(
-        row_cap_total, COL_READOUT_VALUE, _sumifs_formula("cap_total"), money_fmt
-    )
-    worksheet.write_formula(
-        row_cap_total,
-        COL_READOUT_DESC,
-        f'="vs cap of "&TEXT({_sumifs_formula("salary_cap_amount")},"$#,##0")',
-    )
-
-    # --- Tax Total (for reference) ---
-    worksheet.write(row_tax_total, COL_READOUT_LABEL, "Tax Total:", label_fmt)
-    worksheet.write_formula(
-        row_tax_total, COL_READOUT_VALUE, _sumifs_formula("tax_total"), money_fmt
-    )
-    worksheet.write_formula(
-        row_tax_total,
-        COL_READOUT_DESC,
-        f'="vs tax line of "&TEXT({_sumifs_formula("tax_level_amount")},"$#,##0")',
-    )
+    # 2. Alert stack
+    content_row = _write_alert_stack(workbook, worksheet, formats, content_row)
+    
+    # 3. Primary readouts
+    content_row = _write_primary_readouts(workbook, worksheet, formats, content_row)
+    
+    # 4. Minimum contracts readout
+    content_row = _write_minimum_contracts_readout(workbook, worksheet, formats, content_row)
+    
+    # 5. Quick drivers panel (starts at same row as validation banner, on right side)
+    drivers_start_row = _get_readouts_start_row()
+    _write_quick_drivers(workbook, worksheet, formats, drivers_start_row)
     
     # =========================================================================
     # Sheet Protection

@@ -1,4 +1,4 @@
-# Excel Cap Workbook — Task Backlog
+# Excel Cap Workbook - Task Backlog
 
 Build a new, self-contained Sean-style Excel cap workbook **generated from code** (Python + XlsxWriter) and powered by Postgres (`pcms.*`).
 
@@ -24,7 +24,7 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
 
 ## Backlog (ordered)
 
-### Phase 0 — Baseline scaffold (already done)
+### Phase 0 - Baseline scaffold (already done)
 - [x] Baseline exporter + workbook scaffold
   - Module structure + CLI entrypoint
   - Base `DATA_*` extracts + tables
@@ -32,7 +32,7 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - TEAM_COCKPIT v1 readouts
   - XlsxWriter helpers + badge color mapping
 
-### Phase 1 — Data contract expansion (tables first)
+### Phase 1 - Data contract expansion (tables first)
 - [x] Expand core `DATA_*` tables + contract
   - Add `DATA_rookie_scale` (from `pcms.rookie_scale_amounts`, base_year..+5, league)
   - Add `DATA_minimum_scale` (from `pcms.league_salary_scales`)
@@ -40,7 +40,7 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - Update `DATA_SHEETS`, `dataset_specs`, and data contract doc
   - Bump `DATA_CONTRACT_VERSION` to v2-2026-01-31
 
-### Phase 2 — Shared command bar + named ranges
+### Phase 2 - Shared command bar + named ranges
 - [x] Implement shared command bar across **all UI sheets**
   - Create `excel/capbook/sheets/command_bar.py` helper + use in every UI sheet
   - Add plan selectors + named ranges: `ActivePlan`, `ComparePlanA/B/C/D`
@@ -49,13 +49,13 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - Define named ranges for META fields (`MetaValidationStatus`, `MetaRefreshedAt`, `MetaBaseYear`, `MetaAsOfDate`, `MetaDataContractVersion`)
 
 ### Phase 3 — TEAM_COCKPIT (alerts + drivers)
-- [ ] Implement cockpit alert stack + drivers
+- [x] Implement cockpit alert stack + drivers
   - Validation banner referencing `MetaValidationStatus`
   - Alert stack formulas (validation failed, reconcile delta, fill rows on)
   - Quick drivers: top cap hits, top dead money, top holds
-  - “Minimum contracts” count + total readout (using `is_min_contract`)
+  - "Minimum contracts" count + total readout (using `is_min_contract`)
 
-### Phase 4 — ROSTER_GRID (ledger view v1)
+### Phase 4 - ROSTER_GRID (ledger view v1)
 - [ ] Implement roster ledger view with reconciliation
   - Layout + shared command bar
   - Roster rows (salary book wide table + badges + bucket flags)
@@ -63,41 +63,41 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - Totals + reconciliation block vs `DATA_team_salary_warehouse`
   - `MINIMUM` label semantics + `% of cap` display helper
 
-### Phase 5 — BUDGET_LEDGER (authoritative totals v1)
+### Phase 5 - BUDGET_LEDGER (authoritative totals v1)
 - [ ] Implement budget ledger snapshot + derived totals
   - Snapshot totals from `DATA_team_salary_warehouse`
   - Placeholder plan delta section (zeros for now)
   - Derived totals + delta vs snapshot
 
-### Phase 6 — AUDIT_AND_RECONCILE (minimal explainability)
+### Phase 6 - AUDIT_AND_RECONCILE (minimal explainability)
 - [ ] Implement audit + reconciliation section
   - Totals from `DATA_team_salary_warehouse`
   - Sums from roster/holds/dead money
   - Visible deltas + conditional formatting
   - Row counts + counts-vs-exists summary
 
-### Phase 7 — Scenario engine baseline
+### Phase 7 - Scenario engine baseline
 - [ ] Implement PLAN tables + wiring
   - `PLAN_MANAGER` table (Plan ID, name, notes, created_at)
   - `PLAN_JOURNAL` input table with validation for Action Type
   - Wire `ActivePlan` validation list from `PLAN_MANAGER`
   - Plan delta summary in `BUDGET_LEDGER` sourced from `PLAN_JOURNAL`
 
-### Phase 8 — Subsystem sheets (inputs → journal stubs)
+### Phase 8 - Subsystem sheets (inputs → journal stubs)
 - [ ] Implement subsystem sheet v1 layouts
-  - TRADE_MACHINE lanes A–D (inputs + outgoing/incoming totals)
+  - TRADE_MACHINE lanes A-D (inputs + outgoing/incoming totals)
   - SIGNINGS_AND_EXCEPTIONS input table + delta columns
   - WAIVE_BUYOUT_STRETCH input table + delta columns
   - ASSETS inventory (exceptions + draft picks) filtered by `SelectedTeam`
 
-### Phase 9 — RULES_REFERENCE (memory aids)
+### Phase 9 - RULES_REFERENCE (memory aids)
 - [ ] Implement rules reference tables + notes
   - Tax rates table (from `DATA_tax_rates`)
   - Minimum + rookie scale tables (from new datasets)
   - Salary matching tiers table (static)
   - Apron gate / hard-cap trigger notes (static)
 
-### Phase 10 — Docs + integration
+### Phase 10 - Docs + integration
 - [ ] Documentation + workflow integration
   - Update `excel/AGENTS.md` with current CLI usage + dataset list
   - Add Windmill step to build workbook after PCMS refresh (import flow)
