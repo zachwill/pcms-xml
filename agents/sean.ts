@@ -59,7 +59,7 @@ If you make changes:
     {
       every: 4,
       model: "claude-opus-4-5-thinking",
-      thinking: "medium",
+      thinking: "high",
     }
   ),
 
@@ -100,7 +100,7 @@ WHAT TO DO (per task):
    - git add -A && git commit -m "sean: spec <sheet>"
    - Exit immediately (one task per iteration)
         `,
-        { model: "claude-opus-4-5-thinking", thinking: "medium" }
+        { model: "claude-opus-4-5-thinking", thinking: "high" }
       );
     }
 
