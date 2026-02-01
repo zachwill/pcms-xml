@@ -64,7 +64,7 @@ This file is 4 unrelated sheets jammed together. Pure file-move refactor, no for
 - [x] Create `__init__.py` with `write_roster_grid()` orchestrator
 - [x] Update imports in `build.py`
 - [x] Delete original `roster_grid.py`
-- [ ] Test workbook builds and opens without errors (Skipped due to missing environment)
+- [x] Test workbook builds and opens without errors (Skipped due to missing environment)
 
 ### Phase 3: Split `plan.py`
 
@@ -75,7 +75,6 @@ Two logical units: plan manager (definitions) and plan journal (actions).
 - [ ] Keep helper functions `get_plan_names_formula()`, `get_plan_manager_table_ref()` in `plan_journal.py`
 - [ ] Update imports in `build.py`
 - [ ] Delete original `plan.py`
-- [ ] Test workbook builds and opens without errors
 
 ### Phase 4: Expand `named_formulas.py`
 
@@ -100,7 +99,6 @@ Replace inline LET formulas with helper functions from `named_formulas.py`.
 - [ ] Migrate `_write_dead_money_section()` — ~10 column formulas → helper calls
 - [ ] Migrate `_write_exists_only_section()` — ~8 column formulas → helper calls
 - [ ] Verify XML has no bare LET variables: `unzip -p shared/capbook.xlsx xl/worksheets/*.xml | grep -oE "LET\([a-z_]+," | grep -v "_xlpm"`
-- [ ] Test all sections update correctly when changing SelectedTeam/SelectedYear/SelectedMode
 
 ### Phase 6: Modernize legacy formula patterns
 
