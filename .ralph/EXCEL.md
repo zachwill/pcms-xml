@@ -37,15 +37,15 @@ This document tracks the Excel capbook modernization effort—splitting massive 
 
 This file is 4 unrelated sheets jammed together. Pure file-move refactor, no formula changes needed.
 
-- [ ] Create `excel/capbook/sheets/subsystems/` directory
-- [ ] Extract `trade_machine.py` — `write_trade_machine()`, `_write_trade_lane()`, `_col_letter()` (~600 lines)
-- [ ] Extract `signings.py` — `write_signings_and_exceptions()` (~580 lines)
-- [ ] Extract `waive_stretch.py` — `write_waive_buyout_stretch()` (~410 lines)
-- [ ] Extract `assets.py` — `write_assets()` (~200 lines)
-- [ ] Create `__init__.py` that re-exports all write functions
-- [ ] Update imports in `build.py`
-- [ ] Delete original `subsystems.py`
-- [ ] Test: `uv run excel/export_capbook.py --out shared/capbook.xlsx --base-year 2025 --as-of today --skip-assertions`
+- [x] Create `excel/capbook/sheets/subsystems/` directory
+- [x] Extract `trade_machine.py` — `write_trade_machine()`, `_write_trade_lane()`, `_col_letter()` (~600 lines)
+- [x] Extract `signings.py` — `write_signings_and_exceptions()` (~580 lines)
+- [x] Extract `waive_stretch.py` — `write_waive_buyout_stretch()` (~410 lines)
+- [x] Extract `assets.py` — `write_assets()` (~200 lines)
+- [x] Create `__init__.py` that re-exports all write functions
+- [x] Update imports in `build.py`
+- [x] Delete original `subsystems.py`
+- [x] Test: `uv run excel/export_capbook.py --out shared/capbook.xlsx --base-year 2025 --as-of today --skip-assertions`
 
 ### Phase 2: Split `roster_grid.py`
 
