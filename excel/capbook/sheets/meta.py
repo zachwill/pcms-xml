@@ -11,7 +11,8 @@ Fields:
 - exporter_git_sha: Git commit SHA of the exporter
 - validation_status: PASS or FAILED
 - validation_errors: Error messages if validation failed
-- reconcile_*: Lightweight reconciliation summary (v1)
+- reconcile_*: Reconciliation summary (v1: internal bucket math)
+- reconcile_v2_*: Reconciliation summary (v2: drilldowns vs warehouse totals)
 
 If validation fails, a prominent "FAILED" banner is displayed.
 
@@ -62,7 +63,8 @@ def write_meta_sheet(
     - A prominent validation status banner (PASS or FAILED)
     - Key-value pairs for metadata fields
     - Error details if validation failed
-    - Reconciliation summary (v1)
+    - Reconciliation summary (v1: internal warehouse bucket math)
+    - Reconciliation summary (v2: drilldowns vs warehouse totals)
 
     Args:
         worksheet: The META worksheet
@@ -215,6 +217,71 @@ def write_meta_sheet(
             row += 1
 
             for check in sample_checks[:3]:  # Just a few samples
+                team_year = f"{check.get('team_code', '?')}/{check.get('salary_year', '?')}"
+                check_name = check.get("check", "")
+                worksheet.write(row, COL_LABEL, f"  ✓ {team_year}")
+                worksheet.write(row, COL_VALUE, check_name)
+                row += 1
+
+    # === Reconciliation summary (v2 - drilldowns vs warehouse totals) ===
+    # This is the primary trust check: do the drilldown datasets roll up to the
+    # authoritative team totals?
+    row += 2  # Blank row
+    worksheet.write(row, COL_LABEL, "Reconciliation Summary (v2: drilldowns vs totals)", formats["header"])
+    row += 1
+
+    reconcile_v2_passed = build_meta.get("reconcile_v2_passed")
+    reconcile_v2_total = build_meta.get("reconcile_v2_total_checks", 0)
+    reconcile_v2_failed = build_meta.get("reconcile_v2_failed_checks", 0)
+
+    if reconcile_v2_passed is None:
+        worksheet.write(row, COL_LABEL, "reconcile_v2_status")
+        worksheet.write(row, COL_VALUE, "NOT RUN", formats["alert_warn"])
+        row += 1
+    else:
+        worksheet.write(row, COL_LABEL, "reconcile_v2_status")
+        worksheet.write(row, COL_VALUE, "PASS" if reconcile_v2_passed else "FAILED", formats["alert_ok"] if reconcile_v2_passed else formats["alert_fail"])
+        row += 1
+
+        worksheet.write(row, COL_LABEL, "reconcile_v2_total_checks")
+        worksheet.write(row, COL_VALUE, reconcile_v2_total)
+        row += 1
+
+        worksheet.write(row, COL_LABEL, "reconcile_v2_passed_checks")
+        worksheet.write(row, COL_VALUE, build_meta.get("reconcile_v2_passed_checks", 0))
+        row += 1
+
+        worksheet.write(row, COL_LABEL, "reconcile_v2_failed_checks")
+        if reconcile_v2_failed > 0:
+            worksheet.write(row, COL_VALUE, reconcile_v2_failed, formats["alert_fail"])
+        else:
+            worksheet.write(row, COL_VALUE, 0)
+        row += 1
+
+        failures_v2 = build_meta.get("reconcile_v2_failures", [])
+        if failures_v2:
+            row += 1  # Blank row
+            worksheet.write(row, COL_LABEL, "Reconciliation v2 Failures:", formats["header"])
+            worksheet.write(row, COL_VALUE, "Team/Year")
+            worksheet.write(row, COL_VALUE2, "Check")
+            worksheet.write(row, COL_VALUE3, "Delta")
+            row += 1
+
+            for fail in failures_v2[:10]:
+                team_year = f"{fail.get('team_code', '?')}/{fail.get('salary_year', '?')}"
+                worksheet.write(row, COL_LABEL, "")
+                worksheet.write(row, COL_VALUE, team_year)
+                worksheet.write(row, COL_VALUE2, fail.get("check", ""))
+                worksheet.write(row, COL_VALUE3, fail.get("delta", 0), formats["alert_fail"])
+                row += 1
+
+        sample_checks_v2 = build_meta.get("reconcile_v2_sample_checks", [])
+        if sample_checks_v2 and reconcile_v2_passed:
+            row += 1  # Blank row
+            worksheet.write(row, COL_LABEL, "Sample Checks v2 (passed):", formats["header"])
+            row += 1
+
+            for check in sample_checks_v2[:3]:
                 team_year = f"{check.get('team_code', '?')}/{check.get('salary_year', '?')}"
                 check_name = check.get("check", "")
                 worksheet.write(row, COL_LABEL, f"  ✓ {team_year}")

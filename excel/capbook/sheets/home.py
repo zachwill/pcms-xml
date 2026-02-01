@@ -122,7 +122,8 @@ def write_home_sheet(
             - data_contract_version (str): Data contract version string
             - exporter_git_sha (str): Git commit SHA
             - validation_status (str): "PASS" or "FAILED"
-            - reconcile_passed (bool): Reconciliation status
+            - reconcile_passed (bool): Reconciliation status (v1)
+            - reconcile_v2_passed (bool): Reconciliation status (v2 drilldowns)
     """
     # Set column widths
     worksheet.set_column(COL_A, COL_A, WIDTH_COL_A)
@@ -190,25 +191,35 @@ def write_home_sheet(
 
     # Validation + Reconciliation status banner
     validation_status = build_meta.get("validation_status", "UNKNOWN")
-    reconcile_passed = build_meta.get("reconcile_passed")
+    reconcile_v1_passed = build_meta.get("reconcile_passed")
+    reconcile_v2_passed = build_meta.get("reconcile_v2_passed")
+
+    def _flag(v: Any | None) -> str:
+        if v is True:
+            return "OK"
+        if v is False:
+            return "FAILED"
+        return "NOT RUN"
+
+    reconcile_detail = f"reconcile_v1={_flag(reconcile_v1_passed)}, reconcile_v2={_flag(reconcile_v2_passed)}"
 
     # Determine overall health status
-    if validation_status == "PASS" and reconcile_passed is True:
+    if validation_status == "PASS" and reconcile_v1_passed is True and reconcile_v2_passed is True:
         worksheet.write(row, COL_A, "Data Health:", formats["alert_ok"])
-        worksheet.write(row, COL_B, "✓ PASS", formats["alert_ok"])
-        worksheet.write(row, COL_C, "Validation passed, reconciliation OK", formats["alert_ok"])
-    elif validation_status == "PASS" and reconcile_passed is False:
+        worksheet.write(row, COL_B, "PASS", formats["alert_ok"])
+        worksheet.write(row, COL_C, f"Validation passed, {reconcile_detail}", formats["alert_ok"])
+    elif validation_status == "PASS" and (reconcile_v1_passed is False or reconcile_v2_passed is False):
         worksheet.write(row, COL_A, "Data Health:", formats["alert_warn"])
-        worksheet.write(row, COL_B, "⚠ RECONCILE FAILED", formats["alert_warn"])
-        worksheet.write(row, COL_C, "Validation passed but reconciliation failed — see AUDIT_AND_RECONCILE", formats["alert_warn"])
-    elif validation_status != "PASS":
-        worksheet.write(row, COL_A, "Data Health:", formats["alert_fail"])
-        worksheet.write(row, COL_B, "✗ FAILED", formats["alert_fail"])
-        worksheet.write(row, COL_C, "Do not trust these numbers — see META for details", formats["alert_fail"])
+        worksheet.write(row, COL_B, "RECONCILE FAILED", formats["alert_warn"])
+        worksheet.write(row, COL_C, f"Validation passed, {reconcile_detail} — see AUDIT_AND_RECONCILE / META", formats["alert_warn"])
+    elif validation_status == "PASS":
+        worksheet.write(row, COL_A, "Data Health:", formats["alert_warn"])
+        worksheet.write(row, COL_B, "UNKNOWN", formats["alert_warn"])
+        worksheet.write(row, COL_C, f"Validation passed, {reconcile_detail} — see META", formats["alert_warn"])
     else:
-        worksheet.write(row, COL_A, "Data Health:", formats["alert_warn"])
-        worksheet.write(row, COL_B, "⚠ UNKNOWN", formats["alert_warn"])
-        worksheet.write(row, COL_C, "Reconciliation status unknown", formats["alert_warn"])
+        worksheet.write(row, COL_A, "Data Health:", formats["alert_fail"])
+        worksheet.write(row, COL_B, "FAILED", formats["alert_fail"])
+        worksheet.write(row, COL_C, "Do not trust these numbers — see META for details", formats["alert_fail"])
     row += 2
 
     # =========================================================================

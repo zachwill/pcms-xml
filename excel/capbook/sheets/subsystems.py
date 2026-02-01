@@ -450,7 +450,7 @@ def write_signings_and_exceptions(
     - **NEW**: Journal Output block with aggregated deltas + source label
         - For copying into PLAN_JOURNAL
     - Exception inventory with live FILTER formulas from DATA_exceptions_warehouse
-    - Named range AvailableExceptions for exception_used dropdown validation
+    - (TODO) exception_used dropdown validation helper list (currently freeform text)
     - Signing method validation dropdown
     - Totals row
     - Money/date formats aligned with RULES_REFERENCE
@@ -724,7 +724,7 @@ def write_signings_and_exceptions(
     #
     # Per backlog task #10:
     # - Live exception table filtered by SelectedTeam
-    # - Named range AvailableExceptions for exception_used validation
+    # - (TODO) exception_used validation helper list (currently freeform)
     # - Formats aligned with RULES_REFERENCE (money/date)
 
     worksheet.merge_range(
@@ -801,23 +801,13 @@ def write_signings_and_exceptions(
     )
     content_row += 2
 
-    # Helper: create a named range for exception_used validation
-    # This uses a FILTER to extract unique exception identifiers for the dropdown.
-    # The formula builds a list of "exception_type_name (remaining_amount)" for each exception.
-    #
-    # Excel limitation: We can't easily create a dynamic named range from a spill array
-    # in XlsxWriter. Instead, we document the recommended approach and provide a static list
-    # as a fallback for the data validation.
-    #
-    # For a robust solution, the exception_used dropdown currently uses the signing_types
-    # list plus "TPE" which covers the main cases. Analysts can type custom values.
-    #
-    # NOTE: A future enhancement could use VBA or a helper column to build the dynamic list.
+    # TODO: exception_used validation helper list
+    # Currently exception_used is freeform text. Analysts should reference the
+    # inventory above to verify availability / remaining amount.
 
     worksheet.write(
         content_row, SIG_COL_PLAYER,
-        "Note: exception_used dropdown accepts TPE, MLE, BAE, etc. "
-        "Reference the inventory above to verify availability.",
+        "Note: exception_used is currently freeform text. Reference the inventory above to verify availability.",
         sub_formats["note"],
     )
     content_row += 2

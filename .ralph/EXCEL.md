@@ -84,10 +84,9 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
   - `FILTER/IFERROR` for `tbl_draft_picks_warehouse` (SelectedTeam)
   - Sort by `draft_year`, `draft_round`, `asset_slot` + show `needs_review` indicator clearly
 
-### 10) SIGNINGS_AND_EXCEPTIONS: wire exception inventory + validation
+### 10) SIGNINGS_AND_EXCEPTIONS: wire exception inventory
 - [x] Drive exception inventory from DATA_exceptions_warehouse
   - Add live exception table filtered by SelectedTeam
-  - Create a helper list/named range for exception_used validation
   - Align formats with RULES_REFERENCE (money/date)
 
 ### 11) SIGNINGS_AND_EXCEPTIONS: compute deltas + journal output
@@ -96,37 +95,48 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
   - Add a "Journal Output" block with aggregated deltas + source label
   - Document manual publish workflow (copy into PLAN_JOURNAL)
 
-### 12) WAIVE_BUYOUT_STRETCH: formula-driven net owed + dead money
+### 12) Exporter: surface reconciliation v2 (drilldowns vs totals)
+- [x] Show reconcile_v2 status and failures in META + HOME
+  - META: add a v2 reconciliation section (drilldowns vs warehouse totals)
+  - HOME: Data Health banner considers reconcile_v1 AND reconcile_v2
+
+### 13) SIGNINGS_AND_EXCEPTIONS: exception_used validation helper list
+- [ ] Add exception_used dropdown sourced from DATA_exceptions_warehouse
+  - Add a helper spill range using UNIQUE/FILTER for SelectedTeam exceptions
+  - Wire data validation for tbl_signings_input[exception_used]
+  - Prefer selecting team_exception_id (or a stable label) over freeform text
+
+### 14) WAIVE_BUYOUT_STRETCH: formula-driven net owed + dead money
 - [ ] Compute waive/buyout deltas via formulas
   - net_owed = remaining_gtd - giveback
   - dead_year_* formulas based on stretch toggle (simple distribution)
   - Add SelectedYear delta + journal output block
 
-### 13) TRADE_MACHINE: team selectors + status summary
+### 15) TRADE_MACHINE: team selectors + status summary
 - [ ] Add team dropdowns and lane status summaries
   - Team validation list from tbl_team_salary_warehouse[team_code]
   - Show each lane’s cap/tax/apron totals + room for SelectedYear
   - Display apron level / taxpayer status from warehouse
 
-### 14) TRADE_MACHINE: matching rules + legality outputs
+### 16) TRADE_MACHINE: matching rules + legality outputs
 - [ ] Implement matching math per lane
   - Compute max incoming using rule tiers + outgoing total
   - Output legality flag + notes (aggregation/apron restrictions)
   - Tie to SelectedMode/SelectedYear context
 
-### 15) TRADE_MACHINE: journal output rows
+### 17) TRADE_MACHINE: journal output rows
 - [ ] Add per-lane Journal Output rows
   - Net delta for SelectedYear (cap/tax/apron)
   - Source label (e.g., "Trade Lane A")
   - Publish instructions (copy into PLAN_JOURNAL)
 
-### 16) PLAN_JOURNAL: subsystem outputs integration
+### 18) PLAN_JOURNAL: subsystem outputs integration
 - [ ] Add SUBSYSTEM_OUTPUTS rollup + include in budget ledger
   - Reference Journal Output blocks from Trade/Signings/Waive
   - Update BUDGET_LEDGER plan deltas to include subsystem outputs
   - Document workflow so analysts know what feeds totals
 
-### 17) Incomplete roster charges policy
+### 19) Incomplete roster charges policy
 - [ ] Decide + implement (or explicitly exclude) incomplete roster charges
   - If implemented: GENERATED rows + policy delta + audit note
   - If excluded: explicit note in AUDIT_AND_RECONCILE policy assumptions
