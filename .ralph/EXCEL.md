@@ -35,10 +35,11 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
 ## Backlog (next work)
 
 ### 13) TEAM_COCKPIT: Minimum contracts readout without SUMPRODUCT
-- [ ] Replace min-contract SUMPRODUCT logic with `LET + FILTER + SUM/ROWS`
+- [x] Replace min-contract SUMPRODUCT logic with `LET + FILTER + SUM/ROWS`
   - Replace `Min Contract Total` SUMPRODUCT (SelectedYear cap amounts)
+  - Also replaced `Min Contract Count` COUNTIFS with `ROWS(FILTER(...))`
   - Total $ and count should match current results
-  - Keep display clean (0 instead of errors)
+  - Keep display clean (0 instead of errors via IFERROR)
 
 ### 14) TEAM_COCKPIT: Plan comparison deltas without SUMPRODUCT
 - [ ] Replace SUMPRODUCT-based compare-plan deltas + action counts with `LET + FILTER + SUM/ROWS`

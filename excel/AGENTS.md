@@ -218,6 +218,9 @@ The `TEAM_COCKPIT` sheet includes:
    - Two-way informational readouts
 
 5. **Minimum Contracts** — count + total for min-contract players
+   - Uses Excel 365 dynamic arrays: `LET + FILTER + SUM/ROWS`
+   - Count uses `ROWS(FILTER(...))` instead of legacy COUNTIFS
+   - Total uses `SUM(FILTER(...))` instead of legacy SUMPRODUCT
 
 6. **Plan Comparison Panel** — shows ComparePlan A/B/C/D deltas:
    - For each compare plan, shows delta cap vs Baseline (from tbl_plan_journal)

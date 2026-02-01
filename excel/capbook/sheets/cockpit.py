@@ -92,20 +92,53 @@ def _salary_book_choose_cap() -> str:
     return f"CHOOSE(SelectedYear-MetaBaseYear+1,{cols})"
 
 
-def _salary_book_cap_sumproduct_min() -> str:
-    """Return a SUMPRODUCT formula for summing min-contract cap amounts for SelectedYear.
+def _min_contract_let_prefix() -> str:
+    """Return the LET prefix for min-contract filtering.
 
-    Filters by team_code=SelectedTeam AND is_min_contract=TRUE.
-    Uses the SelectedYear-aware CHOOSE expression to pick the correct cap_y* column.
+    Defines:
+    - mode_amt: mode-aware amount for SelectedYear (cap by default for min contracts)
+    - filter_cond: team match + is_min_contract=TRUE
+
+    Used by both count and sum formulas for min contracts.
+    """
+    # Min contracts use cap amounts for SelectedYear
+    # Uses CHOOSE to pick the correct cap_y* column based on SelectedYear
+    return (
+        "mode_amt,CHOOSE(SelectedYear-MetaBaseYear+1,"
+        + ",".join(f"tbl_salary_book_warehouse[cap_y{i}]" for i in range(6))
+        + "),"
+        "filter_cond,(tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
+        "(tbl_salary_book_warehouse[is_min_contract]=TRUE),"
+    )
+
+
+def _salary_book_min_contract_count_formula() -> str:
+    """Return a LET+FILTER+ROWS formula for counting min-contract players.
+
+    Uses ROWS(FILTER(...)) instead of COUNTIFS for consistency with the
+    modern formula standard (Excel 365+).
 
     Returns a formula string (with leading '=').
     """
-    amount_expr = _salary_book_choose_cap()
     return (
-        f"=SUMPRODUCT("
-        f"(tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-        f"(tbl_salary_book_warehouse[is_min_contract]=TRUE)*"
-        f"({amount_expr}))"
+        "=LET("
+        + _min_contract_let_prefix()
+        + "IFERROR(ROWS(FILTER(tbl_salary_book_warehouse[player_id],filter_cond)),0))"
+    )
+
+
+def _salary_book_min_contract_sum_formula() -> str:
+    """Return a LET+FILTER+SUM formula for summing min-contract cap amounts.
+
+    Filters by team_code=SelectedTeam AND is_min_contract=TRUE.
+    Uses CHOOSE to pick the correct cap_y* column for SelectedYear.
+
+    Returns a formula string (with leading '=').
+    """
+    return (
+        "=LET("
+        + _min_contract_let_prefix()
+        + "IFERROR(SUM(FILTER(mode_amt,filter_cond,0)),0))"
     )
 
 
@@ -572,6 +605,7 @@ def _write_minimum_contracts_readout(
     """Write the minimum contracts count + total readout.
     
     Uses is_min_contract from tbl_salary_book_warehouse.
+    Uses LET + FILTER + SUM/ROWS pattern (Excel 365+) per formula standard.
     
     Returns:
         Next available row
@@ -588,21 +622,21 @@ def _write_minimum_contracts_readout(
     row += 1
     
     # Count of minimum contracts for selected team
-    # COUNTIFS on salary_book_warehouse where team_code=SelectedTeam AND is_min_contract=TRUE
+    # Uses LET + FILTER + ROWS pattern instead of COUNTIFS
     worksheet.write(row, COL_READOUT_LABEL, "Min Contract Count:", label_fmt)
     worksheet.write_formula(
         row, COL_READOUT_VALUE,
-        "=COUNTIFS(tbl_salary_book_warehouse[team_code],SelectedTeam,"
-        "tbl_salary_book_warehouse[is_min_contract],TRUE)",
+        _salary_book_min_contract_count_formula(),
     )
     worksheet.write(row, COL_READOUT_DESC, "players on minimum contracts", label_fmt)
     row += 1
     
     # Total salary for minimum contracts (SelectedYear cap amounts)
+    # Uses LET + FILTER + SUM pattern instead of SUMPRODUCT
     worksheet.write(row, COL_READOUT_LABEL, "Min Contract Total:", label_fmt)
     worksheet.write_formula(
         row, COL_READOUT_VALUE,
-        _salary_book_cap_sumproduct_min(),
+        _salary_book_min_contract_sum_formula(),
         money_fmt,
     )
     worksheet.write(row, COL_READOUT_DESC, "(SelectedYear cap amounts)", label_fmt)
