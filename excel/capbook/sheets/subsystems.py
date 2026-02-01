@@ -946,17 +946,21 @@ def write_signings_and_exceptions(
     # Each delta column picks the salary for the year matching SelectedYear.
     # year_1_salary = MetaBaseYear, year_2 = MetaBaseYear+1, etc.
     #
-    # Formula pattern (for row N, using structured references):
-    #   =IFERROR(CHOOSE(SelectedYear - MetaBaseYear + 1,
-    #                   [@year_1_salary], [@year_2_salary],
-    #                   [@year_3_salary], [@year_4_salary]), 0)
+    # Formula pattern (using INDEX + ModeYearIndex named formula):
+    #   =LET(idx, ModeYearIndex,
+    #        IF(idx > 4, 0,
+    #           IFNA(INDEX([@year_1_salary]:[@year_4_salary], 1, idx), 0)))
+    #
+    # ModeYearIndex = SelectedYear - MetaBaseYear + 1 (defined in named_formulas.py)
+    # The LET+IF handles years beyond the 4-year contract window (returns 0).
     #
     # For now, cap/tax/apron deltas are all the same (the salary amount).
     # In future, could adjust if different counting rules apply.
     # =========================================================================
     delta_formula = (
-        '=IFERROR(CHOOSE(SelectedYear-MetaBaseYear+1,'
-        '[@year_1_salary],[@year_2_salary],[@year_3_salary],[@year_4_salary]),0)'
+        '=LET(idx,ModeYearIndex,'
+        'IF(idx>4,0,'
+        'IFNA(INDEX([@year_1_salary]:[@year_4_salary],1,idx),0)))'
     )
 
     # Column definitions with unlocked formats for editing on protected sheet

@@ -49,10 +49,11 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - Keep Ct$=N, CtR=N (never counted)
 
 ### 9) SIGNINGS_AND_EXCEPTIONS: delta columns via INDEX/CHOOSECOLS
-- [ ] Replace contract-year delta pick logic with `INDEX`/`CHOOSECOLS` + `ModeYearIndex`
-  - `INDEX([@year_1_salary]:[@year_4_salary], ModeYearIndex)`
-  - Wrap with `IFNA(…,0)`
-  - Keep Journal Output totals intact
+- [x] Replace contract-year delta pick logic with `INDEX`/`CHOOSECOLS` + `ModeYearIndex`
+  - `LET(idx, ModeYearIndex, IF(idx>4, 0, IFNA(INDEX([@year_1_salary]:[@year_4_salary], 1, idx), 0)))`
+  - Handles years beyond 4-year contract window (returns 0)
+  - Uses `ModeYearIndex` named formula from `named_formulas.py`
+  - Journal Output totals unchanged (still use SUBTOTAL on delta columns)
 
 ### 10) WAIVE_BUYOUT_STRETCH: modernize computed columns
 - [ ] Refactor computed columns using `LET` + `INDEX`
