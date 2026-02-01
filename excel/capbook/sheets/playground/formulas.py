@@ -211,7 +211,12 @@ def roster_names_anchor(*, max_rows: int) -> str:
 
 
 def roster_salary_column(*, names_spill: str, year_expr: str, year_offset: int) -> str:
-    """Roster salary column for a given year, aligned to names_spill (e.g. $E$4#)."""
+    """Roster salary column for a given year.
+
+    Notes:
+      - `names_spill` should be a stored-formula-compatible spill reference, i.e.
+        `ANCHORARRAY(E4)`, not `E4#`.
+    """
 
     # Sign salaries only apply in base year.
     if year_offset == 0:

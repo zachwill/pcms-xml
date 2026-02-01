@@ -331,9 +331,12 @@ def write_playground_sheet(
         fmts["player"],
     )
 
-    names_spill = f"${col_letter(COL_PLAYER)}${roster_start + 1}#"  # e.g. $E$4#
+    # Important: don't reference spill ranges with the UI operator `#`.
+    # In stored formulas, use ANCHORARRAY(<anchor_cell>) per XlsxWriter docs.
+    names_anchor = f"{col_letter(COL_PLAYER)}{roster_start + 1}"  # e.g. E4
+    names_spill = f"ANCHORARRAY({names_anchor})"
 
-    # Rank (D4#)
+    # Rank (D4 spill)
     worksheet.write_dynamic_array_formula(
         roster_start,
         COL_RANK,
@@ -360,21 +363,22 @@ def write_playground_sheet(
         )
 
         cap_level = f"XLOOKUP({year_expr},tbl_system_values[salary_year],tbl_system_values[salary_cap_amount])"
-        sal_spill = f"${col_letter(sal_col)}${roster_start + 1}#"
+        sal_anchor = f"{col_letter(sal_col)}{roster_start + 1}"
+        sal_arr = f"ANCHORARRAY({sal_anchor})"
         worksheet.write_dynamic_array_formula(
             roster_start,
             pct_col,
             roster_start,
             pct_col,
-            f"=IFERROR({sal_spill}/{cap_level},0)",
+            f"=IFERROR({sal_arr}/{cap_level},0)",
             fmts["pct"],
         )
 
     # Total across visible years
-    y0 = f"${col_letter(COL_SAL_Y0)}${roster_start + 1}#"
-    y1 = f"${col_letter(COL_SAL_Y1)}${roster_start + 1}#"
-    y2 = f"${col_letter(COL_SAL_Y2)}${roster_start + 1}#"
-    y3 = f"${col_letter(COL_SAL_Y3)}${roster_start + 1}#"
+    y0 = f"ANCHORARRAY({col_letter(COL_SAL_Y0)}{roster_start + 1})"
+    y1 = f"ANCHORARRAY({col_letter(COL_SAL_Y1)}{roster_start + 1})"
+    y2 = f"ANCHORARRAY({col_letter(COL_SAL_Y2)}{roster_start + 1})"
+    y3 = f"ANCHORARRAY({col_letter(COL_SAL_Y3)}{roster_start + 1})"
     worksheet.write_dynamic_array_formula(
         roster_start,
         COL_TOTAL,
