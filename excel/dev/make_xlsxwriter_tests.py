@@ -122,6 +122,42 @@ def test_defined_name_future_prefixed_with_sheetref() -> None:
     wb.close()
 
 
+def test_defined_name_future_prefixed_not_used() -> None:
+    """Defined name with _xlfn.UNIQUE but never referenced by any cell."""
+
+    path = _mk("test_defined_name_future_prefixed_not_used.xlsx")
+    wb = xlsxwriter.Workbook(path, {"use_future_functions": True})
+    ws = wb.add_worksheet("UI")
+
+    ws.write_column("A1", [1, 2, 2, 3, 3, 3])
+    wb.define_name("U", "=_xlfn.UNIQUE(A1:A6)")
+
+    # No usage.
+    ws.write("C1", "(name U defined, not used)")
+
+    wb.close()
+
+
+def test_defined_name_future_used_write_formula() -> None:
+    """Use a future-function defined name but call it with write_formula().
+
+    If this opens cleanly but dynamic-array call doesn't, it suggests the issue
+    is in how dynamic array calls to defined names are stored.
+    """
+
+    path = _mk("test_defined_name_future_used_write_formula.xlsx")
+    wb = xlsxwriter.Workbook(path, {"use_future_functions": True})
+    ws = wb.add_worksheet("UI")
+
+    ws.write_column("A1", [1, 2, 2, 3, 3, 3])
+    wb.define_name("U", "=_xlfn.UNIQUE(A1:A6)")
+
+    # Call without dynamic array write.
+    ws.write_formula("C1", "=U")
+
+    wb.close()
+
+
 def test_defined_name_plain_sum_with_metadata() -> None:
     """Plain defined name plus a dynamic array formula (forces metadata.xml).
 
@@ -210,6 +246,8 @@ def main() -> None:
     test_defined_name_future_functions_unprefixed()
     test_defined_name_future_functions_prefixed()
     test_defined_name_future_prefixed_with_sheetref()
+    test_defined_name_future_prefixed_not_used()
+    test_defined_name_future_used_write_formula()
 
     # Stress
     test_complicated_prefixed_no_future_functions()
