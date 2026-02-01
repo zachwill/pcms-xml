@@ -116,7 +116,7 @@ Key columns (high-signal for tools):
   - `contract_type_lookup_value` (rookie scale, vet min, extension, etc.)
   - `signed_method_lookup_value` (Bird, MLE, BAE, minimum, etc.)
   - `exception_type_lookup_value` (if signed via a team exception)
-  - `min_contract_lookup_value` + `is_min_contract`
+  - `min_contract_lookup_value` + `is_min_contract` (true only for 1–2 year minimums; 3+ year minimums are excluded)
 
 ### Player-Level (Yearly): `pcms.salary_book_yearly`
 
