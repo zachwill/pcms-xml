@@ -65,55 +65,68 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
   - Warn if ComparePlan is blank or equals Baseline
   - Link to PLAN_JOURNAL for details
 
-### 7) ASSETS: wire exceptions + picks to DATA_* tables
+### 7) Exporter/build: deep reconciliation (warehouse totals vs drilldowns)
+- [ ] Add build-time reconcile v2 (team totals vs drilldown sums)
+  - For each `(team_code, salary_year)`: sum drilldowns and compare to `tbl_team_salary_warehouse` totals
+    - Cap: `tbl_salary_book_yearly[cap_amount] + tbl_cap_holds_warehouse[cap_amount] + tbl_dead_money_warehouse[cap_value]`
+    - Tax: `tbl_salary_book_yearly[tax_amount] + tbl_cap_holds_warehouse[tax_amount] + tbl_dead_money_warehouse[tax_value]`
+    - Apron: `tbl_salary_book_yearly[apron_amount] + tbl_cap_holds_warehouse[apron_amount] + tbl_dead_money_warehouse[apron_value]`
+  - Record summary fields in `META` (e.g., `reconcile_v2_passed`, counts, first N failures)
+  - Mark `validation_status=FAILED` when any mismatch (still emit workbook artifact)
+
+### 8) ASSETS: wire exceptions inventory to DATA_exceptions_warehouse
 - [ ] Replace placeholder notes with live formulas
-  - FILTER/IFERROR for tbl_exceptions_warehouse (SelectedTeam)
-  - FILTER/IFERROR for tbl_draft_picks_warehouse (SelectedTeam)
+  - `FILTER/IFERROR` for `tbl_exceptions_warehouse` (SelectedTeam; include salary_year column in display)
   - Apply money/date formats + explicit "None" empty-state
 
-### 8) SIGNINGS_AND_EXCEPTIONS: wire exception inventory + validation
+### 9) ASSETS: wire draft picks to DATA_draft_picks_warehouse
+- [ ] Replace placeholder notes with live formulas
+  - `FILTER/IFERROR` for `tbl_draft_picks_warehouse` (SelectedTeam)
+  - Sort by `draft_year`, `draft_round`, `asset_slot` + show `needs_review` indicator clearly
+
+### 10) SIGNINGS_AND_EXCEPTIONS: wire exception inventory + validation
 - [ ] Drive exception inventory from DATA_exceptions_warehouse
   - Add live exception table filtered by SelectedTeam
   - Create a helper list/named range for exception_used validation
   - Align formats with RULES_REFERENCE (money/date)
 
-### 9) SIGNINGS_AND_EXCEPTIONS: compute deltas + journal output
+### 11) SIGNINGS_AND_EXCEPTIONS: compute deltas + journal output
 - [ ] Add formula-driven SelectedYear deltas for signings
   - Per-row SelectedYear delta (cap/tax/apron) based on year columns
   - Add a "Journal Output" block with aggregated deltas + source label
   - Document manual publish workflow (copy into PLAN_JOURNAL)
 
-### 10) WAIVE_BUYOUT_STRETCH: formula-driven net owed + dead money
+### 12) WAIVE_BUYOUT_STRETCH: formula-driven net owed + dead money
 - [ ] Compute waive/buyout deltas via formulas
   - net_owed = remaining_gtd - giveback
   - dead_year_* formulas based on stretch toggle (simple distribution)
   - Add SelectedYear delta + journal output block
 
-### 11) TRADE_MACHINE: team selectors + status summary
+### 13) TRADE_MACHINE: team selectors + status summary
 - [ ] Add team dropdowns and lane status summaries
   - Team validation list from tbl_team_salary_warehouse[team_code]
   - Show each lane’s cap/tax/apron totals + room for SelectedYear
   - Display apron level / taxpayer status from warehouse
 
-### 12) TRADE_MACHINE: matching rules + legality outputs
+### 14) TRADE_MACHINE: matching rules + legality outputs
 - [ ] Implement matching math per lane
   - Compute max incoming using rule tiers + outgoing total
   - Output legality flag + notes (aggregation/apron restrictions)
   - Tie to SelectedMode/SelectedYear context
 
-### 13) TRADE_MACHINE: journal output rows
+### 15) TRADE_MACHINE: journal output rows
 - [ ] Add per-lane Journal Output rows
   - Net delta for SelectedYear (cap/tax/apron)
   - Source label (e.g., "Trade Lane A")
   - Publish instructions (copy into PLAN_JOURNAL)
 
-### 14) PLAN_JOURNAL: subsystem outputs integration
+### 16) PLAN_JOURNAL: subsystem outputs integration
 - [ ] Add SUBSYSTEM_OUTPUTS rollup + include in budget ledger
   - Reference Journal Output blocks from Trade/Signings/Waive
   - Update BUDGET_LEDGER plan deltas to include subsystem outputs
   - Document workflow so analysts know what feeds totals
 
-### 15) Incomplete roster charges policy
+### 17) Incomplete roster charges policy
 - [ ] Decide + implement (or explicitly exclude) incomplete roster charges
   - If implemented: GENERATED rows + policy delta + audit note
   - If excluded: explicit note in AUDIT_AND_RECONCILE policy assumptions
@@ -200,11 +213,11 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
   - Conditional formatting: non-zero delta shows red and points to `AUDIT_AND_RECONCILE`
   - Keep headline totals authoritative (still sourced from `tbl_team_salary_warehouse`)
 
-- [x] Policy toggles: make "not implemented yet" explicit (no silent defaults)
+- [x] Policy toggles: make "not implemented yet" explicit (no silent defaults) — historical (superseded by later fill + EXISTS_ONLY implementation)
   - When `RosterFillTarget > 0`, show a **loud** "NOT YET IMPLEMENTED" warning in `TEAM_COCKPIT` and `BUDGET_LEDGER`
   - When `ShowExistsOnlyRows = "Yes"`, show a **loud** "NOT YET IMPLEMENTED" warning in `TEAM_COCKPIT` and `BUDGET_LEDGER`
 
-- [x] Two-way toggles: stop misleading implications while keeping reconciliation trust
+- [x] Two-way toggles: stop misleading implications while keeping reconciliation trust — historical (superseded by later toggle removal + informational readouts)
   - `ROSTER_GRID` Ct$/CtR reflect **authoritative** counting semantics (2-way Ct$=Y, CtR=N)
   - When `CountTwoWayInTotals="Yes"` or `CountTwoWayInRoster="Yes"`, show **NOT YET IMPLEMENTED** warnings
 
