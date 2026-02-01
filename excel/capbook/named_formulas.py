@@ -31,6 +31,11 @@ Named formulas defined here:
    - Selects cap/tax/apron amount based on SelectedMode + ModeYearIndex
    - Used by: Mode-aware displays in ROSTER_GRID, COCKPIT
 
+6. SalaryBookModeAmount (LAMBDA)
+   - Selects mode-aware amount for SelectedYear from salary_book_warehouse columns
+   - Takes cap_row, tax_row, apron_row ranges and returns the appropriate amount
+   - Used by: ROSTER_GRID dynamic array formulas (FILTER/SORTBY/TAKE)
+
 Usage in formulas:
     Instead of:  CHOOSE(SelectedYear-MetaBaseYear+1, cap_y0, cap_y1, ...)
     Use:         CapYearAmount([@cap_y0]:[@cap_y5])
@@ -161,6 +166,25 @@ LAMBDA_NAMED_FORMULAS: dict[str, tuple[str, str]] = {
         "apron_amt,CHOOSE(ModeYearIndex,apron_y0,apron_y1,apron_y2,apron_y3,apron_y4,apron_y5),"
         'IF(SelectedMode="Cap",cap_amt,IF(SelectedMode="Tax",tax_amt,apron_amt))))',
         "Select cap/tax/apron amount for SelectedYear based on SelectedMode",
+    ),
+    
+    # SalaryBookModeAmount: Select mode-aware amount for SelectedYear from salary_book_warehouse
+    # Uses INDEX+ModeYearIndex to pick the correct column, then AmountByMode pattern.
+    # Designed to work with dynamic array FILTER/SORTBY on the full table.
+    # Parameters:
+    #   cap_row: Range of cap_y0:cap_y5 for a row (or column arrays for FILTER)
+    #   tax_row: Range of tax_y0:tax_y5 for a row
+    #   apron_row: Range of apron_y0:apron_y5 for a row
+    # Returns: The mode-aware amount for SelectedYear
+    # Note: INDEX(range, ModeYearIndex) picks the Nth column from a 1-row range
+    "SalaryBookModeAmount": (
+        "=LAMBDA(cap_row,tax_row,apron_row,"
+        "LET("
+        "cap_amt,INDEX(cap_row,1,ModeYearIndex),"
+        "tax_amt,INDEX(tax_row,1,ModeYearIndex),"
+        "apron_amt,INDEX(apron_row,1,ModeYearIndex),"
+        'IF(SelectedMode="Cap",cap_amt,IF(SelectedMode="Tax",tax_amt,apron_amt))))',
+        "Select mode-aware amount for SelectedYear from salary_book_warehouse columns",
     ),
 }
 

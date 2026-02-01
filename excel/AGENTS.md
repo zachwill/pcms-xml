@@ -66,6 +66,7 @@ The workbook defines reusable named formulas (LAMBDA) to centralize repeated log
 | `ApronYearAmount` | `y0, y1, y2, y3, y4, y5` | Select apron_yN value based on SelectedYear |
 | `AmountByMode` | `cap_val, tax_val, apron_val` | Select cap/tax/apron value based on SelectedMode |
 | `YearAmountByMode` | `cap_y0..y5, tax_y0..y5, apron_y0..y5` | Combined year + mode selection |
+| `SalaryBookModeAmount` | `cap_row, tax_row, apron_row` | Select mode-aware amount for SelectedYear from salary_book_warehouse columns (used in ROSTER_GRID dynamic arrays) |
 
 ### Usage examples
 

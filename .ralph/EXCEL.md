@@ -70,11 +70,13 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - Totals are equivalent to previous SUMPRODUCT formulas
 
 ### 6) ROSTER_GRID: roster + two-way rows via FILTER/SORTBY/TAKE
-- [ ] Replace AGGREGATE/MATCH row extraction with dynamic arrays
+- [x] Replace AGGREGATE/MATCH row extraction with dynamic arrays
   - Build `RosterData` with FILTER by team/bucket
-  - Use `CHOOSECOLS`/`XMATCH` to select mode/year column
-  - Sort by SelectedYear amount (DESC)
+  - Use LET to compute mode-aware SelectedYear amount
+  - Sort by SelectedYear amount (DESC) using SORTBY
+  - Take first N rows using TAKE (40 for roster, 6 for two-way)
   - Spill into reserved display ranges; add `IFNA` fallbacks
+  - Added SalaryBookModeAmount LAMBDA helper for mode-aware selection
 
 ### 7) ROSTER_GRID: cap holds + dead money via FILTER/SORTBY/TAKE
 - [ ] Convert holds/dead sections to dynamic arrays

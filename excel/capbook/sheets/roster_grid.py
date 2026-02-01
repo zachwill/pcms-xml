@@ -4,6 +4,8 @@ ROSTER_GRID sheet writer - full roster/ledger view with reconciliation.
 This module implements:
 1. Shared command bar (read-only reference to TEAM_COCKPIT)
 2. Roster rows section (from tbl_salary_book_warehouse)
+   - Uses Excel 365 dynamic arrays: FILTER, SORTBY, TAKE, LET
+   - Single spilling formula per column (replaces per-row AGGREGATE/MATCH)
    - Player name, team, badge columns (option, guarantee, trade restrictions)
    - Multi-year salary columns (mode-aware: cap_y0..cap_y5 / tax_y0..tax_y5 / apron_y0..apron_y5)
    - Bucket classification (ROST/2WAY)
@@ -11,6 +13,7 @@ This module implements:
    - MINIMUM label display when is_min_contract=TRUE
    - Conditional formatting for badges (colors cells based on PO/TO/ETO, GTD/PRT/NG, NTC/Kicker)
 3. Two-way section (bucket = 2WAY)
+   - Uses same FILTER/SORTBY/TAKE pattern as roster section
    - Two-way policy toggles are not implemented yet (totals/counts remain authoritative)
 4. Cap holds section (bucket = FA, from tbl_cap_holds_warehouse)
 5. Dead money section (bucket = TERM, from tbl_dead_money_warehouse)
@@ -28,7 +31,8 @@ Per the blueprint (excel-cap-book-blueprint.md):
 - EXISTS_ONLY rows are "visible artifacts that do not count (for reference only)"
 
 Design notes:
-- Uses Excel formulas filtered by SelectedTeam + SelectedYear + SelectedMode
+- Uses Excel 365+ dynamic array formulas: FILTER, SORTBY, TAKE, LET, IFNA
+- Spill formulas reduce row-by-row formula complexity and improve performance
 - SelectedMode ("Cap"/"Tax"/"Apron") controls which salary columns are displayed
 - Reconciliation block sums rows and compares to team_salary_warehouse totals (mode-aware)
 - Conditional formatting highlights deltas ≠ 0
@@ -496,9 +500,12 @@ def _write_roster_section(
 ) -> tuple[int, int]:
     """Write the roster rows section (from tbl_salary_book_warehouse).
 
-    Uses formulas that filter by SelectedTeam. Rows are formula-driven.
-    For v1, we write a fixed number of formula rows (50) that show data
-    when available and blank when not.
+    Uses Excel 365 dynamic array formulas (FILTER, SORTBY, TAKE, CHOOSECOLS).
+    Rows are spilled from a single formula that:
+    1. FILTERs to SelectedTeam + non-two-way + has amount in SelectedYear
+    2. SORTBYs by SelectedYear mode-aware amount (DESC)
+    3. TAKEs the first N rows (max 40)
+    4. Uses CHOOSECOLS + INDEX for mode-aware column selection
 
     Returns (next_row, data_start_row) for reconciliation formulas.
     """
@@ -508,8 +515,8 @@ def _write_roster_section(
     worksheet.merge_range(row, COL_BUCKET, row, COL_PCT_CAP, "ROSTER (Active Contracts)", section_fmt)
     row += 1
 
-    # Note about formula-driven display
-    worksheet.write(row, COL_BUCKET, "Showing players for selected team (SelectedTeam)", roster_formats["reconcile_label"])
+    # Note about formula-driven display (updated for dynamic arrays)
+    worksheet.write(row, COL_BUCKET, "Dynamic array: players for SelectedTeam sorted by SelectedYear amount (uses FILTER/SORTBY)", roster_formats["reconcile_label"])
     row += 1
 
     # Column headers
@@ -526,114 +533,198 @@ def _write_roster_section(
 
     data_start_row = row
 
-    # Write formula rows for roster players
-    # We use a fixed set of rows with IFERROR(INDEX/MATCH) formulas
-    # that return blank if no matching player exists.
-
-    # For MVP: use formulas that pull from the table based on row position
-    # This approach uses AGGREGATE + SMALL to get unique players sorted by mode-aware amount
+    # =========================================================================
+    # Dynamic Array Formula: FILTER + SORTBY for roster rows
+    # =========================================================================
+    #
+    # Design: We write ONE spilling formula per column that extracts and sorts
+    # the matching players. Each column uses the same FILTER/SORTBY logic but
+    # returns a different field.
+    #
+    # The mode-aware SelectedYear amount for filtering and sorting:
+    #   LET(
+    #     tbl, tbl_salary_book_warehouse,
+    #     cap_col, CHOOSE(ModeYearIndex, tbl[cap_y0], tbl[cap_y1], ...),
+    #     tax_col, CHOOSE(ModeYearIndex, tbl[tax_y0], tbl[tax_y1], ...),
+    #     apron_col, CHOOSE(ModeYearIndex, tbl[apron_y0], tbl[apron_y1], ...),
+    #     mode_amt, IF(SelectedMode="Cap", cap_col, IF(SelectedMode="Tax", tax_col, apron_col)),
+    #     ...
+    #   )
+    #
+    # Filter criteria: team_code = SelectedTeam AND is_two_way = FALSE AND mode_amt > 0
+    # Sort: by mode_amt DESC
+    # Take: first 40 rows
 
     num_roster_rows = 40  # Fixed allocation for roster rows
 
-    # Use mode-aware amount for sorting (largest first)
-    amount_sel = _salary_book_choose_mode_aware()
-    option_sel = _salary_book_choose("option")
-    gtd_full_sel = _salary_book_choose("is_fully_guaranteed")
-    gtd_part_sel = _salary_book_choose("is_partially_guaranteed")
-    gtd_non_sel = _salary_book_choose("is_non_guaranteed")
+    # Helper to build the common LET prefix for roster data extraction
+    def roster_let_prefix() -> str:
+        """Return LET prefix for roster filtering (mode-aware amount calculation)."""
+        cap_choose = ",".join(f"tbl_salary_book_warehouse[cap_y{i}]" for i in range(6))
+        tax_choose = ",".join(f"tbl_salary_book_warehouse[tax_y{i}]" for i in range(6))
+        apron_choose = ",".join(f"tbl_salary_book_warehouse[apron_y{i}]" for i in range(6))
 
-    criteria = "((tbl_salary_book_warehouse[team_code]=SelectedTeam)*(tbl_salary_book_warehouse[is_two_way]=FALSE))"
-
-    for i in range(1, num_roster_rows + 1):
-        # Nth largest selected-year, mode-aware amount for SelectedTeam (non-two-way)
-        amount_value_expr = f"AGGREGATE(14,6,({amount_sel})/({criteria}),{i})"
-        match_expr = f"MATCH({amount_value_expr},({amount_sel})/({criteria}),0)"
-
-        name_expr = f'IFERROR(INDEX(tbl_salary_book_warehouse[player_name],{match_expr}),"" )'
-
-        def _lookup_expr(col: str) -> str:
-            return f'IFERROR(INDEX(tbl_salary_book_warehouse[{col}],{match_expr}),"" )'
-
-        # Bucket (ROST)
-        worksheet.write_formula(
-            row,
-            COL_BUCKET,
-            f'=IF({name_expr}<>"","ROST","")',
-            roster_formats["bucket_rost"],
+        return (
+            f"cap_col,CHOOSE(ModeYearIndex,{cap_choose}),"
+            f"tax_col,CHOOSE(ModeYearIndex,{tax_choose}),"
+            f"apron_col,CHOOSE(ModeYearIndex,{apron_choose}),"
+            'mode_amt,IF(SelectedMode="Cap",cap_col,IF(SelectedMode="Tax",tax_col,apron_col)),'
+            "filter_cond,(tbl_salary_book_warehouse[team_code]=SelectedTeam)*(tbl_salary_book_warehouse[is_two_way]=FALSE)*(mode_amt>0),"
         )
 
-        # CountsTowardTotal: ROST contracts always count toward total (Y)
-        worksheet.write_formula(
-            row,
-            COL_COUNTS_TOTAL,
-            f'=IF({name_expr}<>"","Y","")',
-            roster_formats["counts_yes"],
+    # Helper to build SORTBY + TAKE wrapper
+    def sortby_take_wrapper(filtered_expr: str, sort_by: str = "mode_amt", take_n: int = num_roster_rows) -> str:
+        """Wrap a FILTER result with SORTBY (desc) and TAKE."""
+        return f"TAKE(SORTBY({filtered_expr},{sort_by},-1),{take_n})"
+
+    # -------------------------------------------------------------------------
+    # Player Name column (spills down)
+    # -------------------------------------------------------------------------
+    name_formula = (
+        "=LET("
+        + roster_let_prefix()
+        + "filtered,FILTER(tbl_salary_book_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"  # Need mode_amt for sorting
+        + "IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"))"
+    )
+    worksheet.write_formula(row, COL_NAME, name_formula)
+
+    # -------------------------------------------------------------------------
+    # Bucket column (ROST for non-empty rows)
+    # -------------------------------------------------------------------------
+    # Since we can't easily reference the spilled name column, we replicate the filter
+    bucket_formula = (
+        "=LET("
+        + roster_let_prefix()
+        + "filtered,FILTER(tbl_salary_book_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + "names,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"),"
+        + 'IF(names<>"","ROST",""))'
+    )
+    worksheet.write_formula(row, COL_BUCKET, bucket_formula, roster_formats["bucket_rost"])
+
+    # -------------------------------------------------------------------------
+    # CountsTowardTotal column (Y for non-empty)
+    # -------------------------------------------------------------------------
+    ct_total_formula = (
+        "=LET("
+        + roster_let_prefix()
+        + "filtered,FILTER(tbl_salary_book_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + "names,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"),"
+        + 'IF(names<>"","Y",""))'
+    )
+    worksheet.write_formula(row, COL_COUNTS_TOTAL, ct_total_formula, roster_formats["counts_yes"])
+
+    # -------------------------------------------------------------------------
+    # CountsTowardRoster column (Y for ROST)
+    # -------------------------------------------------------------------------
+    ct_roster_formula = (
+        "=LET("
+        + roster_let_prefix()
+        + "filtered,FILTER(tbl_salary_book_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + "names,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"),"
+        + 'IF(names<>"","Y",""))'
+    )
+    worksheet.write_formula(row, COL_COUNTS_ROSTER, ct_roster_formula, roster_formats["counts_yes"])
+
+    # -------------------------------------------------------------------------
+    # Option badge column (spills down)
+    # -------------------------------------------------------------------------
+    # Uses CHOOSE to select the right option_y* column for SelectedYear
+    opt_choose = ",".join(f"tbl_salary_book_warehouse[option_y{i}]" for i in range(6))
+    option_formula = (
+        "=LET("
+        + roster_let_prefix()
+        + f"opt_col,CHOOSE(ModeYearIndex,{opt_choose}),"
+        + "filtered,FILTER(opt_col,filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + "IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"))"
+    )
+    worksheet.write_formula(row, COL_OPTION, option_formula)
+
+    # -------------------------------------------------------------------------
+    # Guarantee status column (GTD/PRT/NG)
+    # -------------------------------------------------------------------------
+    # Needs to check is_fully_guaranteed, is_partially_guaranteed, is_non_guaranteed for SelectedYear
+    gtd_full_choose = ",".join(f"tbl_salary_book_warehouse[is_fully_guaranteed_y{i}]" for i in range(6))
+    gtd_part_choose = ",".join(f"tbl_salary_book_warehouse[is_partially_guaranteed_y{i}]" for i in range(6))
+    gtd_non_choose = ",".join(f"tbl_salary_book_warehouse[is_non_guaranteed_y{i}]" for i in range(6))
+    guarantee_formula = (
+        "=LET("
+        + roster_let_prefix()
+        + f"gtd_full,CHOOSE(ModeYearIndex,{gtd_full_choose}),"
+        + f"gtd_part,CHOOSE(ModeYearIndex,{gtd_part_choose}),"
+        + f"gtd_non,CHOOSE(ModeYearIndex,{gtd_non_choose}),"
+        + 'gtd_label,IF(gtd_full=TRUE,"GTD",IF(gtd_part=TRUE,"PRT",IF(gtd_non=TRUE,"NG",""))),'
+        + "filtered,FILTER(gtd_label,filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + "IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"))"
+    )
+    worksheet.write_formula(row, COL_GUARANTEE, guarantee_formula)
+
+    # -------------------------------------------------------------------------
+    # Trade restriction column (NTC/Kicker/Restricted)
+    # -------------------------------------------------------------------------
+    trade_formula = (
+        "=LET("
+        + roster_let_prefix()
+        + 'trade_label,IF(tbl_salary_book_warehouse[is_no_trade]=TRUE,"NTC",'
+        + 'IF(tbl_salary_book_warehouse[is_trade_bonus]=TRUE,"Kicker",'
+        + 'IF(tbl_salary_book_warehouse[is_trade_restricted_now]=TRUE,"Restricted",""))),'
+        + "filtered,FILTER(trade_label,filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + "IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"))"
+    )
+    worksheet.write_formula(row, COL_TRADE, trade_formula)
+
+    # -------------------------------------------------------------------------
+    # Minimum contract label column
+    # -------------------------------------------------------------------------
+    min_formula = (
+        "=LET("
+        + roster_let_prefix()
+        + 'min_label,IF(tbl_salary_book_warehouse[is_min_contract]=TRUE,"MINIMUM",""),'
+        + "filtered,FILTER(min_label,filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + "IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"))"
+    )
+    worksheet.write_formula(row, COL_MIN_LABEL, min_formula, roster_formats["min_label"])
+
+    # -------------------------------------------------------------------------
+    # Salary columns (cap_y0..cap_y5 or tax_y0..tax_y5 or apron_y0..apron_y5)
+    # Mode-aware: use SelectedMode to pick the prefix
+    # -------------------------------------------------------------------------
+    for yi in range(6):
+        sal_formula = (
+            "=LET("
+            + roster_let_prefix()
+            + f'year_col,IF(SelectedMode="Cap",tbl_salary_book_warehouse[cap_y{yi}],'
+            + f'IF(SelectedMode="Tax",tbl_salary_book_warehouse[tax_y{yi}],'
+            + f"tbl_salary_book_warehouse[apron_y{yi}])),"
+            + "filtered,FILTER(year_col,filter_cond,\"\"),"
+            + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+            + "IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"))"
         )
+        worksheet.write_formula(row, COL_CAP_Y0 + yi, sal_formula, roster_formats["money"])
 
-        # CountsTowardRoster: ROST contracts always count toward roster (Y)
-        worksheet.write_formula(
-            row,
-            COL_COUNTS_ROSTER,
-            f'=IF({name_expr}<>"","Y","")',
-            roster_formats["counts_yes"],
-        )
+    # -------------------------------------------------------------------------
+    # % of cap column (SelectedYear amount / salary_cap_amount)
+    # -------------------------------------------------------------------------
+    pct_formula = (
+        "=LET("
+        + roster_let_prefix()
+        + "filtered,FILTER(mode_amt,filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + "sorted_amt,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"),"
+        + "cap_limit,SUMIFS(tbl_system_values[salary_cap_amount],tbl_system_values[salary_year],SelectedYear),"
+        + 'IF(sorted_amt="","",sorted_amt/cap_limit))'
+    )
+    worksheet.write_formula(row, COL_PCT_CAP, pct_formula, roster_formats["percent"])
 
-        # Player name
-        worksheet.write_formula(row, COL_NAME, f"={name_expr}")
-
-        # Option badge (selected year)
-        option_expr = f'IFERROR(INDEX({option_sel},{match_expr}),"" )'
-        worksheet.write_formula(row, COL_OPTION, f"={option_expr}")
-
-        # Guarantee status (selected year)
-        guarantee_expr = (
-            f'IFERROR('
-            f'IF(INDEX({gtd_full_sel},{match_expr})=TRUE,"GTD",'
-            f'IF(INDEX({gtd_part_sel},{match_expr})=TRUE,"PRT",'
-            f'IF(INDEX({gtd_non_sel},{match_expr})=TRUE,"NG",""))),'
-            f'"" )'
-        )
-        worksheet.write_formula(row, COL_GUARANTEE, f"={guarantee_expr}")
-
-        # Trade restriction
-        trade_expr = (
-            f'IFERROR('
-            f'IF(INDEX(tbl_salary_book_warehouse[is_no_trade],{match_expr})=TRUE,"NTC",'
-            f'IF(INDEX(tbl_salary_book_warehouse[is_trade_bonus],{match_expr})=TRUE,"Kicker",'
-            f'IF(INDEX(tbl_salary_book_warehouse[is_trade_restricted_now],{match_expr})=TRUE,"Restricted",""))),'
-            f'"" )'
-        )
-        worksheet.write_formula(row, COL_TRADE, f"={trade_expr}")
-
-        # Minimum contract label
-        min_expr = (
-            f'IFERROR(IF(INDEX(tbl_salary_book_warehouse[is_min_contract],{match_expr})=TRUE,"MINIMUM",""),"" )'
-        )
-        worksheet.write_formula(row, COL_MIN_LABEL, f"={min_expr}", roster_formats["min_label"])
-
-        # Salary columns - mode-aware (cap_y*/tax_y*/apron_y* based on SelectedMode)
-        for yi in range(6):
-            # Build mode-aware column lookup expression
-            mode_col_expr = (
-                f'IF(SelectedMode="Cap",INDEX(tbl_salary_book_warehouse[cap_y{yi}],{match_expr}),'
-                f'IF(SelectedMode="Tax",INDEX(tbl_salary_book_warehouse[tax_y{yi}],{match_expr}),'
-                f'INDEX(tbl_salary_book_warehouse[apron_y{yi}],{match_expr})))'
-            )
-            worksheet.write_formula(
-                row,
-                COL_CAP_Y0 + yi,
-                f'=IFERROR({mode_col_expr},"")',
-                roster_formats["money"],
-            )
-
-        # % of cap (selected-year mode-aware amount / salary cap for SelectedYear)
-        pct_expr = (
-            f'IFERROR({amount_value_expr}/'
-            f'SUMIFS(tbl_system_values[salary_cap_amount],tbl_system_values[salary_year],SelectedYear),"" )'
-        )
-        worksheet.write_formula(row, COL_PCT_CAP, f"={pct_expr}", roster_formats["percent"])
-
-        row += 1
+    # Move past spill zone (40 rows allocated)
+    row += num_roster_rows
 
     data_end_row = row - 1
 
@@ -669,6 +760,9 @@ def _write_twoway_section(
 ) -> int:
     """Write the two-way contracts section.
 
+    Uses Excel 365 dynamic array formulas (FILTER, SORTBY, TAKE).
+    Same pattern as roster section but filters for is_two_way = TRUE.
+
     Returns next row.
     """
     section_fmt = roster_formats["section_header"]
@@ -688,56 +782,101 @@ def _write_twoway_section(
     ]
     row = _write_column_headers(worksheet, row, roster_formats, year_labels)
 
+    data_start_row = row
+
     # Two-way rows (fewer slots - typically max 3 per team)
     num_twoway_rows = 6
 
-    # Use mode-aware amount for sorting
-    amount_sel = _salary_book_choose_mode_aware()
-    criteria = "((tbl_salary_book_warehouse[team_code]=SelectedTeam)*(tbl_salary_book_warehouse[is_two_way]=TRUE))"
+    # Helper to build the common LET prefix for two-way data extraction
+    def twoway_let_prefix() -> str:
+        """Return LET prefix for two-way filtering (mode-aware amount calculation)."""
+        cap_choose = ",".join(f"tbl_salary_book_warehouse[cap_y{i}]" for i in range(6))
+        tax_choose = ",".join(f"tbl_salary_book_warehouse[tax_y{i}]" for i in range(6))
+        apron_choose = ",".join(f"tbl_salary_book_warehouse[apron_y{i}]" for i in range(6))
 
-    for i in range(1, num_twoway_rows + 1):
-        amount_value_expr = f"AGGREGATE(14,6,({amount_sel})/({criteria}),{i})"
-        match_expr = f"MATCH({amount_value_expr},({amount_sel})/({criteria}),0)"
-
-        name_expr = f'IFERROR(INDEX(tbl_salary_book_warehouse[player_name],{match_expr}),"" )'
-
-        # Bucket (2WAY)
-        worksheet.write_formula(
-            row,
-            COL_BUCKET,
-            f'=IF({name_expr}<>"","2WAY","")',
-            roster_formats["bucket_2way"],
+        return (
+            f"cap_col,CHOOSE(ModeYearIndex,{cap_choose}),"
+            f"tax_col,CHOOSE(ModeYearIndex,{tax_choose}),"
+            f"apron_col,CHOOSE(ModeYearIndex,{apron_choose}),"
+            'mode_amt,IF(SelectedMode="Cap",cap_col,IF(SelectedMode="Tax",tax_col,apron_col)),'
+            "filter_cond,(tbl_salary_book_warehouse[team_code]=SelectedTeam)*(tbl_salary_book_warehouse[is_two_way]=TRUE)*(mode_amt>0),"
         )
 
-        # CountsTowardTotal: two-way rows count toward authoritative totals (warehouse includes 2-way)
-        counts_total_expr = f'=IF({name_expr}<>"","Y","")'
-        worksheet.write_formula(row, COL_COUNTS_TOTAL, counts_total_expr, roster_formats["counts_yes"])
+    # -------------------------------------------------------------------------
+    # Player Name column (spills down)
+    # -------------------------------------------------------------------------
+    name_formula = (
+        "=LET("
+        + twoway_let_prefix()
+        + "filtered,FILTER(tbl_salary_book_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + "IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_twoway_rows) + "),\"\"))"
+    )
+    worksheet.write_formula(row, COL_NAME, name_formula)
 
-        # CountsTowardRoster: two-way rows do not count toward NBA roster size (tracked separately)
-        counts_roster_expr = f'=IF({name_expr}<>"","N","")'
-        worksheet.write_formula(row, COL_COUNTS_ROSTER, counts_roster_expr, roster_formats["counts_no"])
+    # -------------------------------------------------------------------------
+    # Bucket column (2WAY for non-empty rows)
+    # -------------------------------------------------------------------------
+    bucket_formula = (
+        "=LET("
+        + twoway_let_prefix()
+        + "filtered,FILTER(tbl_salary_book_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + "names,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_twoway_rows) + "),\"\"),"
+        + 'IF(names<>"","2WAY",""))'
+    )
+    worksheet.write_formula(row, COL_BUCKET, bucket_formula, roster_formats["bucket_2way"])
 
-        worksheet.write_formula(row, COL_NAME, f"={name_expr}")
-        worksheet.write(row, COL_OPTION, "")  # Two-ways don't have options
-        worksheet.write(row, COL_GUARANTEE, "")
-        worksheet.write(row, COL_TRADE, "")
-        worksheet.write(row, COL_MIN_LABEL, "")
+    # -------------------------------------------------------------------------
+    # CountsTowardTotal column (Y - two-way contracts count toward cap totals per CBA)
+    # -------------------------------------------------------------------------
+    ct_total_formula = (
+        "=LET("
+        + twoway_let_prefix()
+        + "filtered,FILTER(tbl_salary_book_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + "names,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_twoway_rows) + "),\"\"),"
+        + 'IF(names<>"","Y",""))'
+    )
+    worksheet.write_formula(row, COL_COUNTS_TOTAL, ct_total_formula, roster_formats["counts_yes"])
 
-        # Salary columns - mode-aware
-        for yi in range(6):
-            mode_col_expr = (
-                f'IF(SelectedMode="Cap",INDEX(tbl_salary_book_warehouse[cap_y{yi}],{match_expr}),'
-                f'IF(SelectedMode="Tax",INDEX(tbl_salary_book_warehouse[tax_y{yi}],{match_expr}),'
-                f'INDEX(tbl_salary_book_warehouse[apron_y{yi}],{match_expr})))'
-            )
-            worksheet.write_formula(
-                row,
-                COL_CAP_Y0 + yi,
-                f'=IFERROR({mode_col_expr},"")',
-                roster_formats["money"],
-            )
+    # -------------------------------------------------------------------------
+    # CountsTowardRoster column (N - two-way does NOT count toward 15-player roster)
+    # -------------------------------------------------------------------------
+    ct_roster_formula = (
+        "=LET("
+        + twoway_let_prefix()
+        + "filtered,FILTER(tbl_salary_book_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + "names,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_twoway_rows) + "),\"\"),"
+        + 'IF(names<>"","N",""))'
+    )
+    worksheet.write_formula(row, COL_COUNTS_ROSTER, ct_roster_formula, roster_formats["counts_no"])
 
-        row += 1
+    # Option/Guarantee/Trade - empty for two-way contracts (they don't have these)
+    worksheet.write(row, COL_OPTION, "")
+    worksheet.write(row, COL_GUARANTEE, "")
+    worksheet.write(row, COL_TRADE, "")
+    worksheet.write(row, COL_MIN_LABEL, "")
+
+    # -------------------------------------------------------------------------
+    # Salary columns - mode-aware
+    # -------------------------------------------------------------------------
+    for yi in range(6):
+        sal_formula = (
+            "=LET("
+            + twoway_let_prefix()
+            + f'year_col,IF(SelectedMode="Cap",tbl_salary_book_warehouse[cap_y{yi}],'
+            + f'IF(SelectedMode="Tax",tbl_salary_book_warehouse[tax_y{yi}],'
+            + f"tbl_salary_book_warehouse[apron_y{yi}])),"
+            + "filtered,FILTER(year_col,filter_cond,\"\"),"
+            + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+            + "IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1)," + str(num_twoway_rows) + "),\"\"))"
+        )
+        worksheet.write_formula(row, COL_CAP_Y0 + yi, sal_formula, roster_formats["money"])
+
+    # Move past spill zone (6 rows allocated)
+    row += num_twoway_rows
 
     # Subtotal for two-way (selected year, mode-aware)
     worksheet.write(row, COL_NAME, "Two-Way Subtotal:", roster_formats["subtotal_label"])
