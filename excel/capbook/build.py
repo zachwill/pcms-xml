@@ -5,12 +5,12 @@ Workbook build orchestration.
 The main entrypoint is build_capbook(), which:
 1) (Optionally) runs SQL assertions (validations)
 2) Extracts datasets from Postgres
-3) Generates a self-contained workbook (UI sheets + DATA_* tables)
-4) Writes META so every snapshot is reproducible
+3) Generates a self-contained workbook with DATA_* tables (UI sheets optional)
+4) Writes META/HOME when UI sheets are enabled
 
 Supervisor rule (see reference/blueprints/*):
-- On validation or export failure, we still emit a workbook artifact and mark it
-  loudly as FAILED in META + HOME.
+- On validation or export failure, we still emit a workbook artifact. If UI
+  sheets are enabled, we mark META + HOME as FAILED.
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ from .extract import (
     extract_draft_picks_warehouse,
 )
 from .reconcile import reconcile_team_salary_warehouse, reconcile_drilldowns_vs_totals
-from .xlsx import create_standard_formats, write_table
+from .xlsx import create_standard_formats, write_table, set_workbook_default_font
 from .named_formulas import define_named_formulas
 from .sheets import (
     UI_STUB_WRITERS,
@@ -60,7 +60,7 @@ from .sheets import (
 )
 
 
-# Sheet names per the blueprint
+# Sheet names per the blueprint (UI optional)
 UI_SHEETS = [
     "HOME",
     "META",
@@ -129,12 +129,14 @@ def build_capbook(
     league: str = "NBA",
     *,
     skip_assertions: bool = False,
+    include_ui_sheets: bool = False,
 ) -> dict[str, Any]:
     """Build the Excel cap workbook.
 
     Important behavior:
-    - If any validation/extract/write step fails, we *still emit* a workbook and
-      mark META.validation_status = FAILED.
+    - If any validation/extract/write step fails, we *still emit* a workbook.
+    - UI sheets are optional; when disabled we emit DATA_* sheets only.
+    - When UI sheets are enabled, META.validation_status is marked FAILED.
     """
 
     build_meta: dict[str, Any] = {
@@ -157,20 +159,25 @@ def build_capbook(
         "use_future_functions": True,
     })
 
+    # Set default font to Aptos Narrow for all cells (must be before adding sheets)
+    set_workbook_default_font(workbook)
+
     try:
         formats = create_standard_formats(workbook)
 
-        # Create UI sheets
+        # Create UI sheets (optional)
         ui_worksheets: dict[str, Any] = {}
-        for name in UI_SHEETS:
-            ui_worksheets[name] = workbook.add_worksheet(name)
+        if include_ui_sheets:
+            for name in UI_SHEETS:
+                ui_worksheets[name] = workbook.add_worksheet(name)
 
-        # Create DATA sheets (hidden + protected)
+        # Create DATA sheets
         data_worksheets: dict[str, Any] = {}
         for name in DATA_SHEETS:
             ws = workbook.add_worksheet(name)
-            ws.hide()
-            ws.protect()
+            if include_ui_sheets:
+                ws.hide()
+                ws.protect()
             data_worksheets[name] = ws
 
         # Step 1: SQL assertions
@@ -347,6 +354,9 @@ def build_capbook(
                     build_meta,
                     f"Failed writing table {table_name} on sheet {sheet_name}: {e}\n{traceback.format_exc()}",
                 )
+
+        if not include_ui_sheets:
+            return build_meta
 
         # Step 4: Write UI sheets
         # TEAM_COCKPIT gets special treatment - it has command bar inputs with defined names

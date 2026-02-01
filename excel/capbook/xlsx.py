@@ -6,6 +6,7 @@ Provides:
 - Format definitions (colors, number formats, badges)
 - Table writer (Excel Table / ListObject)
 - Named range helpers
+- Sheet heading helpers
 
 Note: when mapping UI semantics (options/guarantees/restrictions), prefer the
 existing decisions in web/ (SalaryBook) and keep the mapping explicit.
@@ -19,6 +20,14 @@ import xlsxwriter
 from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
+
+# -----------------------------------------------------------------------------
+# Font + Format constants
+# -----------------------------------------------------------------------------
+
+# Default font for the entire workbook
+DEFAULT_FONT = "Aptos Narrow"
+DEFAULT_FONT_SIZE = 11
 
 # -----------------------------------------------------------------------------
 # Format constants (mapped from web/src/features/SalaryBook/)
@@ -65,68 +74,74 @@ COLOR_HEADER_FG = "#FFFFFF"  # White text
 
 
 def create_standard_formats(workbook: Workbook) -> dict[str, Any]:
-    """Create and return standard format objects for the workbook."""
+    """Create and return standard format objects for the workbook.
+    
+    All formats use DEFAULT_FONT (Aptos Narrow) for consistency.
+    """
 
     formats: dict[str, Any] = {}
 
+    # Base font properties applied to all formats
+    base_font = {"font_name": DEFAULT_FONT, "font_size": DEFAULT_FONT_SIZE}
+
     # Money formats
-    formats["money"] = workbook.add_format({"num_format": FMT_MONEY})
-    formats["money_millions"] = workbook.add_format({"num_format": FMT_MONEY_MILLIONS})
+    formats["money"] = workbook.add_format({**base_font, "num_format": FMT_MONEY})
+    formats["money_millions"] = workbook.add_format({**base_font, "num_format": FMT_MONEY_MILLIONS})
 
     # Percentage
-    formats["percent"] = workbook.add_format({"num_format": FMT_PERCENT})
+    formats["percent"] = workbook.add_format({**base_font, "num_format": FMT_PERCENT})
 
     # Header
     formats["header"] = workbook.add_format(
-        {"bold": True, "bg_color": COLOR_HEADER_BG, "font_color": COLOR_HEADER_FG}
+        {**base_font, "bold": True, "bg_color": COLOR_HEADER_BG, "font_color": COLOR_HEADER_FG}
     )
 
     # Alert cells
     formats["alert_fail"] = workbook.add_format(
-        {"bold": True, "bg_color": COLOR_ALERT_FAIL, "font_color": "#FFFFFF"}
+        {**base_font, "bold": True, "bg_color": COLOR_ALERT_FAIL, "font_color": "#FFFFFF"}
     )
     formats["alert_warn"] = workbook.add_format(
-        {"bold": True, "bg_color": COLOR_ALERT_WARN, "font_color": "#000000"}
+        {**base_font, "bold": True, "bg_color": COLOR_ALERT_WARN, "font_color": "#000000"}
     )
     formats["alert_ok"] = workbook.add_format(
-        {"bold": True, "bg_color": COLOR_ALERT_OK, "font_color": "#FFFFFF"}
+        {**base_font, "bold": True, "bg_color": COLOR_ALERT_OK, "font_color": "#FFFFFF"}
     )
 
     # Badge-style formats (inline indicators)
     formats["badge_po"] = workbook.add_format(
-        {"bg_color": COLOR_OPTION_PO, "font_color": "#FFFFFF", "bold": True}
+        {**base_font, "bg_color": COLOR_OPTION_PO, "font_color": "#FFFFFF", "bold": True}
     )
     formats["badge_to"] = workbook.add_format(
-        {"bg_color": COLOR_OPTION_TO, "font_color": "#FFFFFF", "bold": True}
+        {**base_font, "bg_color": COLOR_OPTION_TO, "font_color": "#FFFFFF", "bold": True}
     )
     formats["badge_eto"] = workbook.add_format(
-        {"bg_color": COLOR_OPTION_ETO, "font_color": "#FFFFFF", "bold": True}
+        {**base_font, "bg_color": COLOR_OPTION_ETO, "font_color": "#FFFFFF", "bold": True}
     )
 
     formats["badge_gtd"] = workbook.add_format(
-        {"font_color": COLOR_GTD_FULL, "bold": True}
+        {**base_font, "font_color": COLOR_GTD_FULL, "bold": True}
     )
     formats["badge_prt"] = workbook.add_format(
-        {"font_color": COLOR_GTD_PARTIAL, "bold": True}
+        {**base_font, "font_color": COLOR_GTD_PARTIAL, "bold": True}
     )
     formats["badge_ng"] = workbook.add_format(
-        {"font_color": COLOR_GTD_NON, "bold": True}
+        {**base_font, "font_color": COLOR_GTD_NON, "bold": True}
     )
 
     formats["badge_trade_kicker"] = workbook.add_format(
-        {"bg_color": COLOR_TRADE_KICKER, "font_color": "#FFFFFF", "bold": True}
+        {**base_font, "bg_color": COLOR_TRADE_KICKER, "font_color": "#FFFFFF", "bold": True}
     )
     formats["badge_no_trade"] = workbook.add_format(
-        {"bg_color": COLOR_NO_TRADE, "font_color": "#FFFFFF", "bold": True}
+        {**base_font, "bg_color": COLOR_NO_TRADE, "font_color": "#FFFFFF", "bold": True}
     )
     formats["badge_consent_required"] = workbook.add_format(
-        {"bg_color": COLOR_CONSENT_REQUIRED, "font_color": "#FFFFFF", "bold": True}
+        {**base_font, "bg_color": COLOR_CONSENT_REQUIRED, "font_color": "#FFFFFF", "bold": True}
     )
     formats["badge_poison_pill"] = workbook.add_format(
-        {"bg_color": COLOR_POISON_PILL, "font_color": "#FFFFFF", "bold": True, "italic": True}
+        {**base_font, "bg_color": COLOR_POISON_PILL, "font_color": "#FFFFFF", "bold": True, "italic": True}
     )
     formats["badge_preconsented"] = workbook.add_format(
-        {"bg_color": COLOR_PRECONSENTED, "font_color": "#FFFFFF", "bold": True}
+        {**base_font, "bg_color": COLOR_PRECONSENTED, "font_color": "#FFFFFF", "bold": True}
     )
 
     # -------------------------------------------------------------------------
@@ -134,23 +149,39 @@ def create_standard_formats(workbook: Workbook) -> dict[str, Any]:
     # Light yellow background indicates editable zones.
     # -------------------------------------------------------------------------
     formats["input"] = workbook.add_format({
+        **base_font,
         "bg_color": "#FFFDE7",  # Light yellow
         "locked": False,
     })
     formats["input_money"] = workbook.add_format({
+        **base_font,
         "bg_color": "#FFFDE7",
         "num_format": FMT_MONEY,
         "locked": False,
     })
     formats["input_date"] = workbook.add_format({
+        **base_font,
         "bg_color": "#FFFDE7",
         "num_format": "yyyy-mm-dd",
         "locked": False,
     })
     formats["input_int"] = workbook.add_format({
+        **base_font,
         "bg_color": "#FFFDE7",
         "num_format": "0",
         "locked": False,
+    })
+
+    # -------------------------------------------------------------------------
+    # Sheet heading format (large, bold title at top of each sheet)
+    # -------------------------------------------------------------------------
+    formats["sheet_heading"] = workbook.add_format({
+        "font_name": DEFAULT_FONT,
+        "font_size": 16,
+        "bold": True,
+        "font_color": "#1F2937",  # Dark gray
+        "bottom": 2,
+        "bottom_color": "#3B82F6",  # Blue accent underline
     })
 
     return formats
@@ -232,3 +263,53 @@ def define_named_cell(
     col_letter = xlsxwriter.utility.xl_col_to_name(col)
     cell_ref = f"'{sheet_name}'!${col_letter}${row + 1}"
     workbook.define_name(name, cell_ref)
+
+
+def write_sheet_heading(
+    worksheet: Worksheet,
+    formats: dict[str, Any],
+    title: str,
+    row: int = 0,
+    col: int = 0,
+    width: int = 4,
+) -> int:
+    """Write a standard sheet heading at the top of a worksheet.
+    
+    Args:
+        worksheet: The worksheet to write to
+        formats: Standard format dict (must include 'sheet_heading')
+        title: The heading text to display
+        row: Starting row (default 0)
+        col: Starting column (default 0)
+        width: Number of columns to span with the underline (default 4)
+    
+    Returns:
+        The next row after the heading (row + 2, leaving a blank row)
+    """
+    heading_fmt = formats.get("sheet_heading")
+    
+    # Write the title
+    worksheet.write(row, col, title, heading_fmt)
+    
+    # Extend the bottom border across additional columns for visual weight
+    for c in range(col + 1, col + width):
+        worksheet.write(row, c, "", heading_fmt)
+    
+    # Return the next content row (skip a blank row after heading)
+    return row + 2
+
+
+def set_workbook_default_font(workbook: Workbook) -> None:
+    """Set the default font for cells without explicit formatting.
+    
+    This modifies the workbook's default format (format index 0) to use
+    Aptos Narrow. Cells written without a format will inherit this.
+    
+    Note: Must be called immediately after creating the workbook,
+    before adding any worksheets or formats.
+    """
+    # Access the default format and set font properties
+    # This affects cells written with write() without an explicit format
+    default_format = workbook.formats[0]
+    default_format.set_font_name(DEFAULT_FONT)
+    default_format.set_font_size(DEFAULT_FONT_SIZE)

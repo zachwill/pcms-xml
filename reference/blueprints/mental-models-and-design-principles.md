@@ -1,193 +1,227 @@
-# Mental Models & Design Principles (Sean-style Cap Tooling)
+# Mental Models & Design Principles
 
-**Updated:** 2026-01-31
+**Updated:** 2026-02-01
 
-This document captures the *tacit knowledge* behind Sean's workbook and the emerging Postgres-backed tooling.
-
-It's meant to answer:
-- "What are we actually building?"
-- "What must always be true for analysts to trust it?"
-- "Where do cap tools usually betray users?"
+This document captures the foundational thinking behind our cap tooling.
 
 ---
 
-## 1) Trust is the product: the Ledger Model
+## 1) Trust is the product
 
 NBA cap work is fundamentally ledger work.
 
 Analysts need a snapshot that is:
-- **authoritative** ("this is what counts"),
-- **reconcilable** ("show me the contributing rows"), and
-- **defensible** ("show me which assumptions/rules were applied").
+- **Authoritative** — "this is what counts"
+- **Reconcilable** — "show me the contributing rows"
+- **Defensible** — "show me which assumptions/rules were applied"
 
 ### The core trap: "rows that exist" vs "rows that count"
 
 Cap tools fail when:
-- detail tables contain rights/holds/artifacts that *exist* but *don't count*, and
-- totals are computed from a different definition than the drilldown.
+- Detail tables contain rights/holds/artifacts that *exist* but *don't count*
+- Totals are computed from a different definition than the drilldown
 
-**Non-negotiable rule:**
-- All displayed totals must be sourced from (or reconcile to) the **authoritative counting ledger** (team budget snapshot / warehouse).
-- Detail tables may be shown, but they must be explicitly labeled and scoped to the snapshot buckets.
+**Non-negotiable rule:** All displayed totals must be sourced from (or reconcile to) the authoritative counting ledger.
 
-### Implication: every headline number needs an audit path
-For any primary readout (cap total, tax total, apron room, roster count, tax payment), the system must expose:
-- a **contributing rows** list
-- an **assumptions applied** list
-- a **delta vs baseline** list
+### Every headline number needs an audit path
+
+For any primary readout (cap total, tax total, apron room, roster count), the system must expose:
+- Contributing rows
+- Assumptions applied
+- Delta vs baseline
 
 If that's missing, the tool will eventually lose trust.
 
 ---
 
-## 2) Scenario = Baseline + Plan Journal + Derived State
+## 2) Dense AND beautiful
 
-A "scenario" is not a static object.
+Cap analysts live in spreadsheets. They read dense grids all day. They don't need:
+- Padding and whitespace
+- Step-by-step instructions
+- "User-friendly" empty rows
+- Pretty charts and dashboards
 
-It is:
-1. **Baseline state** - facts (warehouses / snapshots)
-2. **Plan journal** - ordered actions (trade, waive, sign, stretch, renounce, use exception, etc.)
-3. **Derived state** - recomputed roster + totals + constraints + alerts
+They need **walls of relevant numbers** — but that doesn't mean ugly.
 
-### Why: analysts work by transformations, not edits
-They try a move, observe consequences, then try a different move.
+### Dense with careful visual design
 
-### Branching is a workflow problem
-Two common analyst workflows:
-- **Lane-based branching:** compare 2-4 deal candidates side-by-side
-- **Version-based branching:** v1 → v2 fork at step N with a journal diff
+- **Typography:** Aptos Narrow (compact, modern, legible). Consistent sizes.
+- **Alignment:** Numbers right-aligned. Text left-aligned. Decimal points line up.
+- **Borders:** Subtle section dividers, not a grid of heavy boxes.
+- **Color:** Meaningful (alerts, status, input zones) — not decorative.
+- **Conditional formatting:** Reactive feedback, not Christmas lights.
+- **Row/column sizing:** Tuned for scannability. No wasted space, no cramped text.
 
-Don't force branching into a single-row serialization problem.
+### The TUI analogy
+
+Think of each worksheet as a well-designed terminal UI — `lazygit`, not raw `git log`. Information-dense, reactive to inputs, everything visible at once, but with care taken on typography and visual hierarchy.
+
+A good cap worksheet is closer to Bloomberg than to PowerPoint.
 
 ---
 
-## 3) Policies must be explicit (and visible)
+## 3) Everything visible, nothing hidden
+
+Analysts don't want to navigate between sheets to see cause and effect.
+
+### The "Playground" is adjacent
+
+Scenario modeling ("what if we trade X?") should happen *next to* the roster view, not in a separate sheet. The analyst should see:
+- Base case
+- Modified case
+- Delta
+
+All at once. No clicking.
+
+### No scattered context
+
+If team/year/mode selectors exist, they should be visible and consistent. No hidden cells driving formulas.
+
+---
+
+## 4) Recognition over recall
+
+Don't make analysts memorize rules. Show them.
+
+### Adjacent context
+
+- Salary matching tiers displayed *next to* trade inputs
+- Minimum scale displayed *next to* roster
+- Apron gates displayed *where exceptions are chosen*
+
+### Inline references
+
+Rules that govern a calculation should be visible near that calculation — not buried in a separate reference sheet.
+
+---
+
+## 5) Policies must be explicit
 
 Most "complexity" comes from invisible defaults.
 
 Examples:
-- fill-to-12 vs fill-to-14 vs fill-to-15
-- rookie minimum vs veteran minimum assumptions
-- whether two-ways count toward roster size and/or totals (CBA fact: they count toward totals, not roster)
-- whether incomplete roster charges are applied (NOT modeled in this workbook — see excel-cap-book-blueprint.md)
-- how partial guarantees are treated (display status vs counting status)
+- Fill-to-12 vs fill-to-14 vs fill-to-15
+- Rookie minimum vs veteran minimum assumptions
+- Whether two-ways count toward roster size (CBA: they don't)
+- How partial guarantees are treated
 
-### Non-negotiable rule: policies create visible generated rows
+### Generated rows must be visible
+
 If you auto-fill roster spots or generate charges:
-- they must appear as **generated rows**
-- they must be toggleable
-- they must be labeled as assumptions (not facts)
+- They must appear as **generated rows**
+- They must be visually distinct (e.g., amber background)
+- They must be toggleable
+- They must be labeled as assumptions, not facts
 
-Otherwise, analysts will experience "spooky action at a distance" (numbers change without visible cause).
-
----
-
-## 4) Cockpit UX principles (dense tools that stay usable)
-
-### 4.1 The Command Bar (always in the same place)
-The command bar is the workbook's "operating context." It must be consistent across all sheets:
-- Team
-- Salary Year (base year)
-- As-of date
-- Mode (cap vs tax vs apron)
-- Active Plan (scenario)
-- Policy toggles (roster fill, two-way counting, etc.)
-
-Scattered hidden selectors are a guaranteed failure mode.
-
-### 4.2 4-7 primary readouts
-Analysts can't hold 20 numbers in working memory.
-
-A cockpit needs a small stable set of numbers (cap/tax/apron distances, roster count, tax estimate) with drilldown for everything else.
-
-### 4.3 Recognition > recall
-If a rule tier matters, show it adjacent to the input it governs.
-
-Examples:
-- salary matching tiers displayed next to trade inputs
-- apron gates + hard-cap triggers displayed where exceptions/signings are chosen
-
-### 4.4 Constraints as first-class outputs
-Don't just output "max incoming." Output:
-- whether the move is legal
-- which constraint blocks it
-- which rule/tier caused the block
-- what would change the result (e.g., different year/date/mode)
-
-### 4.5 Safe editing zones
-A cockpit fails if users can accidentally overwrite logic.
-
-Inputs must be:
-- visually distinct
-- structurally isolated
-- protected where possible
+Otherwise: "spooky action at a distance" (numbers change without visible cause).
 
 ---
 
-## 5) Time is a first-class input
+## 6) Time is a first-class input
 
 Date is not metadata.
 
 The same move on a different date can change:
-- proration
-- guarantees
-- waiver clearance timing
-- eligibility windows
+- Proration
+- Guarantee status
+- Waiver clearance timing
+- Eligibility windows
 
-**Design rule:** as-of date is part of the scenario context and must be visible everywhere.
-
----
-
-## 6) No hardcoded business logic (especially money logic)
-
-If it affects totals, legality, or constraints:
-- it should be parameterized from system values / source-of-truth tables, OR
-- explicitly labeled as an analyst assumption.
-
-Hardcoded repeater status / stale external links / manual overrides eventually destroy trust.
+**Design rule:** As-of date is part of the context and must be visible.
 
 ---
 
-## 7) Taxonomy (shared language for rows + actions)
+## 7) Reactive feedback via formatting
 
-### 7.1 Row types (ledger buckets)
-A tool needs an explicit taxonomy for *what a row is*.
+When state changes, the UI should react visually:
+- Over cap → color shift
+- Hard-capped → alert styling
+- Trade illegal → red indicator
+- Reconciliation failed → loud warning
 
-Suggested categories (example):
-- `ROST` - active roster contracts that count
-- `FA` - holds/rights that count
-- `TERM` - dead money that counts
-- `2WAY` - two-way amounts (often separate totals)
-- `GENERATED` - tool-generated assumption rows (roster fill slots)
-- `EXISTS_ONLY` - visible artifacts that do not count (for reference only)
-
-### 7.2 Action types (plan journal)
-A tool needs an explicit taxonomy for *what actions exist*.
-
-Examples:
-- Trade (with legs / TPE absorption)
-- Sign (cap room / exception / minimum)
-- Waive
-- Buyout
-- Stretch
-- Renounce
-- Option decision
-- Convert two-way / sign two-way
-
-Each action must define:
-- what rows are added/removed/modified
-- what constraints it can trigger
-- what audit output it must generate
+Conditional formatting is the "reactivity" of Excel. Use it.
 
 ---
 
-## 8) The goal state
+## 8) Excel conventions matter
 
-A great cap workbook (or app) has:
-- a warehouse-backed truth layer
-- a cockpit UI that minimizes working-memory load
-- subsystem tools that generate journal entries
-- an audit layer that explains every number
-- explicit policies and visible generated rows
+### Input cells are light yellow
 
-When in doubt: optimize for reconciliation and explainability. Speed comes from trust.
+This is the universal Excel convention. If a cell is meant to be edited, it has a light yellow background. Everything else is computed or locked.
+
+### Consistent visual hierarchy
+
+- Bold for totals and headers
+- Subtle gridlines (not heavy borders everywhere)
+- Consistent number formatting (currency, percentages)
+- Monospace or tabular fonts for numbers that need to align
+
+### Protection for non-input cells
+
+Users shouldn't accidentally overwrite formulas. Lock everything except designated input areas.
+
+---
+
+## 9) Modern Excel unlocks new patterns
+
+Sean built his workbooks over decades with older Excel. We have:
+
+- **Dynamic arrays** — `FILTER`, `SORTBY`, `UNIQUE` eliminate helper columns
+- **XLOOKUP** — cleaner than `INDEX/MATCH`
+- **LET** — readable complex formulas with named intermediate values
+- **LAMBDA** — reusable calculations defined as workbook names
+- **Spill ranges** — formulas that expand automatically
+
+These aren't just conveniences. They enable layouts and calculations that weren't possible before.
+
+---
+
+## 10) Improve on Sean, don't copy him
+
+Sean's workbooks encode decades of domain insight. But he was constrained by:
+- Older Excel features
+- Manual construction (copy-paste errors accumulate)
+- No code generation (inconsistent formatting)
+- No version control (hard to iterate)
+
+We can take his *concepts* and rebuild them with:
+- Modern Excel formulas
+- Code-generated consistency
+- Proper input cell conventions
+- Conditional formatting at scale
+- Reconciliation built into the structure
+
+The result should be cleaner, more reliable, and more powerful.
+
+---
+
+## 11) Row taxonomy (shared language)
+
+A tool needs an explicit taxonomy for what a row represents:
+
+| Bucket | Meaning | Counts toward total? | Counts toward roster? |
+|--------|---------|---------------------|----------------------|
+| ROST | Active roster contracts | Yes | Yes |
+| FA | Holds/rights | Yes | No |
+| TERM | Dead money | Yes | No |
+| 2WAY | Two-way contracts | Yes | No |
+| GEN | Generated assumption rows | Yes (policy) | Yes (policy) |
+| EXISTS | Future-year only (reference) | No | No |
+
+This taxonomy must be consistent across all views.
+
+---
+
+## 12) The goal state
+
+A great cap workbook has:
+- **Warehouse-backed truth** — authoritative data layer
+- **Dense UI** — walls of numbers with clear hierarchy
+- **Visible scenarios** — playground adjacent to roster
+- **Explicit policies** — generated rows labeled as assumptions
+- **Audit paths** — every number explainable
+- **Modern formulas** — dynamic arrays, XLOOKUP, LET, LAMBDA
+- **Excel conventions** — yellow inputs, protection, consistent formatting
+
+When in doubt: optimize for reconciliation and density. Speed comes from trust.

@@ -1,290 +1,191 @@
-# Excel Cap Book Blueprint (Sean-style)
+# Excel Cap Book Blueprint
 
 **Updated:** 2026-02-01
 
-This is a proposed architecture for a *new* Excel workbook designed for NBA salary cap analysts.
+---
 
-The goal is to preserve Sean's strengths (speed + dense functionality) while eliminating the common failure modes:
-- totals that don't reconcile
-- silent defaults
-- rules that require memorization
-- scenarios that can't be explained or reproduced
+## Vision
 
-This blueprint is deliberately "worksheet-first," but it's compatible with a DB-backed model (warehouses + primitives).
+We're building a **best-in-class Excel workbook** for NBA salary cap analysts using Python and XlsxWriter.
 
-**Excel version requirement:** This workbook requires **Excel 365 or Excel 2021** (or later). It uses dynamic array formulas (`FILTER`, `XLOOKUP`, `LET`, `UNIQUE`, `SORTBY`, `TAKE`, `CHOOSECOLS`) that are not available in Excel 2019 or earlier.
+The workbook should feel like a **dense, reactive TUI** — not a marketing spreadsheet. Every pixel earns its place. Information density is a feature, not a bug.
+
+**Core belief:** Coding agents are more than capable of building Excel workbooks that surpass what humans can build by hand — if we follow best practices and have a clear guiding vision.
 
 ---
 
-## Design goals
+## What we learned (the hard way)
 
-1. **Ledger trust:** every number is reconcilable.
-2. **Scenario = journal:** actions are ordered; state is derived.
-3. **Explicit policies:** generated rows are visible and toggleable.
-4. **Cockpit UX:** 4-7 stable readouts + alerts + drilldown.
-5. **Rules adjacent to controls:** recognition over recall.
+### What we got right ✅
 
----
+- **DATA_ sheets are solid.** The data extraction and embedding layer works. Excel Tables with clean column names, proper types, authoritative sources.
+- **Modern Excel features.** Using `FILTER`, `XLOOKUP`, `LET`, `LAMBDA`, dynamic arrays — this is the right call.
+- **Code-generated workbook.** No hand-authored template. The workbook is a build artifact.
+- **Reconciliation mindset.** Trust requires that numbers tie out.
 
-## Workbook structure (tabs)
+### What we got wrong ❌
 
-### A) Navigation + status
-
-#### `HOME`
-- Workbook version + data refresh time
-- Active Team/Year/As-of Date/Plan
-- "Data health" indicator (Reconciled ✅ / Not reconciled ❌)
-- Links to all major tools
+- **Too many sheets.** We designed 13+ tabs with navigation workflows. Analysts don't want to click around. They want everything visible.
+- **Over-engineered scenarios.** "Publish to journal" workflows, plan managers, subsystem sheets — way too much ceremony.
+- **Wrong mental model.** We designed for how we *thought* analysts should work, not how they actually work.
+- **Marketing spreadsheet aesthetics.** We didn't commit to density. Real cap workbooks are walls of numbers.
 
 ---
 
-## The shared Command Bar (repeated everywhere)
+## The new mental model
 
-Every major sheet reserves the same top strip (same cells) for context + policies.
+### Dense reactive TUI
 
-### Context controls
-- Team
-- Salary Year (base year)
-- As-of Date
-- Mode: Cap / Tax / Apron
-- Active Plan (Baseline vs Plan)
-- Compare Plans (optional): A vs B vs C vs D
+Think of each worksheet as a **terminal UI panel** — dense, information-rich, reactive to inputs.
 
-### Policy controls (explicit knobs)
-- Roster fill target: 0 (off) / 12 / 14 / 15
-- Fill type: Rookie min / Vet min / Cheapest
-- "Show exists-only rows" toggle
+- **Everything visible.** No scrolling to find critical info. No clicking through tabs to see cause and effect.
+- **Reactive.** Change an input, see the impact immediately via conditional formatting, color shifts, delta columns.
+- **Proper visual hierarchy.** Light yellow input cells (Excel convention). Bold totals. Subtle gridlines. Consistent fonts.
+- **Recognition over recall.** Rules and references adjacent to where they're needed, not buried in a separate sheet.
 
-**Note on two-way counting:** Two-way counting is a CBA fact, not a policy toggle. Per CBA, two-way contracts count toward cap/tax/apron totals but do NOT count toward the 15-player roster. The cockpit shows informational two-way readouts (count + amount) in the PRIMARY READOUTS section.
+### 4-7 dense sheets (not 13+)
 
-**Note on incomplete roster charges:** This workbook does NOT model CBA incomplete roster charges (the pro-rated minimum salary charge for teams with <12 players). See "Notes / open design choices" section at the end of this document for rationale. The Roster Fill feature (RosterFillTarget=12/14/15) covers the scenario modeling use case.
+The final workbook will probably have 4-7 functional sheets, each a self-contained dense UI:
 
-**Design rule:** no hidden selectors. No context scattered across the workbook.
+1. **Team view** — the main cockpit (roster + KPIs + depth chart + playground)
+2. **Trade workspace** — side-by-side trade construction with matching rules visible
+3. **League view** — all 30 teams at a glance (cap positions, tax status, exceptions)
+4. **Draft assets** — pick ownership grid with encumbrances
+5. Maybe 2-3 others as patterns emerge
 
----
+Plus the DATA_ sheets (hidden, locked) and META sheet.
 
-## B) The cockpit + ledger views
+### Improve on Sean, don't copy him
 
-### 1) `TEAM_COCKPIT` (Primary Flight Display)
+Sean's workbooks have decades of insight baked in. But he built what he was capable of building incrementally over time. He didn't have:
 
-**Purpose:** at-a-glance truth + alerts.
+- Modern Excel (dynamic arrays, XLOOKUP, LAMBDA)
+- Code generation (consistent formatting, no copy-paste errors)
+- Defined names and structured references
+- Proper input cell conventions (light yellow backgrounds)
+- Conditional formatting at scale
 
-#### Primary readouts (4-7)
-- Cap position (space or over-cap)
-- Tax position (room or over-tax)
-- Room under Apron 1
-- Room under Apron 2
-- Roster count (NBA) + (optional) two-way count
-- Minimum charges applied? (count + $)
-- Estimated luxury tax owed (with repeater flag shown)
+We can take his *concepts* (the information he shows, the workflows he supports) and rebuild them with proper patterns. The result should be:
 
-#### Alert stack (small, loud)
-Examples:
-- "Hard-cap triggered by: ____"
-- "Trade fails salary match for selected year/mode"
-- "Generated fill rows are included (toggle on/off)"
-- "Unreconciled ledger vs snapshot: $___"
-
-#### Quick drivers panel
-- Top 10 cap hits (selected year)
-- Dead money total + top rows
-- Holds total + top rows
-
-Links to subsystem sheets + audit.
+- **Cleaner** — consistent formatting, no visual noise
+- **More reliable** — formulas that don't break, reconciliation built-in
+- **More powerful** — modern Excel features unlock things he couldn't do
+- **More maintainable** — code-generated means we can iterate
 
 ---
 
-### 2) `ROSTER_GRID` (full roster/ledger view)
+## Design principles
 
-**Purpose:** show all rows with explicit "counts vs exists" truth.
+### 1. Dense AND beautiful
 
-#### Required columns
-- Row label (player / hold / dead money / generated)
-- Bucket: ROST / FA / TERM / 2WAY / GENERATED / EXISTS_ONLY
-- CountsTowardTotal? (Y/N)
-- CountsTowardRoster? (Y/N)
-- Contract/guarantee/option badges
-- Trade restriction badges
+Cap analysts live in spreadsheets. They can read dense grids. Don't waste space with padding, instructions, or "user-friendly" empty rows.
 
-#### Amount grid
-- Multi-year (base year through +5)
-- Mode-driven display: cap vs tax vs apron
+But dense doesn't mean ugly. It means **information-rich with careful visual design**:
 
-#### Bottom reconciliation block
-- Sum of counting rows by bucket
-- Authoritative snapshot totals (same buckets)
-- Difference (must be zero; otherwise triggers cockpit alert)
+- **Typography:** Aptos Narrow for data (compact but legible), consistent font sizes
+- **Alignment:** Numbers right-aligned, text left-aligned, headers centered where appropriate
+- **Borders:** Subtle and purposeful — section dividers, not a grid of boxes
+- **Color:** Communicates meaning (status, alerts, input zones), not decoration
+- **Whitespace:** Minimal but intentional — row height and column width tuned for scannability
 
-**Note on GENERATED rows:** When `Roster fill target` is set to 12/14/15, the grid includes generated "fill slot" rows with GEN bucket. These are policy assumptions (Ct$=Y, CtR=Y) that count toward totals but are explicitly excluded from the reconciliation check. They appear between DEAD MONEY and EXISTS_ONLY with amber styling.
+Think Bloomberg terminal, not clip-art spreadsheet. Think well-designed TUI, not ASCII dump.
 
----
+### 2. Inputs are light yellow
 
-### 3) `BUDGET_LEDGER` (the accounting statement)
+This is the Excel convention. If a cell is meant to be edited, it has a light yellow background. Everything else is computed or locked.
 
-**Purpose:** single source of truth for totals and deltas.
+### 3. Reactive feedback via conditional formatting
 
-Sections:
-1. Authoritative snapshot totals (by bucket)
-2. Plan deltas (journal actions summarized into buckets)
-3. Policy-generated deltas (roster fill rows)
-4. Derived totals = snapshot + deltas
+When something changes state (over cap, hard-capped, trade illegal), the UI should react visually. Color shifts, icons, bold text.
 
-This is the sheet you use to explain numbers to a GM/owner.
+### 4. Adjacent context
 
----
+Don't make analysts remember rules. Show the salary matching tiers *next to* the trade inputs. Show minimum scale *next to* the roster.
 
-## C) Scenario / Plan tooling
+### 5. Formulas use modern Excel
 
-### 4) `PLAN_MANAGER`
+- `FILTER` + `SORTBY` instead of helper columns
+- `XLOOKUP` instead of `INDEX/MATCH`
+- `LET` for readable complex formulas
+- `LAMBDA` for reusable calculations (defined as workbook names)
+- Dynamic arrays that spill
 
-**Purpose:** manage scenarios and comparisons.
+### 6. Reconciliation is non-negotiable
 
-- Plans table: Plan ID, name, notes, created date
-- Baseline vs Plan selection
-- Compare selectors (A/B/C/D)
+Every total must tie to an authoritative source. If there's a discrepancy, it should be visible and loud.
 
-**Design rule:** comparison is a first-class workflow.
+### 7. The "Playground" is adjacent, not separate
+
+Scenario modeling ("what if we trade X?") should happen *next to* the roster, not in a separate sheet. The analyst should see the base case and the delta simultaneously.
 
 ---
 
-### 5) `PLAN_JOURNAL` (ordered actions)
+## What we're NOT building
 
-**Purpose:** the scenario engine.
-
-Journal table columns (conceptually):
-- Step # (order)
-- Enabled?
-- Effective date (default to global as-of date, overridable)
-- Action type
-- Targets (players, picks, exceptions)
-- Parameters (giveback, years, etc.)
-- Computed deltas by year (cap/tax/apron)
-- Roster adds/drops
-- Validation status (OK / Warning / Error)
-- Source ("Generated by Trade Lane A", etc.)
-
-Next to the journal: a running-state panel:
-- totals after each step
-- roster count after each step
-- active constraints after each step
+- **A CBA reference manual.** Rules are shown in context, not dumped into a reference sheet.
+- **A step-by-step wizard.** Analysts know what they're doing. Give them tools, not training wheels.
+- **A pretty dashboard for executives.** This is a working tool for practitioners.
+- **A web app in Excel.** We're not fighting Excel — we're using it as intended.
 
 ---
 
-## D) Subsystem tools (generate journal entries)
+## Technical foundations
 
-### 6) `TRADE_MACHINE` (lane-based)
+### Code generation via XlsxWriter
 
-**Purpose:** rapid trade iteration and side-by-side comparison.
+See `excel/XLSXWRITER.md` for patterns. Key points:
 
-- 4 lanes (A/B/C/D), identical layout
-- Inputs: teams, outgoing, incoming, matching mode, year context
-- Outputs: outgoing/incoming totals, legality, max incoming, apron gate flags
-- Inline reference: salary matching tiers + the "which basis is used" notes
+- `use_future_functions: True` for modern Excel
+- `write_dynamic_array_formula()` for spill formulas
+- `ANCHORARRAY()` instead of `#` operator
+- `_xlpm.` prefix for LAMBDA parameters
+- Defined names for reusable formulas
 
-A lane can be "published" into the Plan Journal as one or more steps.
+### Data layer (DATA_ sheets)
 
----
+The DATA_ sheets are solid and don't need redesign. See `excel-workbook-data-contract.md`.
 
-### 7) `SIGNINGS_AND_EXCEPTIONS`
+| Sheet | Table | Purpose |
+|-------|-------|---------|
+| DATA_system_values | tbl_system_values | Cap/tax/apron thresholds |
+| DATA_tax_rates | tbl_tax_rates | Luxury tax brackets |
+| DATA_rookie_scale | tbl_rookie_scale | Rookie scale amounts |
+| DATA_minimum_scale | tbl_minimum_scale | Min salary by years of service |
+| DATA_team_salary_warehouse | tbl_team_salary_warehouse | Authoritative team totals |
+| DATA_salary_book_warehouse | tbl_salary_book_warehouse | Wide salary book |
+| DATA_salary_book_yearly | tbl_salary_book_yearly | Tall salary book |
+| DATA_cap_holds_warehouse | tbl_cap_holds_warehouse | Cap holds/rights |
+| DATA_dead_money_warehouse | tbl_dead_money_warehouse | Dead money |
+| DATA_exceptions_warehouse | tbl_exceptions_warehouse | Exception inventory |
+| DATA_draft_picks_warehouse | tbl_draft_picks_warehouse | Draft pick ownership |
 
-**Purpose:** signings, minimums, exceptions, cap room.
+### META sheet
 
-Inputs:
-- player/slot
-- contract structure
-- signing method (cap room / exception / minimum)
-- effective date
-
-Outputs:
-- per-year deltas
-- exception usage remaining
-- constraint/hard-cap flags
-
-Publish into Plan Journal.
-
----
-
-### 8) `WAIVE_BUYOUT_STRETCH`
-
-**Purpose:** guided dead money modeling.
-
-Inputs:
-- player
-- waive date
-- give-back
-- stretch? set-off assumptions
-
-Outputs:
-- cap/tax/apron distribution by year
-- immediate savings vs future costs
-- rule references shown inline
-
-Publish into Plan Journal.
+Build metadata: timestamp, base year, as-of date, git SHA, validation status.
 
 ---
 
-### 9) `ASSETS` (inventory)
+## Next steps
 
-Two blocks:
-- Exceptions/TPEs: remaining amount, expiration, restrictions, usage in plan
-- Picks: ownership grid + encumbrances; plan usage
+Before building more UI sheets, we need to:
 
----
+1. **Study Sean's actual layouts.** Screenshot them. Understand what information he shows and where.
+2. **Talk to more analysts.** What do they actually look at? What workflows matter?
+3. **Prototype on paper first.** Sketch the dense layouts before writing code.
+4. **Start with one sheet.** Get the Team view right before building others.
 
-## E) Explainability and correctness
-
-### 10) `AUDIT_AND_RECONCILE`
-
-**Purpose:** prevent "your number is wrong" fights.
-
-Must include:
-- totals reconciliation (snapshot vs counting rows vs derived totals)
-- contributing rows drilldowns for each headline readout
-- assumptions applied (fill rows, toggles, overrides)
-- plan diff (baseline vs plan) and journal step summary
+The goal is not to ship fast. The goal is to ship something analysts actually want to use.
 
 ---
 
-### 11) `RULES_REFERENCE` (memory aids)
+## Success criteria
 
-Not a CBA dump - only rules that analysts need while operating:
-- salary matching tiers
-- apron gates / hard-cap triggers
-- minimum salary scales
-- rookie scale
-- proration helpers
+A cap analyst should be able to:
 
-Subsystem sheets should display the relevant rule table adjacent to inputs.
+1. Open the workbook and immediately see their team's cap position
+2. Model a trade and see the salary matching math without leaving the view
+3. Trust that every number reconciles to authoritative sources
+4. Explain any number by drilling into the contributing rows
+5. Work faster than they could in Sean's workbook (eventually)
 
----
-
-## F) Data layer (locked)
-
-### 12) `DATA_*` sheets
-
-Refreshable tables for salaries, holds, dead money, exceptions, picks, system values.
-
-**Design rule:**
-- no cross-workbook links
-- no hardcoded money logic
-- manual overrides must be rare and loudly labeled
-
----
-
-## What day-to-day usage looks like
-
-1. Start in `TEAM_COCKPIT` (select team/year/date/plan).
-2. Build a scenario by adding moves in subsystem sheets:
-   - Trade candidate in `TRADE_MACHINE` (Lane A) → publish to journal
-   - Waive/stretch in `WAIVE_BUYOUT_STRETCH` → publish
-   - Signings in `SIGNINGS_AND_EXCEPTIONS` → publish
-3. Return to cockpit to view updated readouts + alerts.
-4. If anything is disputed, open `AUDIT_AND_RECONCILE` and show contributing rows + assumptions.
-
----
-
-## Notes / open design choices
-
-- **Incomplete roster charges: NOT implemented** (decision made 2026-02-01). Per CBA, teams with <12 players incur a pro-rated minimum salary charge per missing spot. We explicitly exclude this because: (1) PCMS warehouse totals may already include these charges, risking double-counting; (2) the Roster Fill feature (RosterFillTarget=12/14/15) covers the scenario modeling use case; (3) accurate proration requires date-specific logic not reliably available. See `AUDIT_AND_RECONCILE` policy assumptions section for full rationale.
-- If Excel performance becomes an issue, the journal can be implemented as an input table that drives precomputed deltas (rather than recalculating everything row-by-row).
-- The key success metric is not "more features." It's: can an analyst *explain* every number quickly and confidently?
+If we achieve this, we win.
