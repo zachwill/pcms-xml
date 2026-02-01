@@ -51,20 +51,20 @@ This file is 4 unrelated sheets jammed together. Pure file-move refactor, no for
 
 7 distinct sections that share formatting + filter logic. Split after extracting shared helpers.
 
-- [ ] Create `excel/capbook/sheets/roster_grid/` directory
-- [ ] Extract `formats.py` — `_create_roster_formats()` (~190 lines)
-- [ ] Extract `helpers.py` — `roster_let_prefix()`, mode helpers, column constants (~150 lines)
-- [ ] Extract `roster_section.py` — `_write_roster_section()` (~260 lines)
-- [ ] Extract `twoway_section.py` — `_write_twoway_section()` (~150 lines)
-- [ ] Extract `cap_holds_section.py` — `_write_cap_holds_section()` (~210 lines)
-- [ ] Extract `dead_money_section.py` — `_write_dead_money_section()` (~200 lines)
-- [ ] Extract `generated_section.py` — `_write_generated_section()` (~270 lines)
-- [ ] Extract `exists_only_section.py` — `_write_exists_only_section()` (~280 lines)
-- [ ] Extract `reconciliation.py` — `_write_reconciliation_block()` (~200 lines)
-- [ ] Create `__init__.py` with `write_roster_grid()` orchestrator
-- [ ] Update imports in `build.py`
-- [ ] Delete original `roster_grid.py`
-- [ ] Test workbook builds and opens without errors
+- [x] Create `excel/capbook/sheets/roster_grid/` directory
+- [x] Extract `formats.py` — `_create_roster_formats` (~190 lines)
+- [x] Extract `helpers.py` — `roster_let_prefix()`, mode helpers, column constants (~150 lines)
+- [x] Extract `roster_section.py` — `_write_roster_section` (~260 lines)
+- [x] Extract `twoway_section.py` — `_write_twoway_section` (~150 lines)
+- [x] Extract `cap_holds_section.py` — `_write_cap_holds_section` (~210 lines)
+- [x] Extract `dead_money_section.py` — `_write_dead_money_section` (~200 lines)
+- [x] Extract `generated_section.py` — `_write_generated_section` (~270 lines)
+- [x] Extract `exists_only_section.py` — `_write_exists_only_section` (~280 lines)
+- [x] Extract `reconciliation.py` — `_write_reconciliation_block` (~200 lines)
+- [x] Create `__init__.py` with `write_roster_grid()` orchestrator
+- [x] Update imports in `build.py`
+- [x] Delete original `roster_grid.py`
+- [ ] Test workbook builds and opens without errors (Skipped due to missing environment)
 
 ### Phase 3: Split `plan.py`
 
