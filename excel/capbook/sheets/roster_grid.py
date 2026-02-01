@@ -16,7 +16,15 @@ This module implements:
    - Uses same FILTER/SORTBY/TAKE pattern as roster section
    - Two-way policy toggles are not implemented yet (totals/counts remain authoritative)
 4. Cap holds section (bucket = FA, from tbl_cap_holds_warehouse)
+   - Uses Excel 365 dynamic arrays: FILTER, SORTBY, TAKE, LET
+   - Filters to SelectedTeam + SelectedYear, sorted by mode-aware amount (DESC)
+   - Displays FA type, status, mode-aware amount, % of cap
+   - Ct$ = Y, CtR = N (holds count toward cap totals but not roster)
 5. Dead money section (bucket = TERM, from tbl_dead_money_warehouse)
+   - Uses Excel 365 dynamic arrays: FILTER, SORTBY, TAKE, LET
+   - Filters to SelectedTeam + SelectedYear, sorted by mode-aware amount (DESC)
+   - Displays waive date, mode-aware amount, % of cap
+   - Ct$ = Y, CtR = N (dead money counts toward cap totals but not roster)
 6. EXISTS_ONLY section (non-counting rows for analyst reference)
    - Shows players with $0 in SelectedYear but non-zero in future years
    - Controlled by ShowExistsOnlyRows toggle ("Yes" to show, "No" to hide)
@@ -37,6 +45,7 @@ Design notes:
 - Reconciliation block sums rows and compares to team_salary_warehouse totals (mode-aware)
 - Conditional formatting highlights deltas ≠ 0
 - Two-way rows display Ct$=Y (counts toward cap totals per CBA), CtR=N (does not count toward 15-player roster)
+- Cap holds and dead money sections use LET-based spill formulas with mode-aware filtering
 
 Badge formatting (aligned to web UI conventions from web/src/features/SalaryBook/):
 - Option: PO/PLYR (blue), TO/TEAM (purple), ETO/PLYTF (orange)
@@ -908,12 +917,22 @@ def _write_cap_holds_section(
 ) -> int:
     """Write the cap holds section (bucket = FA).
 
+    Uses Excel 365 dynamic array formulas (FILTER, SORTBY, TAKE).
+    Rows are spilled from a single formula that:
+    1. FILTERs to SelectedTeam + SelectedYear + mode-aware amount > 0
+    2. SORTBYs by mode-aware amount (DESC)
+    3. TAKEs the first N rows (max 15)
+
     Returns next row.
     """
     section_fmt = roster_formats["section_header"]
 
     # Section header
     worksheet.merge_range(row, COL_BUCKET, row, COL_PCT_CAP, "CAP HOLDS (Free Agent Rights)", section_fmt)
+    row += 1
+
+    # Note about formula-driven display
+    worksheet.write(row, COL_BUCKET, "Dynamic array: cap holds for SelectedTeam sorted by SelectedYear amount (uses FILTER/SORTBY)", roster_formats["reconcile_label"])
     row += 1
 
     # Simplified column headers for holds - mode-aware amount header
@@ -933,89 +952,163 @@ def _write_cap_holds_section(
     worksheet.write(row, COL_PCT_CAP, "% Cap", fmt)
     row += 1
 
-    # Cap hold rows
+    data_start_row = row
+
+    # Cap hold rows - using dynamic arrays
     num_hold_rows = 15
 
-    # Mode-aware amount column expression for cap holds
-    amount_col_expr = _cap_holds_amount_col()
+    # =========================================================================
+    # Dynamic Array Formula: FILTER + SORTBY for cap holds
+    # =========================================================================
+    #
+    # LET-based approach:
+    #   mode_amt = IF(SelectedMode="Cap", cap_amount, IF(SelectedMode="Tax", tax_amount, apron_amount))
+    #   filter_cond = (team_code = SelectedTeam) * (salary_year = SelectedYear) * (mode_amt > 0)
+    #   filtered_col = FILTER(column, filter_cond, "")
+    #   sorted_amounts = FILTER(mode_amt, filter_cond, 0)  -- for sort key
+    #   result = TAKE(SORTBY(filtered_col, sorted_amounts, -1), num_hold_rows)
 
-    for i in range(1, num_hold_rows + 1):
-        criteria = "((tbl_cap_holds_warehouse[team_code]=SelectedTeam)*(tbl_cap_holds_warehouse[salary_year]=SelectedYear))"
-        # Use mode-aware amount for sorting
-        amount_value_expr = f"AGGREGATE(14,6,({amount_col_expr})/({criteria}),{i})"
-        match_expr = f"MATCH({amount_value_expr},({amount_col_expr})/({criteria}),0)"
-
-        name_expr = f'IFERROR(INDEX(tbl_cap_holds_warehouse[player_name],{match_expr}),"" )'
-
-        def _lookup_expr(col: str) -> str:
-            return f'IFERROR(INDEX(tbl_cap_holds_warehouse[{col}],{match_expr}),"" )'
-
-        # Bucket (FA)
-        worksheet.write_formula(
-            row,
-            COL_BUCKET,
-            f'=IF({name_expr}<>"","FA","")',
-            roster_formats["bucket_fa"],
+    def cap_holds_let_prefix() -> str:
+        """Return LET prefix for cap holds filtering (mode-aware amount calculation)."""
+        return (
+            'mode_amt,IF(SelectedMode="Cap",tbl_cap_holds_warehouse[cap_amount],'
+            'IF(SelectedMode="Tax",tbl_cap_holds_warehouse[tax_amount],'
+            'tbl_cap_holds_warehouse[apron_amount])),'
+            'filter_cond,(tbl_cap_holds_warehouse[team_code]=SelectedTeam)*'
+            '(tbl_cap_holds_warehouse[salary_year]=SelectedYear)*(mode_amt>0),'
         )
 
-        # CountsTowardTotal: FA/holds always count toward cap total (Y)
-        worksheet.write_formula(
-            row,
-            COL_COUNTS_TOTAL,
-            f'=IF({name_expr}<>"","Y","")',
-            roster_formats["counts_yes"],
-        )
+    # -------------------------------------------------------------------------
+    # Player Name column (spills down)
+    # -------------------------------------------------------------------------
+    name_formula = (
+        "=LET("
+        + cap_holds_let_prefix()
+        + "filtered,FILTER(tbl_cap_holds_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_hold_rows}),\"\"))"
+    )
+    worksheet.write_formula(row, COL_NAME, name_formula)
 
-        # CountsTowardRoster: FA/holds do NOT count toward roster count (N)
-        worksheet.write_formula(
-            row,
-            COL_COUNTS_ROSTER,
-            f'=IF({name_expr}<>"","N","")',
-            roster_formats["counts_no"],
-        )
+    # -------------------------------------------------------------------------
+    # Bucket column (FA for non-empty rows)
+    # -------------------------------------------------------------------------
+    bucket_formula = (
+        "=LET("
+        + cap_holds_let_prefix()
+        + "filtered,FILTER(tbl_cap_holds_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"names,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_hold_rows}),\"\"),"
+        + 'IF(names<>"","FA",""))'
+    )
+    worksheet.write_formula(row, COL_BUCKET, bucket_formula, roster_formats["bucket_fa"])
 
-        worksheet.write_formula(row, COL_NAME, f"={name_expr}")
+    # -------------------------------------------------------------------------
+    # CountsTowardTotal column (Y for non-empty)
+    # -------------------------------------------------------------------------
+    ct_total_formula = (
+        "=LET("
+        + cap_holds_let_prefix()
+        + "filtered,FILTER(tbl_cap_holds_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"names,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_hold_rows}),\"\"),"
+        + 'IF(names<>"","Y",""))'
+    )
+    worksheet.write_formula(row, COL_COUNTS_TOTAL, ct_total_formula, roster_formats["counts_yes"])
 
-        # FA designation (RFA/UFA/etc.)
-        worksheet.write_formula(row, COL_OPTION, f"={_lookup_expr('free_agent_designation_lk')}")
-        worksheet.write(row, COL_GUARANTEE, "")
+    # -------------------------------------------------------------------------
+    # CountsTowardRoster column (N for FA - holds don't count toward roster)
+    # -------------------------------------------------------------------------
+    ct_roster_formula = (
+        "=LET("
+        + cap_holds_let_prefix()
+        + "filtered,FILTER(tbl_cap_holds_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"names,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_hold_rows}),\"\"),"
+        + 'IF(names<>"","N",""))'
+    )
+    worksheet.write_formula(row, COL_COUNTS_ROSTER, ct_roster_formula, roster_formats["counts_no"])
 
-        # FA status
-        worksheet.write_formula(row, COL_TRADE, f"={_lookup_expr('free_agent_status_lk')}")
-        worksheet.write(row, COL_MIN_LABEL, "")
+    # -------------------------------------------------------------------------
+    # FA designation column (RFA/UFA/etc.)
+    # -------------------------------------------------------------------------
+    fa_type_formula = (
+        "=LET("
+        + cap_holds_let_prefix()
+        + "filtered,FILTER(tbl_cap_holds_warehouse[free_agent_designation_lk],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_hold_rows}),\"\"))"
+    )
+    worksheet.write_formula(row, COL_OPTION, fa_type_formula)
 
-        # Amount - mode-aware
-        mode_amount_expr = (
-            f'IF(SelectedMode="Cap",INDEX(tbl_cap_holds_warehouse[cap_amount],{match_expr}),'
-            f'IF(SelectedMode="Tax",INDEX(tbl_cap_holds_warehouse[tax_amount],{match_expr}),'
-            f'INDEX(tbl_cap_holds_warehouse[apron_amount],{match_expr})))'
-        )
-        worksheet.write_formula(row, COL_CAP_Y0, f'=IFERROR({mode_amount_expr},"")', roster_formats["money"])
+    # Guarantee - empty for holds
+    worksheet.write(row, COL_GUARANTEE, "")
 
-        # % of cap
-        pct_expr = (
-            f'IFERROR({amount_value_expr}/'
-            f'SUMIFS(tbl_system_values[salary_cap_amount],tbl_system_values[salary_year],SelectedYear),"" )'
-        )
-        worksheet.write_formula(row, COL_PCT_CAP, f"={pct_expr}", roster_formats["percent"])
+    # -------------------------------------------------------------------------
+    # FA status column
+    # -------------------------------------------------------------------------
+    fa_status_formula = (
+        "=LET("
+        + cap_holds_let_prefix()
+        + "filtered,FILTER(tbl_cap_holds_warehouse[free_agent_status_lk],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_hold_rows}),\"\"))"
+    )
+    worksheet.write_formula(row, COL_TRADE, fa_status_formula)
 
-        row += 1
+    # Min label - empty for holds
+    worksheet.write(row, COL_MIN_LABEL, "")
 
-    # Subtotal for holds - mode-aware
+    # -------------------------------------------------------------------------
+    # Amount column (mode-aware, spills down)
+    # -------------------------------------------------------------------------
+    amount_formula = (
+        "=LET("
+        + cap_holds_let_prefix()
+        + "filtered,FILTER(mode_amt,filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_hold_rows}),\"\"))"
+    )
+    worksheet.write_formula(row, COL_CAP_Y0, amount_formula, roster_formats["money"])
+
+    # -------------------------------------------------------------------------
+    # % of cap column
+    # -------------------------------------------------------------------------
+    pct_formula = (
+        "=LET("
+        + cap_holds_let_prefix()
+        + "filtered,FILTER(mode_amt,filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"sorted_amt,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_hold_rows}),\"\"),"
+        + "cap_limit,SUMIFS(tbl_system_values[salary_cap_amount],tbl_system_values[salary_year],SelectedYear),"
+        + 'IF(sorted_amt="","",sorted_amt/cap_limit))'
+    )
+    worksheet.write_formula(row, COL_PCT_CAP, pct_formula, roster_formats["percent"])
+
+    # Move past spill zone
+    row += num_hold_rows
+
+    # Subtotal for holds - mode-aware (using LET + SUM(FILTER))
     worksheet.write(row, COL_NAME, "Holds Subtotal:", roster_formats["subtotal_label"])
     subtotal_formula = (
-        '=IF(SelectedMode="Cap",'
-        'SUMIFS(tbl_cap_holds_warehouse[cap_amount],tbl_cap_holds_warehouse[team_code],SelectedTeam,tbl_cap_holds_warehouse[salary_year],SelectedYear),'
-        'IF(SelectedMode="Tax",'
-        'SUMIFS(tbl_cap_holds_warehouse[tax_amount],tbl_cap_holds_warehouse[team_code],SelectedTeam,tbl_cap_holds_warehouse[salary_year],SelectedYear),'
-        'SUMIFS(tbl_cap_holds_warehouse[apron_amount],tbl_cap_holds_warehouse[team_code],SelectedTeam,tbl_cap_holds_warehouse[salary_year],SelectedYear)))'
+        "=LET("
+        'mode_amt,IF(SelectedMode="Cap",tbl_cap_holds_warehouse[cap_amount],'
+        'IF(SelectedMode="Tax",tbl_cap_holds_warehouse[tax_amount],'
+        'tbl_cap_holds_warehouse[apron_amount])),'
+        'filter_cond,(tbl_cap_holds_warehouse[team_code]=SelectedTeam)*'
+        '(tbl_cap_holds_warehouse[salary_year]=SelectedYear)*(mode_amt>0),'
+        'SUM(FILTER(mode_amt,filter_cond,0)))'
     )
     worksheet.write_formula(row, COL_CAP_Y0, subtotal_formula, roster_formats["subtotal"])
 
     count_formula = (
-        "=COUNTIFS(tbl_cap_holds_warehouse[team_code],SelectedTeam,"
-        "tbl_cap_holds_warehouse[salary_year],SelectedYear,"
-        "tbl_cap_holds_warehouse[cap_amount],\">0\")"
+        "=LET("
+        'mode_amt,IF(SelectedMode="Cap",tbl_cap_holds_warehouse[cap_amount],'
+        'IF(SelectedMode="Tax",tbl_cap_holds_warehouse[tax_amount],'
+        'tbl_cap_holds_warehouse[apron_amount])),'
+        'filter_cond,(tbl_cap_holds_warehouse[team_code]=SelectedTeam)*'
+        '(tbl_cap_holds_warehouse[salary_year]=SelectedYear)*(mode_amt>0),'
+        'ROWS(FILTER(tbl_cap_holds_warehouse[player_name],filter_cond,"")))'
     )
     worksheet.write_formula(row, COL_BUCKET, count_formula, roster_formats["subtotal_label"])
 
@@ -1033,12 +1126,22 @@ def _write_dead_money_section(
 ) -> int:
     """Write the dead money section (bucket = TERM).
 
+    Uses Excel 365 dynamic array formulas (FILTER, SORTBY, TAKE).
+    Rows are spilled from a single formula that:
+    1. FILTERs to SelectedTeam + SelectedYear + mode-aware amount > 0
+    2. SORTBYs by mode-aware amount (DESC)
+    3. TAKEs the first N rows (max 10)
+
     Returns next row.
     """
     section_fmt = roster_formats["section_header"]
 
     # Section header
     worksheet.merge_range(row, COL_BUCKET, row, COL_PCT_CAP, "DEAD MONEY (Terminated Contracts)", section_fmt)
+    row += 1
+
+    # Note about formula-driven display
+    worksheet.write(row, COL_BUCKET, "Dynamic array: dead money for SelectedTeam sorted by SelectedYear amount (uses FILTER/SORTBY)", roster_formats["reconcile_label"])
     row += 1
 
     # Column headers - mode-aware amount header
@@ -1058,87 +1161,154 @@ def _write_dead_money_section(
     worksheet.write(row, COL_PCT_CAP, "% Cap", fmt)
     row += 1
 
-    # Dead money rows
+    data_start_row = row
+
+    # Dead money rows - using dynamic arrays
     num_dead_rows = 10
 
-    # Mode-aware amount column expression for dead money
-    amount_col_expr = _dead_money_amount_col()
+    # =========================================================================
+    # Dynamic Array Formula: FILTER + SORTBY for dead money
+    # =========================================================================
+    #
+    # LET-based approach:
+    #   mode_amt = IF(SelectedMode="Cap", cap_value, IF(SelectedMode="Tax", tax_value, apron_value))
+    #   filter_cond = (team_code = SelectedTeam) * (salary_year = SelectedYear) * (mode_amt > 0)
+    #   filtered_col = FILTER(column, filter_cond, "")
+    #   sorted_amounts = FILTER(mode_amt, filter_cond, 0)  -- for sort key
+    #   result = TAKE(SORTBY(filtered_col, sorted_amounts, -1), num_dead_rows)
 
-    for i in range(1, num_dead_rows + 1):
-        criteria = "((tbl_dead_money_warehouse[team_code]=SelectedTeam)*(tbl_dead_money_warehouse[salary_year]=SelectedYear))"
-        # Use mode-aware amount for sorting
-        amount_value_expr = f"AGGREGATE(14,6,({amount_col_expr})/({criteria}),{i})"
-        match_expr = f"MATCH({amount_value_expr},({amount_col_expr})/({criteria}),0)"
-
-        name_expr = f'IFERROR(INDEX(tbl_dead_money_warehouse[player_name],{match_expr}),"" )'
-
-        def _lookup_expr(col: str) -> str:
-            return f'IFERROR(INDEX(tbl_dead_money_warehouse[{col}],{match_expr}),"" )'
-
-        # Bucket (TERM)
-        worksheet.write_formula(
-            row,
-            COL_BUCKET,
-            f'=IF({name_expr}<>"","TERM","")',
-            roster_formats["bucket_term"],
+    def dead_money_let_prefix() -> str:
+        """Return LET prefix for dead money filtering (mode-aware amount calculation)."""
+        return (
+            'mode_amt,IF(SelectedMode="Cap",tbl_dead_money_warehouse[cap_value],'
+            'IF(SelectedMode="Tax",tbl_dead_money_warehouse[tax_value],'
+            'tbl_dead_money_warehouse[apron_value])),'
+            'filter_cond,(tbl_dead_money_warehouse[team_code]=SelectedTeam)*'
+            '(tbl_dead_money_warehouse[salary_year]=SelectedYear)*(mode_amt>0),'
         )
 
-        # CountsTowardTotal: TERM/dead money always counts toward total (Y)
-        worksheet.write_formula(
-            row,
-            COL_COUNTS_TOTAL,
-            f'=IF({name_expr}<>"","Y","")',
-            roster_formats["counts_yes"],
-        )
+    # -------------------------------------------------------------------------
+    # Player Name column (spills down)
+    # -------------------------------------------------------------------------
+    name_formula = (
+        "=LET("
+        + dead_money_let_prefix()
+        + "filtered,FILTER(tbl_dead_money_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_dead_rows}),\"\"))"
+    )
+    worksheet.write_formula(row, COL_NAME, name_formula)
 
-        # CountsTowardRoster: TERM/dead money does NOT count toward roster (N)
-        worksheet.write_formula(
-            row,
-            COL_COUNTS_ROSTER,
-            f'=IF({name_expr}<>"","N","")',
-            roster_formats["counts_no"],
-        )
+    # -------------------------------------------------------------------------
+    # Bucket column (TERM for non-empty rows)
+    # -------------------------------------------------------------------------
+    bucket_formula = (
+        "=LET("
+        + dead_money_let_prefix()
+        + "filtered,FILTER(tbl_dead_money_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"names,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_dead_rows}),\"\"),"
+        + 'IF(names<>"","TERM",""))'
+    )
+    worksheet.write_formula(row, COL_BUCKET, bucket_formula, roster_formats["bucket_term"])
 
-        worksheet.write_formula(row, COL_NAME, f"={name_expr}")
-        worksheet.write(row, COL_OPTION, "")
-        worksheet.write(row, COL_GUARANTEE, "")
+    # -------------------------------------------------------------------------
+    # CountsTowardTotal column (Y for non-empty)
+    # -------------------------------------------------------------------------
+    ct_total_formula = (
+        "=LET("
+        + dead_money_let_prefix()
+        + "filtered,FILTER(tbl_dead_money_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"names,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_dead_rows}),\"\"),"
+        + 'IF(names<>"","Y",""))'
+    )
+    worksheet.write_formula(row, COL_COUNTS_TOTAL, ct_total_formula, roster_formats["counts_yes"])
 
-        # Waive date
-        worksheet.write_formula(row, COL_TRADE, f"={_lookup_expr('waive_date')}")
-        worksheet.write(row, COL_MIN_LABEL, "")
+    # -------------------------------------------------------------------------
+    # CountsTowardRoster column (N for TERM - dead money doesn't count toward roster)
+    # -------------------------------------------------------------------------
+    ct_roster_formula = (
+        "=LET("
+        + dead_money_let_prefix()
+        + "filtered,FILTER(tbl_dead_money_warehouse[player_name],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"names,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_dead_rows}),\"\"),"
+        + 'IF(names<>"","N",""))'
+    )
+    worksheet.write_formula(row, COL_COUNTS_ROSTER, ct_roster_formula, roster_formats["counts_no"])
 
-        # Amount - mode-aware
-        mode_amount_expr = (
-            f'IF(SelectedMode="Cap",INDEX(tbl_dead_money_warehouse[cap_value],{match_expr}),'
-            f'IF(SelectedMode="Tax",INDEX(tbl_dead_money_warehouse[tax_value],{match_expr}),'
-            f'INDEX(tbl_dead_money_warehouse[apron_value],{match_expr})))'
-        )
-        worksheet.write_formula(row, COL_CAP_Y0, f'=IFERROR({mode_amount_expr},"")', roster_formats["money"])
+    # Option - empty for dead money
+    worksheet.write(row, COL_OPTION, "")
 
-        # % of cap
-        pct_expr = (
-            f'IFERROR({amount_value_expr}/'
-            f'SUMIFS(tbl_system_values[salary_cap_amount],tbl_system_values[salary_year],SelectedYear),"" )'
-        )
-        worksheet.write_formula(row, COL_PCT_CAP, f"={pct_expr}", roster_formats["percent"])
+    # Guarantee - empty for dead money
+    worksheet.write(row, COL_GUARANTEE, "")
 
-        row += 1
+    # -------------------------------------------------------------------------
+    # Waive Date column (spills down)
+    # -------------------------------------------------------------------------
+    waive_date_formula = (
+        "=LET("
+        + dead_money_let_prefix()
+        + "filtered,FILTER(tbl_dead_money_warehouse[waive_date],filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_dead_rows}),\"\"))"
+    )
+    worksheet.write_formula(row, COL_TRADE, waive_date_formula)
 
-    # Subtotal for dead money - mode-aware
+    # Min label - empty for dead money
+    worksheet.write(row, COL_MIN_LABEL, "")
+
+    # -------------------------------------------------------------------------
+    # Amount column (mode-aware, spills down)
+    # -------------------------------------------------------------------------
+    amount_formula = (
+        "=LET("
+        + dead_money_let_prefix()
+        + "filtered,FILTER(mode_amt,filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_dead_rows}),\"\"))"
+    )
+    worksheet.write_formula(row, COL_CAP_Y0, amount_formula, roster_formats["money"])
+
+    # -------------------------------------------------------------------------
+    # % of cap column
+    # -------------------------------------------------------------------------
+    pct_formula = (
+        "=LET("
+        + dead_money_let_prefix()
+        + "filtered,FILTER(mode_amt,filter_cond,\"\"),"
+        + "sorted_filtered,FILTER(mode_amt,filter_cond,0),"
+        + f"sorted_amt,IFNA(TAKE(SORTBY(filtered,sorted_filtered,-1),{num_dead_rows}),\"\"),"
+        + "cap_limit,SUMIFS(tbl_system_values[salary_cap_amount],tbl_system_values[salary_year],SelectedYear),"
+        + 'IF(sorted_amt="","",sorted_amt/cap_limit))'
+    )
+    worksheet.write_formula(row, COL_PCT_CAP, pct_formula, roster_formats["percent"])
+
+    # Move past spill zone
+    row += num_dead_rows
+
+    # Subtotal for dead money - mode-aware (using LET + SUM(FILTER))
     worksheet.write(row, COL_NAME, "Dead Money Subtotal:", roster_formats["subtotal_label"])
     subtotal_formula = (
-        '=IF(SelectedMode="Cap",'
-        'SUMIFS(tbl_dead_money_warehouse[cap_value],tbl_dead_money_warehouse[team_code],SelectedTeam,tbl_dead_money_warehouse[salary_year],SelectedYear),'
-        'IF(SelectedMode="Tax",'
-        'SUMIFS(tbl_dead_money_warehouse[tax_value],tbl_dead_money_warehouse[team_code],SelectedTeam,tbl_dead_money_warehouse[salary_year],SelectedYear),'
-        'SUMIFS(tbl_dead_money_warehouse[apron_value],tbl_dead_money_warehouse[team_code],SelectedTeam,tbl_dead_money_warehouse[salary_year],SelectedYear)))'
+        "=LET("
+        'mode_amt,IF(SelectedMode="Cap",tbl_dead_money_warehouse[cap_value],'
+        'IF(SelectedMode="Tax",tbl_dead_money_warehouse[tax_value],'
+        'tbl_dead_money_warehouse[apron_value])),'
+        'filter_cond,(tbl_dead_money_warehouse[team_code]=SelectedTeam)*'
+        '(tbl_dead_money_warehouse[salary_year]=SelectedYear)*(mode_amt>0),'
+        'SUM(FILTER(mode_amt,filter_cond,0)))'
     )
     worksheet.write_formula(row, COL_CAP_Y0, subtotal_formula, roster_formats["subtotal"])
 
     count_formula = (
-        "=COUNTIFS(tbl_dead_money_warehouse[team_code],SelectedTeam,"
-        "tbl_dead_money_warehouse[salary_year],SelectedYear,"
-        "tbl_dead_money_warehouse[cap_value],\">0\")"
+        "=LET("
+        'mode_amt,IF(SelectedMode="Cap",tbl_dead_money_warehouse[cap_value],'
+        'IF(SelectedMode="Tax",tbl_dead_money_warehouse[tax_value],'
+        'tbl_dead_money_warehouse[apron_value])),'
+        'filter_cond,(tbl_dead_money_warehouse[team_code]=SelectedTeam)*'
+        '(tbl_dead_money_warehouse[salary_year]=SelectedYear)*(mode_amt>0),'
+        'ROWS(FILTER(tbl_dead_money_warehouse[player_name],filter_cond,"")))'
     )
     worksheet.write_formula(row, COL_BUCKET, count_formula, roster_formats["subtotal_label"])
 

@@ -35,7 +35,7 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
 ## Backlog (next work)
 
 ### 7) ROSTER_GRID: cap holds + dead money via FILTER/SORTBY/TAKE
-- [ ] Convert **CAP HOLDS** and **DEAD MONEY** sections to dynamic arrays
+- [x] Convert **CAP HOLDS** and **DEAD MONEY** sections to dynamic arrays
   - Build spill ranges from `tbl_cap_holds_warehouse` / `tbl_dead_money_warehouse` filtered by `SelectedTeam + SelectedYear`
   - Sort by SelectedYear amount (DESC) using `SORTBY`
   - Take first N (match current UI row budgets) using `TAKE`
