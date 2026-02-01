@@ -1523,64 +1523,92 @@ def write_waive_buyout_stretch(
     data_matrix = [[row_dict.get(col, "") for col in waive_columns] for row_dict in initial_data]
 
     # =========================================================================
-    # Formula definitions for computed columns
+    # Formula definitions for computed columns (modernized with LET + INDEX)
+    # =========================================================================
+    #
+    # Per backlog task #10:
+    # - Use LET for net_owed and dead-year distribution
+    # - Use INDEX + ModeYearIndex for SelectedYear delta pick
+    # - Preserve stretch toggle logic and validations
+    #
+    # ModeYearIndex = SelectedYear - MetaBaseYear + 1 (defined in named_formulas.py)
     # =========================================================================
 
     # net_owed = remaining_gtd - giveback
-    net_owed_formula = "=[@remaining_gtd]-[@giveback]"
+    # Uses LET for clarity (even though simple, consistent pattern)
+    net_owed_formula = (
+        '=LET('
+        'gtd,[@remaining_gtd],'
+        'give,[@giveback],'
+        'gtd-give)'
+    )
 
     # dead_year_1/2/3 formulas based on stretch toggle:
     #
     # If stretch="No": all goes to dead_year_1, years 2 and 3 are 0
-    # If stretch="Yes": divide net_owed by stretch_period, capped display at 3 years
-    #   stretch_period = MIN(2*years_remaining+1, some reasonable cap)
+    # If stretch="Yes": divide net_owed by stretch_period
+    #   stretch_period = MIN(2*years_remaining+1, 5)
     #
-    # For simplicity, we use a 3-year display window. The formulas:
-    # - dead_year_1: always gets a share if net_owed > 0
-    # - dead_year_2: gets share if stretch="Yes" AND stretch_period >= 2
-    # - dead_year_3: gets share if stretch="Yes" AND stretch_period >= 3
+    # Using LET for readability:
+    # - net: the net owed amount
+    # - is_stretch: boolean for stretch toggle
+    # - period: stretch period (1 if no stretch, otherwise (2*years+1) capped at 5)
+    # - per_year: net / period (rounded)
+    # - Result varies by year position
     #
-    # Each year gets: ROUND(net_owed / stretch_period, 0)
-    # with year_1 getting any rounding remainder to ensure total matches.
-    #
-    # Simplified approach:
-    # - stretch_period = IF(stretch="Yes", MIN(2*years_remaining+1, 5), 1)
-    # - per_year = FLOOR(net_owed / stretch_period, 1)
-    # - dead_year_1: per_year + (net_owed - per_year * stretch_period) for remainder
-    # - dead_year_2: IF(stretch="Yes" AND stretch_period>=2, per_year, 0)
-    # - dead_year_3: IF(stretch="Yes" AND stretch_period>=3, per_year, 0)
-    #
-    # Using structured references with intermediate calculation approach:
-
+    # dead_year_1: always gets a share (all if no stretch, per_year if stretch)
     dead_y1_formula = (
-        '=IF([@stretch]="Yes",'
-        'ROUND([@net_owed]/MIN(2*[@years_remaining]+1,5),0),'
-        '[@net_owed])'
+        '=LET('
+        'net,[@net_owed],'
+        'is_stretch,[@stretch]="Yes",'
+        'yrs,[@years_remaining],'
+        'period,IF(is_stretch,MIN(2*yrs+1,5),1),'
+        'per_year,ROUND(net/period,0),'
+        'IF(is_stretch,per_year,net))'
     )
 
+    # dead_year_2: gets share if stretch="Yes" AND stretch_period >= 2
     dead_y2_formula = (
-        '=IF(AND([@stretch]="Yes",MIN(2*[@years_remaining]+1,5)>=2),'
-        'ROUND([@net_owed]/MIN(2*[@years_remaining]+1,5),0),'
-        '0)'
+        '=LET('
+        'net,[@net_owed],'
+        'is_stretch,[@stretch]="Yes",'
+        'yrs,[@years_remaining],'
+        'period,IF(is_stretch,MIN(2*yrs+1,5),1),'
+        'per_year,ROUND(net/period,0),'
+        'IF(AND(is_stretch,period>=2),per_year,0))'
     )
 
+    # dead_year_3: gets share if stretch="Yes" AND stretch_period >= 3
     dead_y3_formula = (
-        '=IF(AND([@stretch]="Yes",MIN(2*[@years_remaining]+1,5)>=3),'
-        'ROUND([@net_owed]/MIN(2*[@years_remaining]+1,5),0),'
-        '0)'
+        '=LET('
+        'net,[@net_owed],'
+        'is_stretch,[@stretch]="Yes",'
+        'yrs,[@years_remaining],'
+        'period,IF(is_stretch,MIN(2*yrs+1,5),1),'
+        'per_year,ROUND(net/period,0),'
+        'IF(AND(is_stretch,period>=3),per_year,0))'
     )
 
     # delta_cap/tax/apron: pick the dead_year matching SelectedYear
     # dead_year_1 corresponds to MetaBaseYear, dead_year_2 to MetaBaseYear+1, etc.
     #
-    # Formula: IFERROR(CHOOSE(SelectedYear - MetaBaseYear + 1,
-    #                         dead_year_1, dead_year_2, dead_year_3), 0)
+    # Formula pattern (using LET + INDEX + ModeYearIndex):
+    #   =LET(
+    #     idx, ModeYearIndex,
+    #     dead_years, [@dead_year_1]:[@dead_year_3],
+    #     IF(idx > 3, 0, IFNA(INDEX(dead_years, 1, idx), 0))
+    #   )
+    #
+    # ModeYearIndex = SelectedYear - MetaBaseYear + 1 (values 1..6)
+    # We only have 3 dead_year columns, so return 0 for idx > 3
     #
     # Note: cap/tax/apron all get the same dead money amount (waived salary
     # counts identically toward all three thresholds per CBA).
     delta_formula = (
-        '=IFERROR(CHOOSE(SelectedYear-MetaBaseYear+1,'
-        '[@dead_year_1],[@dead_year_2],[@dead_year_3]),0)'
+        '=LET('
+        'idx,ModeYearIndex,'
+        'IF(idx>3,0,'
+        'IFNA(INDEX([@dead_year_1]:[@dead_year_3],1,idx),0)))'
     )
 
     # Column definitions with unlocked formats for input columns,
@@ -1791,10 +1819,11 @@ def write_waive_buyout_stretch(
     content_row += 1
 
     formula_notes = [
-        "• net_owed = remaining_gtd - giveback",
+        "• net_owed = LET(gtd, remaining_gtd, give, giveback, gtd - give)",
         "• If stretch='No': dead_year_1 = net_owed, dead_year_2/3 = 0",
-        "• If stretch='Yes': net_owed divided across stretch period (capped at 5 years, 3 displayed)",
-        "• delta_cap/tax/apron = dead_year matching SelectedYear (year_1=MetaBaseYear, etc.)",
+        "• If stretch='Yes': LET computes period = MIN(2×years+1, 5), per_year = net/period",
+        "• delta_cap/tax/apron = LET(idx, ModeYearIndex, INDEX(dead_years, 1, idx))",
+        "• ModeYearIndex = SelectedYear - MetaBaseYear + 1 (values 1..6)",
         "• Dead money counts identically toward cap, tax, and apron per CBA",
     ]
     for note in formula_notes:

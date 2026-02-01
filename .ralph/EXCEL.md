@@ -56,9 +56,9 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - Journal Output totals unchanged (still use SUBTOTAL on delta columns)
 
 ### 10) WAIVE_BUYOUT_STRETCH: modernize computed columns
-- [ ] Refactor computed columns using `LET` + `INDEX`
+- [x] Refactor computed columns using `LET` + `INDEX`
   - `net_owed` and dead-year distribution using `LET`
-  - Use `CHOOSECOLS`/`INDEX` for SelectedYear delta pick
+  - Use `INDEX` + `ModeYearIndex` for SelectedYear delta pick
   - Preserve stretch toggle logic and validations
 
 ### 11) AUDIT_AND_RECONCILE: SUM(FILTER) instead of SUMPRODUCT
