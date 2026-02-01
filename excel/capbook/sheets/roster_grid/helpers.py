@@ -170,26 +170,24 @@ def _salary_book_choose_mode_aware() -> str:
 
 
 def _salary_book_sumproduct(is_two_way: str | None = None) -> str:
-    """Return a SUMPRODUCT expression for salary_book_warehouse mode-aware amount.
+    """Return a SUM(FILTER(...)) expression for salary_book_warehouse mode-aware amount.
 
     Args:
         is_two_way: "TRUE" or "FALSE" or None (all)
 
     Returns an expression (no leading '=') suitable for embedding in formulas.
     """
-    mode_col = _salary_book_choose_mode_aware()
-    team_mask = "tbl_salary_book_warehouse[team_code]=SelectedTeam"
-
-    masks = [team_mask]
-    if is_two_way:
-        masks.append(f"tbl_salary_book_warehouse[is_two_way]={is_two_way}")
-
-    mask_expr = "*".join(f"({m})" for m in masks)
-    return f"SUMPRODUCT({mask_expr},{mode_col})"
+    if is_two_way == "FALSE":
+        return "SUM(FILTER(SalaryBookModeAmt(),SalaryBookRosterFilter(),0))"
+    elif is_two_way == "TRUE":
+        return "SUM(FILTER(SalaryBookModeAmt(),SalaryBookTwoWayFilter(),0))"
+    else:
+        # Combined filter
+        return "SUM(FILTER(SalaryBookModeAmt(),(tbl_salary_book_warehouse[team_code]=SelectedTeam)*(SalaryBookModeAmt()>0),0))"
 
 
 def _salary_book_countproduct(is_two_way: str) -> str:
-    """Return a SUMPRODUCT expression for counting roster/two-way players.
+    """Return a ROWS(FILTER(...)) expression for counting roster/two-way players.
 
     Only counts players where mode-aware amount > 0.
 
@@ -198,13 +196,9 @@ def _salary_book_countproduct(is_two_way: str) -> str:
 
     Returns an expression (no leading '=') suitable for embedding in formulas.
     """
-    mode_col = _salary_book_choose_mode_aware()
-    team_mask = "tbl_salary_book_warehouse[team_code]=SelectedTeam"
-    two_way_mask = f"tbl_salary_book_warehouse[is_two_way]={is_two_way}"
-    amount_mask = f"({mode_col})>0"
-
-    mask_expr = "*".join(f"({m})" for m in [team_mask, two_way_mask, amount_mask])
-    return f"SUMPRODUCT({mask_expr})"
+    filter_name = "SalaryBookRosterFilter()" if is_two_way == "FALSE" else "SalaryBookTwoWayFilter()"
+    # Use LET to avoid double-evaluation of FILTER and handle empty case
+    return f'LET(_xlpm.f,FILTER(tbl_salary_book_warehouse[player_name],{filter_name},#N/A),IF(ISNA(_xlpm.f),0,ROWS(_xlpm.f)))'
 
 
 def _cap_holds_amount_col() -> str:

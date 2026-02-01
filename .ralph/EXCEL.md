@@ -93,7 +93,7 @@ Add specialized helpers to reduce inline formula duplication in roster sections.
 
 Replace inline LET formulas with helper functions from `named_formulas.py`.
 
-- [ ] Migrate `_write_roster_section()` — ~15 column formulas → helper calls
+- [x] Migrate `_write_roster_section()` — ~15 column formulas → helper calls
 - [ ] Migrate `_write_twoway_section()` — ~10 column formulas → helper calls
 - [ ] Migrate `_write_cap_holds_section()` — ~10 column formulas → helper calls
 - [ ] Migrate `_write_dead_money_section()` — ~10 column formulas → helper calls
@@ -106,7 +106,7 @@ Replace inline LET formulas with helper functions from `named_formulas.py`.
 Replace SUMPRODUCT/COUNTIFS with FILTER+SUM/ROWS where it improves readability.
 
 - [ ] `cockpit.py` lines 304-316 — SUMPRODUCT → SUM(FILTER(...))
-- [ ] `roster_grid.py` lines 203-225 — `_salary_book_sumproduct()` → FILTER-based helper
+- [x] `roster_grid.py` lines 203-225 — `_salary_book_sumproduct()` → FILTER-based helper
 - [ ] `roster_grid.py` line 1506 — SUMPRODUCT → SUM(FILTER(...))
 - [ ] `budget_ledger.py` line 764 — SUMPRODUCT → SUM(FILTER(...))
 - [ ] `audit.py` lines 267-287 — COUNTIFS → ROWS(FILTER(...)) (optional, COUNTIFS is fine)

@@ -5,13 +5,20 @@ from typing import Any
 from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
+from ...named_formulas import (
+    roster_col_formula,
+    roster_derived_formula,
+    roster_option_formula,
+    roster_guarantee_formula,
+    roster_salary_formula,
+    roster_pct_of_cap_formula,
+)
 from .helpers import (
     COL_BUCKET, COL_COUNTS_TOTAL, COL_COUNTS_ROSTER, COL_NAME,
     COL_OPTION, COL_GUARANTEE, COL_TRADE, COL_MIN_LABEL,
     COL_CAP_Y0, COL_PCT_CAP,
     num_roster_rows,
     _mode_year_label, _write_column_headers,
-    roster_let_prefix,
     _salary_book_sumproduct, _salary_book_countproduct
 )
 
@@ -61,116 +68,61 @@ def _write_roster_section(
     # -------------------------------------------------------------------------
     # Player Name column (spills down)
     # -------------------------------------------------------------------------
-    name_formula = (
-        "=LET("
-        + roster_let_prefix()
-        + "_xlpm.filtered,FILTER(tbl_salary_book_warehouse[player_name],_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"  # Need mode_amt for sorting
-        + "IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"))"
-    )
+    name_formula = roster_col_formula("tbl_salary_book_warehouse[player_name]", num_roster_rows)
     worksheet.write_formula(row, COL_NAME, name_formula)
 
     # -------------------------------------------------------------------------
     # Bucket column (ROST for non-empty rows)
     # -------------------------------------------------------------------------
-    # Since we can't easily reference the spilled name column, we replicate the filter
-    bucket_formula = (
-        "=LET("
-        + roster_let_prefix()
-        + "_xlpm.filtered,FILTER(tbl_salary_book_warehouse[player_name],_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + "_xlpm.names,IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"),"
-        + 'IF(_xlpm.names<>"","ROST",""))'
+    bucket_formula = roster_derived_formula(
+        "tbl_salary_book_warehouse[player_name]", 'IF({result}<>"","ROST","")', num_roster_rows
     )
     worksheet.write_formula(row, COL_BUCKET, bucket_formula, roster_formats["bucket_rost"])
 
     # -------------------------------------------------------------------------
     # CountsTowardTotal column (Y for non-empty)
     # -------------------------------------------------------------------------
-    ct_total_formula = (
-        "=LET("
-        + roster_let_prefix()
-        + "_xlpm.filtered,FILTER(tbl_salary_book_warehouse[player_name],_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + "_xlpm.names,IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"),"
-        + 'IF(_xlpm.names<>"","Y",""))'
+    ct_total_formula = roster_derived_formula(
+        "tbl_salary_book_warehouse[player_name]", 'IF({result}<>"","Y","")', num_roster_rows
     )
     worksheet.write_formula(row, COL_COUNTS_TOTAL, ct_total_formula, roster_formats["counts_yes"])
 
     # -------------------------------------------------------------------------
     # CountsTowardRoster column (Y for ROST)
     # -------------------------------------------------------------------------
-    ct_roster_formula = (
-        "=LET("
-        + roster_let_prefix()
-        + "_xlpm.filtered,FILTER(tbl_salary_book_warehouse[player_name],_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + "_xlpm.names,IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"),"
-        + 'IF(_xlpm.names<>"","Y",""))'
+    ct_roster_formula = roster_derived_formula(
+        "tbl_salary_book_warehouse[player_name]", 'IF({result}<>"","Y","")', num_roster_rows
     )
     worksheet.write_formula(row, COL_COUNTS_ROSTER, ct_roster_formula, roster_formats["counts_yes"])
 
     # -------------------------------------------------------------------------
     # Option badge column (spills down)
     # -------------------------------------------------------------------------
-    # Uses CHOOSE to select the right option_y* column for SelectedYear
-    opt_choose = ",".join(f"tbl_salary_book_warehouse[option_y{i}]" for i in range(6))
-    option_formula = (
-        "=LET("
-        + roster_let_prefix()
-        + f"_xlpm.opt_col,CHOOSE((SelectedYear-MetaBaseYear+1),{opt_choose}),"
-        + "_xlpm.filtered,FILTER(_xlpm.opt_col,_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + "IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"))"
-    )
+    option_formula = roster_option_formula(num_roster_rows)
     worksheet.write_formula(row, COL_OPTION, option_formula)
 
     # -------------------------------------------------------------------------
     # Guarantee status column (GTD/PRT/NG)
     # -------------------------------------------------------------------------
-    # Needs to check is_fully_guaranteed, is_partially_guaranteed, is_non_guaranteed for SelectedYear
-    gtd_full_choose = ",".join(f"tbl_salary_book_warehouse[is_fully_guaranteed_y{i}]" for i in range(6))
-    gtd_part_choose = ",".join(f"tbl_salary_book_warehouse[is_partially_guaranteed_y{i}]" for i in range(6))
-    gtd_non_choose = ",".join(f"tbl_salary_book_warehouse[is_non_guaranteed_y{i}]" for i in range(6))
-    guarantee_formula = (
-        "=LET("
-        + roster_let_prefix()
-        + f"_xlpm.gtd_full,CHOOSE((SelectedYear-MetaBaseYear+1),{gtd_full_choose}),"
-        + f"_xlpm.gtd_part,CHOOSE((SelectedYear-MetaBaseYear+1),{gtd_part_choose}),"
-        + f"_xlpm.gtd_non,CHOOSE((SelectedYear-MetaBaseYear+1),{gtd_non_choose}),"
-        + '_xlpm.gtd_label,IF(_xlpm.gtd_full=TRUE,"GTD",IF(_xlpm.gtd_part=TRUE,"PRT",IF(_xlpm.gtd_non=TRUE,"NG",""))),'
-        + "_xlpm.filtered,FILTER(_xlpm.gtd_label,_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + "IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"))"
-    )
+    guarantee_formula = roster_guarantee_formula(num_roster_rows)
     worksheet.write_formula(row, COL_GUARANTEE, guarantee_formula)
 
     # -------------------------------------------------------------------------
     # Trade restriction column (NTC/Kicker/Restricted)
     # -------------------------------------------------------------------------
-    trade_formula = (
-        "=LET("
-        + roster_let_prefix()
-        + '_xlpm.trade_label,IF(tbl_salary_book_warehouse[is_no_trade]=TRUE,"NTC",'
-        + 'IF(tbl_salary_book_warehouse[is_trade_bonus]=TRUE,"Kicker",'
-        + 'IF(tbl_salary_book_warehouse[is_trade_restricted_now]=TRUE,"Restricted",""))),'
-        + "_xlpm.filtered,FILTER(_xlpm.trade_label,_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + "IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"))"
+    trade_label = (
+        'IF(tbl_salary_book_warehouse[is_no_trade]=TRUE,"NTC",'
+        'IF(tbl_salary_book_warehouse[is_trade_bonus]=TRUE,"Kicker",'
+        'IF(tbl_salary_book_warehouse[is_trade_restricted_now]=TRUE,"Restricted","")))'
     )
+    trade_formula = roster_col_formula(trade_label, num_roster_rows)
     worksheet.write_formula(row, COL_TRADE, trade_formula)
 
     # -------------------------------------------------------------------------
     # Minimum contract label column
     # -------------------------------------------------------------------------
-    min_formula = (
-        "=LET("
-        + roster_let_prefix()
-        + '_xlpm.min_label,IF(tbl_salary_book_warehouse[is_min_contract]=TRUE,"MINIMUM",""),' 
-        + "_xlpm.filtered,FILTER(_xlpm.min_label,_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + "IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"))"
-    )
+    min_label = 'IF(tbl_salary_book_warehouse[is_min_contract]=TRUE,"MINIMUM","")'
+    min_formula = roster_col_formula(min_label, num_roster_rows)
     worksheet.write_formula(row, COL_MIN_LABEL, min_formula, roster_formats["min_label"])
 
     # -------------------------------------------------------------------------
@@ -178,30 +130,13 @@ def _write_roster_section(
     # Mode-aware: use SelectedMode to pick the prefix
     # -------------------------------------------------------------------------
     for yi in range(6):
-        sal_formula = (
-            "=LET("
-            + roster_let_prefix()
-            + f'_xlpm.year_col,IF(SelectedMode="Cap",tbl_salary_book_warehouse[cap_y{yi}],'
-            + f'IF(SelectedMode="Tax",tbl_salary_book_warehouse[tax_y{yi}],'
-            + f"tbl_salary_book_warehouse[apron_y{yi}])),"
-            + "_xlpm.filtered,FILTER(_xlpm.year_col,_xlpm.filter_cond,\"\"),"
-            + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-            + "IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"))"
-        )
+        sal_formula = roster_salary_formula(yi, num_roster_rows)
         worksheet.write_formula(row, COL_CAP_Y0 + yi, sal_formula, roster_formats["money"])
 
     # -------------------------------------------------------------------------
     # % of cap column (SelectedYear amount / salary_cap_amount)
     # -------------------------------------------------------------------------
-    pct_formula = (
-        "=LET("
-        + roster_let_prefix()
-        + "_xlpm.filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + "_xlpm.sorted_amt,IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_roster_rows) + "),\"\"),"
-        + "_xlpm.cap_limit,SUMIFS(tbl_system_values[salary_cap_amount],tbl_system_values[salary_year],SelectedYear),"
-        + 'IF(_xlpm.sorted_amt="","",_xlpm.sorted_amt/_xlpm.cap_limit))'
-    )
+    pct_formula = roster_pct_of_cap_formula(num_roster_rows)
     worksheet.write_formula(row, COL_PCT_CAP, pct_formula, roster_formats["percent"])
 
     # Move past spill zone (40 rows allocated)
