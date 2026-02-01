@@ -87,7 +87,10 @@ The workbook defines reusable named formulas (LAMBDA) to centralize repeated log
 
 **Plan filtering (instead of inline SUMPRODUCT):**
 ```excel
-=SUMPRODUCT(PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled])*tbl_plan_journal[delta_cap])
+=LET(
+  mask,PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),
+  SUM(FILTER(tbl_plan_journal[delta_cap],mask,0))
+)
 ```
 
 ---
@@ -281,7 +284,7 @@ The `PLAN_JOURNAL` sheet includes:
 2. **Running-State Panel** — positioned to the right of the journal table:
    - **Plan Summary Box**: Active Plan name, Selected Year, Enabled action count
    - **Total Deltas**: Aggregate cap/tax/apron deltas for ActivePlan + SelectedYear
-   - Formulas use SUMPRODUCT to filter by plan_id = ActivePlanId AND (salary_year = SelectedYear OR blank) AND enabled = "Yes"
+   - Formulas use `PlanRowMask` + `LET/FILTER/SCAN` (dynamic arrays) to filter by `ActivePlanId + SelectedYear + enabled` (with blank salary_year treated as SelectedYear)
 
 3. **Cumulative Running Totals** — step-by-step running totals aligned with journal rows:
    - Each row shows cumulative Δ Cap, Δ Tax, Δ Apron up to that step

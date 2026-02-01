@@ -1,6 +1,6 @@
-# Excel Cap Workbook - Modern Formula Backlog
+# Excel Cap Workbook — Supervisor Backlog
 
-Build a new, self-contained Sean-style Excel cap workbook **generated from code** (Python + XlsxWriter) and powered by Postgres (`pcms.*`). Core sheets exist; the next push is **modern formula refactors** plus a small set of carryover functional items.
+Build a new, self-contained Sean-style Excel cap workbook **generated from code** (Python + XlsxWriter) and powered by Postgres (`pcms.*`).
 
 **Canon:** `reference/blueprints/README.md`
 
@@ -28,138 +28,90 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
 - Prefer `XLOOKUP` over `INDEX/MATCH`.
 - Prefer `LET` + named formulas/LAMBDA helpers for shared logic.
 - Prefer `SUM(FILTER(...))` over `SUMPRODUCT` when possible.
-- Use `IFNA`/`IFERROR` to avoid noisy `#SPILL!`/blank errors.
+- Use `IFNA`/`IFERROR` to avoid noisy `#SPILL!` and lookup errors.
 
 ---
 
-## Backlog (modern formula refactor)
+## Backlog (next work)
+
+### 7) ROSTER_GRID: cap holds + dead money via FILTER/SORTBY/TAKE
+- [ ] Convert **CAP HOLDS** and **DEAD MONEY** sections to dynamic arrays
+  - Build spill ranges from `tbl_cap_holds_warehouse` / `tbl_dead_money_warehouse` filtered by `SelectedTeam + SelectedYear`
+  - Sort by SelectedYear amount (DESC) using `SORTBY`
+  - Take first N (match current UI row budgets) using `TAKE`
+  - Keep Ct$/CtR semantics explicit
+  - Ensure section subtotals reconcile (to `tbl_team_salary_warehouse` buckets)
+
+### 8) ROSTER_GRID: EXISTS_ONLY section using LET/BYROW or MAP
+- [ ] Replace remaining custom aggregation logic with spill formulas
+  - Compute per-player “future total” (SelectedYear=0 but future > 0)
+  - Respect `ShowExistsOnlyRows` toggle
+  - Keep Ct$=N, CtR=N (never counted)
+
+### 9) SIGNINGS_AND_EXCEPTIONS: delta columns via INDEX/CHOOSECOLS
+- [ ] Replace contract-year delta pick logic with `INDEX`/`CHOOSECOLS` + `ModeYearIndex`
+  - `INDEX([@year_1_salary]:[@year_4_salary], ModeYearIndex)`
+  - Wrap with `IFNA(…,0)`
+  - Keep Journal Output totals intact
+
+### 10) WAIVE_BUYOUT_STRETCH: modernize computed columns
+- [ ] Refactor computed columns using `LET` + `INDEX`
+  - `net_owed` and dead-year distribution using `LET`
+  - Use `CHOOSECOLS`/`INDEX` for SelectedYear delta pick
+  - Preserve stretch toggle logic and validations
+
+### 11) AUDIT_AND_RECONCILE: SUM(FILTER) instead of SUMPRODUCT
+- [ ] Replace drilldown formulas with `LET + FILTER + SUM`
+  - Use shared named masks (TeamYearMask / PlanRowMask)
+  - Keep tolerance behavior unchanged
+  - Fail loudly: any non-zero reconciliation delta must remain visually loud
+
+### 12) TEAM_COCKPIT: Quick Drivers via FILTER/SORTBY/TAKE
+- [ ] Replace AGGREGATE/MATCH “top N” extraction with spill formulas
+  - Build Top Cap Hits / Top Holds / Top Dead Money as dynamic arrays
+  - Avoid helper columns that are easy to overwrite
+  - Preserve existing formatting + conditional formatting semantics
+
+### 13) TEAM_COCKPIT: Minimum contracts readout without SUMPRODUCT
+- [ ] Replace min-contract SUMPRODUCT panels with `LET + FILTER + SUM/ROWS`
+  - Total $ and count should match current results
+  - Keep display clean (0 instead of errors)
+
+---
+
+## Completed (recent)
 
 ### 1) Document Excel 365+ requirement + formula standard
 - [x] Add explicit "Excel 365/2021 required" note to docs + workbook UI
-  - Update relevant blueprints to call out dynamic array usage
-  - Add a short note on HOME or META sheet
-  - Update `excel/AGENTS.md` with formula standard
 
 ### 2) Create shared named formulas (LAMBDA/LET helpers)
 - [x] Define named formulas for repeated logic and reuse them in sheets
-  - `ModeYearIndex` = `SelectedYear - MetaBaseYear + 1`
-  - Mode-aware amount helpers for roster/holds/dead money
-  - `PlanRowMask` and `TeamYearMask` for filtered aggregates
-  - Replace inline fragments with named formulas
 
 ### 3) HOME + RULES_REFERENCE: migrate to XLOOKUP/FILTER
 - [x] Replace `INDEX/MATCH` in HOME readouts + RULES_REFERENCE tables
-  - Use `XLOOKUP` for single-row lookups (with compound key concatenation)
-  - XLOOKUP's not-found parameter (`""`) replaces IFERROR wrapping
-  - Wrap with `IFNA` for clean blanks (not needed — XLOOKUP handles natively)
 
 ### 4) PLAN_JOURNAL: totals + running state via LET/FILTER/SCAN
 - [x] Replace `SUMPRODUCT` panels with modern formulas
-  - Uses PlanRowMask LAMBDA helper for consistent filtering
-  - Action count: `SUM(--PlanRowMask(...))` instead of SUMPRODUCT
-  - Total deltas: `LET(mask,...,SUM(FILTER(delta_col,mask,0)))` instead of SUMPRODUCT
-  - Cumulative totals: `SCAN(0,masked_deltas,LAMBDA(acc,val,acc+val))` — single spilling formula per column instead of N separate SUMPRODUCT formulas
-  - Kept "blank salary_year = SelectedYear" logic in PlanRowMask
-  - Conditional formatting unchanged (still uses ActivePlanId/SelectedYear refs)
 
 ### 5) BUDGET_LEDGER: plan deltas via LET/FILTER
 - [x] Replace legacy SUMPRODUCT/SUMIFS blocks with LET + FILTER
-  - Uses PlanRowMask LAMBDA for journal entries (consistent with PLAN_JOURNAL)
-  - Uses inline LET mask for subsystem outputs (no blank salary_year logic needed)
-  - Preserved `ActivePlanId` fallback behavior via IFERROR wrapping
-  - Totals are equivalent to previous SUMPRODUCT formulas
 
 ### 6) ROSTER_GRID: roster + two-way rows via FILTER/SORTBY/TAKE
 - [x] Replace AGGREGATE/MATCH row extraction with dynamic arrays
-  - Build `RosterData` with FILTER by team/bucket
-  - Use LET to compute mode-aware SelectedYear amount
-  - Sort by SelectedYear amount (DESC) using SORTBY
-  - Take first N rows using TAKE (40 for roster, 6 for two-way)
-  - Spill into reserved display ranges; add `IFNA` fallbacks
-  - Added SalaryBookModeAmount LAMBDA helper for mode-aware selection
-
-### 7) ROSTER_GRID: cap holds + dead money via FILTER/SORTBY/TAKE
-- [ ] Convert holds/dead sections to dynamic arrays
-  - Use mode-aware amount selection with CHOOSECOLS
-  - Keep Ct$/CtR semantics
-  - Ensure subtotals still reconcile with warehouse
-
-### 8) ROSTER_GRID: EXISTS_ONLY section using LET/BYROW
-- [ ] Replace custom SUMPRODUCT logic with LET + BYROW/MAP
-  - Compute per-player "future total"
-  - Filter to SelectedYear=0 and future > 0
-  - Respect `ShowExistsOnlyRows` toggle
-
-### 9) SIGNINGS_AND_EXCEPTIONS: delta columns via INDEX/CHOOSECOLS
-- [ ] Replace CHOOSE with INDEX/CHOOSECOLS + LET
-  - `INDEX([@year_1_salary]:[@year_4_salary], ModeYearIndex)`
-  - Wrap with `IFNA(…,0)`
-  - Keep journal output totals intact
-
-### 10) WAIVE_BUYOUT_STRETCH: modernize computed columns
-- [ ] Refactor computed columns using LET/INDEX
-  - `net_owed` and dead-year distribution with LET
-  - Use CHOOSECOLS for SelectedYear delta pick
-  - Preserve stretch toggle logic
-
-### 11) AUDIT_AND_RECONCILE: SUM(FILTER) instead of SUMPRODUCT
-- [ ] Replace drilldown formulas with LET + FILTER + SUM
-  - Use shared named masks for team/year/bucket
-  - Ensure status checks remain stable
-  - Keep tolerance behavior unchanged
-
----
-
-## Carryover functional backlog
 
 ### 17) TRADE_MACHINE: journal output rows
 - [x] Add per-lane Journal Output rows
-  - Net delta for SelectedYear (cap/tax/apron)
-  - Source label (e.g., "Trade Lane A")
-  - Publish instructions (copy into PLAN_JOURNAL)
 
 ### 18) PLAN_JOURNAL: SUBSYSTEM_OUTPUTS staging table (no copy/paste)
-- [x] Add `tbl_subsystem_outputs` rollup (Trade lane + Signings + Waive)
-  - On `PLAN_JOURNAL`, add a **SUBSYSTEM_OUTPUTS** block implemented as an Excel Table `tbl_subsystem_outputs`
-  - Rows (fixed):
-    - Trade Lane A / B / C / D
-    - Signings (SIGNINGS_AND_EXCEPTIONS)
-    - Waive/Buyout (WAIVE_BUYOUT_STRETCH)
-  - Columns (minimum viable):
-    - `include_in_plan` (Yes/No)
-    - `plan_id` (default to `ActivePlanId` via formula)
-    - `salary_year` (default to `SelectedYear` via formula)
-    - `delta_cap`, `delta_tax`, `delta_apron` (formula links to each subsystem's Journal Output block)
-    - `source` (fixed label per row)
-    - `notes`
-  - Add a loud note: **do not also copy these into `tbl_plan_journal`** or you will double count
+- [x] Add `tbl_subsystem_outputs` rollup
 
 ### 19) BUDGET_LEDGER: include SUBSYSTEM_OUTPUTS in plan delta totals
 - [x] Sum `tbl_subsystem_outputs` into the PLAN DELTA section
-  - Add a "Subsystem Outputs" row (or mini-section) showing the total of included subsystem deltas
-  - Update **PLAN DELTA TOTAL** to include:
-    - `tbl_plan_journal` (enabled rows, ActivePlanId, SelectedYear)
-    - PLUS included `tbl_subsystem_outputs` rows for ActivePlanId + SelectedYear
-  - Add a visible warning banner when any subsystem outputs are included
 
-<<<<<<< HEAD
-### 13) Incomplete roster charges policy
-- [ ] Decide + implement (or explicitly exclude) incomplete roster charges
-  - If implemented: GENERATED rows + policy delta + audit note
-  - If excluded: explicit note in AUDIT_AND_RECONCILE policy assumptions
-=======
 ### 20) Incomplete roster charges policy
-- [x] Decide + implement (or explicitly exclude) incomplete roster charges
-  - **Decision:** Explicitly EXCLUDED (not implemented)
-  - Added "INCOMPLETE ROSTER CHARGES (Not Implemented)" section to AUDIT_AND_RECONCILE
-  - Updated excel-cap-book-blueprint.md to document the decision and rationale
-  - Updated mental-models-and-design-principles.md to clarify the exclusion
-  - **Rationale:**
-    1. PCMS warehouse totals may already include these charges (double-counting risk)
-    2. Roster Fill feature (RosterFillTarget=12/14/15) covers scenario modeling use case
-    3. Accurate proration requires date-specific logic not reliably available
-    4. Rare in practice (most teams maintain 12+ players)
->>>>>>> e9fb7a4 (excel: explicitly exclude incomplete roster charges from implementation)
+- [x] **Decision:** Explicitly EXCLUDED (not implemented)
+  - Documented in `excel-cap-book-blueprint.md` and `mental-models-and-design-principles.md`
+  - Shown as "Not Implemented" in `AUDIT_AND_RECONCILE`
 
 ---
 
