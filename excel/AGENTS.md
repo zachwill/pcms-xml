@@ -264,14 +264,20 @@ The `TRADE_MACHINE` sheet includes:
    - Salary (manual money input)
    - SUM formula for Total Out / Total In
 
-5. **Net Delta** — formula: `Total In - Total Out`
+5. **Trade Matching Outputs** — formula-driven legality checks:
+   - **Net Delta**: formula `Total In - Total Out`
+   - **Max Incoming**: calculated using CBA salary matching rules:
+     - For below-tax teams: `MAX(MIN(out×2+$250K, out+TPE_allowance), out×1.25+$250K)`
+     - For first apron or above: `out + $100K` (no aggregation allowed)
+     - TPE_allowance looked up from `tbl_system_values` for SelectedYear
+   - **Legal?**: check `Total In <= Max Incoming` with ✓ LEGAL / ✗ OVER LIMIT status
+   - **Matching Rule**: shows which tier applies (Low: 200%+$250K / Mid: 100%+TPE / High: 125%+$250K / Apron: 100%+$100K)
+   - Conditional formatting: green for legal, red for over limit
 
-6. **Status** — placeholder for future matching legality (currently "check manually")
-
-7. **Salary Matching Reference** — inline table with matching tiers:
-   - Tier breakpoints ($0-$7.5M, $7.5M-$29M, $29M+)
-   - Max incoming percentages for each tier
-   - Apron gate notes for first/second apron restrictions
+6. **Salary Matching Reference** — inline table with matching tiers:
+   - Tier breakpoints derived from TPE_dollar_allowance (~$8M low, ~$33M high for 2025)
+   - Formulas for each tier (200%+$250K, 100%+TPE, 125%+$250K)
+   - Apron gate notes: first apron teams cannot aggregate players
 
 ### WAIVE_BUYOUT_STRETCH features
 

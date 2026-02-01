@@ -122,7 +122,7 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
   - Display apron level / taxpayer / repeater status from warehouse (via INDEX/MATCH)
 
 ### 16) TRADE_MACHINE: matching rules + legality outputs
-- [ ] Implement matching math per lane
+- [x] Implement matching math per lane
   - Compute max incoming using rule tiers + outgoing total
   - Output legality flag + notes (aggregation/apron restrictions)
   - Tie to SelectedMode/SelectedYear context

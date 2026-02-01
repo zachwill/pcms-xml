@@ -288,12 +288,12 @@ def write_trade_machine(
         )
         lane_team_cells.append(team_cell_ref)
 
-    # Calculate rows used by lane content (status summary + outgoing + incoming + totals)
-    # Status summary: 10 rows (Team, Status header, 8 status lines)
-    # Outgoing: 1 header + 5 slots + 1 total = 7 rows
-    # Incoming: 1 header + 5 slots + 1 total = 7 rows
-    # Net delta: 2 rows
-    rows_per_lane = 10 + 7 + 7 + 2 + 2  # plus spacing
+    # Calculate rows used by lane content (status summary + outgoing + incoming + matching)
+    # Status summary: 10 rows (Team, blank, Status header, 8 status lines, blank)
+    # Outgoing: 1 header + 5 slots + 1 total + 1 blank = 8 rows
+    # Incoming: 1 header + 5 slots + 1 total + 1 blank = 8 rows
+    # Matching summary: 5 rows (Net delta, Max Incoming, Legal?, Matching Rule, Note)
+    rows_per_lane = 10 + 8 + 8 + 5 + 2  # plus spacing
     content_row += rows_per_lane + 2
 
     # Salary matching reference table
@@ -305,17 +305,20 @@ def write_trade_machine(
     )
     content_row += 2
 
-    # Matching tiers table
+    # Matching tiers table (updated to reflect current CBA formulas)
+    # The tier breakpoints are derived from TPE_dollar_allowance dynamically:
+    # Low/Mid break: TPE - $250K (~$8M for 2025)
+    # Mid/High break: 4 × (TPE - $250K) (~$33M for 2025)
     matching_tiers = [
-        ("Over first apron", "100% + $100K", "No matching requirement"),
-        ("$0 – $7.5M outgoing", "Up to 200% + $250K", "175% + $250K incoming allowed"),
-        ("$7.5M – $29M outgoing", "Up to 175% + $250K", "125% + $250K incoming allowed"),
-        ("$29M+ outgoing", "Up to 125% + $250K", "110% + $100K incoming allowed"),
+        ("Below Tax (Expanded)", "Outgoing < ~$8M", "200% + $250K"),
+        ("Below Tax (Expanded)", "Outgoing ~$8M-$33M", "100% + TPE allowance"),
+        ("Below Tax (Expanded)", "Outgoing > ~$33M", "125% + $250K"),
+        ("First Apron or above", "Any outgoing", "100% + $100K"),
     ]
 
     worksheet.write(content_row, 0, "Team Status", sub_formats["label_bold"])
-    worksheet.write(content_row, 1, "Outgoing Basis", sub_formats["label_bold"])
-    worksheet.write(content_row, 2, "Max Incoming", sub_formats["label_bold"])
+    worksheet.write(content_row, 1, "Outgoing Range", sub_formats["label_bold"])
+    worksheet.write(content_row, 2, "Max Incoming Formula", sub_formats["label_bold"])
     content_row += 1
 
     for tier_name, outgoing_basis, max_incoming in matching_tiers:
@@ -399,6 +402,19 @@ def _write_trade_lane(
 ) -> str:
     """
     Write a single trade lane (A/B/C/D) with team selector, status summary, and trade slots.
+
+    This v3 implementation (per backlog #16) adds:
+    - Max Incoming calculation using salary matching rules
+    - Legal? check comparing Incoming Total vs Max Incoming
+    - Matching Rule note explaining which tier applies
+
+    Matching rule tiers (for below-apron teams using "expanded" mode):
+    - Low tier: outgoing < (TPE_allowance - $250K) → max = 200% + $250K
+    - Mid tier: outgoing between breakpoints → max = 100% + TPE_allowance
+    - High tier: outgoing > 4 × (TPE_allowance - $250K) → max = 125% + $250K
+    - Result: GREATEST(LEAST(200%+250K, 100%+TPE), 125%+250K)
+
+    For first apron or above teams: max = 100% + $100K (no aggregation allowed)
 
     Returns the cell reference for the team selector (e.g., "B15") for use in formulas.
     """
@@ -514,6 +530,8 @@ def _write_trade_lane(
         f'(tbl_team_salary_warehouse[salary_year]=SelectedYear),0)),"")'
     )
     worksheet.write_formula(row, base_col + 1, apron_level_formula, sub_formats["output"])
+    # Store apron level cell reference for matching rule formulas
+    apron_level_cell = f"{_col_letter(base_col + 1)}{row + 1}"  # Excel 1-indexed
     row += 2
 
     # =========================================================================
@@ -540,6 +558,7 @@ def _write_trade_lane(
         f"=SUM({from_cell}:{to_cell})",
         sub_formats["total"],
     )
+    outgoing_total_cell = f"{_col_letter(base_col + 1)}{row + 1}"  # Excel 1-indexed
     row += 2
 
     # =========================================================================
@@ -565,12 +584,14 @@ def _write_trade_lane(
         f"=SUM({from_cell}:{to_cell})",
         sub_formats["total"],
     )
+    incoming_total_cell = f"{_col_letter(base_col + 1)}{row + 1}"  # Excel 1-indexed
     row += 2
 
-    # Delta / Legality summary
-    outgoing_total_cell = f"{_col_letter(base_col + 1)}{outgoing_end_row + 2}"
-    incoming_total_cell = f"{_col_letter(base_col + 1)}{incoming_end_row + 2}"
+    # =========================================================================
+    # Trade Summary & Matching (Net Delta, Max Incoming, Legal?, Matching Rule)
+    # =========================================================================
 
+    # Net Delta
     worksheet.write(row, base_col, "Net Delta:", sub_formats["label_bold"])
     worksheet.write_formula(
         row, base_col + 1,
@@ -579,8 +600,116 @@ def _write_trade_lane(
     )
     row += 1
 
-    worksheet.write(row, base_col, "Status:", sub_formats["label"])
-    worksheet.write(row, base_col + 1, "(check manually)", sub_formats["output"])
+    # =========================================================================
+    # Max Incoming formula
+    # =========================================================================
+    # The matching rule depends on the team's apron level:
+    #
+    # For BELOW_TAX teams (expanded matching):
+    #   max = GREATEST(LEAST(outgoing*2+250000, outgoing+TPE_allowance), outgoing*1.25+250000)
+    #
+    # For FIRST_APRON or above teams:
+    #   max = outgoing + 100000 (first apron padding; no aggregation)
+    #
+    # We look up TPE_allowance from tbl_system_values for SelectedYear.
+    # =========================================================================
+
+    # Helper formula to get TPE dollar allowance from system values
+    tpe_allowance_lookup = (
+        'IFERROR(SUMIFS(tbl_system_values[tpe_dollar_allowance],'
+        'tbl_system_values[salary_year],SelectedYear),7500000)'
+    )
+
+    # Build max incoming formula with tier logic
+    # Uses LET for readability (Excel 365+)
+    max_incoming_formula = (
+        f'=IFERROR('
+        f'LET('
+        f'out,{outgoing_total_cell},'
+        f'apron,{apron_level_cell},'
+        f'tpe,{tpe_allowance_lookup},'
+        # Below-tax teams get expanded matching
+        f'IF(OR(apron="BELOW_TAX",apron=""),'
+        # Expanded matching: GREATEST(LEAST(200%+250K, 100%+TPE), 125%+250K)
+        f'MAX(MIN(out*2+250000,out+tpe),out*1.25+250000),'
+        # First apron or above: 100% + $100K (no aggregation)
+        f'out+100000)'
+        f'),'
+        f'"")'
+    )
+
+    worksheet.write(row, base_col, "Max Incoming:", sub_formats["label_bold"])
+    worksheet.write_formula(row, base_col + 1, max_incoming_formula, sub_formats["output_money"])
+    max_incoming_cell = f"{_col_letter(base_col + 1)}{row + 1}"
+    row += 1
+
+    # =========================================================================
+    # Legal? check — is incoming total <= max incoming?
+    # =========================================================================
+    legal_formula = (
+        f'=IF({outgoing_total_cell}=0,"",'
+        f'IF({incoming_total_cell}<={max_incoming_cell},"✓ LEGAL","✗ OVER LIMIT"))'
+    )
+
+    worksheet.write(row, base_col, "Legal?:", sub_formats["label_bold"])
+    worksheet.write_formula(row, base_col + 1, legal_formula, sub_formats["output"])
+
+    # Conditional formatting for legal status (green for legal, red for over limit)
+    legal_cell_row = row
+    worksheet.conditional_format(
+        legal_cell_row, base_col + 1,
+        legal_cell_row, base_col + 1,
+        {
+            "type": "text",
+            "criteria": "containing",
+            "value": "LEGAL",
+            "format": sub_formats["status_ok"],
+        },
+    )
+    worksheet.conditional_format(
+        legal_cell_row, base_col + 1,
+        legal_cell_row, base_col + 1,
+        {
+            "type": "text",
+            "criteria": "containing",
+            "value": "OVER",
+            "format": sub_formats["status_fail"],
+        },
+    )
+    row += 1
+
+    # =========================================================================
+    # Matching Rule note — explains which tier applies
+    # =========================================================================
+    # Shows the applicable matching tier based on outgoing salary and apron level
+    matching_rule_formula = (
+        f'=IF({outgoing_total_cell}=0,"",'
+        f'LET('
+        f'out,{outgoing_total_cell},'
+        f'apron,{apron_level_cell},'
+        f'tpe,{tpe_allowance_lookup},'
+        # Determine tier based on breakpoints
+        f'low_break,tpe-250000,'
+        f'high_break,4*(tpe-250000),'
+        # Check apron level first
+        f'IF(AND(apron<>"BELOW_TAX",apron<>""),'
+        f'"Apron: 100%+$100K",'
+        # For below-tax teams, check which tier applies
+        f'IF(out<low_break,"Low: 200%+$250K",'
+        f'IF(out>high_break,"High: 125%+$250K",'
+        f'"Mid: 100%+TPE")))))'
+    )
+
+    worksheet.write(row, base_col, "Matching Rule:", sub_formats["label"])
+    worksheet.write_formula(row, base_col + 1, matching_rule_formula, sub_formats["output"])
+    row += 1
+
+    # Note about aggregation restrictions
+    worksheet.write(
+        row, base_col,
+        "Note: Apron teams cannot aggregate players",
+        sub_formats["note"],
+    )
 
     return team_cell_ref
 
