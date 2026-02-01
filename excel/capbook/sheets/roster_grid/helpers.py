@@ -206,42 +206,6 @@ def _mode_year_label(year_offset: int) -> str:
     return f'=SelectedYear+{year_offset} & " " & SelectedMode'
 
 
-def _warehouse_bucket_col(bucket: str) -> str:
-    """Return formula for fetching bucket total from team_salary_warehouse."""
-    # Bucket columns in tbl_team_salary_warehouse are named: {mode}_{bucket}_amt
-    # mode = LOWER(SelectedMode)
-    # bucket = LOWER(bucket)
-    mode_prefix = _mode_prefix_expr()
-    col_name = f'{mode_prefix} & "_{bucket.lower()}_amt"'
-
-    # We need to use INDIRECT to reference the dynamic column name
-    # But table refs inside INDIRECT are tricky.
-    # Better: use XLOOKUP on the team + year, then use CHOOSECOLS?
-    # Actually, we know the column names are fixed patterns.
-    # We can use LET + CHOOSE to pick the column.
-
-    # Available columns: cap_rost_amt, cap_fa_amt, cap_term_amt, cap_2way_amt, etc.
-    buckets = ["ROST", "FA", "TERM", "2WAY"]
-    modes = ["cap", "tax", "apron"]
-
-    # This is getting complex. Let's use a simpler approach:
-    # SUMIFS(tbl_team_salary_warehouse[cap_rost_amt], ...) if mode="Cap" and bucket="ROST"
-    return (
-        f'SUMIFS(INDIRECT("tbl_team_salary_warehouse[" & {_mode_prefix_expr()} & "_{bucket.lower()}_amt]"), '
-        'tbl_team_salary_warehouse[team_code], SelectedTeam, '
-        'tbl_team_salary_warehouse[salary_year], SelectedYear)'
-    )
-
-
-def _warehouse_total_col() -> str:
-    """Return formula for fetching total salary from team_salary_warehouse."""
-    # Column names: total_cap_salary, total_tax_salary, total_apron_salary
-    return (
-        f'SUMIFS(INDIRECT("tbl_team_salary_warehouse[total_" & {_mode_prefix_expr()} & "_salary]"), '
-        'tbl_team_salary_warehouse[team_code], SelectedTeam, '
-        'tbl_team_salary_warehouse[salary_year], SelectedYear)'
-    )
-
 
 def _write_column_headers(
     worksheet: Worksheet,

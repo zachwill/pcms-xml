@@ -2,7 +2,7 @@
 
 This document tracks the Excel capbook modernization effort—splitting massive files, adopting modern Excel 365 formulas, and reducing code duplication.
 
-**Last updated:** 2026-01-31
+**Last updated:** 2026-02-01
 
 ---
 
@@ -14,24 +14,36 @@ This document tracks the Excel capbook modernization effort—splitting massive 
 - Modern functions (FILTER, XLOOKUP, LET) are used in many places
 
 ### 🔴 What Needs Work
-- **Massive files** — 4 files over 1400 lines, hard to maintain
-- **Legacy patterns** — SUMPRODUCT/COUNTIFS where FILTER+SUM/ROWS would be cleaner
-- **Code duplication** — inline formula building instead of using `named_formulas.py` helpers
-- **Underutilized named formulas** — helpers exist but aren't used consistently
+- **A few large sheet writers remain** — `audit.py` and `budget_ledger.py` are still ~1.3k lines each
+- **Plan journal running totals** — implement row-by-row cumulative deltas without SCAN/LAMBDA repair issues
+- **Legacy patterns** — a handful of remaining SUMPRODUCT hotspots where FILTER+SUM/ROWS would be clearer
+- **Ongoing guardrails** — keep XML sanity checks (LET `_xlpm.` vars, no spill `#` in defined names) in the test loop
 
-### File Sizes (lines)
-| File | Lines | Bytes | Status |
-|------|-------|-------|--------|
-| `roster_grid.py` | 2261 | 95KB | 🔴 Split into modules |
-| `subsystems.py` | 2119 | 82KB | 🔴 Split into 4 files |
-| `plan.py` | 1408 | 53KB | 🟡 Split into 2 files |
-| `audit.py` | 1301 | 52KB | 🟡 Could modularize later |
-| `budget_ledger.py` | 1271 | 48KB | 🟡 Could modularize later |
-| `cockpit.py` | 1183 | 45KB | 🟡 Could modularize later |
+### Current File Sizes (lines)
+| File | Lines | Status |
+|------|------:|--------|
+| `excel/capbook/sheets/audit.py` | 1301 | 🟡 Large but stable (split only if it becomes painful) |
+| `excel/capbook/sheets/budget_ledger.py` | 1271 | 🟡 Large but stable (split only if it becomes painful) |
+| `excel/capbook/sheets/cockpit.py` | 1183 | 🟡 Large but stable |
+| `excel/capbook/sheets/plan/plan_journal.py` | 775 | 🔴 Needs cumulative running totals implementation |
+| `excel/capbook/sheets/subsystems/trade_machine.py` | 475 | ✅ Split done |
+| `excel/capbook/sheets/subsystems/signings.py` | 421 | ✅ Split done |
+| `excel/capbook/sheets/subsystems/waive_stretch.py` | 350 | ✅ Split done |
+| `excel/capbook/sheets/roster_grid/helpers.py` | 289 | ✅ Split done |
+| `excel/capbook/sheets/roster_grid/generated_section.py` | 246 | ✅ Split done |
+| `excel/capbook/sheets/roster_grid/exists_only_section.py` | 219 | ✅ Split done |
+| `excel/capbook/sheets/roster_grid/formats.py` | 193 | ✅ Split done |
+| `excel/capbook/sheets/roster_grid/reconciliation.py` | 182 | ✅ Split done |
 
 ---
 
 ## Tasks
+
+### Next up (prioritized)
+
+- [ ] Build a real workbook and run XML sanity checks (no Excel repair dialog; no bare LET variables; no `#` spill refs in defined names)
+- [ ] PLAN_JOURNAL: implement row-by-row cumulative Δ Cap/Tax/Apron without SCAN/LAMBDA (avoid Mac Excel repair)
+- [ ] Continue modernizing remaining SUMPRODUCT hotspots only when it improves readability/performance
 
 ### Phase 1: Split `subsystems.py` (easiest win)
 
@@ -105,12 +117,11 @@ Replace inline LET formulas with helper functions from `named_formulas.py`.
 
 Replace SUMPRODUCT/COUNTIFS with FILTER+SUM/ROWS where it improves readability.
 
-- [ ] `cockpit.py` lines 304-316 — SUMPRODUCT → SUM(FILTER(...))
-- [x] `roster_grid.py` lines 203-225 — `_salary_book_sumproduct()` → FILTER-based helper
-- [ ] `roster_grid.py` line 1506 — SUMPRODUCT → SUM(FILTER(...))
-- [ ] `budget_ledger.py` line 764 — SUMPRODUCT → SUM(FILTER(...))
-- [ ] `audit.py` lines 267-287 — COUNTIFS → ROWS(FILTER(...)) (optional, COUNTIFS is fine)
-- [ ] `cockpit.py` lines 159-171 — COUNTIFS → ROWS(FILTER(...)) (optional)
+- [ ] `excel/capbook/sheets/cockpit.py` — modernize remaining SUMPRODUCT hotspots (search `SUMPRODUCT(`; only change where readability improves)
+- [x] `excel/capbook/sheets/roster_grid/helpers.py` — `_salary_book_sumproduct()` is FILTER-based (no legacy SUMPRODUCT)
+- [ ] `excel/capbook/sheets/roster_grid/generated_section.py` — replace `current_roster_count_formula` SUMPRODUCT with ROWS(FILTER(...)) to match the modern formula standard
+- [ ] `excel/capbook/sheets/budget_ledger.py` — modernize remaining SUMPRODUCT patterns (search `SUMPRODUCT(`)
+- [ ] `excel/capbook/sheets/audit.py` — optional: COUNTIFS → ROWS(FILTER(...)) (only if it improves clarity; COUNTIFS is fine)
 
 **Note:** SUMIFS/COUNTIFS are fine for simple two-column lookups. Only modernize SUMPRODUCT patterns (harder to read, slower).
 

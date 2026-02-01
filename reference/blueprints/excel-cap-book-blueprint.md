@@ -1,6 +1,6 @@
 # Excel Cap Book Blueprint (Sean-style)
 
-**Updated:** 2026-01-31
+**Updated:** 2026-02-01
 
 This is a proposed architecture for a *new* Excel workbook designed for NBA salary cap analysts.
 

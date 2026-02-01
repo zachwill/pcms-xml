@@ -146,13 +146,14 @@ def _write_reconciliation_block(
     grid_sum_range = f"{xlsxwriter.utility.xl_rowcol_to_cell(row - len(buckets) - 1, COL_CAP_Y0)}:{xlsxwriter.utility.xl_rowcol_to_cell(row - 2, COL_CAP_Y0)}"
     worksheet.write_formula(row, COL_CAP_Y0, f"=SUM({grid_sum_range})", roster_formats["subtotal"])
 
-    # Warehouse total - mode-aware lookup for total_{mode}_salary
+    # Warehouse total - mode-aware lookup for cap_total/tax_total/apron_total
+    # (These are the authoritative headline totals per the data contract.)
     total_warehouse_formula = (
         'IF(SelectedMode="Cap",'
-        'SUMIFS(tbl_team_salary_warehouse[total_cap_salary],tbl_team_salary_warehouse[team_code],SelectedTeam,tbl_team_salary_warehouse[salary_year],SelectedYear),'
+        'SUMIFS(tbl_team_salary_warehouse[cap_total],tbl_team_salary_warehouse[team_code],SelectedTeam,tbl_team_salary_warehouse[salary_year],SelectedYear),'
         'IF(SelectedMode="Tax",'
-        'SUMIFS(tbl_team_salary_warehouse[total_tax_salary],tbl_team_salary_warehouse[team_code],SelectedTeam,tbl_team_salary_warehouse[salary_year],SelectedYear),'
-        'SUMIFS(tbl_team_salary_warehouse[total_apron_salary],tbl_team_salary_warehouse[team_code],SelectedTeam,tbl_team_salary_warehouse[salary_year],SelectedYear)))'
+        'SUMIFS(tbl_team_salary_warehouse[tax_total],tbl_team_salary_warehouse[team_code],SelectedTeam,tbl_team_salary_warehouse[salary_year],SelectedYear),'
+        'SUMIFS(tbl_team_salary_warehouse[apron_total],tbl_team_salary_warehouse[team_code],SelectedTeam,tbl_team_salary_warehouse[salary_year],SelectedYear)))'
     )
     worksheet.write_formula(row, COL_CAP_Y1, f"={total_warehouse_formula}", roster_formats["subtotal"])
 

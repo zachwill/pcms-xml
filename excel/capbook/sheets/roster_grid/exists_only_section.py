@@ -217,7 +217,3 @@ def _write_exists_only_section(
     row += 2
 
     return row
-
-    row += 2
-
-    return row
