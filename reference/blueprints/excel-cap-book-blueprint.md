@@ -6,186 +6,97 @@
 
 ## Vision
 
-We're building a **best-in-class Excel workbook** for NBA salary cap analysts using Python and XlsxWriter.
+We build Excel workbooks for NBA salary cap analysts using Python and XlsxWriter.
 
-The workbook should feel like a **dense, reactive TUI** — not a marketing spreadsheet. Every pixel earns its place. Information density is a feature, not a bug.
-
-**Core belief:** Coding agents are more than capable of building Excel workbooks that surpass what humans can build by hand — if we follow best practices and have a clear guiding vision.
+The workbook feels like a **dense, reactive TUI** — not a marketing spreadsheet. Every pixel earns its place.
 
 ---
 
-## What we learned (the hard way)
+## Three pillars
 
-### What we got right ✅
+### 1. Correct data
 
-- **DATA_ sheets are solid.** The data extraction and embedding layer works. Excel Tables with clean column names, proper types, authoritative sources.
-- **Modern Excel features.** Using `FILTER`, `XLOOKUP`, `LET`, `LAMBDA`, dynamic arrays — this is the right call.
-- **Code-generated workbook.** No hand-authored template. The workbook is a build artifact.
-- **Reconciliation mindset.** Trust requires that numbers tie out.
+We shove authoritative data from Postgres into Excel. The `DATA_*` sheets are solid, trustworthy, reconcilable.
 
-### What we got wrong ❌
+See `data-contract.md` for specifications.
 
-- **Too many sheets.** We designed 13+ tabs with navigation workflows. Analysts don't want to click around. They want everything visible.
-- **Over-engineered scenarios.** "Publish to journal" workflows, plan managers, subsystem sheets — way too much ceremony.
-- **Wrong mental model.** We designed for how we *thought* analysts should work, not how they actually work.
-- **Marketing spreadsheet aesthetics.** We didn't commit to density. Real cap workbooks are walls of numbers.
+### 2. Modern Excel
 
----
+We use XlsxWriter with modern Excel features:
+- `FILTER`, `SORTBY`, `UNIQUE`, `TAKE` — dynamic arrays
+- `XLOOKUP` — clean lookups
+- `LET` — readable complex formulas
+- `LAMBDA` — reusable calculations as defined names
 
-## The new mental model
+No legacy hacks. No helper columns where spill formulas work.
 
-### Dense reactive TUI
+See `excel/XLSXWRITER.md` for patterns.
 
-Think of each worksheet as a **terminal UI panel** — dense, information-rich, reactive to inputs.
+### 3. Dense, beautiful, reactive UI
 
-- **Everything visible.** No scrolling to find critical info. No clicking through tabs to see cause and effect.
-- **Reactive.** Change an input, see the impact immediately via conditional formatting, color shifts, delta columns.
-- **Proper visual hierarchy.** Light yellow input cells (Excel convention). Bold totals. Subtle gridlines. Consistent fonts.
-- **Recognition over recall.** Rules and references adjacent to where they're needed, not buried in a separate sheet.
+**Dense:** Information-rich. Walls of numbers. No wasted space.
 
-### 4-7 dense sheets (not 13+)
+**Beautiful:** Aptos Narrow. Right-aligned numbers. Subtle borders. Consistent formatting.
 
-The final workbook will probably have 4-7 functional sheets, each a self-contained dense UI:
-
-1. **Team view** — the main cockpit (roster + KPIs + depth chart + playground)
-2. **Trade workspace** — side-by-side trade construction with matching rules visible
-3. **League view** — all 30 teams at a glance (cap positions, tax status, exceptions)
-4. **Draft assets** — pick ownership grid with encumbrances
-5. Maybe 2-3 others as patterns emerge
-
-Plus the DATA_ sheets (hidden, locked) and META sheet.
-
-### Improve on Sean, don't copy him
-
-Sean's workbooks have decades of insight baked in. But he built what he was capable of building incrementally over time. He didn't have:
-
-- Modern Excel (dynamic arrays, XLOOKUP, LAMBDA)
-- Code generation (consistent formatting, no copy-paste errors)
-- Defined names and structured references
-- Proper input cell conventions (light yellow backgrounds)
-- Conditional formatting at scale
-
-We can take his *concepts* (the information he shows, the workflows he supports) and rebuild them with proper patterns. The result should be:
-
-- **Cleaner** — consistent formatting, no visual noise
-- **More reliable** — formulas that don't break, reconciliation built-in
-- **More powerful** — modern Excel features unlock things he couldn't do
-- **More maintainable** — code-generated means we can iterate
+**Reactive:** Inputs drive the view. Change something → everything updates. No "submit" buttons.
 
 ---
 
 ## Design principles
 
-### 1. Dense AND beautiful
+### Dense ≠ ugly
 
-Cap analysts live in spreadsheets. They can read dense grids. Don't waste space with padding, instructions, or "user-friendly" empty rows.
+- **Typography:** Aptos Narrow (compact, modern, legible)
+- **Alignment:** Numbers right, text left, decimals aligned
+- **Borders:** Subtle section dividers, not heavy gridlines
+- **Color:** Meaningful (status, alerts, input zones), not decorative
+- **Whitespace:** Minimal but intentional
 
-But dense doesn't mean ugly. It means **information-rich with careful visual design**:
+Think Bloomberg terminal, not clip-art spreadsheet.
 
-- **Typography:** Aptos Narrow for data (compact but legible), consistent font sizes
-- **Alignment:** Numbers right-aligned, text left-aligned, headers centered where appropriate
-- **Borders:** Subtle and purposeful — section dividers, not a grid of boxes
-- **Color:** Communicates meaning (status, alerts, input zones), not decoration
-- **Whitespace:** Minimal but intentional — row height and column width tuned for scannability
+### Inputs are light yellow
 
-Think Bloomberg terminal, not clip-art spreadsheet. Think well-designed TUI, not ASCII dump.
+Excel convention. Editable cells have yellow background. Everything else is computed or locked.
 
-### 2. Inputs are light yellow
+### Reactivity via formulas + conditional formatting
 
-This is the Excel convention. If a cell is meant to be edited, it has a light yellow background. Everything else is computed or locked.
+No VBA. No macros. Pure Excel formulas that react to input changes. Conditional formatting for visual feedback.
 
-### 3. Reactive feedback via conditional formatting
+### Adjacent context
 
-When something changes state (over cap, hard-capped, trade illegal), the UI should react visually. Color shifts, icons, bold text.
+Rules shown next to where they're needed. Trade matching tiers next to trade inputs. Min scale next to roster.
 
-### 4. Adjacent context
+### Trust via reconciliation
 
-Don't make analysts remember rules. Show the salary matching tiers *next to* the trade inputs. Show minimum scale *next to* the roster.
+Every total reconciles to `tbl_team_salary_warehouse`. Mismatches are loud.
 
-### 5. Formulas use modern Excel
+---
 
-- `FILTER` + `SORTBY` instead of helper columns
-- `XLOOKUP` instead of `INDEX/MATCH`
-- `LET` for readable complex formulas
-- `LAMBDA` for reusable calculations (defined as workbook names)
-- Dynamic arrays that spill
+## Target: 4-7 dense sheets
 
-### 6. Reconciliation is non-negotiable
+Not 13+ tabs. A handful of dense, self-contained views:
 
-Every total must tie to an authoritative source. If there's a discrepancy, it should be visible and loud.
+1. **PLAYGROUND** — Team roster + scenario inputs + reactive totals (first target)
+2. **TRADE** — Multi-team trade construction with matching rules
+3. **LEAGUE** — All 30 teams at a glance
+4. **PICKS** — Draft pick ownership grid
+5. Maybe 2-3 others as patterns emerge
 
-### 7. The "Playground" is adjacent, not separate
-
-Scenario modeling ("what if we trade X?") should happen *next to* the roster, not in a separate sheet. The analyst should see the base case and the delta simultaneously.
+Plus `DATA_*` sheets (hidden) and `META` sheet.
 
 ---
 
 ## What we're NOT building
 
-- **A CBA reference manual.** Rules are shown in context, not dumped into a reference sheet.
-- **A step-by-step wizard.** Analysts know what they're doing. Give them tools, not training wheels.
-- **A pretty dashboard for executives.** This is a working tool for practitioners.
-- **A web app in Excel.** We're not fighting Excel — we're using it as intended.
+- A CBA reference manual
+- A step-by-step wizard
+- A pretty dashboard for executives
+- A web app in Excel
 
----
-
-## Technical foundations
-
-### Code generation via XlsxWriter
-
-See `excel/XLSXWRITER.md` for patterns. Key points:
-
-- `use_future_functions: True` for modern Excel
-- `write_dynamic_array_formula()` for spill formulas
-- `ANCHORARRAY()` instead of `#` operator
-- `_xlpm.` prefix for LAMBDA parameters
-- Defined names for reusable formulas
-
-### Data layer (DATA_ sheets)
-
-The DATA_ sheets are solid and don't need redesign. See `excel-workbook-data-contract.md`.
-
-| Sheet | Table | Purpose |
-|-------|-------|---------|
-| DATA_system_values | tbl_system_values | Cap/tax/apron thresholds |
-| DATA_tax_rates | tbl_tax_rates | Luxury tax brackets |
-| DATA_rookie_scale | tbl_rookie_scale | Rookie scale amounts |
-| DATA_minimum_scale | tbl_minimum_scale | Min salary by years of service |
-| DATA_team_salary_warehouse | tbl_team_salary_warehouse | Authoritative team totals |
-| DATA_salary_book_warehouse | tbl_salary_book_warehouse | Wide salary book |
-| DATA_salary_book_yearly | tbl_salary_book_yearly | Tall salary book |
-| DATA_cap_holds_warehouse | tbl_cap_holds_warehouse | Cap holds/rights |
-| DATA_dead_money_warehouse | tbl_dead_money_warehouse | Dead money |
-| DATA_exceptions_warehouse | tbl_exceptions_warehouse | Exception inventory |
-| DATA_draft_picks_warehouse | tbl_draft_picks_warehouse | Draft pick ownership |
-
-### META sheet
-
-Build metadata: timestamp, base year, as-of date, git SHA, validation status.
+We're building **working tools for practitioners**.
 
 ---
 
 ## Next steps
 
-Before building more UI sheets, we need to:
-
-1. **Study Sean's actual layouts.** Screenshot them. Understand what information he shows and where.
-2. **Talk to more analysts.** What do they actually look at? What workflows matter?
-3. **Prototype on paper first.** Sketch the dense layouts before writing code.
-4. **Start with one sheet.** Get the Team view right before building others.
-
-The goal is not to ship fast. The goal is to ship something analysts actually want to use.
-
----
-
-## Success criteria
-
-A cap analyst should be able to:
-
-1. Open the workbook and immediately see their team's cap position
-2. Model a trade and see the salary matching math without leaving the view
-3. Trust that every number reconciles to authoritative sources
-4. Explain any number by drilling into the contributing rows
-5. Work faster than they could in Sean's workbook (eventually)
-
-If we achieve this, we win.
+See `specs/playground.md` for the first sheet to build.

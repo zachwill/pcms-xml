@@ -5,8 +5,9 @@ import { loop, work, halt, supervisor } from "./core";
  * excel.ts — Excel Cap Book Build Agent
  *
  * Purpose:
- * - Turn the Blueprints in reference/blueprints/ into a real, self-contained Excel workbook
- *   populated from Postgres (pcms.*).
+ * - Build dense, beautiful, reactive Excel workbooks for salary cap analysts
+ * - Use XlsxWriter with modern Excel features (FILTER, XLOOKUP, LET, LAMBDA)
+ * - Populate from Postgres (pcms.*)
  *
  * This agent does NOT generate its own backlog.
  * You must seed tasks in:
@@ -31,35 +32,44 @@ loop({
     `
 You are the supervisor for the Excel cap workbook build.
 
+THE THREE PILLARS (the guiding light):
+1. Correct data — Authoritative Postgres data into DATA_* sheets
+2. Modern Excel — FILTER, XLOOKUP, LET, LAMBDA via XlsxWriter
+3. Dense, beautiful, reactive UI — Inputs drive the view, everything reacts
+
 Every 4 commits, review:
 
-1) reference/blueprints/*
-   - mental models + workbook architecture + data refresh + data contract
+1) reference/blueprints/
+   - README.md (the guiding light)
+   - excel-cap-book-blueprint.md (vision + principles)
+   - data-contract.md (DATA_ sheet specs)
+   - specs/playground.md (current target)
+
 2) .ralph/EXCEL.md
-   - current backlog (ensure tasks are concrete, ordered, and not stale)
+   - current backlog (ensure tasks are concrete and ordered)
+
 3) excel/
-   - templates and exporter scripts created so far
+   - XLSXWRITER.md (patterns)
+   - capbook/ implementation
 
 SUPERVISOR CHECKLIST
 
-**Blueprint alignment**
-- Is the workbook staying self-contained (no external refs)?
-- Are totals driven by authoritative "what counts" sources (team_salary_warehouse)?
-- Are we following the data contract for DATA_* tables (keys, columns, semantics)?
-- Are policies/assumptions explicit (not hidden defaults)?
+**Three pillars alignment**
+- Is data coming from authoritative warehouses (pcms.*_warehouse)?
+- Are we using modern Excel formulas (not legacy SUMPRODUCT/INDEX-MATCH)?
+- Is the UI dense and reactive (inputs drive the view)?
 
 **Implementation hygiene**
-- Are we using warehouse tables/views (pcms.*_warehouse, salary_book_yearly) rather than raw joins?
-- Does the exporter record META fields (refreshed_at, base_year, as-of date, exporter git sha)?
-- Do we fail fast or loudly mark FAILED when validations/reconciliation break?
+- Does the exporter record META fields (timestamp, base_year, as_of, git SHA)?
+- Are we following XLSXWRITER.md patterns (_xlpm. prefixes, ANCHORARRAY, etc.)?
+- Are input cells light yellow? Is formatting consistent (Aptos Narrow, alignment)?
 
 **Backlog hygiene**
-- Are tasks small enough to complete + commit in one iteration?
-- Are follow-up tasks added when new work is discovered?
-- Is the backlog ordering still correct?
+- Are tasks small enough to complete in one iteration?
+- Is the ordering correct?
 
 If you make changes:
-- Update .ralph/EXCEL.md (reorder/add/remove tasks)
+- Update .ralph/EXCEL.md
 - Commit: git add -A && git commit -m "excel: supervisor review"
     `,
     {
@@ -75,35 +85,36 @@ If you make changes:
     if (state.hasTodos) {
       return work(
         `
-You are building the next-generation Sean-style Excel cap workbook.
+You are building Excel workbooks for NBA salary cap analysts.
 
 Your task: ${state.nextTodo}
 
-REQUIRED READING (before coding)
-1) excel/AGENTS.md
-2) .ralph/EXCEL.md (backlog + rules)
-3) reference/blueprints/README.md
-4) reference/blueprints/mental-models-and-design-principles.md
-5) reference/blueprints/excel-cap-book-blueprint.md
-6) reference/blueprints/excel-workbook-data-refresh-blueprint.md
-7) reference/blueprints/excel-workbook-data-contract.md
+THE THREE PILLARS
+1. Correct data — DATA_* sheets from Postgres warehouses
+2. Modern Excel — FILTER, XLOOKUP, LET, LAMBDA (no legacy hacks)
+3. Dense, beautiful, reactive UI — Inputs drive the view
 
-If you need DB field meanings, also read:
-- SALARY_BOOK.md
-- SCHEMA.md
+REQUIRED READING (before coding)
+1) excel/AGENTS.md — folder context
+2) excel/XLSXWRITER.md — formula patterns + gotchas
+3) reference/blueprints/README.md — the guiding light
+4) reference/blueprints/excel-cap-book-blueprint.md — vision + principles
+5) reference/blueprints/data-contract.md — DATA_ sheet specs
+6) reference/blueprints/specs/playground.md — current target sheet
 
 RULES
-- Prefer offline/self-contained workbooks (no live DB connections inside Excel by default).
-- Prefer extracting from pcms.*_warehouse and stable views (e.g. pcms.salary_book_yearly).
-- Do one logical chunk of work per iteration.
-- Update ${TASK_FILE}: check off ONLY the completed task; add follow-ups if you discover gaps.
+- Use modern Excel: FILTER, XLOOKUP, LET, LAMBDA, dynamic arrays
+- Follow XLSXWRITER.md patterns (use_future_functions, _xlpm. prefixes, ANCHORARRAY)
+- Input cells are light yellow. Numbers right-aligned. Aptos Narrow font.
+- Workbook is offline/self-contained (no live DB connections)
+- Do one logical chunk of work per iteration
+- Update ${TASK_FILE}: check off completed task, add follow-ups if needed
 - Commit and exit:
   - git add -A && git commit -m "excel: <short summary>"
   - Exit immediately
         `,
         {
           model: "claude-opus-4-5-thinking",
-          // model: "gemini-3-flash",
           provider: "google-antigravity",
           thinking: "high",
           timeout: "10m",
@@ -111,7 +122,6 @@ RULES
       );
     }
 
-    // We intentionally do NOT auto-generate tasks for this agent.
     return halt("No tasks in " + TASK_FILE);
   },
 });

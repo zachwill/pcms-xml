@@ -1,44 +1,36 @@
-# Blueprints (Design Reference)
+# Blueprints
 
-**Purpose:** capture *tacit knowledge* and *design intent* for Sean-style NBA salary cap tooling — in a form that’s stable, reviewable, and executable later.
+Design documents for the Excel cap workbook.
 
-This folder supersedes the former root-level `INSIGHTS.md` (now removed); new insights should land here.
+---
 
-This folder is intentionally different from:
-- `reference/warehouse/` — a snapshot export of Sean’s workbook (JSON)
-- `reference/warehouse/specs/` — auto-generated “what exists today” sheet specs
+## The guiding light
 
-These **Blueprints** are the "what we’re trying to build" documents: mental models, UI/cockpit rules, and worksheet architecture.
+We are building Excel workbooks for NBA salary cap analysts. Three pillars:
 
-## How to use these docs
+1. **Correct data** — We shove authoritative data from Postgres into Excel (`DATA_*` sheets). The data layer is solid and trustworthy.
 
-- When debating **what a number means**, start with **Mental Models & Design Principles**.
-- When designing or rebuilding sheets (Excel or web), start with the **Excel Cap Book Blueprint**.
-- Treat these as the canonical place to record new insights before changing DB schema, SQL primitives, or UX.
+2. **Modern Excel** — We use XlsxWriter to generate workbooks with modern Excel features: `FILTER`, `XLOOKUP`, `LET`, `LAMBDA`, dynamic arrays. No legacy hacks.
 
-## Files
+3. **Dense, beautiful, reactive UI** — We build UI sheets that are information-dense yet visually clean. Inputs drive the view. Change something → everything reacts.
 
-- [`mental-models-and-design-principles.md`](mental-models-and-design-principles.md)
-  - The non-negotiable mental models: ledger trust, “exists vs counts,” scenario-as-journal, explicit policies, explainability.
+**That's it.** Anything that doesn't serve these three pillars is wrong.
 
-- [`excel-cap-book-blueprint.md`](excel-cap-book-blueprint.md)
-  - A proposed workbook architecture: command bar, cockpit sheet, plan journal, subsystems (trade, signings, waive/stretch), audit.
+---
 
-- [`excel-workbook-data-refresh-blueprint.md`](excel-workbook-data-refresh-blueprint.md)
-  - How we’d populate the workbook from Postgres: dataset selection, refresh pipeline, validation, and distribution.
+## Documents
 
-- [`excel-workbook-data-contract.md`](excel-workbook-data-contract.md)
-  - The stable interface between Postgres and the workbook `DATA_*` sheets: required datasets, keys, and column meanings.
+| File | Purpose |
+|------|---------|
+| `excel-cap-book-blueprint.md` | Design vision, principles, what we're building |
+| `mental-models-and-design-principles.md` | Foundational thinking: trust, density, reactivity |
+| `data-contract.md` | DATA_ sheet specifications (Postgres → Excel) |
+| `specs/` | Individual sheet specs (e.g., `specs/playground.md`) |
 
-## Conventions
+---
 
-- Prefer concrete, testable statements.
-  - Example: “Every headline total must have a contributing-rows drilldown” (testable)
-  - Not: “Make it intuitive.”
+## Quick links
 
-- Separate **facts** (what PCMS currently provides) from **assumptions/policies** (analyst knobs).
-
-- When adding new rules, include:
-  - where it appears in the UI (adjacent to which input)
-  - how it is audited/reconciled
-  - what the failure mode looks like (what goes wrong if it’s implicit)
+- XlsxWriter patterns: `excel/XLSXWRITER.md`
+- Folder context: `excel/AGENTS.md`
+- Progress tracking: `.ralph/EXCEL.md`

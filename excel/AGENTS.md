@@ -36,7 +36,8 @@ See `reference/blueprints/excel-cap-book-blueprint.md` for design principles.
 | `excel/XLSXWRITER.md` | XlsxWriter patterns, formula gotchas, recipes |
 | `reference/blueprints/excel-cap-book-blueprint.md` | Design vision + principles |
 | `reference/blueprints/mental-models-and-design-principles.md` | Foundational thinking |
-| `reference/blueprints/excel-workbook-data-contract.md` | DATA_ sheet specifications |
+| `reference/blueprints/data-contract.md` | DATA_ sheet specifications |
+| `reference/blueprints/specs/playground.md` | First UI sheet to build |
 
 ---
 
