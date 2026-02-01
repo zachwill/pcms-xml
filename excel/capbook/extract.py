@@ -3,7 +3,7 @@ Dataset extraction functions per the data contract.
 
 Each function returns rows suitable for writing to a DATA_* sheet.
 
-See: reference/blueprints/excel-workbook-data-contract.md
+See: reference/blueprints/data-contract.md
 """
 
 from __future__ import annotations
@@ -292,129 +292,44 @@ def extract_salary_book_warehouse(
 ) -> tuple[list[str], list[dict[str, Any]]]:
     """Extract tbl_salary_book_warehouse dataset (DATA_salary_book_warehouse).
 
-    Exports salary columns as relative-year (cap_y0..cap_y5, tax_y0..tax_y5,
-    apron_y0..apron_y5) based on base_year, per the data contract.
+    This is intended to be a near 1:1 mirror of `pcms.salary_book_warehouse`.
+
+    Key rule:
+      - **No renamed columns.** We do not alias years into cap_y0/cap_y1/etc.
+        Excel column headers should match Postgres column names.
+
+    Note:
+      - `base_year` is currently unused for this dataset. The underlying
+        warehouse is a wide table with explicit year columns (e.g. cap_2025).
+        The workbook's year-aware UI should generally use
+        `tbl_salary_book_yearly` instead.
     """
 
-    years = [base_year + i for i in range(6)]
+    # Discover columns directly from Postgres so Excel mirrors the warehouse.
+    columns_sql = """
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'pcms'
+          AND table_name = 'salary_book_warehouse'
+        ORDER BY ordinal_position
+    """
 
-    def year_cols(prefix: str) -> str:
-        return ", ".join(f"{prefix}_{years[i]} AS {prefix}_y{i}" for i in range(6))
+    try:
+        col_rows = fetch_all(columns_sql)
+        columns = [r["column_name"] for r in col_rows]
+    except Exception as e:  # noqa: BLE001
+        raise DatasetExtractError("salary_book_warehouse", [], e) from e
 
-    # Define columns in the same order as SELECT (for stable contract)
-    columns: list[str] = [
-        # Identity
-        "player_id",
-        "player_name",
-        "team_code",
-        "league_lk",
-        "contract_id",
-        "version_number",
-        # Demographics
-        "birth_date",
-        "age",
-        "agent_name",
-        # Two-way
-        "is_two_way",
-    ]
+    if not columns:
+        raise DatasetExtractError(
+            "salary_book_warehouse",
+            [],
+            RuntimeError("No columns found for pcms.salary_book_warehouse"),
+        )
 
-    # Relative-year salary columns
-    for prefix in ["cap", "tax", "apron"]:
-        for i in range(6):
-            columns.append(f"{prefix}_y{i}")
-
-    # Relative-year option columns
-    for prefix in ["option", "option_decision"]:
-        for i in range(6):
-            columns.append(f"{prefix}_y{i}")
-
-    # Relative-year guarantee columns
-    for prefix in [
-        "guaranteed_amount",
-        "is_fully_guaranteed",
-        "is_partially_guaranteed",
-        "is_non_guaranteed",
-    ]:
-        for i in range(6):
-            columns.append(f"{prefix}_y{i}")
-
-    # Trade + classification columns
-    columns.extend(
-        [
-            "is_poison_pill",
-            "poison_pill_amount",
-            "is_no_trade",
-            "is_trade_bonus",
-            "trade_bonus_percent",
-            "trade_kicker_display",
-            "player_consent_lk",
-            "is_trade_consent_required_now",
-            "is_trade_preconsented",
-            "trade_restriction_lookup_value",
-            "trade_restriction_end_date",
-            "is_trade_restricted_now",
-            "contract_type_lookup_value",
-            "signed_method_lookup_value",
-            "exception_type_lookup_value",
-            "min_contract_lookup_value",
-            "is_min_contract",
-        ]
-    )
-
+    select_cols = ", ".join(f'"{c}"' for c in columns)
     sql = f"""
-        SELECT
-            -- Identity
-            player_id,
-            player_name,
-            team_code,
-            league_lk,
-            contract_id,
-            version_number,
-
-            -- Demographics
-            birth_date,
-            age,
-            agent_name,
-
-            -- Two-way status
-            is_two_way,
-
-            -- Salary columns (relative years)
-            {year_cols("cap")},
-            {year_cols("tax")},
-            {year_cols("apron")},
-
-            -- Option columns (relative years)
-            {year_cols("option")},
-            {year_cols("option_decision")},
-
-            -- Guarantee columns (relative years)
-            {year_cols("guaranteed_amount")},
-            {year_cols("is_fully_guaranteed")},
-            {year_cols("is_partially_guaranteed")},
-            {year_cols("is_non_guaranteed")},
-
-            -- Trade fields
-            is_poison_pill,
-            poison_pill_amount,
-            is_no_trade,
-            is_trade_bonus,
-            trade_bonus_percent,
-            trade_kicker_display,
-            player_consent_lk,
-            is_trade_consent_required_now,
-            is_trade_preconsented,
-            trade_restriction_lookup_value,
-            trade_restriction_end_date,
-            is_trade_restricted_now,
-
-            -- Contract classification
-            contract_type_lookup_value,
-            signed_method_lookup_value,
-            exception_type_lookup_value,
-            min_contract_lookup_value,
-            is_min_contract
-
+        SELECT {select_cols}
         FROM pcms.salary_book_warehouse
         WHERE league_lk = %(league)s
         ORDER BY team_code, player_name

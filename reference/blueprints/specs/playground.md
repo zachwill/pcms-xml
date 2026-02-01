@@ -134,11 +134,11 @@ This is the TUI analogy: it's like `htop` or a dashboard where every value is li
 
 | Need | Source Table | Key Columns |
 |------|--------------|-------------|
-| Player salaries | `tbl_salary_book_warehouse` | player_name, team_code, cap_y0..cap_y5 |
+| Player salaries | `tbl_salary_book_yearly` | player_name, team_code, salary_year, cap_amount |
 | Team totals | `tbl_team_salary_warehouse` | cap_total, tax_total, apron_total |
-| Cap holds | `tbl_cap_holds_warehouse` | player_name, cap_y0..cap_y5 |
-| Dead money | `tbl_dead_money_warehouse` | player_name, cap_y0..cap_y5 |
-| System values | `tbl_system_values` | salary_cap, tax_level, first_apron, second_apron |
+| Cap holds | `tbl_cap_holds_warehouse` | player_name, salary_year, cap_amount |
+| Dead money | `tbl_dead_money_warehouse` | player_name, salary_year, cap_value (cap hit) |
+| System values | `tbl_system_values` | salary_cap_amount, tax_level_amount, tax_apron_amount, tax_apron2_amount |
 | Tax rates | `tbl_tax_rates` | brackets for tax calculation |
 | Min scale | `tbl_minimum_scale` | minimum salary by YOS |
 | Rookie scale | `tbl_rookie_scale` | rookie scale by pick |
@@ -152,9 +152,10 @@ This is the TUI analogy: it's like `htop` or a dashboard where every value is li
 ```
 =LET(
   _xlpm.team, SelectedTeam,
-  _xlpm.data, tbl_salary_book_warehouse,
+  _xlpm.y, MetaBaseYear,
+  _xlpm.data, FILTER(tbl_salary_book_yearly, tbl_salary_book_yearly[salary_year]=_xlpm.y),
   _xlpm.filtered, FILTER(_xlpm.data, [team_code]=_xlpm.team),
-  _xlpm.sorted, SORTBY(_xlpm.filtered, [cap_y0], -1),
+  _xlpm.sorted, SORTBY(_xlpm.filtered, [cap_amount], -1),
   TAKE(_xlpm.sorted, 20)
 )
 ```
@@ -184,7 +185,7 @@ This is complex. May need helper columns or a simpler approach. Open question.
 
 ### Threshold lookup
 ```
-=XLOOKUP(SelectedYear, tbl_system_values[salary_year], tbl_system_values[salary_cap])
+=XLOOKUP(MetaBaseYear, tbl_system_values[salary_year], tbl_system_values[salary_cap_amount])
 ```
 
 ### Reactive total

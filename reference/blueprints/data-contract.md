@@ -1,6 +1,6 @@
 # Data Contract (Postgres → Excel)
 
-**Version:** v2-2026-02-01
+**Version:** v4-2026-02-01
 
 The stable interface between Postgres (`pcms.*`) and the Excel workbook (`DATA_*` sheets).
 
@@ -13,7 +13,7 @@ The stable interface between Postgres (`pcms.*`) and the Excel workbook (`DATA_*
 3. **Amounts in dollars** — Integer dollars. Excel formats for display.
 4. **Keys over names** — All joins via stable keys (`player_id`, `team_code`, `salary_year`).
 5. **6-year horizon** — `base_year` through `base_year + 5`.
-6. **Relative-year columns** — `cap_y0..cap_y5` instead of `cap_2025..cap_2030`.
+6. **Mirror Postgres column names** — no renames/aliases (e.g. `cap_2025`, not `cap_y0`).
 
 ---
 
@@ -54,13 +54,18 @@ The authoritative totals. UI totals must match or reconcile to this.
 
 **Source:** `pcms.salary_book_warehouse`
 
-Player roster with multi-year salaries in relative columns.
+Player roster with multi-year salaries in explicit year columns.
 
-**Key columns:**
+This sheet/table is intentionally a near 1:1 mirror of Postgres:
+- No renamed columns (no `cap_y0`, etc)
+- Year columns stay as `cap_2025`, `cap_2026`, … (whatever exists in the warehouse)
+
+**Key columns (examples):**
 - `player_id`, `player_name`, `team_code`
-- `cap_y0..cap_y5`, `tax_y0..tax_y5`, `apron_y0..apron_y5`
+- `cap_2025..cap_2030`, `tax_2025..tax_2030`, `apron_2025..apron_2030`
 - `is_two_way`
-- Option/guarantee metadata (optional)
+
+For year-aware calculations in the UI, prefer the tall table: `tbl_salary_book_yearly`.
 
 ### tbl_system_values
 
@@ -98,7 +103,7 @@ Every workbook includes build metadata:
 - `refreshed_at` — Build timestamp
 - `base_year` — Starting year (e.g., 2025)
 - `as_of_date` — Snapshot date
-- `git_sha` — Exporter commit hash
+- `exporter_git_sha` — Exporter commit hash
 - `validation_status` — PASS or FAILED
 - `data_contract_version` — This contract version
 

@@ -15,7 +15,7 @@ Usage:
 Design reference:
     reference/blueprints/README.md
     reference/blueprints/excel-cap-book-blueprint.md
-    reference/blueprints/excel-workbook-data-contract.md
+    reference/blueprints/data-contract.md
 """
 
 import argparse

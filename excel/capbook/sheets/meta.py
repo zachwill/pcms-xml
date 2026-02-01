@@ -16,7 +16,7 @@ Fields:
 
 If validation fails, a prominent "FAILED" banner is displayed.
 
-Named ranges (defined via define_meta_named_ranges in command_bar.py):
+Named ranges (defined in excel/capbook/build.py):
 - MetaValidationStatus: validation_status cell
 - MetaRefreshedAt: refreshed_at cell
 - MetaBaseYear: base_year cell
@@ -39,7 +39,7 @@ COL_VALUE3 = 3
 BANNER_START_ROW = 0
 
 # Fields start after banner (row 0) + blank row (row 1)
-# Named ranges are defined at these positions by command_bar.define_meta_named_ranges()
+# Named ranges are defined at these positions by excel/capbook/build.py (workbook.define_name).
 # Order is important - these must match the named range definitions!
 ROW_VALIDATION_STATUS = 2  # MetaValidationStatus
 ROW_REFRESHED_AT = 3       # MetaRefreshedAt
@@ -101,7 +101,7 @@ def write_meta_sheet(
 
     # === Metadata fields ===
     # These are written at fixed row positions to match named range definitions
-    # in command_bar.define_meta_named_ranges().
+    # in excel/capbook/build.py (workbook.define_name).
     # Order: validation_status, refreshed_at, base_year, as_of_date, data_contract_version
     
     # ROW_VALIDATION_STATUS (2) - MetaValidationStatus

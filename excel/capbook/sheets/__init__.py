@@ -2,105 +2,13 @@
 Sheet writer modules for the Excel cap workbook.
 
 Each sheet writer follows the pattern:
-    write_<sheet_name>(worksheet, formats, build_meta, ...)
-    
-For sheets with shared command bar (most UI sheets):
     write_<sheet_name>(workbook, worksheet, formats, ...)
 """
 
-from .audit import write_audit_and_reconcile
-from .budget_ledger import write_budget_ledger
-from .cockpit import (
-    write_team_cockpit_with_command_bar,
-    get_command_bar_cell_refs,
-)
-from .command_bar import (
-    write_command_bar_editable,
-    write_command_bar_readonly,
-    define_meta_named_ranges,
-    get_content_start_row,
-    get_command_bar_height,
-    NAMED_RANGES,
-    COCKPIT_SHEET_NAME,
-)
-from .home import write_home_sheet
 from .meta import write_meta_sheet
-from .plan import (
-    write_plan_manager,
-    write_plan_journal,
-    get_plan_manager_table_ref,
-    ACTION_TYPES,
-)
-from .roster_grid import write_roster_grid
-from .subsystems import (
-    write_trade_machine,
-    write_signings_and_exceptions,
-    write_waive_buyout_stretch,
-    write_assets,
-)
-from .rules_reference import write_rules_reference
-from .ui_stubs import (
-    UI_STUB_WRITERS,
-    write_home_stub,
-    write_team_cockpit_stub,
-    write_roster_grid_stub,
-    write_budget_ledger_stub,
-    write_plan_manager_stub,
-    write_plan_journal_stub,
-    write_trade_machine_stub,
-    write_signings_stub,
-    write_waive_buyout_stub,
-    write_assets_stub,
-    write_audit_stub,
-    write_rules_reference_stub,
-)
+from .playground import write_playground_sheet
 
 __all__ = [
-    # Audit
-    "write_audit_and_reconcile",
-    # Budget ledger
-    "write_budget_ledger",
-    # Cockpit
-    "write_team_cockpit_with_command_bar",
-    "get_command_bar_cell_refs",
-    # Command bar (shared)
-    "write_command_bar_editable",
-    "write_command_bar_readonly",
-    "define_meta_named_ranges",
-    "get_content_start_row",
-    "get_command_bar_height",
-    "NAMED_RANGES",
-    "COCKPIT_SHEET_NAME",
-    # Home
-    "write_home_sheet",
-    # Meta
     "write_meta_sheet",
-    # Plan
-    "write_plan_manager",
-    "write_plan_journal",
-    "get_plan_manager_table_ref",
-    "ACTION_TYPES",
-    # Roster grid
-    "write_roster_grid",
-    # Subsystems
-    "write_trade_machine",
-    "write_signings_and_exceptions",
-    "write_waive_buyout_stretch",
-    "write_assets",
-    # Rules reference
-    "write_rules_reference",
-    # UI stubs (kept for backwards compatibility)
-    "UI_STUB_WRITERS",
-    "write_home_stub",
-    "write_team_cockpit_stub",
-    "write_roster_grid_stub",
-    "write_budget_ledger_stub",
-    "write_plan_manager_stub",
-    "write_plan_journal_stub",
-    "write_trade_machine_stub",
-    "write_signings_stub",
-    "write_waive_buyout_stub",
-    "write_assets_stub",
-    "write_audit_stub",
-    "write_rules_reference_stub",
+    "write_playground_sheet",
 ]
