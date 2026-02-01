@@ -1,4 +1,4 @@
-# Excel Cap Workbook — Supervisor Backlog
+# Excel Cap Workbook - Supervisor Backlog
 
 Build a new, self-contained Sean-style Excel cap workbook **generated from code** (Python + XlsxWriter) and powered by Postgres (`pcms.*`).
 
@@ -43,8 +43,8 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - Ensure section subtotals reconcile (to `tbl_team_salary_warehouse` buckets)
 
 ### 8) ROSTER_GRID: EXISTS_ONLY section using LET/BYROW or MAP
-- [ ] Replace remaining custom aggregation logic with spill formulas
-  - Compute per-player “future total” (SelectedYear=0 but future > 0)
+- [x] Replace remaining custom aggregation logic with spill formulas
+  - Compute per-player "future total" (SelectedYear=0 but future > 0)
   - Respect `ShowExistsOnlyRows` toggle
   - Keep Ct$=N, CtR=N (never counted)
 
@@ -67,7 +67,7 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - Fail loudly: any non-zero reconciliation delta must remain visually loud
 
 ### 12) TEAM_COCKPIT: Quick Drivers via FILTER/SORTBY/TAKE
-- [ ] Replace AGGREGATE/MATCH “top N” extraction with spill formulas
+- [ ] Replace AGGREGATE/MATCH "top N" extraction with spill formulas
   - Build Top Cap Hits / Top Holds / Top Dead Money as dynamic arrays
   - Avoid helper columns that are easy to overwrite
   - Preserve existing formatting + conditional formatting semantics
