@@ -490,6 +490,24 @@ def roster_derived_formula(column: str, transform: str, take_n: int = 40) -> str
     return f"=LET({_RES},{inner},{transformed})"
 
 
+def twoway_derived_formula(column: str, transform: str, take_n: int = 10) -> str:
+    """Return formula for a derived two-way column."""
+    _RES = _xlpm("res")
+    inner = f"FilterSortTake({column},SalaryBookModeAmt(),SalaryBookTwoWayFilter(),{take_n})"
+    transformed = transform.replace("{result}", _RES)
+    return f"=LET({_RES},{inner},{transformed})"
+
+
+def twoway_salary_formula(yi: int, take_n: int = 10) -> str:
+    """Return mode-aware salary column formula for two-way players."""
+    inner = (
+        f'IF(SelectedMode="Cap",tbl_salary_book_warehouse[cap_y{yi}],'
+        f'IF(SelectedMode="Tax",tbl_salary_book_warehouse[tax_y{yi}],'
+        f'tbl_salary_book_warehouse[apron_y{yi}]))'
+    )
+    return f"=FilterSortTake({inner},SalaryBookModeAmt(),SalaryBookTwoWayFilter(),{take_n})"
+
+
 def SalaryBookYearCol(col_prefix: str) -> str:
     """Return CHOOSE formula for a set of yearly columns."""
     cols = ",".join(f"tbl_salary_book_warehouse[{col_prefix}_y{i}]" for i in range(6))

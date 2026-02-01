@@ -5,13 +5,17 @@ from typing import Any
 from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
+from ...named_formulas import (
+    twoway_col_formula,
+    twoway_derived_formula,
+    twoway_salary_formula,
+)
 from .helpers import (
     COL_BUCKET, COL_COUNTS_TOTAL, COL_COUNTS_ROSTER, COL_NAME,
     COL_OPTION, COL_GUARANTEE, COL_TRADE, COL_MIN_LABEL,
     COL_CAP_Y0, COL_PCT_CAP,
     num_twoway_rows,
     _mode_year_label, _write_column_headers,
-    twoway_let_prefix,
     _salary_book_sumproduct, _salary_book_countproduct
 )
 
@@ -50,51 +54,30 @@ def _write_twoway_section(
     # -------------------------------------------------------------------------
     # Player Name column
     # -------------------------------------------------------------------------
-    name_formula = (
-        "=LET("
-        + twoway_let_prefix()
-        + "_xlpm.filtered,FILTER(tbl_salary_book_warehouse[player_name],_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + "IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_twoway_rows) + "),\"\"))"
-    )
+    name_formula = twoway_col_formula("tbl_salary_book_warehouse[player_name]", num_twoway_rows)
     worksheet.write_formula(row, COL_NAME, name_formula)
 
     # -------------------------------------------------------------------------
     # Bucket column (2WAY for non-empty)
     # -------------------------------------------------------------------------
-    bucket_formula = (
-        "=LET("
-        + twoway_let_prefix()
-        + "_xlpm.filtered,FILTER(tbl_salary_book_warehouse[player_name],_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + "_xlpm.names,IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_twoway_rows) + "),\"\"),"
-        + 'IF(_xlpm.names<>"","2WAY",""))'
+    bucket_formula = twoway_derived_formula(
+        "tbl_salary_book_warehouse[player_name]", 'IF({result}<>"","2WAY","")', num_twoway_rows
     )
     worksheet.write_formula(row, COL_BUCKET, bucket_formula, roster_formats["bucket_2way"])
 
     # -------------------------------------------------------------------------
     # CountsTowardTotal (Y for 2WAY)
     # -------------------------------------------------------------------------
-    ct_total_formula = (
-        "=LET("
-        + twoway_let_prefix()
-        + "_xlpm.filtered,FILTER(tbl_salary_book_warehouse[player_name],_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + "_xlpm.names,IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_twoway_rows) + "),\"\"),"
-        + 'IF(_xlpm.names<>"","Y",""))'
+    ct_total_formula = twoway_derived_formula(
+        "tbl_salary_book_warehouse[player_name]", 'IF({result}<>"","Y","")', num_twoway_rows
     )
     worksheet.write_formula(row, COL_COUNTS_TOTAL, ct_total_formula, roster_formats["counts_yes"])
 
     # -------------------------------------------------------------------------
     # CountsTowardRoster (N for 2WAY)
     # -------------------------------------------------------------------------
-    ct_roster_formula = (
-        "=LET("
-        + twoway_let_prefix()
-        + "_xlpm.filtered,FILTER(tbl_salary_book_warehouse[player_name],_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + "_xlpm.names,IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_twoway_rows) + "),\"\"),"
-        + 'IF(_xlpm.names<>"","N",""))'
+    ct_roster_formula = twoway_derived_formula(
+        "tbl_salary_book_warehouse[player_name]", 'IF({result}<>"","N","")', num_twoway_rows
     )
     worksheet.write_formula(row, COL_COUNTS_ROSTER, ct_roster_formula, roster_formats["counts_no"])
 
@@ -102,16 +85,7 @@ def _write_twoway_section(
     # Salary columns
     # -------------------------------------------------------------------------
     for yi in range(6):
-        sal_formula = (
-            "=LET("
-            + twoway_let_prefix()
-            + f'_xlpm.year_col,IF(SelectedMode="Cap",tbl_salary_book_warehouse[cap_y{yi}],'
-            + f'IF(SelectedMode="Tax",tbl_salary_book_warehouse[tax_y{yi}],'
-            + f"tbl_salary_book_warehouse[apron_y{yi}])),"
-            + "_xlpm.filtered,FILTER(_xlpm.year_col,_xlpm.filter_cond,\"\"),"
-            + "_xlpm.sorted_filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-            + "IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_filtered,-1)," + str(num_twoway_rows) + "),\"\"))"
-        )
+        sal_formula = twoway_salary_formula(yi, num_twoway_rows)
         worksheet.write_formula(row, COL_CAP_Y0 + yi, sal_formula, roster_formats["money"])
 
     # Move past spill zone

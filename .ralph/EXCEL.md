@@ -94,7 +94,7 @@ Add specialized helpers to reduce inline formula duplication in roster sections.
 Replace inline LET formulas with helper functions from `named_formulas.py`.
 
 - [x] Migrate `_write_roster_section()` — ~15 column formulas → helper calls
-- [ ] Migrate `_write_twoway_section()` — ~10 column formulas → helper calls
+- [x] Migrate `_write_twoway_section()` — ~10 column formulas → helper calls
 - [ ] Migrate `_write_cap_holds_section()` — ~10 column formulas → helper calls
 - [ ] Migrate `_write_dead_money_section()` — ~10 column formulas → helper calls
 - [ ] Migrate `_write_exists_only_section()` — ~8 column formulas → helper calls
