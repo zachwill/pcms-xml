@@ -144,7 +144,7 @@ def extract_tax_rates(
             ROW_NUMBER() OVER (
                 PARTITION BY league_lk, salary_year
                 ORDER BY lower_limit
-            ) AS bracket_number,
+            ) AS ui_bracket_number,
             lower_limit,
             upper_limit,
             tax_rate_non_repeater,

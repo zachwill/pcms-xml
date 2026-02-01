@@ -14,6 +14,7 @@ The stable interface between Postgres (`pcms.*`) and the Excel workbook (`DATA_*
 4. **Keys over names** — All joins via stable keys (`player_id`, `team_code`, `salary_year`).
 5. **6-year horizon** — `base_year` through `base_year + 5`.
 6. **Mirror Postgres column names** — no renames/aliases (e.g. `cap_2025`, not `cap_y0`).
+7. **UI-friendly derived columns are allowed** — but must be explicitly labeled with a `ui_` prefix (e.g. `ui_bracket_number`).
 
 ---
 

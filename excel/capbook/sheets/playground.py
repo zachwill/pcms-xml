@@ -384,6 +384,12 @@ _xlpm.base-_xlpm.out-_xlpm.waived+_xlpm.in+_xlpm.signed
         "format": fmt_delta_negative,
     })
     
+    # Cap Level - salary cap threshold
+    worksheet.write(TOTALS_START + 5, 4, "Cap Level", fmt_totals_label)  # E26
+    cap_level_formula = '=XLOOKUP(MetaBaseYear,tbl_system_values[salary_year],tbl_system_values[salary_cap_amount])'
+    worksheet.write_formula(TOTALS_START + 5, 5, cap_level_formula, fmt_totals_value)  # F26
+    workbook.define_name("CapLevel", "=PLAYGROUND!$F$26")
+    
     # -------------------------------------------------------------------------
     # KPIs - in left panel below trade math (rows 28-30)
     # Uses ModifiedSalary (F22) for scenario-adjusted comparisons
