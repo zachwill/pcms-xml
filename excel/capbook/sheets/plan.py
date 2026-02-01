@@ -21,6 +21,12 @@ Design notes:
 - The tables must be actual Excel Tables for formula references
 - The running-state panel is positioned to the right of the journal table
 
+**Excel 365/2021 Required (Modern Formulas):**
+- Running-state panel uses LET + FILTER + SUM instead of SUMPRODUCT
+- Cumulative totals use SCAN for efficient running sums (single spilling formula)
+- Leverages PlanRowMask LAMBDA for consistent filtering across the workbook
+- See .ralph/EXCEL.md backlog item #4 for migration rationale
+
 Named table conventions:
 - tbl_plan_manager: Plan definitions (user-editable)
 - tbl_plan_journal: Ordered actions (user-editable)
@@ -1170,6 +1176,12 @@ def _write_running_state_panel(
     1. SUMMARY BOX: Total deltas (cap/tax/apron) + action count for ActivePlan + SelectedYear
     2. CUMULATIVE RUNNING TOTALS: Step-by-step running totals aligned with journal rows
     
+    **Modern Formula Implementation (Excel 365/2021 required):**
+    - Uses LET + FILTER + SUM instead of SUMPRODUCT for totals
+    - Uses SCAN for cumulative running totals instead of per-row SUMPRODUCT
+    - Leverages PlanRowMask named formula for consistent filtering
+    - Handles blank salary_year as "applies to SelectedYear"
+    
     Args:
         workbook: The XlsxWriter Workbook
         worksheet: The PLAN_JOURNAL worksheet
@@ -1210,18 +1222,23 @@ def _write_running_state_panel(
     row += 1  # Blank row
     
     # -------------------------------------------------------------------------
-    # Action Count: SUMPRODUCT to count matching rows
+    # Action Count: LET + SUM + FILTER (modern formula)
     # Matches if: (plan_id = ActivePlanId OR plan_id is blank) AND 
     #             (salary_year = SelectedYear OR salary_year is blank) AND
     #             (enabled = "Yes")
+    #
+    # Modern approach: Use PlanRowMask LAMBDA for the mask, then SUM the boolean result
+    # PlanRowMask already returns 1 for matching rows, so SUM counts them.
+    # Wrapped in IFNA to handle empty table gracefully (returns 0).
     # -------------------------------------------------------------------------
     worksheet.write(row, PJ_RUNNING_COL_LABEL, "Actions (Enabled):", plan_formats["panel_label"])
     action_count_formula = (
-        '=SUMPRODUCT('
-        '((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))>0,'
-        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))>0,'
-        '(tbl_plan_journal[enabled]="Yes")*1'
-        ')'
+        '=IFNA('
+        'SUM(--PlanRowMask('
+        'tbl_plan_journal[plan_id],'
+        'tbl_plan_journal[salary_year],'
+        'tbl_plan_journal[enabled]'
+        ')),0)'
     )
     worksheet.write_formula(row, PJ_RUNNING_COL_VALUE, action_count_formula, plan_formats["panel_value"])
     row += 1
@@ -1229,22 +1246,26 @@ def _write_running_state_panel(
     row += 1  # Blank row
     
     # -------------------------------------------------------------------------
-    # Total Deltas: SUMIFS for cap/tax/apron
+    # Total Deltas: LET + SUM + FILTER (modern formula)
+    #
+    # Uses LET to define the mask once, then filters delta columns.
+    # SUM(FILTER(delta_col, mask, 0)) is cleaner than SUMPRODUCT.
+    # The 0 in FILTER handles empty results (no matching rows).
     # -------------------------------------------------------------------------
     worksheet.write(row, PJ_RUNNING_COL_LABEL, "TOTAL DELTAS", plan_formats["panel_subheader"])
     worksheet.write(row, PJ_RUNNING_COL_VALUE, "", plan_formats["panel_subheader"])
     row += 1
     
     # Delta Cap Total
-    # SUMPRODUCT with multiple conditions
+    # LET defines the mask once, then SUM(FILTER(...)) extracts matching deltas
     worksheet.write(row, PJ_RUNNING_COL_LABEL, "Δ Cap Total:", plan_formats["panel_label"])
     delta_cap_formula = (
-        '=SUMPRODUCT('
-        '((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))>0,'
-        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))>0,'
-        '(tbl_plan_journal[enabled]="Yes")*1,'
-        'tbl_plan_journal[delta_cap]'
-        ')'
+        '=LET('
+        'mask,PlanRowMask('
+        'tbl_plan_journal[plan_id],'
+        'tbl_plan_journal[salary_year],'
+        'tbl_plan_journal[enabled]),'
+        'SUM(FILTER(tbl_plan_journal[delta_cap],mask,0)))'
     )
     worksheet.write_formula(row, PJ_RUNNING_COL_VALUE, delta_cap_formula, plan_formats["panel_value_money"])
     row += 1
@@ -1252,12 +1273,12 @@ def _write_running_state_panel(
     # Delta Tax Total
     worksheet.write(row, PJ_RUNNING_COL_LABEL, "Δ Tax Total:", plan_formats["panel_label"])
     delta_tax_formula = (
-        '=SUMPRODUCT('
-        '((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))>0,'
-        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))>0,'
-        '(tbl_plan_journal[enabled]="Yes")*1,'
-        'tbl_plan_journal[delta_tax]'
-        ')'
+        '=LET('
+        'mask,PlanRowMask('
+        'tbl_plan_journal[plan_id],'
+        'tbl_plan_journal[salary_year],'
+        'tbl_plan_journal[enabled]),'
+        'SUM(FILTER(tbl_plan_journal[delta_tax],mask,0)))'
     )
     worksheet.write_formula(row, PJ_RUNNING_COL_VALUE, delta_tax_formula, plan_formats["panel_value_money"])
     row += 1
@@ -1265,12 +1286,12 @@ def _write_running_state_panel(
     # Delta Apron Total
     worksheet.write(row, PJ_RUNNING_COL_LABEL, "Δ Apron Total:", plan_formats["panel_label"])
     delta_apron_formula = (
-        '=SUMPRODUCT('
-        '((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))>0,'
-        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))>0,'
-        '(tbl_plan_journal[enabled]="Yes")*1,'
-        'tbl_plan_journal[delta_apron]'
-        ')'
+        '=LET('
+        'mask,PlanRowMask('
+        'tbl_plan_journal[plan_id],'
+        'tbl_plan_journal[salary_year],'
+        'tbl_plan_journal[enabled]),'
+        'SUM(FILTER(tbl_plan_journal[delta_apron],mask,0)))'
     )
     worksheet.write_formula(row, PJ_RUNNING_COL_VALUE, delta_apron_formula, plan_formats["panel_value_money"])
     row += 1
@@ -1278,12 +1299,34 @@ def _write_running_state_panel(
     row += 2  # Blank rows before cumulative section
     
     # -------------------------------------------------------------------------
-    # CUMULATIVE RUNNING TOTALS BY STEP
+    # CUMULATIVE RUNNING TOTALS BY STEP (using SCAN)
     # -------------------------------------------------------------------------
     # This section shows running cumulative totals aligned with each journal row.
     # Positioned starting at the same row as the journal table header + 1.
     # 
     # Columns: Step | Cumul Cap | Cumul Tax | Cumul Apron
+    #
+    # **Modern Implementation (Excel 365/2021):**
+    # Instead of writing N separate SUMPRODUCT formulas (one per row, each
+    # scanning the entire table), we use SCAN to compute running totals once.
+    #
+    # SCAN builds an array of cumulative sums in a single formula.
+    # We filter the delta array by PlanRowMask (with step <= current step),
+    # then SCAN accumulates.
+    #
+    # However, SCAN processes array elements sequentially, so we need to:
+    # 1. Create an array of deltas masked by PlanRowMask (0 for non-matching rows)
+    # 2. Use SCAN to compute running sums
+    #
+    # Formula pattern:
+    #   =LET(
+    #     mask, PlanRowMask(plan_ids, years, enabled),
+    #     deltas, IF(mask, delta_col, 0),
+    #     SCAN(0, deltas, LAMBDA(acc, val, acc + val))
+    #   )
+    #
+    # This spills down into the cumulative column, one value per journal row.
+    # The SCAN output aligns with the journal table rows.
     # -------------------------------------------------------------------------
     
     cumul_header_row = table_start_row  # Same as journal table header
@@ -1304,66 +1347,77 @@ def _write_running_state_panel(
     worksheet.write(cumul_header_row, cumul_col_tax, "Cumul Δ Tax", plan_formats["panel_subheader"])
     worksheet.write(cumul_header_row, cumul_col_apron, "Cumul Δ Apron", plan_formats["panel_subheader"])
     
-    # Data rows: one per journal row
-    # Each cumulative cell sums all enabled rows UP TO AND INCLUDING the current step
-    # that match ActivePlan + SelectedYear context.
-    # 
-    # Formula pattern (for row N, step column is A, which is 1-indexed):
-    # =SUMPRODUCT(
-    #   (tbl_plan_journal[step]<={step})>0,
-    #   ((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))>0,
-    #   ((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))>0,
-    #   (tbl_plan_journal[enabled]="Yes")*1,
-    #   tbl_plan_journal[delta_cap]
-    # )
+    # -------------------------------------------------------------------------
+    # Cumulative formulas using SCAN (single spilling formula per column)
+    # -------------------------------------------------------------------------
+    # Write one SCAN formula at the first data row of each column.
+    # The formula spills down to fill all rows automatically.
+    #
+    # Step column: Just reference the journal step column (spills automatically)
+    # Cumul columns: Use LET + SCAN to compute running totals
+    # -------------------------------------------------------------------------
     
-    for i in range(num_data_rows):
-        data_row = cumul_header_row + 1 + i
-        step_num = i + 1
-        
-        # Step number (reference to journal table step column)
-        step_cell = f"$A{table_start_row + 2 + i}"  # 1-indexed, +2 for header row
-        worksheet.write_formula(
-            data_row, cumul_col_step,
-            f"={step_cell}",
-            plan_formats["panel_value"],
-        )
-        
-        # Cumulative Cap
-        cumul_cap_formula = (
-            f'=SUMPRODUCT('
-            f'(tbl_plan_journal[step]<={step_num})*1,'
-            f'((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))>0,'
-            f'((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))>0,'
-            f'(tbl_plan_journal[enabled]="Yes")*1,'
-            f'tbl_plan_journal[delta_cap]'
-            f')'
-        )
-        worksheet.write_formula(data_row, cumul_col_cap, cumul_cap_formula, plan_formats["panel_value_money"])
-        
-        # Cumulative Tax
-        cumul_tax_formula = (
-            f'=SUMPRODUCT('
-            f'(tbl_plan_journal[step]<={step_num})*1,'
-            f'((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))>0,'
-            f'((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))>0,'
-            f'(tbl_plan_journal[enabled]="Yes")*1,'
-            f'tbl_plan_journal[delta_tax]'
-            f')'
-        )
-        worksheet.write_formula(data_row, cumul_col_tax, cumul_tax_formula, plan_formats["panel_value_money"])
-        
-        # Cumulative Apron
-        cumul_apron_formula = (
-            f'=SUMPRODUCT('
-            f'(tbl_plan_journal[step]<={step_num})*1,'
-            f'((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))>0,'
-            f'((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))>0,'
-            f'(tbl_plan_journal[enabled]="Yes")*1,'
-            f'tbl_plan_journal[delta_apron]'
-            f')'
-        )
-        worksheet.write_formula(data_row, cumul_col_apron, cumul_apron_formula, plan_formats["panel_value_money"])
+    cumul_first_data_row = cumul_header_row + 1
+    
+    # Step column: reference the step column from the journal table
+    # This spills to match the table size
+    step_formula = "=tbl_plan_journal[step]"
+    worksheet.write_formula(
+        cumul_first_data_row, cumul_col_step,
+        step_formula,
+        plan_formats["panel_value"],
+    )
+    
+    # Cumulative Cap: LET + SCAN
+    # 1. mask = PlanRowMask(...) → TRUE/FALSE for each row
+    # 2. masked_deltas = IF(mask, delta_cap, 0) → 0 for non-matching rows
+    # 3. SCAN(0, masked_deltas, LAMBDA(acc, val, acc + val)) → running sum
+    cumul_cap_formula = (
+        '=LET('
+        'mask,PlanRowMask('
+        'tbl_plan_journal[plan_id],'
+        'tbl_plan_journal[salary_year],'
+        'tbl_plan_journal[enabled]),'
+        'masked_deltas,IF(mask,tbl_plan_journal[delta_cap],0),'
+        'SCAN(0,masked_deltas,LAMBDA(acc,val,acc+val)))'
+    )
+    worksheet.write_formula(
+        cumul_first_data_row, cumul_col_cap,
+        cumul_cap_formula,
+        plan_formats["panel_value_money"],
+    )
+    
+    # Cumulative Tax: same pattern
+    cumul_tax_formula = (
+        '=LET('
+        'mask,PlanRowMask('
+        'tbl_plan_journal[plan_id],'
+        'tbl_plan_journal[salary_year],'
+        'tbl_plan_journal[enabled]),'
+        'masked_deltas,IF(mask,tbl_plan_journal[delta_tax],0),'
+        'SCAN(0,masked_deltas,LAMBDA(acc,val,acc+val)))'
+    )
+    worksheet.write_formula(
+        cumul_first_data_row, cumul_col_tax,
+        cumul_tax_formula,
+        plan_formats["panel_value_money"],
+    )
+    
+    # Cumulative Apron: same pattern
+    cumul_apron_formula = (
+        '=LET('
+        'mask,PlanRowMask('
+        'tbl_plan_journal[plan_id],'
+        'tbl_plan_journal[salary_year],'
+        'tbl_plan_journal[enabled]),'
+        'masked_deltas,IF(mask,tbl_plan_journal[delta_apron],0),'
+        'SCAN(0,masked_deltas,LAMBDA(acc,val,acc+val)))'
+    )
+    worksheet.write_formula(
+        cumul_first_data_row, cumul_col_apron,
+        cumul_apron_formula,
+        plan_formats["panel_value_money"],
+    )
 
 
 # =============================================================================

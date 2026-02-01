@@ -54,10 +54,13 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - Wrap with `IFNA` for clean blanks (not needed — XLOOKUP handles natively)
 
 ### 4) PLAN_JOURNAL: totals + running state via LET/FILTER/SCAN
-- [ ] Replace `SUMPRODUCT` panels with modern formulas
-  - Keep "blank salary_year = SelectedYear" logic in mask
-  - Use `SCAN` (or `BYROW`) for cumulative totals
-  - Ensure conditional formatting still matches ActivePlan/SelectedYear
+- [x] Replace `SUMPRODUCT` panels with modern formulas
+  - Uses PlanRowMask LAMBDA helper for consistent filtering
+  - Action count: `SUM(--PlanRowMask(...))` instead of SUMPRODUCT
+  - Total deltas: `LET(mask,...,SUM(FILTER(delta_col,mask,0)))` instead of SUMPRODUCT
+  - Cumulative totals: `SCAN(0,masked_deltas,LAMBDA(acc,val,acc+val))` — single spilling formula per column instead of N separate SUMPRODUCT formulas
+  - Kept "blank salary_year = SelectedYear" logic in PlanRowMask
+  - Conditional formatting unchanged (still uses ActivePlanId/SelectedYear refs)
 
 ### 5) BUDGET_LEDGER: plan deltas via LET/FILTER
 - [ ] Replace legacy SUMPRODUCT/SUMIFS blocks with LET + FILTER
