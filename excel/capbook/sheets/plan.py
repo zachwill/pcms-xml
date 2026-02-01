@@ -81,16 +81,17 @@ PM_COL_IS_ACTIVE = 4  # Helper for filtering
 PJ_COL_STEP = 0
 PJ_COL_PLAN_ID = 1
 PJ_COL_ENABLED = 2
-PJ_COL_EFFECTIVE_DATE = 3
-PJ_COL_ACTION_TYPE = 4
-PJ_COL_TARGET_PLAYER = 5
-PJ_COL_TARGET_TEAM = 6
-PJ_COL_NOTES = 7
-PJ_COL_DELTA_CAP = 8
-PJ_COL_DELTA_TAX = 9
-PJ_COL_DELTA_APRON = 10
-PJ_COL_VALIDATION = 11
-PJ_COL_SOURCE = 12
+PJ_COL_SALARY_YEAR = 3  # NEW: which salary year the delta applies to
+PJ_COL_EFFECTIVE_DATE = 4
+PJ_COL_ACTION_TYPE = 5
+PJ_COL_TARGET_PLAYER = 6
+PJ_COL_TARGET_TEAM = 7
+PJ_COL_NOTES = 8
+PJ_COL_DELTA_CAP = 9
+PJ_COL_DELTA_TAX = 10
+PJ_COL_DELTA_APRON = 11
+PJ_COL_VALIDATION = 12
+PJ_COL_SOURCE = 13
 
 
 # =============================================================================
@@ -384,6 +385,7 @@ def write_plan_journal(
     worksheet.set_column(PJ_COL_STEP, PJ_COL_STEP, 6)
     worksheet.set_column(PJ_COL_PLAN_ID, PJ_COL_PLAN_ID, 8)
     worksheet.set_column(PJ_COL_ENABLED, PJ_COL_ENABLED, 9)
+    worksheet.set_column(PJ_COL_SALARY_YEAR, PJ_COL_SALARY_YEAR, 11)
     worksheet.set_column(PJ_COL_EFFECTIVE_DATE, PJ_COL_EFFECTIVE_DATE, 14)
     worksheet.set_column(PJ_COL_ACTION_TYPE, PJ_COL_ACTION_TYPE, 16)
     worksheet.set_column(PJ_COL_TARGET_PLAYER, PJ_COL_TARGET_PLAYER, 20)
@@ -409,17 +411,18 @@ def write_plan_journal(
     # Instructions
     worksheet.write(
         content_row, PJ_COL_STEP,
-        "Enter actions in order. Filter by plan_id to see actions for a specific plan. "
+        "Enter actions in order. Each action has a salary_year (defaults to SelectedYear). "
         "Delta columns show cap/tax/apron effect (positive = cost increase, negative = savings).",
         plan_formats["note"],
     )
     content_row += 2
     
-    # Define table columns
+    # Define table columns (now includes salary_year)
     columns = [
         "step",
         "plan_id",
         "enabled",
+        "salary_year",  # NEW: which year the delta applies to
         "effective_date",
         "action_type",
         "target_player",
@@ -433,6 +436,8 @@ def write_plan_journal(
     ]
     
     # Initial empty rows for user input
+    # salary_year defaults to "" which means the BUDGET_LEDGER formulas will filter by SelectedYear
+    # Users can override to apply deltas to different years (e.g., multi-year contracts)
     num_empty_rows = 20
     initial_data = []
     for i in range(num_empty_rows):
@@ -440,6 +445,7 @@ def write_plan_journal(
             "step": i + 1,
             "plan_id": "",
             "enabled": "",
+            "salary_year": "",  # Blank defaults to SelectedYear in formulas
             "effective_date": "",
             "action_type": "",
             "target_player": "",
@@ -468,6 +474,7 @@ def write_plan_journal(
         {"header": "step", "format": formats["input_int"]},
         {"header": "plan_id", "format": formats["input_int"]},
         {"header": "enabled", "format": formats["input"]},
+        {"header": "salary_year", "format": formats["input_int"]},  # NEW: year context
         {"header": "effective_date", "format": formats["input_date"]},
         {"header": "action_type", "format": formats["input"]},
         {"header": "target_player", "format": formats["input"]},
@@ -504,6 +511,25 @@ def write_plan_journal(
             "source": ["Yes", "No", ""],
             "input_title": "Enabled?",
             "input_message": "Is this action enabled?",
+        },
+    )
+    
+    # Data validation: salary_year column
+    # Allow blank (defaults to SelectedYear) or valid years (base_year through base_year+5)
+    # Since we don't know base_year at generation time, use a reasonable range
+    worksheet.data_validation(
+        table_start_row + 1,
+        PJ_COL_SALARY_YEAR,
+        table_end_row,
+        PJ_COL_SALARY_YEAR,
+        {
+            "validate": "integer",
+            "criteria": "between",
+            "minimum": 2024,
+            "maximum": 2035,
+            "ignore_blank": True,
+            "input_title": "Salary Year",
+            "input_message": "Which year does this delta apply to? Leave blank for SelectedYear.",
         },
     )
     
@@ -604,7 +630,9 @@ def write_plan_journal(
         "• Each row is one action in the plan",
         "• Use plan_id to associate actions with plans from PLAN_MANAGER",
         "• Set enabled='Yes' to include action in plan calculations",
+        "• salary_year: which year this delta applies to (leave blank for SelectedYear)",
         "• Delta columns: + = cost increase, - = savings",
+        "• BUDGET_LEDGER aggregates deltas filtered by ActivePlan AND SelectedYear",
         "• Subsystem sheets (TRADE_MACHINE, etc.) will 'publish' rows here",
     ]
     for note in notes:

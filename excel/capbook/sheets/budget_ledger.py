@@ -6,7 +6,7 @@ This module implements the "accounting statement" for team salary cap:
 2. Snapshot totals section (from tbl_team_salary_warehouse)
    - Cap/Tax/Apron totals by bucket (ROST, FA, TERM, 2WAY)
    - System thresholds for context
-3. Plan delta section (from tbl_plan_journal, filtered by ActivePlanId)
+3. Plan delta section (from tbl_plan_journal, filtered by ActivePlanId AND SelectedYear)
 4. Policy delta section (generated fill rows and other analyst assumptions)
 5. Derived totals section (snapshot + plan + policy)
 6. Delta vs snapshot verification
@@ -20,7 +20,8 @@ Per the blueprint (excel-cap-book-blueprint.md):
 Design notes:
 - Uses Excel formulas filtered by SelectedTeam + SelectedYear + SelectedMode
 - Mode-aware display (Cap vs Tax vs Apron columns)
-- Plan deltas are aggregated from tbl_plan_journal (enabled rows, filtered by ActivePlanId)
+- Plan deltas are aggregated from tbl_plan_journal (enabled rows, filtered by ActivePlanId + salary_year)
+- Each journal entry has a salary_year column; blank means "use SelectedYear"
 - Policy deltas show generated fill impact with amber styling to indicate assumptions
 """
 
@@ -321,13 +322,15 @@ def _write_plan_delta_section(
 ) -> tuple[int, int]:
     """Write the plan delta section sourced from tbl_plan_journal.
     
-    This section summarizes journal actions for the active plan.
-    It uses SUMIFS to aggregate deltas from enabled journal entries
-    where plan_id matches the ActivePlanId (derived from ActivePlan name).
+    This section summarizes journal actions for the active plan and selected year.
+    It uses SUMPRODUCT to aggregate deltas from enabled journal entries where:
+    - plan_id matches the ActivePlanId (derived from ActivePlan name)
+    - salary_year matches SelectedYear (or is blank, which defaults to SelectedYear)
     
     Fallback behavior:
     - If ActivePlanId is blank/error (e.g., plan not found), deltas are 0
     - The "Baseline" plan has plan_id=1 but no journal entries by default
+    - Blank salary_year is treated as "same as SelectedYear"
     
     Returns (next_row, delta_total_row).
     """
@@ -345,7 +348,7 @@ def _write_plan_delta_section(
     # Note about plan journal sourcing
     worksheet.write(
         row, COL_LABEL,
-        "Journal deltas for ActivePlan (enabled rows only):",
+        "Journal deltas for ActivePlan + SelectedYear (enabled rows only):",
         budget_formats["label_indent"]
     )
     worksheet.write(row, COL_NOTES, "See PLAN_JOURNAL tab for details", budget_formats["note"])
@@ -360,14 +363,22 @@ def _write_plan_delta_section(
         Sum journal deltas for a specific action type, filtered by:
         - enabled = "Yes"
         - plan_id = ActivePlanId
+        - salary_year = SelectedYear (or blank, which defaults to SelectedYear)
         
         Uses IFERROR to gracefully handle blank/missing ActivePlanId.
+        
+        The salary_year filter uses SUMPRODUCT to handle the "blank means SelectedYear" logic:
+        - If salary_year is blank OR equals SelectedYear, include the row.
         """
+        # SUMPRODUCT with multiple conditions to handle blank salary_year as SelectedYear
         return (
-            f'=IFERROR(SUMIFS(tbl_plan_journal[{delta_col}],'
-            f'tbl_plan_journal[enabled],"Yes",'
-            f'tbl_plan_journal[plan_id],ActivePlanId,'
-            f'tbl_plan_journal[action_type],"{action_type}"),0)'
+            f'=IFERROR(SUMPRODUCT('
+            f'(tbl_plan_journal[{delta_col}])*'
+            f'(tbl_plan_journal[enabled]="Yes")*'
+            f'(tbl_plan_journal[plan_id]=ActivePlanId)*'
+            f'(tbl_plan_journal[action_type]="{action_type}")*'
+            f'((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))'
+            f'),0)'
         )
     
     # Action type breakdown with SUMIFS
@@ -401,32 +412,42 @@ def _write_plan_delta_section(
     
     delta_row_end = row - 1  # Last data row
     
-    # Delta total row - sum all enabled journal entries for ActivePlanId
+    # Delta total row - sum all enabled journal entries for ActivePlanId and SelectedYear
     row += 1
     worksheet.write(row, COL_LABEL, "PLAN DELTA TOTAL", budget_formats["label_bold"])
     
-    # Total formula: sum all enabled deltas for ActivePlanId
+    # Total formula: sum all enabled deltas for ActivePlanId and SelectedYear
+    # Uses SUMPRODUCT to handle blank salary_year as "SelectedYear"
     # Uses IFERROR for robustness when ActivePlanId is blank
     total_cap_formula = (
-        '=IFERROR(SUMIFS(tbl_plan_journal[delta_cap],'
-        'tbl_plan_journal[enabled],"Yes",'
-        'tbl_plan_journal[plan_id],ActivePlanId),0)'
+        '=IFERROR(SUMPRODUCT('
+        '(tbl_plan_journal[delta_cap])*'
+        '(tbl_plan_journal[enabled]="Yes")*'
+        '(tbl_plan_journal[plan_id]=ActivePlanId)*'
+        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))'
+        '),0)'
     )
     total_tax_formula = (
-        '=IFERROR(SUMIFS(tbl_plan_journal[delta_tax],'
-        'tbl_plan_journal[enabled],"Yes",'
-        'tbl_plan_journal[plan_id],ActivePlanId),0)'
+        '=IFERROR(SUMPRODUCT('
+        '(tbl_plan_journal[delta_tax])*'
+        '(tbl_plan_journal[enabled]="Yes")*'
+        '(tbl_plan_journal[plan_id]=ActivePlanId)*'
+        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))'
+        '),0)'
     )
     total_apron_formula = (
-        '=IFERROR(SUMIFS(tbl_plan_journal[delta_apron],'
-        'tbl_plan_journal[enabled],"Yes",'
-        'tbl_plan_journal[plan_id],ActivePlanId),0)'
+        '=IFERROR(SUMPRODUCT('
+        '(tbl_plan_journal[delta_apron])*'
+        '(tbl_plan_journal[enabled]="Yes")*'
+        '(tbl_plan_journal[plan_id]=ActivePlanId)*'
+        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))'
+        '),0)'
     )
     
     worksheet.write_formula(row, COL_CAP, total_cap_formula, budget_formats["money_total"])
     worksheet.write_formula(row, COL_TAX, total_tax_formula, budget_formats["money_total"])
     worksheet.write_formula(row, COL_APRON, total_apron_formula, budget_formats["money_total"])
-    worksheet.write(row, COL_NOTES, "Sum of all enabled plan adjustments for ActivePlan", budget_formats["note"])
+    worksheet.write(row, COL_NOTES, "Sum of enabled plan adjustments for ActivePlan + SelectedYear", budget_formats["note"])
     
     delta_total_row = row
     row += 2
@@ -928,7 +949,7 @@ def write_budget_ledger(
     The budget ledger shows:
     - Snapshot totals by bucket from DATA_team_salary_warehouse
     - System thresholds for context
-    - Plan deltas (from tbl_plan_journal, enabled rows filtered by ActivePlanId)
+    - Plan deltas (from tbl_plan_journal, enabled rows filtered by ActivePlanId + SelectedYear)
     - Policy deltas (generated fill rows and other analyst assumptions)
     - Derived totals (snapshot + plan + policy)
     - Room/over analysis for cap/tax/aprons

@@ -41,11 +41,11 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
   - Include top-line readouts (cap/tax/apron room, roster count) from warehouse totals
 
 ### 3) PLAN_JOURNAL: add salary_year context + update plan delta filters
-- [ ] Add salary_year to tbl_plan_journal and filter deltas by SelectedYear
+- [x] Add salary_year to tbl_plan_journal and filter deltas by SelectedYear
   - Update PLAN_JOURNAL table columns + instructions
-  - Default salary_year to SelectedYear via formula
+  - Default salary_year to SelectedYear via formula (blank = SelectedYear)
   - Update BUDGET_LEDGER plan delta SUMIFS to filter salary_year=SelectedYear
-  - Adjust any audit/cockpit references that assume yearless deltas
+  - Adjusted module docstrings and notes to reflect year-aware filtering
 
 ### 4) PLAN_JOURNAL: ActivePlan summary + running totals panel
 - [ ] Add a running-state panel for ActivePlan + SelectedYear
