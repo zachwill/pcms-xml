@@ -238,6 +238,41 @@ The `SIGNINGS_AND_EXCEPTIONS` sheet includes:
 
 6. **Hard-Cap Trigger Notes** — inline reference for which signings trigger hard cap
 
+### TRADE_MACHINE features
+
+The `TRADE_MACHINE` sheet includes:
+
+1. **Lane Layout** — 4 parallel lanes (A/B/C/D) for side-by-side trade comparison:
+   - Each lane is independent with its own team selector
+   - Color-coded headers: Blue (A), Purple (B), Green (C), Orange (D)
+
+2. **Team Selector** — dropdown validated from warehouse:
+   - Dynamic list from `tbl_team_salary_warehouse[team_code]` filtered by SelectedYear
+   - Named range `TradeTeamList` (UNIQUE + SORT formula) for validation source
+   - Named range `TradeLane{A|B|C|D}Team` for each lane's selected team
+
+3. **Lane Status Summary** — shows team's cap position for SelectedYear:
+   - **Cap/Tax/Apron Totals**: pulled from `tbl_team_salary_warehouse` via SUMIFS
+   - **Room (Tax)**: room under tax level
+   - **Room (Apron 1)**: room under first apron
+   - **Is Taxpayer**: Yes/No based on `is_taxpayer` flag
+   - **Repeater**: Yes/No based on `is_repeater_taxpayer` flag
+   - **Apron Level**: lookup value from `apron_level_lk` (e.g., "BELOW_TAX", "FIRST_APRON")
+
+4. **Outgoing/Incoming Slots** — 5 player slots per side:
+   - Player name (manual text input)
+   - Salary (manual money input)
+   - SUM formula for Total Out / Total In
+
+5. **Net Delta** — formula: `Total In - Total Out`
+
+6. **Status** — placeholder for future matching legality (currently "check manually")
+
+7. **Salary Matching Reference** — inline table with matching tiers:
+   - Tier breakpoints ($0-$7.5M, $7.5M-$29M, $29M+)
+   - Max incoming percentages for each tier
+   - Apron gate notes for first/second apron restrictions
+
 ### WAIVE_BUYOUT_STRETCH features
 
 The `WAIVE_BUYOUT_STRETCH` sheet includes:

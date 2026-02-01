@@ -114,10 +114,12 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
   - Add SelectedYear delta + journal output block
 
 ### 15) TRADE_MACHINE: team selectors + status summary
-- [ ] Add team dropdowns and lane status summaries
-  - Team validation list from tbl_team_salary_warehouse[team_code]
-  - Show each lane’s cap/tax/apron totals + room for SelectedYear
-  - Display apron level / taxpayer status from warehouse
+- [x] Add team dropdowns and lane status summaries
+  - Team validation list from tbl_team_salary_warehouse[team_code] (dynamic UNIQUE+SORT)
+  - Named range `TradeTeamList` for dropdown validation source
+  - Named range `TradeLane{A|B|C|D}Team` for each lane's selected team
+  - Show each lane's cap/tax/apron totals + room for SelectedYear (via SUMIFS)
+  - Display apron level / taxpayer / repeater status from warehouse (via INDEX/MATCH)
 
 ### 16) TRADE_MACHINE: matching rules + legality outputs
 - [ ] Implement matching math per lane
@@ -163,8 +165,8 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
     - Removed `CountTwoWayInRoster` and `CountTwoWayInTotals` toggles from command bar
     - Removed "NOT YET IMPLEMENTED" warnings from TEAM_COCKPIT and BUDGET_LEDGER
     - Added informational 2-way readouts to TEAM_COCKPIT PRIMARY READOUTS section:
-      - "Two-Way Count:" — shows `two_way_row_count` (separate from 15-player roster)
-      - "Two-Way Cap Amount:" — shows `cap_2way` (included in Cap Total above)
+      - "Two-Way Count:" - shows `two_way_row_count` (separate from 15-player roster)
+      - "Two-Way Cap Amount:" - shows `cap_2way` (included in Cap Total above)
     - Updated AUDIT_AND_RECONCILE policy assumptions section (removed 2-way toggle rows)
     - Roster Count readout already shows "NBA roster + N two-way" format
 
@@ -197,7 +199,7 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
   - **Decision:** No change needed. Fill amounts are intentionally mode-independent.
   - **Rationale:** Minimum salary contracts (both rookie min and vet min) count identically
     toward cap, tax, and apron thresholds per CBA. There is no separate "tax minimum" or
-    "apron minimum" — the same dollar amount applies regardless of which mode is selected.
+    "apron minimum" - the same dollar amount applies regardless of which mode is selected.
   - **Implementation:** Added clarifying comments to `roster_grid.py` and `audit.py` explaining
     why mode-aware fill amounts are not needed.
 
@@ -224,11 +226,11 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
   - Conditional formatting: non-zero delta shows red and points to `AUDIT_AND_RECONCILE`
   - Keep headline totals authoritative (still sourced from `tbl_team_salary_warehouse`)
 
-- [x] Policy toggles: make "not implemented yet" explicit (no silent defaults) — historical (superseded by later fill + EXISTS_ONLY implementation)
+- [x] Policy toggles: make "not implemented yet" explicit (no silent defaults) - historical (superseded by later fill + EXISTS_ONLY implementation)
   - When `RosterFillTarget > 0`, show a **loud** "NOT YET IMPLEMENTED" warning in `TEAM_COCKPIT` and `BUDGET_LEDGER`
   - When `ShowExistsOnlyRows = "Yes"`, show a **loud** "NOT YET IMPLEMENTED" warning in `TEAM_COCKPIT` and `BUDGET_LEDGER`
 
-- [x] Two-way toggles: stop misleading implications while keeping reconciliation trust — historical (superseded by later toggle removal + informational readouts)
+- [x] Two-way toggles: stop misleading implications while keeping reconciliation trust - historical (superseded by later toggle removal + informational readouts)
   - `ROSTER_GRID` Ct$/CtR reflect **authoritative** counting semantics (2-way Ct$=Y, CtR=N)
   - When `CountTwoWayInTotals="Yes"` or `CountTwoWayInRoster="Yes"`, show **NOT YET IMPLEMENTED** warnings
 

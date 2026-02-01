@@ -189,11 +189,14 @@ def _protect_sheet(worksheet: Worksheet) -> None:
 
 # Trade Machine layout:
 # - 4 lanes (A-D) side by side, each ~5 columns wide
-# - Each lane: Team selector, Outgoing slots (5), Incoming slots (5), Totals
+# - Each lane: Team selector, Status summary, Outgoing slots (5), Incoming slots (5), Totals
 # - Matching rules reference at bottom
 
 TRADE_LANE_WIDTH = 6  # columns per lane
 TRADE_SLOTS_PER_SIDE = 5  # players per side (outgoing/incoming)
+
+# Lane identifiers (A, B, C, D) used for named ranges
+LANE_IDS = ["A", "B", "C", "D"]
 
 
 def write_trade_machine(
@@ -210,12 +213,14 @@ def write_trade_machine(
     - Outputs: outgoing/incoming totals, legality, max incoming, apron gate flags
     - A lane can be "published" into the Plan Journal
 
-    This v1 implementation provides:
+    This v2 implementation provides (per backlog #15):
     - Lane headers with color coding
-    - Team selection dropdowns (wired to DATA)
+    - Team selection dropdowns validated from tbl_team_salary_warehouse[team_code]
+    - **Lane status summary** showing cap/tax/apron totals + room for SelectedYear
+    - **Apron level / taxpayer status** from warehouse
     - Player input slots for outgoing/incoming (manual entry for now)
     - Salary input fields (manual entry for now)
-    - Subtotals and delta calculations (placeholder formulas)
+    - Subtotals and delta calculations
     - Salary matching reference table
     """
     sub_formats = _create_subsystem_formats(workbook)
@@ -232,19 +237,27 @@ def write_trade_machine(
     # Column widths for the 4 lanes
     for lane_idx in range(4):
         base_col = lane_idx * TRADE_LANE_WIDTH
-        worksheet.set_column(base_col, base_col, 18)      # Player name
-        worksheet.set_column(base_col + 1, base_col + 1, 12)  # Salary
-        worksheet.set_column(base_col + 2, base_col + 2, 8)   # Status/notes
+        worksheet.set_column(base_col, base_col, 18)      # Player name / labels
+        worksheet.set_column(base_col + 1, base_col + 1, 14)  # Salary / values
+        worksheet.set_column(base_col + 2, base_col + 2, 14)  # Status/room values
         worksheet.set_column(base_col + 3, base_col + 3, 2)   # Spacer
         # Additional columns for overflow/notes
         worksheet.set_column(base_col + 4, base_col + 5, 10)
 
+    # =========================================================================
+    # Define named range for team list (unique team codes from warehouse)
+    # =========================================================================
+    # Formula: =SORT(UNIQUE(tbl_team_salary_warehouse[team_code]))
+    # We place this in a helper cell at the bottom of the sheet and reference it.
+    # For now, we define a formula-based validation source.
+    # =========================================================================
+
     # Lane headers
     lane_names = ["Lane A", "Lane B", "Lane C", "Lane D"]
-    lane_formats = [sub_formats["lane_a"], sub_formats["lane_b"],
-                    sub_formats["lane_c"], sub_formats["lane_d"]]
+    lane_formats_list = [sub_formats["lane_a"], sub_formats["lane_b"],
+                         sub_formats["lane_c"], sub_formats["lane_d"]]
 
-    for lane_idx, (lane_name, lane_fmt) in enumerate(zip(lane_names, lane_formats)):
+    for lane_idx, (lane_name, lane_fmt) in enumerate(zip(lane_names, lane_formats_list)):
         base_col = lane_idx * TRADE_LANE_WIDTH
         worksheet.merge_range(
             content_row, base_col,
@@ -258,19 +271,29 @@ def write_trade_machine(
     # Instructions row
     worksheet.write(
         content_row, 0,
-        "Enter player names and salaries. Totals calculated automatically. "
-        "Use 'Publish to Journal' button to record trade in PLAN_JOURNAL.",
+        "Select team to see status summary. Enter player names and salaries. "
+        "Status shows cap position for SelectedYear from tbl_team_salary_warehouse.",
         sub_formats["note"],
     )
     content_row += 2
 
-    # Write each lane
+    # Track team cell references for each lane (needed for status formulas)
+    lane_team_cells: list[str] = []
+
+    # Write each lane (first pass: team selectors and status)
     for lane_idx in range(4):
         base_col = lane_idx * TRADE_LANE_WIDTH
-        _write_trade_lane(worksheet, sub_formats, content_row, base_col, lane_idx)
+        team_cell_ref = _write_trade_lane(
+            workbook, worksheet, sub_formats, formats, content_row, base_col, lane_idx
+        )
+        lane_team_cells.append(team_cell_ref)
 
-    # Move to after the lanes
-    rows_per_lane = 3 + TRADE_SLOTS_PER_SIDE * 2 + 6  # Team + labels + outgoing + incoming + totals
+    # Calculate rows used by lane content (status summary + outgoing + incoming + totals)
+    # Status summary: 10 rows (Team, Status header, 8 status lines)
+    # Outgoing: 1 header + 5 slots + 1 total = 7 rows
+    # Incoming: 1 header + 5 slots + 1 total = 7 rows
+    # Net delta: 2 rows
+    rows_per_lane = 10 + 7 + 7 + 2 + 2  # plus spacing
     content_row += rows_per_lane + 2
 
     # Salary matching reference table
@@ -316,68 +339,231 @@ def write_trade_machine(
         worksheet.write(content_row, 0, note, sub_formats["note"])
         content_row += 1
 
+    content_row += 3
+
+    # =========================================================================
+    # Team List Helper (for dropdown validation)
+    # =========================================================================
+    # Place a helper formula that creates a unique sorted list of team codes.
+    # This is used by the data validation for team dropdowns.
+    # =========================================================================
+
+    worksheet.write(content_row, 0, "TEAM LIST HELPER (for dropdown validation):", sub_formats["label_bold"])
+    content_row += 1
+
+    helper_row = content_row
+    helper_col = 0
+
+    # Formula to get unique sorted team codes for SelectedYear
+    team_list_formula = (
+        '=IFERROR('
+        'SORT(UNIQUE('
+        'FILTER(tbl_team_salary_warehouse[team_code],'
+        'tbl_team_salary_warehouse[salary_year]=SelectedYear)'
+        ')),'
+        '"(no teams)")'
+    )
+
+    worksheet.write_formula(helper_row, helper_col, team_list_formula, sub_formats["output"])
+
+    # Define named range for the team list using spill reference
+    from xlsxwriter.utility import xl_col_to_name
+    helper_col_letter = xl_col_to_name(helper_col)
+    helper_cell_ref = f"${helper_col_letter}${helper_row + 1}"  # Excel 1-indexed
+
+    workbook.define_name(
+        "TradeTeamList",
+        f"='TRADE_MACHINE'!{helper_cell_ref}#"
+    )
+
+    # Reserve space for spill (up to 32 teams)
+    content_row += 32
+
+    worksheet.write(
+        content_row, 0,
+        "↑ Dynamic array — team list for dropdown validation. Shows teams with data for SelectedYear.",
+        sub_formats["note"],
+    )
+
     _protect_sheet(worksheet)
 
 
 def _write_trade_lane(
+    workbook: Workbook,
     worksheet: Worksheet,
+    sub_formats: dict[str, Any],
     formats: dict[str, Any],
     start_row: int,
     base_col: int,
     lane_idx: int,
-) -> None:
-    """Write a single trade lane (A/B/C/D) with input slots and totals."""
-    row = start_row
+) -> str:
+    """
+    Write a single trade lane (A/B/C/D) with team selector, status summary, and trade slots.
 
-    # Team selector
-    worksheet.write(row, base_col, "Team:", formats["label"])
-    worksheet.write(row, base_col + 1, "", formats["input"])  # Team input cell
+    Returns the cell reference for the team selector (e.g., "B15") for use in formulas.
+    """
+    row = start_row
+    lane_id = LANE_IDS[lane_idx]
+
+    # =========================================================================
+    # Team Selector (with dropdown validation)
+    # =========================================================================
+    worksheet.write(row, base_col, "Team:", sub_formats["label_bold"])
+    team_cell_row = row
+    team_cell_col = base_col + 1
+    worksheet.write(row, team_cell_col, "", sub_formats["input"])  # Team input cell
+
+    # Data validation for team dropdown
+    # Uses the TradeTeamList named range (defined in main function)
+    worksheet.data_validation(
+        row, team_cell_col,
+        row, team_cell_col,
+        {
+            "validate": "list",
+            "source": "=TradeTeamList",
+            "input_title": "Select Team",
+            "input_message": "Choose a team from the list (filtered by SelectedYear).",
+            "error_type": "warning",
+        },
+    )
+
+    # Store cell reference for status formulas
+    team_cell_ref = f"{_col_letter(team_cell_col)}{team_cell_row + 1}"  # Excel 1-indexed
+
+    # Define a named range for this lane's team (for formula clarity)
+    workbook.define_name(
+        f"TradeLane{lane_id}Team",
+        f"='TRADE_MACHINE'!${_col_letter(team_cell_col)}${team_cell_row + 1}"
+    )
+
     row += 2
 
-    # Outgoing section
-    worksheet.write(row, base_col, "OUTGOING", formats["label_bold"])
-    worksheet.write(row, base_col + 1, "Salary", formats["label_bold"])
+    # =========================================================================
+    # Lane Status Summary (from tbl_team_salary_warehouse for SelectedYear)
+    # =========================================================================
+    # Shows: Cap/Tax/Apron totals, Room values, Taxpayer/Repeater/Apron status
+    #
+    # Uses SUMIFS/INDEX+MATCH to look up the selected team + SelectedYear
+    # from tbl_team_salary_warehouse.
+    # =========================================================================
+
+    worksheet.write(row, base_col, "STATUS SUMMARY", sub_formats["label_bold"])
+    worksheet.write(row, base_col + 1, "(SelectedYear)", sub_formats["label"])
+    row += 1
+
+    # Helper: create SUMIFS formula for a column from tbl_team_salary_warehouse
+    def make_warehouse_lookup(column_name: str) -> str:
+        """Create SUMIFS formula to look up a value from warehouse for team + year."""
+        return (
+            f'=IFERROR(SUMIFS(tbl_team_salary_warehouse[{column_name}],'
+            f'tbl_team_salary_warehouse[team_code],{team_cell_ref},'
+            f'tbl_team_salary_warehouse[salary_year],SelectedYear),"")'
+        )
+
+    # Cap Total
+    worksheet.write(row, base_col, "Cap Total:", sub_formats["label"])
+    worksheet.write_formula(row, base_col + 1, make_warehouse_lookup("cap_total"), sub_formats["output_money"])
+    row += 1
+
+    # Tax Total
+    worksheet.write(row, base_col, "Tax Total:", sub_formats["label"])
+    worksheet.write_formula(row, base_col + 1, make_warehouse_lookup("tax_total"), sub_formats["output_money"])
+    row += 1
+
+    # Apron Total
+    worksheet.write(row, base_col, "Apron Total:", sub_formats["label"])
+    worksheet.write_formula(row, base_col + 1, make_warehouse_lookup("apron_total"), sub_formats["output_money"])
+    row += 1
+
+    # Room under Tax
+    worksheet.write(row, base_col, "Room (Tax):", sub_formats["label"])
+    worksheet.write_formula(row, base_col + 1, make_warehouse_lookup("room_under_tax"), sub_formats["output_money"])
+    row += 1
+
+    # Room under Apron 1
+    worksheet.write(row, base_col, "Room (Apron 1):", sub_formats["label"])
+    worksheet.write_formula(row, base_col + 1, make_warehouse_lookup("room_under_apron1"), sub_formats["output_money"])
+    row += 1
+
+    # Taxpayer status (Yes/No)
+    worksheet.write(row, base_col, "Is Taxpayer:", sub_formats["label"])
+    taxpayer_formula = (
+        f'=IFERROR(IF(SUMIFS(tbl_team_salary_warehouse[is_taxpayer],'
+        f'tbl_team_salary_warehouse[team_code],{team_cell_ref},'
+        f'tbl_team_salary_warehouse[salary_year],SelectedYear),"Yes","No"),"")'
+    )
+    worksheet.write_formula(row, base_col + 1, taxpayer_formula, sub_formats["output"])
+    row += 1
+
+    # Repeater status (Yes/No)
+    worksheet.write(row, base_col, "Repeater:", sub_formats["label"])
+    repeater_formula = (
+        f'=IFERROR(IF(SUMIFS(tbl_team_salary_warehouse[is_repeater_taxpayer],'
+        f'tbl_team_salary_warehouse[team_code],{team_cell_ref},'
+        f'tbl_team_salary_warehouse[salary_year],SelectedYear),"Yes","No"),"")'
+    )
+    worksheet.write_formula(row, base_col + 1, repeater_formula, sub_formats["output"])
+    row += 1
+
+    # Apron Level (lookup text value)
+    worksheet.write(row, base_col, "Apron Level:", sub_formats["label"])
+    # Use INDEX/MATCH for text lookup (apron_level_lk)
+    apron_level_formula = (
+        f'=IFERROR(INDEX(tbl_team_salary_warehouse[apron_level_lk],'
+        f'MATCH(1,(tbl_team_salary_warehouse[team_code]={team_cell_ref})*'
+        f'(tbl_team_salary_warehouse[salary_year]=SelectedYear),0)),"")'
+    )
+    worksheet.write_formula(row, base_col + 1, apron_level_formula, sub_formats["output"])
+    row += 2
+
+    # =========================================================================
+    # Outgoing Section
+    # =========================================================================
+    worksheet.write(row, base_col, "OUTGOING", sub_formats["label_bold"])
+    worksheet.write(row, base_col + 1, "Salary", sub_formats["label_bold"])
     row += 1
 
     outgoing_start_row = row
     for i in range(TRADE_SLOTS_PER_SIDE):
-        worksheet.write(row, base_col, "", formats["input"])  # Player name
-        worksheet.write(row, base_col + 1, 0, formats["input_money"])  # Salary
+        worksheet.write(row, base_col, "", sub_formats["input"])  # Player name
+        worksheet.write(row, base_col + 1, 0, sub_formats["input_money"])  # Salary
         row += 1
 
     # Outgoing total
     outgoing_end_row = row - 1
-    worksheet.write(row, base_col, "Total Out:", formats["label_bold"])
+    worksheet.write(row, base_col, "Total Out:", sub_formats["label_bold"])
     # SUM formula for outgoing salaries
     from_cell = f"{_col_letter(base_col + 1)}{outgoing_start_row + 1}"
     to_cell = f"{_col_letter(base_col + 1)}{outgoing_end_row + 1}"
     worksheet.write_formula(
         row, base_col + 1,
         f"=SUM({from_cell}:{to_cell})",
-        formats["total"],
+        sub_formats["total"],
     )
     row += 2
 
-    # Incoming section
-    worksheet.write(row, base_col, "INCOMING", formats["label_bold"])
-    worksheet.write(row, base_col + 1, "Salary", formats["label_bold"])
+    # =========================================================================
+    # Incoming Section
+    # =========================================================================
+    worksheet.write(row, base_col, "INCOMING", sub_formats["label_bold"])
+    worksheet.write(row, base_col + 1, "Salary", sub_formats["label_bold"])
     row += 1
 
     incoming_start_row = row
     for i in range(TRADE_SLOTS_PER_SIDE):
-        worksheet.write(row, base_col, "", formats["input"])  # Player name
-        worksheet.write(row, base_col + 1, 0, formats["input_money"])  # Salary
+        worksheet.write(row, base_col, "", sub_formats["input"])  # Player name
+        worksheet.write(row, base_col + 1, 0, sub_formats["input_money"])  # Salary
         row += 1
 
     # Incoming total
     incoming_end_row = row - 1
-    worksheet.write(row, base_col, "Total In:", formats["label_bold"])
+    worksheet.write(row, base_col, "Total In:", sub_formats["label_bold"])
     from_cell = f"{_col_letter(base_col + 1)}{incoming_start_row + 1}"
     to_cell = f"{_col_letter(base_col + 1)}{incoming_end_row + 1}"
     worksheet.write_formula(
         row, base_col + 1,
         f"=SUM({from_cell}:{to_cell})",
-        formats["total"],
+        sub_formats["total"],
     )
     row += 2
 
@@ -385,16 +571,18 @@ def _write_trade_lane(
     outgoing_total_cell = f"{_col_letter(base_col + 1)}{outgoing_end_row + 2}"
     incoming_total_cell = f"{_col_letter(base_col + 1)}{incoming_end_row + 2}"
 
-    worksheet.write(row, base_col, "Net Delta:", formats["label_bold"])
+    worksheet.write(row, base_col, "Net Delta:", sub_formats["label_bold"])
     worksheet.write_formula(
         row, base_col + 1,
         f"={incoming_total_cell}-{outgoing_total_cell}",
-        formats["output_money"],
+        sub_formats["output_money"],
     )
     row += 1
 
-    worksheet.write(row, base_col, "Status:", formats["label"])
-    worksheet.write(row, base_col + 1, "(check manually)", formats["output"])
+    worksheet.write(row, base_col, "Status:", sub_formats["label"])
+    worksheet.write(row, base_col + 1, "(check manually)", sub_formats["output"])
+
+    return team_cell_ref
 
 
 def _col_letter(col: int) -> str:
