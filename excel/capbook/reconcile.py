@@ -8,11 +8,20 @@ Per mental-models-and-design-principles.md:
   "All displayed totals must be sourced from (or reconcile to)
    the authoritative counting ledger."
 
-This v1 reconciliation checks:
+Reconciliation v1 checks:
 - For each team/year in team_salary_warehouse:
   - cap_total should equal cap_rost + cap_fa + cap_term + cap_2way
   - tax_total should equal tax_rost + tax_fa + tax_term + tax_2way
   - apron_total should equal apron_rost + apron_fa + apron_term + apron_2way
+
+Reconciliation v2 checks (drilldowns vs team totals):
+- For each team/year:
+  - warehouse cap_total should equal sum of drilldowns:
+      salary_book_yearly[cap_amount] + cap_holds_warehouse[cap_amount] + dead_money_warehouse[cap_value]
+  - warehouse tax_total should equal sum of drilldowns:
+      salary_book_yearly[tax_amount] + cap_holds_warehouse[tax_amount] + dead_money_warehouse[tax_value]
+  - warehouse apron_total should equal sum of drilldowns:
+      salary_book_yearly[apron_amount] + cap_holds_warehouse[apron_amount] + dead_money_warehouse[apron_value]
 """
 
 from __future__ import annotations
@@ -164,6 +173,117 @@ def reconcile_team_salary_warehouse(
                 check_name="apron_total",
                 expected=apron_total,
                 actual=apron_sum,
+                delta=apron_delta,
+                passed=(apron_delta == 0),
+            )
+        )
+
+    return summary
+
+
+def reconcile_drilldowns_vs_totals(
+    team_salary_rows: list[dict[str, Any]],
+    salary_book_rows: list[dict[str, Any]],
+    cap_holds_rows: list[dict[str, Any]],
+    dead_money_rows: list[dict[str, Any]],
+) -> ReconcileSummary:
+    """
+    Reconcile v2: verify warehouse totals match drilldown sums.
+
+    For each (team_code, salary_year) in team_salary_warehouse, verify:
+    - cap_total == sum(salary_book_yearly.cap_amount) + sum(cap_holds.cap_amount) + sum(dead_money.cap_value)
+    - tax_total == sum(salary_book_yearly.tax_amount) + sum(cap_holds.tax_amount) + sum(dead_money.tax_value)
+    - apron_total == sum(salary_book_yearly.apron_amount) + sum(cap_holds.apron_amount) + sum(dead_money.apron_value)
+
+    This is the "drilldowns roll up to headline totals" trust check.
+    """
+    summary = ReconcileSummary()
+
+    # Build lookup dicts keyed by (team_code, salary_year)
+    # salary_book_yearly has: team_code, salary_year, cap_amount, tax_amount, apron_amount
+    salary_sums: dict[tuple[str, int], dict[str, int]] = {}
+    for row in salary_book_rows:
+        key = (row.get("team_code", ""), row.get("salary_year", 0))
+        if key not in salary_sums:
+            salary_sums[key] = {"cap": 0, "tax": 0, "apron": 0}
+        salary_sums[key]["cap"] += row.get("cap_amount") or 0
+        salary_sums[key]["tax"] += row.get("tax_amount") or 0
+        salary_sums[key]["apron"] += row.get("apron_amount") or 0
+
+    # cap_holds_warehouse has: team_code, salary_year, cap_amount, tax_amount, apron_amount
+    holds_sums: dict[tuple[str, int], dict[str, int]] = {}
+    for row in cap_holds_rows:
+        key = (row.get("team_code", ""), row.get("salary_year", 0))
+        if key not in holds_sums:
+            holds_sums[key] = {"cap": 0, "tax": 0, "apron": 0}
+        holds_sums[key]["cap"] += row.get("cap_amount") or 0
+        holds_sums[key]["tax"] += row.get("tax_amount") or 0
+        holds_sums[key]["apron"] += row.get("apron_amount") or 0
+
+    # dead_money_warehouse has: team_code, salary_year, cap_value, tax_value, apron_value
+    dead_sums: dict[tuple[str, int], dict[str, int]] = {}
+    for row in dead_money_rows:
+        key = (row.get("team_code", ""), row.get("salary_year", 0))
+        if key not in dead_sums:
+            dead_sums[key] = {"cap": 0, "tax": 0, "apron": 0}
+        dead_sums[key]["cap"] += row.get("cap_value") or 0
+        dead_sums[key]["tax"] += row.get("tax_value") or 0
+        dead_sums[key]["apron"] += row.get("apron_value") or 0
+
+    # For each team/year in warehouse, compare totals to drilldown sums
+    for row in team_salary_rows:
+        team_code = row.get("team_code", "???")
+        salary_year = row.get("salary_year", 0)
+        key = (team_code, salary_year)
+
+        # Get drilldown sums (default to 0 if no rows)
+        salary = salary_sums.get(key, {"cap": 0, "tax": 0, "apron": 0})
+        holds = holds_sums.get(key, {"cap": 0, "tax": 0, "apron": 0})
+        dead = dead_sums.get(key, {"cap": 0, "tax": 0, "apron": 0})
+
+        # CAP check
+        cap_total = row.get("cap_total") or 0
+        cap_drilldown = salary["cap"] + holds["cap"] + dead["cap"]
+        cap_delta = cap_total - cap_drilldown
+        summary.add_check(
+            ReconcileCheck(
+                team_code=team_code,
+                salary_year=salary_year,
+                check_name="cap_drilldown",
+                expected=cap_total,
+                actual=cap_drilldown,
+                delta=cap_delta,
+                passed=(cap_delta == 0),
+            )
+        )
+
+        # TAX check
+        tax_total = row.get("tax_total") or 0
+        tax_drilldown = salary["tax"] + holds["tax"] + dead["tax"]
+        tax_delta = tax_total - tax_drilldown
+        summary.add_check(
+            ReconcileCheck(
+                team_code=team_code,
+                salary_year=salary_year,
+                check_name="tax_drilldown",
+                expected=tax_total,
+                actual=tax_drilldown,
+                delta=tax_delta,
+                passed=(tax_delta == 0),
+            )
+        )
+
+        # APRON check
+        apron_total = row.get("apron_total") or 0
+        apron_drilldown = salary["apron"] + holds["apron"] + dead["apron"]
+        apron_delta = apron_total - apron_drilldown
+        summary.add_check(
+            ReconcileCheck(
+                team_code=team_code,
+                salary_year=salary_year,
+                check_name="apron_drilldown",
+                expected=apron_total,
+                actual=apron_drilldown,
                 delta=apron_delta,
                 passed=(apron_delta == 0),
             )

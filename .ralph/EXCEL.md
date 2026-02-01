@@ -66,7 +66,7 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
   - Link to PLAN_JOURNAL for details
 
 ### 7) Exporter/build: deep reconciliation (warehouse totals vs drilldowns)
-- [ ] Add build-time reconcile v2 (team totals vs drilldown sums)
+- [x] Add build-time reconcile v2 (team totals vs drilldown sums)
   - For each `(team_code, salary_year)`: sum drilldowns and compare to `tbl_team_salary_warehouse` totals
     - Cap: `tbl_salary_book_yearly[cap_amount] + tbl_cap_holds_warehouse[cap_amount] + tbl_dead_money_warehouse[cap_value]`
     - Tax: `tbl_salary_book_yearly[tax_amount] + tbl_cap_holds_warehouse[tax_amount] + tbl_dead_money_warehouse[tax_value]`

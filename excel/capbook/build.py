@@ -38,7 +38,7 @@ from .extract import (
     extract_exceptions_warehouse,
     extract_draft_picks_warehouse,
 )
-from .reconcile import reconcile_team_salary_warehouse
+from .reconcile import reconcile_team_salary_warehouse, reconcile_drilldowns_vs_totals
 from .xlsx import create_standard_formats, write_table
 from .sheets import (
     UI_STUB_WRITERS,
@@ -280,6 +280,41 @@ def build_capbook(
         else:
             # No data to reconcile - mark as not run
             build_meta["reconcile_passed"] = None
+
+        # Step 2.6: Reconciliation v2 (drilldowns vs team totals)
+        # Verify that warehouse totals match the sum of drilldown rows:
+        #   salary_book_yearly + cap_holds_warehouse + dead_money_warehouse
+        salary_book_data = extracted.get("salary_book_yearly", ([], []))
+        cap_holds_data = extracted.get("cap_holds_warehouse", ([], []))
+        dead_money_data = extracted.get("dead_money_warehouse", ([], []))
+
+        if team_salary_data[1]:  # We have warehouse totals to check against
+            try:
+                reconcile_v2_summary = reconcile_drilldowns_vs_totals(
+                    team_salary_rows=team_salary_data[1],
+                    salary_book_rows=salary_book_data[1],
+                    cap_holds_rows=cap_holds_data[1],
+                    dead_money_rows=dead_money_data[1],
+                )
+                # Store v2 results with distinct keys
+                v2_dict = reconcile_v2_summary.as_dict()
+                build_meta["reconcile_v2_passed"] = v2_dict["reconcile_passed"]
+                build_meta["reconcile_v2_total_checks"] = v2_dict["reconcile_total_checks"]
+                build_meta["reconcile_v2_passed_checks"] = v2_dict["reconcile_passed_checks"]
+                build_meta["reconcile_v2_failed_checks"] = v2_dict["reconcile_failed_checks"]
+                build_meta["reconcile_v2_failures"] = v2_dict["reconcile_failures"]
+                build_meta["reconcile_v2_sample_checks"] = v2_dict["reconcile_sample_checks"]
+
+                if not reconcile_v2_summary.passed:
+                    _mark_failed(
+                        build_meta,
+                        f"Reconciliation v2 (drilldowns) failed: {reconcile_v2_summary.failed_checks}/{reconcile_v2_summary.total_checks} checks failed",
+                    )
+            except Exception as e:  # noqa: BLE001
+                _mark_failed(build_meta, f"Reconciliation v2 crashed: {e}\n{traceback.format_exc()}")
+        else:
+            # No data to reconcile
+            build_meta["reconcile_v2_passed"] = None
 
         # Step 3: Write DATA tables (continue-on-error; ensure stable table names when possible)
         for spec in dataset_specs:
