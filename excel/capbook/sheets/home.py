@@ -88,12 +88,21 @@ def _sumifs_formula(data_col: str) -> str:
     )
 
 
-def _if_formula(data_col: str) -> str:
-    """Build INDEX/MATCH formula for boolean/text values from tbl_team_salary_warehouse."""
+def _xlookup_formula(data_col: str) -> str:
+    """Build XLOOKUP formula for single-row lookup from tbl_team_salary_warehouse.
+    
+    Uses XLOOKUP (Excel 365/2021+) with compound key matching via concatenation.
+    Returns empty string if not found.
+    
+    Example output:
+        =XLOOKUP(SelectedTeam&SelectedYear,
+                 tbl_team_salary_warehouse[team_code]&tbl_team_salary_warehouse[salary_year],
+                 tbl_team_salary_warehouse[is_taxpayer], "")
+    """
     return (
-        f"=IFERROR(INDEX(tbl_team_salary_warehouse[{data_col}],"
-        f"MATCH(1,(tbl_team_salary_warehouse[team_code]=SelectedTeam)*"
-        f"(tbl_team_salary_warehouse[salary_year]=SelectedYear),0)),\"\")"
+        f"=XLOOKUP(SelectedTeam&SelectedYear,"
+        f"tbl_team_salary_warehouse[team_code]&tbl_team_salary_warehouse[salary_year],"
+        f"tbl_team_salary_warehouse[{data_col}],\"\")"
     )
 
 
@@ -314,10 +323,10 @@ def write_home_sheet(
 
     # Taxpayer Status
     worksheet.write(row, COL_A, "Taxpayer Status:", label_fmt)
-    # Show is_taxpayer and is_repeater
+    # Show is_taxpayer and is_repeater using XLOOKUP
     taxpayer_formula = (
-        f'=IF({_if_formula("is_taxpayer")[1:]},'
-        f'IF({_if_formula("is_repeater_taxpayer")[1:]},"Repeater Taxpayer","Taxpayer"),'
+        f'=IF({_xlookup_formula("is_taxpayer")[1:]},'
+        f'IF({_xlookup_formula("is_repeater_taxpayer")[1:]},"Repeater Taxpayer","Taxpayer"),'
         f'"Below Tax")'
     )
     worksheet.write_formula(row, COL_B, taxpayer_formula, value_fmt)
@@ -325,7 +334,7 @@ def write_home_sheet(
 
     # Apron Level
     worksheet.write(row, COL_A, "Apron Level:", label_fmt)
-    worksheet.write_formula(row, COL_B, _if_formula("apron_level_lk"), value_fmt)
+    worksheet.write_formula(row, COL_B, _xlookup_formula("apron_level_lk"), value_fmt)
     row += 2
 
     # =========================================================================

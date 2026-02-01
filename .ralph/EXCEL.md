@@ -48,10 +48,10 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - Replace inline fragments with named formulas
 
 ### 3) HOME + RULES_REFERENCE: migrate to XLOOKUP/FILTER
-- [ ] Replace `INDEX/MATCH` in HOME readouts + RULES_REFERENCE tables
-  - Use `XLOOKUP` for single-row lookups
-  - Use `FILTER` + `TAKE` for tax brackets/minimum scale lists
-  - Wrap with `IFNA` for clean blanks
+- [x] Replace `INDEX/MATCH` in HOME readouts + RULES_REFERENCE tables
+  - Use `XLOOKUP` for single-row lookups (with compound key concatenation)
+  - XLOOKUP's not-found parameter (`""`) replaces IFERROR wrapping
+  - Wrap with `IFNA` for clean blanks (not needed — XLOOKUP handles natively)
 
 ### 4) PLAN_JOURNAL: totals + running state via LET/FILTER/SCAN
 - [ ] Replace `SUMPRODUCT` panels with modern formulas

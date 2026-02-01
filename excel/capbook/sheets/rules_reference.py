@@ -12,7 +12,9 @@ Topics included:
 - Apron gates / hard-cap triggers (static notes)
 
 Design notes:
-- Uses Excel formulas filtered by SelectedYear where appropriate
+- Uses XLOOKUP (Excel 365/2021+) filtered by SelectedYear where appropriate
+- XLOOKUP with compound key concatenation for multi-key lookups
+- Returns "" if not found (clean blanks without IFERROR wrapping)
 - Read-only reference sheet (no input zones)
 - Each section is labeled with a header for easy navigation
 """
@@ -245,7 +247,7 @@ def _write_tax_rates_section(
     """
     Write tax rates reference table.
     
-    Uses FILTER formulas to show tax brackets for SelectedYear.
+    Uses XLOOKUP formulas (Excel 365/2021+) to show tax brackets for SelectedYear.
     
     Returns the next available row.
     """
@@ -274,58 +276,58 @@ def _write_tax_rates_section(
         worksheet.write(row, col, header, formats["col_header"])
     row += 1
 
-    # Use FILTER formula to get tax rates for the selected year
+    # Use XLOOKUP to get tax rates for the selected year + bracket
     # The table is tbl_tax_rates with columns:
     # league_lk, salary_year, bracket_number, lower_limit, upper_limit,
     # tax_rate_non_repeater, tax_rate_repeater, base_charge_non_repeater, base_charge_repeater
     
-    # We write static formulas that reference the filtered table
-    # For simplicity, we show up to 10 brackets (more than enough)
+    # We use XLOOKUP with compound key (salary_year & bracket_number)
+    # XLOOKUP returns "" if not found (cleaner than IFERROR wrapping)
     for i in range(1, 11):
         bracket_row = row
         
         # Bracket number (static)
         worksheet.write(bracket_row, COL_A, i, formats["data_center"])
         
-        # Lower limit - INDEX/MATCH filtered by year and bracket
+        # Lower limit - XLOOKUP with compound key
         worksheet.write_formula(
             bracket_row, COL_B,
-            f'=IFERROR(INDEX(tbl_tax_rates[lower_limit],MATCH(1,(tbl_tax_rates[salary_year]=SelectedYear)*(tbl_tax_rates[bracket_number]={i}),0)),"")',
+            f'=XLOOKUP(SelectedYear&{i},tbl_tax_rates[salary_year]&tbl_tax_rates[bracket_number],tbl_tax_rates[lower_limit],"")',
             formats["money"],
         )
         
         # Upper limit
         worksheet.write_formula(
             bracket_row, COL_C,
-            f'=IFERROR(INDEX(tbl_tax_rates[upper_limit],MATCH(1,(tbl_tax_rates[salary_year]=SelectedYear)*(tbl_tax_rates[bracket_number]={i}),0)),"")',
+            f'=XLOOKUP(SelectedYear&{i},tbl_tax_rates[salary_year]&tbl_tax_rates[bracket_number],tbl_tax_rates[upper_limit],"")',
             formats["money"],
         )
         
         # Non-repeater rate
         worksheet.write_formula(
             bracket_row, COL_D,
-            f'=IFERROR(INDEX(tbl_tax_rates[tax_rate_non_repeater],MATCH(1,(tbl_tax_rates[salary_year]=SelectedYear)*(tbl_tax_rates[bracket_number]={i}),0)),"")',
+            f'=XLOOKUP(SelectedYear&{i},tbl_tax_rates[salary_year]&tbl_tax_rates[bracket_number],tbl_tax_rates[tax_rate_non_repeater],"")',
             formats["data_center"],
         )
         
         # Repeater rate
         worksheet.write_formula(
             bracket_row, COL_E,
-            f'=IFERROR(INDEX(tbl_tax_rates[tax_rate_repeater],MATCH(1,(tbl_tax_rates[salary_year]=SelectedYear)*(tbl_tax_rates[bracket_number]={i}),0)),"")',
+            f'=XLOOKUP(SelectedYear&{i},tbl_tax_rates[salary_year]&tbl_tax_rates[bracket_number],tbl_tax_rates[tax_rate_repeater],"")',
             formats["data_center"],
         )
         
         # Base charge non-repeater
         worksheet.write_formula(
             bracket_row, COL_F,
-            f'=IFERROR(INDEX(tbl_tax_rates[base_charge_non_repeater],MATCH(1,(tbl_tax_rates[salary_year]=SelectedYear)*(tbl_tax_rates[bracket_number]={i}),0)),"")',
+            f'=XLOOKUP(SelectedYear&{i},tbl_tax_rates[salary_year]&tbl_tax_rates[bracket_number],tbl_tax_rates[base_charge_non_repeater],"")',
             formats["money"],
         )
         
         # Base charge repeater
         worksheet.write_formula(
             bracket_row, COL_G,
-            f'=IFERROR(INDEX(tbl_tax_rates[base_charge_repeater],MATCH(1,(tbl_tax_rates[salary_year]=SelectedYear)*(tbl_tax_rates[bracket_number]={i}),0)),"")',
+            f'=XLOOKUP(SelectedYear&{i},tbl_tax_rates[salary_year]&tbl_tax_rates[bracket_number],tbl_tax_rates[base_charge_repeater],"")',
             formats["money"],
         )
         
@@ -351,7 +353,7 @@ def _write_minimum_scale_section(
     """
     Write minimum salary scale table.
     
-    Shows minimum salary by years of service for SelectedYear.
+    Uses XLOOKUP (Excel 365/2021+) to show minimum salary by years of service for SelectedYear.
     
     Returns the next available row.
     """
@@ -390,10 +392,10 @@ def _write_minimum_scale_section(
     for yos in range(11):
         worksheet.write(row, COL_A, yos, formats["data_center"])
         
-        # Minimum salary - INDEX/MATCH filtered by year and YOS
+        # Minimum salary - XLOOKUP with compound key (salary_year & years_of_service)
         worksheet.write_formula(
             row, COL_B,
-            f'=IFERROR(INDEX(tbl_minimum_scale[minimum_salary_amount],MATCH(1,(tbl_minimum_scale[salary_year]=SelectedYear)*(tbl_minimum_scale[years_of_service]={yos}),0)),"")',
+            f'=XLOOKUP(SelectedYear&{yos},tbl_minimum_scale[salary_year]&tbl_minimum_scale[years_of_service],tbl_minimum_scale[minimum_salary_amount],"")',
             formats["money"],
         )
         
@@ -419,7 +421,7 @@ def _write_rookie_scale_section(
     """
     Write rookie scale table.
     
-    Shows rookie scale amounts by pick number for SelectedYear.
+    Uses XLOOKUP (Excel 365/2021+) to show rookie scale amounts by pick number for SelectedYear.
     
     Returns the next available row.
     """
@@ -448,34 +450,35 @@ def _write_rookie_scale_section(
     row += 1
 
     # Show picks 1-30 (first round)
+    # Use XLOOKUP with compound key (salary_year & pick_number)
     for pick in range(1, 31):
         worksheet.write(row, COL_A, pick, formats["data_center"])
         
         # Year 1 salary
         worksheet.write_formula(
             row, COL_B,
-            f'=IFERROR(INDEX(tbl_rookie_scale[salary_year_1],MATCH(1,(tbl_rookie_scale[salary_year]=SelectedYear)*(tbl_rookie_scale[pick_number]={pick}),0)),"")',
+            f'=XLOOKUP(SelectedYear&{pick},tbl_rookie_scale[salary_year]&tbl_rookie_scale[pick_number],tbl_rookie_scale[salary_year_1],"")',
             formats["money"],
         )
         
         # Year 2 salary
         worksheet.write_formula(
             row, COL_C,
-            f'=IFERROR(INDEX(tbl_rookie_scale[salary_year_2],MATCH(1,(tbl_rookie_scale[salary_year]=SelectedYear)*(tbl_rookie_scale[pick_number]={pick}),0)),"")',
+            f'=XLOOKUP(SelectedYear&{pick},tbl_rookie_scale[salary_year]&tbl_rookie_scale[pick_number],tbl_rookie_scale[salary_year_2],"")',
             formats["money"],
         )
         
         # Year 3 (team option)
         worksheet.write_formula(
             row, COL_D,
-            f'=IFERROR(INDEX(tbl_rookie_scale[salary_year_3],MATCH(1,(tbl_rookie_scale[salary_year]=SelectedYear)*(tbl_rookie_scale[pick_number]={pick}),0)),"")',
+            f'=XLOOKUP(SelectedYear&{pick},tbl_rookie_scale[salary_year]&tbl_rookie_scale[pick_number],tbl_rookie_scale[salary_year_3],"")',
             formats["money"],
         )
         
         # Year 4 (team option)
         worksheet.write_formula(
             row, COL_E,
-            f'=IFERROR(INDEX(tbl_rookie_scale[salary_year_4],MATCH(1,(tbl_rookie_scale[salary_year]=SelectedYear)*(tbl_rookie_scale[pick_number]={pick}),0)),"")',
+            f'=XLOOKUP(SelectedYear&{pick},tbl_rookie_scale[salary_year]&tbl_rookie_scale[pick_number],tbl_rookie_scale[salary_year_4],"")',
             formats["money"],
         )
         
