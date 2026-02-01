@@ -66,7 +66,13 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
 
 ## Follow-ups discovered
 
-- [ ] Consider adding GENERATED fill amounts to BUDGET_LEDGER as an explicit "Policy Delta" row (currently only shown in AUDIT section)
+- [x] Consider adding GENERATED fill amounts to BUDGET_LEDGER as an explicit "Policy Delta" row (currently only shown in AUDIT section)
+  - Added a new **POLICY DELTAS** section between Plan Deltas and Derived Totals
+  - Shows "Generated Fill Rows (GEN)" with cap/tax/apron impact
+  - Uses amber styling to clearly indicate policy assumptions vs authoritative data
+  - Dynamic note shows fill count and type when active
+  - Updated Derived Totals formula: `Snapshot + Plan + Policy = Derived`
+  - Updated sheet subtitle and docstrings to reflect new structure
 - [ ] Consider mode-aware fill amounts (currently uses cap-based minimum; could vary by Tax/Apron mode)
 
 ---

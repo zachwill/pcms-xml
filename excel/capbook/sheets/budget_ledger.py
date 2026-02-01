@@ -7,18 +7,21 @@ This module implements the "accounting statement" for team salary cap:
    - Cap/Tax/Apron totals by bucket (ROST, FA, TERM, 2WAY)
    - System thresholds for context
 3. Plan delta section (from tbl_plan_journal, filtered by ActivePlanId)
-4. Derived totals section (snapshot + deltas)
-5. Delta vs snapshot verification
+4. Policy delta section (generated fill rows and other analyst assumptions)
+5. Derived totals section (snapshot + plan + policy)
+6. Delta vs snapshot verification
 
 Per the blueprint (excel-cap-book-blueprint.md):
 - BUDGET_LEDGER is the "single source of truth for totals and deltas"
 - This is the sheet you use to explain numbers to a GM/owner
 - Every headline total must have an audit path
+- Policy deltas are explicit and toggleable (visible generated rows)
 
 Design notes:
 - Uses Excel formulas filtered by SelectedTeam + SelectedYear + SelectedMode
 - Mode-aware display (Cap vs Tax vs Apron columns)
 - Plan deltas are aggregated from tbl_plan_journal (enabled rows, filtered by ActivePlanId)
+- Policy deltas show generated fill impact with amber styling to indicate assumptions
 """
 
 from __future__ import annotations
@@ -448,24 +451,189 @@ def _write_plan_delta_section(
     return row, delta_total_row
 
 
+def _write_policy_delta_section(
+    workbook: Workbook,
+    worksheet: Worksheet,
+    row: int,
+    formats: dict[str, Any],
+    budget_formats: dict[str, Any],
+) -> tuple[int, int]:
+    """Write the policy deltas section for generated fill rows.
+    
+    This section shows policy-driven adjustments that are NOT from the plan journal
+    or authoritative warehouse data. These are analyst assumptions.
+    
+    Currently includes:
+    - Generated roster fill rows (when RosterFillTarget > 0)
+    
+    Per the blueprint: policies must create visible generated rows that are toggleable.
+    
+    Returns (next_row, policy_delta_total_row).
+    """
+    # Section header with amber styling to indicate policy/assumption nature
+    policy_header_fmt = workbook.add_format({
+        "bold": True,
+        "font_size": 11,
+        "bg_color": "#FEF3C7",  # amber-100
+        "font_color": "#92400E",  # amber-800
+        "bottom": 2,
+    })
+    
+    worksheet.merge_range(
+        row, COL_LABEL, row, COL_NOTES,
+        "POLICY DELTAS (Generated Assumptions)",
+        policy_header_fmt
+    )
+    row += 1
+    
+    # Column headers
+    row = _write_column_headers(worksheet, row, budget_formats)
+    
+    # ------------------------------------------------------------------
+    # Generated Fill Rows calculation
+    # ------------------------------------------------------------------
+    # Current roster count formula (matches roster_grid.py and audit.py)
+    cap_choose_expr = (
+        "CHOOSE(SelectedYear-MetaBaseYear+1,"
+        + ",".join(f"tbl_salary_book_warehouse[cap_y{i}]" for i in range(6))
+        + ")"
+    )
+    current_roster_formula = (
+        "SUMPRODUCT(--(tbl_salary_book_warehouse[team_code]=SelectedTeam),"
+        "--(tbl_salary_book_warehouse[is_two_way]=FALSE),"
+        f"--({cap_choose_expr}>0))"
+    )
+    
+    # Fill rows needed = MAX(0, RosterFillTarget - current_roster_count)
+    fill_rows_needed_formula = f"MAX(0,RosterFillTarget-{current_roster_formula})"
+    
+    # Fill amount per row (based on RosterFillType)
+    rookie_min_formula = (
+        "SUMIFS(tbl_rookie_scale[salary_year_1],"
+        "tbl_rookie_scale[salary_year],SelectedYear,"
+        "tbl_rookie_scale[pick_number],30)"
+    )
+    vet_min_formula = (
+        "SUMIFS(tbl_minimum_scale[minimum_salary_amount],"
+        "tbl_minimum_scale[salary_year],SelectedYear,"
+        "tbl_minimum_scale[years_of_service],0)"
+    )
+    fill_amount_formula = (
+        f'IF(RosterFillType="Rookie Min",{rookie_min_formula},'
+        f'IF(RosterFillType="Vet Min",{vet_min_formula},'
+        f'MIN({rookie_min_formula},{vet_min_formula})))'
+    )
+    
+    # Total fill impact = fill_rows_needed * fill_amount (only when RosterFillTarget > 0)
+    # This applies to cap/tax/apron equally (minimums count the same for all modes)
+    total_fill_formula = f"IF(RosterFillTarget>0,{fill_rows_needed_formula}*{fill_amount_formula},0)"
+    
+    # Policy delta format (amber to indicate assumption)
+    policy_delta_fmt = workbook.add_format({
+        "num_format": FMT_MONEY,
+        "bg_color": "#FEF3C7",  # amber-100
+        "font_color": "#92400E",  # amber-800
+    })
+    policy_delta_zero_fmt = workbook.add_format({
+        "num_format": FMT_MONEY,
+        "font_color": "#9CA3AF",  # gray-400 (muted when zero)
+        "italic": True,
+    })
+    
+    # Write the Generated Fill Rows row
+    worksheet.write(row, COL_LABEL, "  Generated Fill Rows (GEN)", budget_formats["label_indent"])
+    worksheet.write_formula(row, COL_CAP, f"={total_fill_formula}", policy_delta_zero_fmt)
+    worksheet.write_formula(row, COL_TAX, f"={total_fill_formula}", policy_delta_zero_fmt)
+    worksheet.write_formula(row, COL_APRON, f"={total_fill_formula}", policy_delta_zero_fmt)
+    
+    # Dynamic note showing fill count and type
+    note_formula = (
+        '=IF(RosterFillTarget>0,'
+        f'"Adds "&{fill_rows_needed_formula}&" fill slots × "&RosterFillType,'
+        '"Disabled (RosterFillTarget=0)")'
+    )
+    worksheet.write_formula(row, COL_NOTES, note_formula, budget_formats["note"])
+    
+    # Conditional formatting: highlight amber when fill is active (> 0)
+    for col in [COL_CAP, COL_TAX, COL_APRON]:
+        worksheet.conditional_format(row, col, row, col, {
+            "type": "cell",
+            "criteria": ">",
+            "value": 0,
+            "format": policy_delta_fmt,
+        })
+    
+    fill_row = row
+    row += 1
+    
+    # (Future: additional policy rows could be added here, e.g., incomplete roster charges)
+    
+    # ------------------------------------------------------------------
+    # Policy Delta Total row
+    # ------------------------------------------------------------------
+    row += 1
+    policy_total_fmt = workbook.add_format({
+        "num_format": FMT_MONEY,
+        "bold": True,
+        "top": 1,
+        "bottom": 2,
+        "bg_color": "#FEF3C7",  # amber-100
+        "font_color": "#92400E",  # amber-800
+    })
+    policy_total_zero_fmt = workbook.add_format({
+        "num_format": FMT_MONEY,
+        "bold": True,
+        "top": 1,
+        "bottom": 2,
+        "bg_color": "#F3F4F6",  # gray-100 when zero
+    })
+    
+    worksheet.write(row, COL_LABEL, "POLICY DELTA TOTAL", budget_formats["label_bold"])
+    
+    # For now, policy total = fill total (when more policy rows added, sum them)
+    fill_cap_cell = xlsxwriter.utility.xl_rowcol_to_cell(fill_row, COL_CAP)
+    fill_tax_cell = xlsxwriter.utility.xl_rowcol_to_cell(fill_row, COL_TAX)
+    fill_apron_cell = xlsxwriter.utility.xl_rowcol_to_cell(fill_row, COL_APRON)
+    
+    worksheet.write_formula(row, COL_CAP, f"={fill_cap_cell}", policy_total_zero_fmt)
+    worksheet.write_formula(row, COL_TAX, f"={fill_tax_cell}", policy_total_zero_fmt)
+    worksheet.write_formula(row, COL_APRON, f"={fill_apron_cell}", policy_total_zero_fmt)
+    worksheet.write(row, COL_NOTES, "Sum of policy-driven assumptions (NOT authoritative)", budget_formats["note"])
+    
+    # Conditional formatting for total row when active
+    for col in [COL_CAP, COL_TAX, COL_APRON]:
+        worksheet.conditional_format(row, col, row, col, {
+            "type": "cell",
+            "criteria": ">",
+            "value": 0,
+            "format": policy_total_fmt,
+        })
+    
+    policy_total_row = row
+    row += 2
+    
+    return row, policy_total_row
+
+
 def _write_derived_section(
     worksheet: Worksheet,
     row: int,
     formats: dict[str, Any],
     budget_formats: dict[str, Any],
     snapshot_total_row: int,
-    delta_total_row: int,
+    plan_delta_total_row: int,
+    policy_delta_total_row: int,
 ) -> int:
-    """Write the derived totals section (snapshot + plan deltas).
+    """Write the derived totals section (snapshot + plan deltas + policy deltas).
     
-    This shows the "if you execute this plan" state.
+    This shows the "if you execute this plan with these assumptions" state.
     
     Returns next row.
     """
     # Section header
     worksheet.merge_range(
         row, COL_LABEL, row, COL_NOTES,
-        "DERIVED TOTALS (Snapshot + Plan Deltas)",
+        "DERIVED TOTALS (Snapshot + Plan + Policy)",
         budget_formats["section_header"]
     )
     row += 1
@@ -473,21 +641,24 @@ def _write_derived_section(
     # Column headers
     row = _write_column_headers(worksheet, row, budget_formats)
     
-    # Derived total = snapshot + delta
-    # Reference the snapshot and delta total rows
+    # Derived total = snapshot + plan delta + policy delta
     snapshot_cap = xlsxwriter.utility.xl_rowcol_to_cell(snapshot_total_row, COL_CAP)
     snapshot_tax = xlsxwriter.utility.xl_rowcol_to_cell(snapshot_total_row, COL_TAX)
     snapshot_apron = xlsxwriter.utility.xl_rowcol_to_cell(snapshot_total_row, COL_APRON)
     
-    delta_cap = xlsxwriter.utility.xl_rowcol_to_cell(delta_total_row, COL_CAP)
-    delta_tax = xlsxwriter.utility.xl_rowcol_to_cell(delta_total_row, COL_TAX)
-    delta_apron = xlsxwriter.utility.xl_rowcol_to_cell(delta_total_row, COL_APRON)
+    plan_cap = xlsxwriter.utility.xl_rowcol_to_cell(plan_delta_total_row, COL_CAP)
+    plan_tax = xlsxwriter.utility.xl_rowcol_to_cell(plan_delta_total_row, COL_TAX)
+    plan_apron = xlsxwriter.utility.xl_rowcol_to_cell(plan_delta_total_row, COL_APRON)
+    
+    policy_cap = xlsxwriter.utility.xl_rowcol_to_cell(policy_delta_total_row, COL_CAP)
+    policy_tax = xlsxwriter.utility.xl_rowcol_to_cell(policy_delta_total_row, COL_TAX)
+    policy_apron = xlsxwriter.utility.xl_rowcol_to_cell(policy_delta_total_row, COL_APRON)
     
     worksheet.write(row, COL_LABEL, "DERIVED TOTAL", budget_formats["label_bold"])
-    worksheet.write_formula(row, COL_CAP, f"={snapshot_cap}+{delta_cap}", budget_formats["money_total"])
-    worksheet.write_formula(row, COL_TAX, f"={snapshot_tax}+{delta_tax}", budget_formats["money_total"])
-    worksheet.write_formula(row, COL_APRON, f"={snapshot_apron}+{delta_apron}", budget_formats["money_total"])
-    worksheet.write(row, COL_NOTES, "Projected team total after plan", budget_formats["note"])
+    worksheet.write_formula(row, COL_CAP, f"={snapshot_cap}+{plan_cap}+{policy_cap}", budget_formats["money_total"])
+    worksheet.write_formula(row, COL_TAX, f"={snapshot_tax}+{plan_tax}+{policy_tax}", budget_formats["money_total"])
+    worksheet.write_formula(row, COL_APRON, f"={snapshot_apron}+{plan_apron}+{policy_apron}", budget_formats["money_total"])
+    worksheet.write(row, COL_NOTES, "Projected total: Snapshot + Plan + Policy assumptions", budget_formats["note"])
     
     derived_total_row = row
     row += 2
@@ -758,7 +929,8 @@ def write_budget_ledger(
     - Snapshot totals by bucket from DATA_team_salary_warehouse
     - System thresholds for context
     - Plan deltas (from tbl_plan_journal, enabled rows filtered by ActivePlanId)
-    - Derived totals (snapshot + deltas)
+    - Policy deltas (generated fill rows and other analyst assumptions)
+    - Derived totals (snapshot + plan + policy)
     - Room/over analysis for cap/tax/aprons
     - Verification that formulas are consistent
 
@@ -766,6 +938,7 @@ def write_budget_ledger(
     - This is the "single source of truth for totals and deltas"
     - This is the sheet you use to explain numbers to a GM/owner
     - Mode-aware (Cap vs Tax vs Apron columns always visible)
+    - Policy deltas are explicit and toggleable (visible generated rows)
 
     Args:
         workbook: The XlsxWriter Workbook
@@ -774,7 +947,7 @@ def write_budget_ledger(
     """
     # Sheet title
     worksheet.write(0, 0, "BUDGET LEDGER", formats["header"])
-    worksheet.write(1, 0, "Authoritative accounting statement (Snapshot + Plan = Derived)")
+    worksheet.write(1, 0, "Authoritative accounting statement (Snapshot + Plan + Policy = Derived)")
     
     # Write read-only command bar
     write_command_bar_readonly(workbook, worksheet, formats)
@@ -805,17 +978,22 @@ def write_budget_ledger(
     )
     
     # 3. Plan delta section (from tbl_plan_journal for ActivePlanId)
-    content_row, delta_total_row = _write_plan_delta_section(
+    content_row, plan_delta_total_row = _write_plan_delta_section(
         worksheet, content_row, formats, budget_formats
     )
     
-    # 4. Derived totals section
-    content_row, derived_total_row = _write_derived_section(
-        worksheet, content_row, formats, budget_formats,
-        snapshot_total_row, delta_total_row
+    # 4. Policy delta section (generated fill rows and other assumptions)
+    content_row, policy_delta_total_row = _write_policy_delta_section(
+        workbook, worksheet, content_row, formats, budget_formats
     )
     
-    # 5. Verification section
+    # 5. Derived totals section (snapshot + plan + policy)
+    content_row, derived_total_row = _write_derived_section(
+        worksheet, content_row, formats, budget_formats,
+        snapshot_total_row, plan_delta_total_row, policy_delta_total_row
+    )
+    
+    # 6. Verification section
     content_row = _write_verification_section(
         worksheet, content_row, formats, budget_formats,
         snapshot_total_row
