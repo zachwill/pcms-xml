@@ -44,6 +44,7 @@ from ..named_formulas import (
     SalaryBookTwoWayFilter,
     SalaryBookYearCol,
     ModeYearIndex,
+    PlanRowMask,
 )
 from .command_bar import (
     write_command_bar_readonly,
@@ -1075,7 +1076,7 @@ def _write_plan_diff_section(
     # Uses LET + FILTER + ROWS with PlanRowMask for consistent filtering
     enabled_rows_formula = (
         '=LET('
-        '_xlpm.mask,(((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))*((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))*(tbl_plan_journal[enabled]="Yes")),'
+        '_xlpm.mask,PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),'
         '_xlpm.filtered,FILTER(tbl_plan_journal[enabled],_xlpm.mask,""),'
         'IF(ISTEXT(_xlpm.filtered),0,ROWS(_xlpm.filtered))'
         ')'
@@ -1113,19 +1114,19 @@ def _write_plan_diff_section(
     # Delta Cap Total - uses LET + FILTER + SUM with PlanRowMask
     delta_cap_formula = (
         '=LET('
-        '_xlpm.mask,(((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))*((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))*(tbl_plan_journal[enabled]="Yes")),'
+        '_xlpm.mask,PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),'
         'IFERROR(SUM(FILTER(tbl_plan_journal[delta_cap],_xlpm.mask,0)),0)'
         ')'
     )
     delta_tax_formula = (
         '=LET('
-        '_xlpm.mask,(((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))*((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))*(tbl_plan_journal[enabled]="Yes")),'
+        '_xlpm.mask,PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),'
         'IFERROR(SUM(FILTER(tbl_plan_journal[delta_tax],_xlpm.mask,0)),0)'
         ')'
     )
     delta_apron_formula = (
         '=LET('
-        '_xlpm.mask,(((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))*((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))*(tbl_plan_journal[enabled]="Yes")),'
+        '_xlpm.mask,PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),'
         'IFERROR(SUM(FILTER(tbl_plan_journal[delta_apron],_xlpm.mask,0)),0)'
         ')'
     )

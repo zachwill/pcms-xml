@@ -10,6 +10,7 @@ from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
 from .formats import _create_plan_formats
+from ..named_formulas import PlanRowMask
 from ..command_bar import (
     write_command_bar_readonly,
     get_content_start_row,
@@ -668,14 +669,9 @@ def _write_running_state_panel(
     
     worksheet.write(row, PJ_RUNNING_COL_LABEL, "Actions (Enabled):", plan_formats["panel_label"])
     action_count_formula = (
-        '=IFNA('
-        'SUM(--((('
-        'tbl_plan_journal[plan_id]=ActivePlanId)+('
-        'tbl_plan_journal[plan_id]=""))*(('
-        'tbl_plan_journal[salary_year]=SelectedYear)+('
-        'tbl_plan_journal[salary_year]=""))*('
-        'tbl_plan_journal[enabled]'
-        '="Yes"))),0)'
+        '=LET('
+        '_xlpm.mask,PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),'
+        'SUM(FILTER(1,_xlpm.mask,0)))'
     )
     worksheet.write_formula(row, PJ_RUNNING_COL_VALUE, action_count_formula, plan_formats["panel_value"])
     row += 1
@@ -690,12 +686,7 @@ def _write_running_state_panel(
     worksheet.write(row, PJ_RUNNING_COL_LABEL, "Δ Cap Total:", plan_formats["panel_label"])
     delta_cap_formula = (
         '=LET('
-        '_xlpm.mask,((('
-        'tbl_plan_journal[plan_id]=ActivePlanId)+('
-        'tbl_plan_journal[plan_id]=""))*(('
-        'tbl_plan_journal[salary_year]=SelectedYear)+('
-        'tbl_plan_journal[salary_year]=""))*('
-        'tbl_plan_journal[enabled]="Yes")),'
+        '_xlpm.mask,PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),'
         'SUM(FILTER(tbl_plan_journal[delta_cap],_xlpm.mask,0)))'
     )
     worksheet.write_formula(row, PJ_RUNNING_COL_VALUE, delta_cap_formula, plan_formats["panel_value_money"])
@@ -705,12 +696,7 @@ def _write_running_state_panel(
     worksheet.write(row, PJ_RUNNING_COL_LABEL, "Δ Tax Total:", plan_formats["panel_label"])
     delta_tax_formula = (
         '=LET('
-        '_xlpm.mask,((('
-        'tbl_plan_journal[plan_id]=ActivePlanId)+('
-        'tbl_plan_journal[plan_id]=""))*(('
-        'tbl_plan_journal[salary_year]=SelectedYear)+('
-        'tbl_plan_journal[salary_year]=""))*('
-        'tbl_plan_journal[enabled]="Yes")),'
+        '_xlpm.mask,PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),'
         'SUM(FILTER(tbl_plan_journal[delta_tax],_xlpm.mask,0)))'
     )
     worksheet.write_formula(row, PJ_RUNNING_COL_VALUE, delta_tax_formula, plan_formats["panel_value_money"])
@@ -720,12 +706,7 @@ def _write_running_state_panel(
     worksheet.write(row, PJ_RUNNING_COL_LABEL, "Δ Apron Total:", plan_formats["panel_label"])
     delta_apron_formula = (
         '=LET('
-        '_xlpm.mask,((('
-        'tbl_plan_journal[plan_id]=ActivePlanId)+('
-        'tbl_plan_journal[plan_id]=""))*(('
-        'tbl_plan_journal[salary_year]=SelectedYear)+('
-        'tbl_plan_journal[salary_year]=""))*('
-        'tbl_plan_journal[enabled]="Yes")),'
+        '_xlpm.mask,PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),'
         'SUM(FILTER(tbl_plan_journal[delta_apron],_xlpm.mask,0)))'
     )
     worksheet.write_formula(row, PJ_RUNNING_COL_VALUE, delta_apron_formula, plan_formats["panel_value_money"])
@@ -751,7 +732,7 @@ def _write_running_state_panel(
     worksheet.write(cumul_header_row, cumul_col_apron, "Cumul Δ Apron", plan_formats["panel_subheader"])
     
     # Write row-by-row cumulative formulas
-    # We use SUMPRODUCT to handle the "matches ActivePlan OR is blank" logic easily.
+    # We use LET + FILTER + SUM pattern for consistency with modern standards.
     # While O(N^2), it is very fast for typical journal sizes (<500 rows).
     for i in range(num_data_rows):
         curr_row = table_start_row + 1 + i
@@ -768,12 +749,10 @@ def _write_running_state_panel(
         def make_cumul_formula(col_name: str) -> str:
             # Only sum rows where step <= current step AND (plan matches OR is blank) AND (year matches OR is blank) AND enabled="Yes"
             return (
-                f'=IF({step_ref}="","",SUMPRODUCT('
-                f'tbl_plan_journal[{col_name}],'
-                f'(tbl_plan_journal[step]<={step_ref})*'
-                f'(tbl_plan_journal[enabled]="Yes")*'
-                f'((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))*'
-                f'((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))'
+                f'=IF({step_ref}="","",LET('
+                f'_xlpm.mask,(tbl_plan_journal[step]<={step_ref})*'
+                f'PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),'
+                f'SUM(FILTER(tbl_plan_journal[{col_name}],_xlpm.mask,0))'
                 f'))'
             )
 

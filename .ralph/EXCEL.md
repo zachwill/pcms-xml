@@ -43,7 +43,7 @@ This document tracks the Excel capbook modernization effort—splitting massive 
 
 - [x] Build a real workbook and run XML sanity checks (no Excel repair dialog; no bare LET variables; no `#` spill refs in defined names)
 - [x] PLAN_JOURNAL: implement row-by-row cumulative Δ Cap/Tax/Apron without SCAN/LAMBDA (avoid Mac Excel repair)
-- [ ] Continue modernizing remaining SUMPRODUCT hotspots only when it improves readability/performance
+- [x] Continue modernizing remaining SUMPRODUCT hotspots only when it improves readability/performance
 
 ### Phase 1: Split `subsystems.py` (easiest win)
 
@@ -111,7 +111,7 @@ Replace inline LET formulas with helper functions from `named_formulas.py`.
 - [x] Migrate `_write_dead_money_section()` — ~10 column formulas → helper calls
 - [x] Migrate `_write_exists_only_section()` — ~8 column formulas → helper calls
 - [ ] Verify XML has no bare LET variables: `unzip -p shared/capbook.xlsx xl/worksheets/*.xml | grep -oE "LET\([a-z_]+," | grep -v "_xlpm"`
-- [ ] Implement per-row cumulative sums in `plan_journal.py` (SCAN + LAMBDA caused repair issues; try non-LAMBDA approach or simpler per-row formula)
+- [x] Implement per-row cumulative sums in `plan_journal.py` (SCAN + LAMBDA caused repair issues; try non-LAMBDA approach or simpler per-row formula)
 
 ### Phase 6: Modernize legacy formula patterns
 
@@ -122,6 +122,7 @@ Replace SUMPRODUCT/COUNTIFS with FILTER+SUM/ROWS where it improves readability.
 - [x] `excel/capbook/sheets/roster_grid/generated_section.py` — replace `current_roster_count_formula` SUMPRODUCT with ROWS(FILTER(...)) to match the modern formula standard
 - [x] `excel/capbook/sheets/budget_ledger.py` — modernize remaining SUMPRODUCT patterns (search `SUMPRODUCT(`)
 - [x] `excel/capbook/sheets/audit.py` — modernized `_salary_book_filter_sum/count` and fixed CHOOSECOLS bug
+- [x] `excel/capbook/sheets/plan/plan_journal.py` — modernize `SUMPRODUCT` to `LET + FILTER + SUM` and adopt `PlanRowMask`
 
 **Note:** SUMIFS/COUNTIFS are fine for simple two-column lookups. Only modernize SUMPRODUCT patterns (harder to read, slower).
 
