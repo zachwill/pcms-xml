@@ -34,6 +34,49 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
 
 ## Backlog (next work)
 
+### 12) TEAM_COCKPIT: Quick Drivers via FILTER/SORTBY/TAKE
+- [ ] Replace AGGREGATE/MATCH "top N" extraction with spill formulas
+  - Build Top Cap Hits / Top Holds / Top Dead Money as dynamic arrays
+  - Prefer `LET + FILTER + SORTBY + TAKE` (single spill per panel)
+  - Preserve existing formatting + conditional formatting semantics
+
+### 13) TEAM_COCKPIT: Minimum contracts readout without SUMPRODUCT
+- [ ] Replace min-contract SUMPRODUCT logic with `LET + FILTER + SUM/ROWS`
+  - Replace `Min Contract Total` SUMPRODUCT (SelectedYear cap amounts)
+  - Total $ and count should match current results
+  - Keep display clean (0 instead of errors)
+
+### 14) TEAM_COCKPIT: Plan comparison deltas without SUMPRODUCT
+- [ ] Replace SUMPRODUCT-based compare-plan deltas + action counts with `LET + FILTER + SUM/ROWS`
+  - Use `XLOOKUP` to resolve `ComparePlan{A..D}` → `plan_id`
+  - Filter rules must match journal semantics:
+    - `(plan_id = resolved_plan_id OR plan_id = "")`
+    - `(salary_year = SelectedYear OR salary_year = "")`
+    - `enabled = "Yes"`
+  - Preserve existing warnings for blank/Baseline compare plans
+
+---
+
+## Completed (recent)
+
+### 1) Document Excel 365+ requirement + formula standard
+- [x] Add explicit "Excel 365/2021 required" note to docs + workbook UI
+
+### 2) Create shared named formulas (LAMBDA/LET helpers)
+- [x] Define named formulas for repeated logic and reuse them in sheets
+
+### 3) HOME + RULES_REFERENCE: migrate to XLOOKUP/FILTER
+- [x] Replace `INDEX/MATCH` in HOME readouts + RULES_REFERENCE tables
+
+### 4) PLAN_JOURNAL: totals + running state via LET/FILTER/SCAN
+- [x] Replace `SUMPRODUCT` panels with modern formulas
+
+### 5) BUDGET_LEDGER: plan deltas via LET/FILTER
+- [x] Replace legacy SUMPRODUCT/SUMIFS blocks with LET + FILTER
+
+### 6) ROSTER_GRID: roster + two-way rows via FILTER/SORTBY/TAKE
+- [x] Replace AGGREGATE/MATCH row extraction with dynamic arrays
+
 ### 7) ROSTER_GRID: cap holds + dead money via FILTER/SORTBY/TAKE
 - [x] Convert **CAP HOLDS** and **DEAD MONEY** sections to dynamic arrays
   - Build spill ranges from `tbl_cap_holds_warehouse` / `tbl_dead_money_warehouse` filtered by `SelectedTeam + SelectedYear`
@@ -60,39 +103,6 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - `net_owed` and dead-year distribution using `LET`
   - Use `INDEX` + `ModeYearIndex` for SelectedYear delta pick
   - Preserve stretch toggle logic and validations
-
-### 12) TEAM_COCKPIT: Quick Drivers via FILTER/SORTBY/TAKE
-- [ ] Replace AGGREGATE/MATCH "top N" extraction with spill formulas
-  - Build Top Cap Hits / Top Holds / Top Dead Money as dynamic arrays
-  - Avoid helper columns that are easy to overwrite
-  - Preserve existing formatting + conditional formatting semantics
-
-### 13) TEAM_COCKPIT: Minimum contracts readout without SUMPRODUCT
-- [ ] Replace min-contract SUMPRODUCT panels with `LET + FILTER + SUM/ROWS`
-  - Total $ and count should match current results
-  - Keep display clean (0 instead of errors)
-
----
-
-## Completed (recent)
-
-### 1) Document Excel 365+ requirement + formula standard
-- [x] Add explicit "Excel 365/2021 required" note to docs + workbook UI
-
-### 2) Create shared named formulas (LAMBDA/LET helpers)
-- [x] Define named formulas for repeated logic and reuse them in sheets
-
-### 3) HOME + RULES_REFERENCE: migrate to XLOOKUP/FILTER
-- [x] Replace `INDEX/MATCH` in HOME readouts + RULES_REFERENCE tables
-
-### 4) PLAN_JOURNAL: totals + running state via LET/FILTER/SCAN
-- [x] Replace `SUMPRODUCT` panels with modern formulas
-
-### 5) BUDGET_LEDGER: plan deltas via LET/FILTER
-- [x] Replace legacy SUMPRODUCT/SUMIFS blocks with LET + FILTER
-
-### 6) ROSTER_GRID: roster + two-way rows via FILTER/SORTBY/TAKE
-- [x] Replace AGGREGATE/MATCH row extraction with dynamic arrays
 
 ### 11) AUDIT_AND_RECONCILE: SUM(FILTER) instead of SUMPRODUCT
 - [x] Replace drilldown formulas with `LET + FILTER + SUM`
