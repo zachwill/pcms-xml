@@ -33,8 +33,8 @@ Sean has a comprehensive totals block. We need:
 
 - [x] **Team Salary** - sum of all roster salaries (uses `tbl_team_salary_warehouse[cap_total]`)
 - [x] **Team Salary (fill to 14)** - with roster fills added
-- [ ] **Minimum Level** - league minimum team salary
-- [ ] **+/- Minimum** - delta from minimum
+- [x] **Minimum Level** - league minimum team salary (from `tbl_system_values[minimum_team_salary_amount]`)
+- [x] **+/- Minimum** - delta from minimum (GREEN if above, RED if below)
 - [ ] **Cap Level** - salary cap amount
 - [ ] **Cap Space** - GREEN if positive, RED if negative
 - [ ] **Tax Level** - luxury tax threshold

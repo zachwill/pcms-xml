@@ -127,7 +127,8 @@ def extract_tax_rates(
     columns = [
         "league_lk",
         "salary_year",
-        "bracket_number",
+        # Derived for UI convenience (stable ordering of brackets)
+        "ui_bracket_number",
         "lower_limit",
         "upper_limit",
         "tax_rate_non_repeater",

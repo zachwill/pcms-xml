@@ -345,6 +345,45 @@ _xlpm.base-_xlpm.out-_xlpm.waived+_xlpm.in+_xlpm.signed
     worksheet.write_formula(TOTALS_START + 2, 5, modified_formula.replace("\n", ""), fmt_totals_value)  # F23
     workbook.define_name("ModifiedSalary", "=PLAYGROUND!$F$23")
     
+    # Minimum Level - league minimum team salary threshold
+    worksheet.write(TOTALS_START + 3, 4, "Minimum Level", fmt_totals_label)  # E24
+    min_level_formula = '=XLOOKUP(MetaBaseYear,tbl_system_values[salary_year],tbl_system_values[minimum_team_salary_amount])'
+    worksheet.write_formula(TOTALS_START + 3, 5, min_level_formula, fmt_totals_value)  # F24
+    workbook.define_name("MinimumLevel", "=PLAYGROUND!$F$24")
+    
+    # +/- Minimum - delta from minimum (positive = above minimum, safe; negative = below minimum, problem)
+    # Uses filled salary to show minimum compliance before scenario adjustments
+    fmt_delta_positive = workbook.add_format({
+        **base_font,
+        "num_format": "+$#,##0;-$#,##0",
+        "font_color": "#16A34A",  # Green - above minimum is good
+        "align": "right",
+    })
+    fmt_delta_negative = workbook.add_format({
+        **base_font,
+        "num_format": "+$#,##0;-$#,##0",
+        "font_color": "#DC2626",  # Red - below minimum is bad
+        "align": "right",
+    })
+    worksheet.write(TOTALS_START + 4, 4, "+/- Minimum", fmt_totals_label_indent)  # E25
+    delta_min_formula = '=TeamSalaryFilled-MinimumLevel'
+    worksheet.write_formula(TOTALS_START + 4, 5, delta_min_formula, fmt_delta_positive)  # F25
+    workbook.define_name("DeltaMinimum", "=PLAYGROUND!$F$25")
+    
+    # Conditional formatting for +/- Minimum: green if >= 0, red if < 0
+    worksheet.conditional_format("F25", {
+        "type": "cell",
+        "criteria": ">=",
+        "value": 0,
+        "format": fmt_delta_positive,
+    })
+    worksheet.conditional_format("F25", {
+        "type": "cell",
+        "criteria": "<",
+        "value": 0,
+        "format": fmt_delta_negative,
+    })
+    
     # -------------------------------------------------------------------------
     # KPIs - in left panel below trade math (rows 28-30)
     # Uses ModifiedSalary (F22) for scenario-adjusted comparisons
