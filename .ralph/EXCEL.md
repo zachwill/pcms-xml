@@ -63,10 +63,11 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - Conditional formatting unchanged (still uses ActivePlanId/SelectedYear refs)
 
 ### 5) BUDGET_LEDGER: plan deltas via LET/FILTER
-- [ ] Replace legacy SUMPRODUCT/SUMIFS blocks with LET + FILTER
-  - Centralize mask in named formulas
-  - Preserve `ActivePlanId` fallback behavior
-  - Validate totals vs PLAN_JOURNAL and SUBSYSTEM_OUTPUTS
+- [x] Replace legacy SUMPRODUCT/SUMIFS blocks with LET + FILTER
+  - Uses PlanRowMask LAMBDA for journal entries (consistent with PLAN_JOURNAL)
+  - Uses inline LET mask for subsystem outputs (no blank salary_year logic needed)
+  - Preserved `ActivePlanId` fallback behavior via IFERROR wrapping
+  - Totals are equivalent to previous SUMPRODUCT formulas
 
 ### 6) ROSTER_GRID: roster + two-way rows via FILTER/SORTBY/TAKE
 - [ ] Replace AGGREGATE/MATCH row extraction with dynamic arrays

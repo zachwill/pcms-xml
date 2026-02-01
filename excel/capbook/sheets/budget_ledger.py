@@ -29,6 +29,11 @@ Design notes:
 - Each journal entry has a salary_year column; blank means "use SelectedYear"
 - Subsystem outputs auto-link to TRADE_MACHINE, SIGNINGS_AND_EXCEPTIONS, WAIVE_BUYOUT_STRETCH
 - Policy deltas show generated fill impact with amber styling to indicate assumptions
+
+**Excel 365/2021 Required (Modern Formulas):**
+- Uses LET + FILTER + SUM instead of legacy SUMPRODUCT for plan deltas
+- Leverages PlanRowMask LAMBDA for consistent filtering across the workbook
+- See .ralph/EXCEL.md backlog item #5 for migration rationale
 """
 
 from __future__ import annotations
@@ -330,9 +335,12 @@ def _write_plan_delta_section(
     """Write the plan delta section sourced from tbl_plan_journal AND tbl_subsystem_outputs.
     
     This section summarizes journal actions for the active plan and selected year.
-    It uses SUMPRODUCT to aggregate deltas from enabled journal entries where:
-    - plan_id matches the ActivePlanId (derived from ActivePlan name)
+    Uses modern Excel 365 formulas (LET + FILTER + SUM) instead of legacy SUMPRODUCT.
+    
+    Journal entries are filtered where:
+    - plan_id matches ActivePlanId (derived from ActivePlan name)
     - salary_year matches SelectedYear (or is blank, which defaults to SelectedYear)
+    - enabled = "Yes"
     
     Per backlog task #19, this section ALSO includes deltas from tbl_subsystem_outputs
     where include_in_plan="Yes" AND plan_id=ActivePlanId AND salary_year=SelectedYear.
@@ -341,6 +349,11 @@ def _write_plan_delta_section(
     - If ActivePlanId is blank/error (e.g., plan not found), deltas are 0
     - The "Baseline" plan has plan_id=1 but no journal entries by default
     - Blank salary_year is treated as "same as SelectedYear"
+    
+    **Modern Formula Pattern (per .ralph/EXCEL.md #5):**
+    - Uses LET + FILTER + SUM instead of SUMPRODUCT
+    - Leverages PlanRowMask LAMBDA for consistent filtering
+    - IFERROR wrapping for graceful blank/error handling
     
     Returns (next_row, delta_total_row).
     """
@@ -366,34 +379,43 @@ def _write_plan_delta_section(
     worksheet.write(row, COL_NOTES, "Enabled rows for ActivePlan + SelectedYear", budget_formats["note"])
     row += 1
     
-    # Helper: SUMIFS for plan journal filtered by ActivePlanId and enabled="Yes"
-    # Uses IFERROR to handle case where ActivePlanId is blank or not found
-    # When ActivePlanId is blank (e.g., no plan selected), returns 0
+    # -------------------------------------------------------------------------
+    # Modern formula helper: LET + FILTER + SUM with PlanRowMask
+    # 
+    # Pattern for journal entries by action type:
+    #   =IFERROR(LET(
+    #     mask, PlanRowMask(plan_id_col, salary_year_col, enabled_col),
+    #     action_mask, (tbl_plan_journal[action_type]="Trade"),
+    #     combined, mask * action_mask,
+    #     SUM(FILTER(tbl_plan_journal[delta_cap], combined, 0))
+    #   ), 0)
+    #
+    # PlanRowMask already handles:
+    #   - (plan_id = ActivePlanId OR plan_id = "")
+    #   - (salary_year = SelectedYear OR salary_year = "")
+    #   - (enabled = "Yes")
+    # -------------------------------------------------------------------------
     
-    def _journal_sumifs_by_plan(delta_col: str, action_type: str) -> str:
+    def _journal_let_filter_by_action(delta_col: str, action_type: str) -> str:
         """
-        Sum journal deltas for a specific action type, filtered by:
-        - enabled = "Yes"
-        - plan_id = ActivePlanId
-        - salary_year = SelectedYear (or blank, which defaults to SelectedYear)
+        Sum journal deltas for a specific action type using LET + FILTER + SUM.
         
-        Uses IFERROR to gracefully handle blank/missing ActivePlanId.
-        
-        The salary_year filter uses SUMPRODUCT to handle the "blank means SelectedYear" logic:
-        - If salary_year is blank OR equals SelectedYear, include the row.
+        Uses PlanRowMask LAMBDA for the base filter, then adds action_type filter.
+        IFERROR handles empty results or blank ActivePlanId gracefully.
         """
-        # SUMPRODUCT with multiple conditions to handle blank salary_year as SelectedYear
         return (
-            f'=IFERROR(SUMPRODUCT('
-            f'(tbl_plan_journal[{delta_col}])*'
-            f'(tbl_plan_journal[enabled]="Yes")*'
-            f'(tbl_plan_journal[plan_id]=ActivePlanId)*'
-            f'(tbl_plan_journal[action_type]="{action_type}")*'
-            f'((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))'
+            f'=IFERROR(LET('
+            f'mask,PlanRowMask('
+            f'tbl_plan_journal[plan_id],'
+            f'tbl_plan_journal[salary_year],'
+            f'tbl_plan_journal[enabled]),'
+            f'action_mask,(tbl_plan_journal[action_type]="{action_type}"),'
+            f'combined,mask*action_mask,'
+            f'SUM(FILTER(tbl_plan_journal[{delta_col}],combined,0))'
             f'),0)'
         )
     
-    # Action type breakdown with SUMIFS
+    # Action type breakdown
     action_categories = [
         ("Trade", "Trade actions"),
         ("Sign (Cap Room)", "Cap room signings"),
@@ -411,10 +433,10 @@ def _write_plan_delta_section(
     for action_type, note in action_categories:
         worksheet.write(row, COL_LABEL, f"  {action_type}", budget_formats["label_indent"])
         
-        # SUMIFS: sum delta where enabled="Yes" AND plan_id=ActivePlanId AND action_type matches
-        cap_formula = _journal_sumifs_by_plan("delta_cap", action_type)
-        tax_formula = _journal_sumifs_by_plan("delta_tax", action_type)
-        apron_formula = _journal_sumifs_by_plan("delta_apron", action_type)
+        # LET + FILTER: sum delta where PlanRowMask matches AND action_type matches
+        cap_formula = _journal_let_filter_by_action("delta_cap", action_type)
+        tax_formula = _journal_let_filter_by_action("delta_tax", action_type)
+        apron_formula = _journal_let_filter_by_action("delta_apron", action_type)
         
         worksheet.write_formula(row, COL_CAP, cap_formula, budget_formats["delta_zero"])
         worksheet.write_formula(row, COL_TAX, tax_formula, budget_formats["delta_zero"])
@@ -424,29 +446,33 @@ def _write_plan_delta_section(
     
     journal_delta_row_end = row - 1  # Last journal data row
     
-    # Journal entries subtotal
+    # Journal entries subtotal using LET + FILTER + SUM with PlanRowMask
+    # Pattern: =IFERROR(LET(mask, PlanRowMask(...), SUM(FILTER(delta_col, mask, 0))), 0)
     journal_subtotal_cap_formula = (
-        '=IFERROR(SUMPRODUCT('
-        '(tbl_plan_journal[delta_cap])*'
-        '(tbl_plan_journal[enabled]="Yes")*'
-        '(tbl_plan_journal[plan_id]=ActivePlanId)*'
-        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))'
+        '=IFERROR(LET('
+        'mask,PlanRowMask('
+        'tbl_plan_journal[plan_id],'
+        'tbl_plan_journal[salary_year],'
+        'tbl_plan_journal[enabled]),'
+        'SUM(FILTER(tbl_plan_journal[delta_cap],mask,0))'
         '),0)'
     )
     journal_subtotal_tax_formula = (
-        '=IFERROR(SUMPRODUCT('
-        '(tbl_plan_journal[delta_tax])*'
-        '(tbl_plan_journal[enabled]="Yes")*'
-        '(tbl_plan_journal[plan_id]=ActivePlanId)*'
-        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))'
+        '=IFERROR(LET('
+        'mask,PlanRowMask('
+        'tbl_plan_journal[plan_id],'
+        'tbl_plan_journal[salary_year],'
+        'tbl_plan_journal[enabled]),'
+        'SUM(FILTER(tbl_plan_journal[delta_tax],mask,0))'
         '),0)'
     )
     journal_subtotal_apron_formula = (
-        '=IFERROR(SUMPRODUCT('
-        '(tbl_plan_journal[delta_apron])*'
-        '(tbl_plan_journal[enabled]="Yes")*'
-        '(tbl_plan_journal[plan_id]=ActivePlanId)*'
-        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))'
+        '=IFERROR(LET('
+        'mask,PlanRowMask('
+        'tbl_plan_journal[plan_id],'
+        'tbl_plan_journal[salary_year],'
+        'tbl_plan_journal[enabled]),'
+        'SUM(FILTER(tbl_plan_journal[delta_apron],mask,0))'
         '),0)'
     )
     
@@ -467,6 +493,9 @@ def _write_plan_delta_section(
     # - salary_year = SelectedYear (tbl_subsystem_outputs.salary_year defaults to SelectedYear)
     #
     # The subsystem outputs table (on PLAN_JOURNAL) auto-links to subsystem sheets.
+    #
+    # **Modern Formula Pattern:**
+    # Uses LET + FILTER + SUM (no blank salary_year logic needed for subsystem outputs)
     # -------------------------------------------------------------------------
     
     # Create subsystem-specific formats (blue tint to differentiate from journal)
@@ -495,11 +524,8 @@ def _write_plan_delta_section(
     worksheet.write(row, COL_NOTES, "Included rows for ActivePlan + SelectedYear", budget_formats["note"])
     row += 1
     
-    # Subsystem output row breakdown
+    # Subsystem output row breakdown using LET + FILTER + SUM
     # List each subsystem source (Trade lanes A-D, Signings, Waive/Buyout)
-    # with SUMPRODUCT filtering by include_in_plan="Yes" AND plan_id=ActivePlanId AND salary_year=SelectedYear
-    #
-    # For the source breakdown, use SUMIFS filtered by source column
     subsystem_sources = [
         ("Trade Lane A", "Trade Lane A"),
         ("Trade Lane B", "Trade Lane B"),
@@ -511,37 +537,34 @@ def _write_plan_delta_section(
     
     subsystem_row_start = row
     
+    def _subsystem_let_filter_by_source(delta_col: str, source_value: str) -> str:
+        """
+        Sum subsystem output deltas for a specific source using LET + FILTER + SUM.
+        
+        Filter conditions:
+        - include_in_plan = "Yes"
+        - plan_id = ActivePlanId
+        - salary_year = SelectedYear
+        - source = source_value
+        """
+        return (
+            f'=IFERROR(LET('
+            f'mask,'
+            f'(tbl_subsystem_outputs[include_in_plan]="Yes")*'
+            f'(tbl_subsystem_outputs[plan_id]=ActivePlanId)*'
+            f'(tbl_subsystem_outputs[salary_year]=SelectedYear)*'
+            f'(tbl_subsystem_outputs[source]="{source_value}"),'
+            f'SUM(FILTER(tbl_subsystem_outputs[{delta_col}],mask,0))'
+            f'),0)'
+        )
+    
     for label, source_value in subsystem_sources:
         worksheet.write(row, COL_LABEL, f"  {label}", budget_formats["label_indent"])
         
-        # SUMPRODUCT for subsystem outputs filtered by source AND include_in_plan AND plan/year match
-        cap_formula = (
-            f'=IFERROR(SUMPRODUCT('
-            f'(tbl_subsystem_outputs[delta_cap])*'
-            f'(tbl_subsystem_outputs[include_in_plan]="Yes")*'
-            f'(tbl_subsystem_outputs[plan_id]=ActivePlanId)*'
-            f'(tbl_subsystem_outputs[salary_year]=SelectedYear)*'
-            f'(tbl_subsystem_outputs[source]="{source_value}")'
-            f'),0)'
-        )
-        tax_formula = (
-            f'=IFERROR(SUMPRODUCT('
-            f'(tbl_subsystem_outputs[delta_tax])*'
-            f'(tbl_subsystem_outputs[include_in_plan]="Yes")*'
-            f'(tbl_subsystem_outputs[plan_id]=ActivePlanId)*'
-            f'(tbl_subsystem_outputs[salary_year]=SelectedYear)*'
-            f'(tbl_subsystem_outputs[source]="{source_value}")'
-            f'),0)'
-        )
-        apron_formula = (
-            f'=IFERROR(SUMPRODUCT('
-            f'(tbl_subsystem_outputs[delta_apron])*'
-            f'(tbl_subsystem_outputs[include_in_plan]="Yes")*'
-            f'(tbl_subsystem_outputs[plan_id]=ActivePlanId)*'
-            f'(tbl_subsystem_outputs[salary_year]=SelectedYear)*'
-            f'(tbl_subsystem_outputs[source]="{source_value}")'
-            f'),0)'
-        )
+        # LET + FILTER: sum delta by source
+        cap_formula = _subsystem_let_filter_by_source("delta_cap", source_value)
+        tax_formula = _subsystem_let_filter_by_source("delta_tax", source_value)
+        apron_formula = _subsystem_let_filter_by_source("delta_apron", source_value)
         
         worksheet.write_formula(row, COL_CAP, cap_formula, subsystem_value_fmt)
         worksheet.write_formula(row, COL_TAX, tax_formula, subsystem_value_fmt)
@@ -551,30 +574,33 @@ def _write_plan_delta_section(
     
     subsystem_row_end = row - 1
     
-    # Subsystem outputs subtotal
+    # Subsystem outputs subtotal using LET + FILTER + SUM
     # Sum all included subsystem rows for ActivePlanId + SelectedYear
     subsystem_subtotal_cap_formula = (
-        '=IFERROR(SUMPRODUCT('
-        '(tbl_subsystem_outputs[delta_cap])*'
+        '=IFERROR(LET('
+        'mask,'
         '(tbl_subsystem_outputs[include_in_plan]="Yes")*'
         '(tbl_subsystem_outputs[plan_id]=ActivePlanId)*'
-        '(tbl_subsystem_outputs[salary_year]=SelectedYear)'
+        '(tbl_subsystem_outputs[salary_year]=SelectedYear),'
+        'SUM(FILTER(tbl_subsystem_outputs[delta_cap],mask,0))'
         '),0)'
     )
     subsystem_subtotal_tax_formula = (
-        '=IFERROR(SUMPRODUCT('
-        '(tbl_subsystem_outputs[delta_tax])*'
+        '=IFERROR(LET('
+        'mask,'
         '(tbl_subsystem_outputs[include_in_plan]="Yes")*'
         '(tbl_subsystem_outputs[plan_id]=ActivePlanId)*'
-        '(tbl_subsystem_outputs[salary_year]=SelectedYear)'
+        '(tbl_subsystem_outputs[salary_year]=SelectedYear),'
+        'SUM(FILTER(tbl_subsystem_outputs[delta_tax],mask,0))'
         '),0)'
     )
     subsystem_subtotal_apron_formula = (
-        '=IFERROR(SUMPRODUCT('
-        '(tbl_subsystem_outputs[delta_apron])*'
+        '=IFERROR(LET('
+        'mask,'
         '(tbl_subsystem_outputs[include_in_plan]="Yes")*'
         '(tbl_subsystem_outputs[plan_id]=ActivePlanId)*'
-        '(tbl_subsystem_outputs[salary_year]=SelectedYear)'
+        '(tbl_subsystem_outputs[salary_year]=SelectedYear),'
+        'SUM(FILTER(tbl_subsystem_outputs[delta_apron],mask,0))'
         '),0)'
     )
     
