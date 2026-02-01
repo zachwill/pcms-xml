@@ -21,9 +21,11 @@ This implementation provides:
 
 Design notes:
 - Uses Excel formulas filtered by SelectedTeam + SelectedYear
+- **Uses LET + FILTER + SUM patterns instead of legacy SUMPRODUCT** (Excel 365/2021+)
+- Salary book drilldowns use LET + CHOOSECOLS + FILTER for year-column selection
+- Plan diff uses shared PlanRowMask LAMBDA helper for consistent filtering
 - Conditional formatting highlights any non-zero deltas as red (reconciliation failures)
 - Row count comparison shows if drilldown tables have expected number of rows
-- Plan diff uses SUMPRODUCT to aggregate enabled journal actions for ActivePlan + SelectedYear
 """
 
 from __future__ import annotations
@@ -176,7 +178,7 @@ def _create_audit_formats(workbook: Workbook) -> dict[str, Any]:
 
 
 # =============================================================================
-# Helper: SUMIFS/COUNTIFS formula builders
+# Helper: SUMIFS/COUNTIFS formula builders (using LET + FILTER + SUM patterns)
 # =============================================================================
 
 def _warehouse_sumifs(column: str) -> str:
@@ -188,42 +190,67 @@ def _warehouse_sumifs(column: str) -> str:
     )
 
 
-def _salary_book_choose(col_base: str) -> str:
-    """Select the appropriate *_y{0..5} column for SelectedYear.
+def _salary_book_filter_sum(col_base: str, *, is_two_way: bool) -> str:
+    """Sum selected-year amounts from salary_book_warehouse using LET + FILTER + SUM.
 
-    salary_book_warehouse exports relative-year columns (cap_y0..cap_y5, tax_y0..tax_y5,
-    apron_y0..apron_y5) relative to MetaBaseYear.
+    Replaces the legacy SUMPRODUCT pattern with modern dynamic arrays.
 
-    Returns an expression (no leading '=') suitable for embedding in SUMPRODUCT.
+    salary_book_warehouse exports relative-year columns (cap_y0..cap_y5, etc.)
+    relative to MetaBaseYear. We use CHOOSECOLS to extract the correct year column.
+
+    Args:
+        col_base: Column prefix (cap, tax, apron)
+        is_two_way: Filter to two-way (True) or non-two-way (False) rows
+
+    Returns:
+        Formula string (no leading '=') using LET + FILTER + SUM
     """
-
-    cols = ",".join(f"tbl_salary_book_warehouse[{col_base}_y{i}]" for i in range(6))
-    return f"CHOOSE(SelectedYear-MetaBaseYear+1,{cols})"
-
-
-def _salary_book_sumproduct(col_base: str, *, is_two_way: bool) -> str:
-    """Sum selected-year amounts from salary_book_warehouse via SUMPRODUCT."""
-
     two_way_val = "TRUE" if is_two_way else "FALSE"
-    sel = _salary_book_choose(col_base)
+
+    # Build the year column selector using CHOOSECOLS
+    year_cols = ",".join(f"tbl_salary_book_warehouse[{col_base}_y{i}]" for i in range(6))
+    year_col_expr = f"CHOOSECOLS({year_cols},ModeYearIndex)"
+
     return (
-        "SUMPRODUCT("
-        "(tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-        f"(tbl_salary_book_warehouse[is_two_way]={two_way_val})*"
-        f"{sel}"
+        "LET("
+        "tbl,tbl_salary_book_warehouse,"
+        "team_mask,tbl[team_code]=SelectedTeam,"
+        f"twoway_mask,tbl[is_two_way]={two_way_val},"
+        f"year_col,{year_col_expr},"
+        "mask,team_mask*twoway_mask,"
+        "IFERROR(SUM(FILTER(year_col,mask,0)),0)"
         ")"
     )
 
 
-def _salary_book_countproduct(*, is_two_way: bool) -> str:
-    """Count salary_book rows with selected-year cap > 0 via SUMPRODUCT."""
+def _salary_book_filter_count(*, is_two_way: bool) -> str:
+    """Count salary_book rows with selected-year cap > 0 using LET + FILTER + ROWS.
 
+    Replaces the legacy SUMPRODUCT(--, --, --) pattern with modern dynamic arrays.
+
+    Args:
+        is_two_way: Filter to two-way (True) or non-two-way (False) rows
+
+    Returns:
+        Formula string (no leading '=') using LET + FILTER + ROWS
+    """
     two_way_val = "TRUE" if is_two_way else "FALSE"
-    cap_sel = _salary_book_choose("cap")
+
+    # Build the year column selector for cap using CHOOSECOLS
+    cap_year_cols = ",".join(f"tbl_salary_book_warehouse[cap_y{i}]" for i in range(6))
+    cap_year_col_expr = f"CHOOSECOLS({cap_year_cols},ModeYearIndex)"
+
     return (
-        "SUMPRODUCT(--(tbl_salary_book_warehouse[team_code]=SelectedTeam),"
-        f"--(tbl_salary_book_warehouse[is_two_way]={two_way_val}),"
-        f"--({cap_sel}>0))"
+        "LET("
+        "tbl,tbl_salary_book_warehouse,"
+        "team_mask,tbl[team_code]=SelectedTeam,"
+        f"twoway_mask,tbl[is_two_way]={two_way_val},"
+        f"cap_col,{cap_year_col_expr},"
+        "cap_mask,cap_col>0,"
+        "mask,team_mask*twoway_mask*cap_mask,"
+        "filtered,FILTER(tbl[player_id],mask,\"\"),"
+        "IF(ISTEXT(filtered),0,ROWS(filtered))"
+        ")"
     )
 
 
@@ -303,8 +330,8 @@ def _write_summary_banner(
     
     # Calculate CAP delta = drilldown - warehouse
     cap_drilldown = (
-        f"({_salary_book_sumproduct('cap', is_two_way=False)})"
-        f"+({_salary_book_sumproduct('cap', is_two_way=True)})"
+        f"({_salary_book_filter_sum('cap', is_two_way=False)})"
+        f"+({_salary_book_filter_sum('cap', is_two_way=True)})"
         f"+({_cap_holds_sumifs('cap_amount')})"
         f"+({_dead_money_sumifs('cap_value')})"
     )
@@ -313,8 +340,8 @@ def _write_summary_banner(
     
     # Calculate TAX delta = drilldown - warehouse
     tax_drilldown = (
-        f"({_salary_book_sumproduct('tax', is_two_way=False)})"
-        f"+({_salary_book_sumproduct('tax', is_two_way=True)})"
+        f"({_salary_book_filter_sum('tax', is_two_way=False)})"
+        f"+({_salary_book_filter_sum('tax', is_two_way=True)})"
         f"+({_cap_holds_sumifs('tax_amount')})"
         f"+({_dead_money_sumifs('tax_value')})"
     )
@@ -323,8 +350,8 @@ def _write_summary_banner(
     
     # Calculate APRON delta = drilldown - warehouse
     apron_drilldown = (
-        f"({_salary_book_sumproduct('apron', is_two_way=False)})"
-        f"+({_salary_book_sumproduct('apron', is_two_way=True)})"
+        f"({_salary_book_filter_sum('apron', is_two_way=False)})"
+        f"+({_salary_book_filter_sum('apron', is_two_way=True)})"
         f"+({_cap_holds_sumifs('apron_amount')})"
         f"+({_dead_money_sumifs('apron_value')})"
     )
@@ -397,9 +424,9 @@ def _write_cap_reconciliation_section(
     
     # Bucket reconciliation rows
     buckets = [
-        ("Roster (ROST)", "cap_rost", _salary_book_sumproduct("cap", is_two_way=False),
+        ("Roster (ROST)", "cap_rost", _salary_book_filter_sum("cap", is_two_way=False),
          "tbl_salary_book_warehouse (selected-year cap; is_two_way=FALSE)"),
-        ("Two-Way (2WAY)", "cap_2way", _salary_book_sumproduct("cap", is_two_way=True),
+        ("Two-Way (2WAY)", "cap_2way", _salary_book_filter_sum("cap", is_two_way=True),
          "tbl_salary_book_warehouse (selected-year cap; is_two_way=TRUE)"),
         ("FA Holds (FA)", "cap_fa", _cap_holds_sumifs("cap_amount"),
          "tbl_cap_holds_warehouse"),
@@ -459,8 +486,8 @@ def _write_cap_reconciliation_section(
     
     # Drilldown total (sum of all buckets)
     drilldown_total = (
-        f"={_salary_book_sumproduct('cap', is_two_way=False)}"
-        f"+{_salary_book_sumproduct('cap', is_two_way=True)}"
+        f"={_salary_book_filter_sum('cap', is_two_way=False)}"
+        f"+{_salary_book_filter_sum('cap', is_two_way=True)}"
         f"+{_cap_holds_sumifs('cap_amount')}"
         f"+{_dead_money_sumifs('cap_value')}"
     )
@@ -519,8 +546,8 @@ def _write_tax_reconciliation_section(
     # Tax bucket rows. salary_book_warehouse provides tax_y*, cap_holds_warehouse provides tax_amount,
     # and dead_money_warehouse provides tax_value.
     buckets = [
-        ("Roster (ROST)", "tax_rost", _salary_book_sumproduct("tax", is_two_way=False)),
-        ("Two-Way (2WAY)", "tax_2way", _salary_book_sumproduct("tax", is_two_way=True)),
+        ("Roster (ROST)", "tax_rost", _salary_book_filter_sum("tax", is_two_way=False)),
+        ("Two-Way (2WAY)", "tax_2way", _salary_book_filter_sum("tax", is_two_way=True)),
         ("FA Holds (FA)", "tax_fa", _cap_holds_sumifs("tax_amount")),
         ("Dead Money (TERM)", "tax_term", _dead_money_sumifs("tax_value")),
     ]
@@ -558,8 +585,8 @@ def _write_tax_reconciliation_section(
     worksheet.write_formula(row, COL_WAREHOUSE, f"={_warehouse_sumifs('tax_total')}", audit_formats["money_total"])
     
     drilldown_total = (
-        f"={_salary_book_sumproduct('tax', is_two_way=False)}"
-        f"+{_salary_book_sumproduct('tax', is_two_way=True)}"
+        f"={_salary_book_filter_sum('tax', is_two_way=False)}"
+        f"+{_salary_book_filter_sum('tax', is_two_way=True)}"
         f"+{_cap_holds_sumifs('tax_amount')}"
         f"+{_dead_money_sumifs('tax_value')}"
     )
@@ -615,9 +642,9 @@ def _write_apron_reconciliation_section(
     # Apron bucket rows. salary_book_warehouse provides apron_y*, cap_holds_warehouse provides apron_amount,
     # and dead_money_warehouse provides apron_value.
     buckets = [
-        ("Roster (ROST)", "apron_rost", _salary_book_sumproduct("apron", is_two_way=False),
+        ("Roster (ROST)", "apron_rost", _salary_book_filter_sum("apron", is_two_way=False),
          "tbl_salary_book_warehouse (selected-year apron; is_two_way=FALSE)"),
-        ("Two-Way (2WAY)", "apron_2way", _salary_book_sumproduct("apron", is_two_way=True),
+        ("Two-Way (2WAY)", "apron_2way", _salary_book_filter_sum("apron", is_two_way=True),
          "tbl_salary_book_warehouse (selected-year apron; is_two_way=TRUE)"),
         ("FA Holds (FA)", "apron_fa", _cap_holds_sumifs("apron_amount"),
          "tbl_cap_holds_warehouse"),
@@ -671,8 +698,8 @@ def _write_apron_reconciliation_section(
     worksheet.write_formula(row, COL_WAREHOUSE, f"={_warehouse_sumifs('apron_total')}", audit_formats["money_total"])
     
     drilldown_total = (
-        f"={_salary_book_sumproduct('apron', is_two_way=False)}"
-        f"+{_salary_book_sumproduct('apron', is_two_way=True)}"
+        f"={_salary_book_filter_sum('apron', is_two_way=False)}"
+        f"+{_salary_book_filter_sum('apron', is_two_way=True)}"
         f"+{_cap_holds_sumifs('apron_amount')}"
         f"+{_dead_money_sumifs('apron_value')}"
     )
@@ -727,9 +754,9 @@ def _write_row_counts_section(
     
     # Row count comparisons
     counts = [
-        ("Roster contracts", "roster_row_count", _salary_book_countproduct(is_two_way=False),
+        ("Roster contracts", "roster_row_count", _salary_book_filter_count(is_two_way=False),
          "Players with selected-year cap > 0, is_two_way=FALSE"),
-        ("Two-way contracts", "two_way_row_count", _salary_book_countproduct(is_two_way=True),
+        ("Two-way contracts", "two_way_row_count", _salary_book_filter_count(is_two_way=True),
          "Players with selected-year cap > 0, is_two_way=TRUE"),
         ("FA holds", None, _cap_holds_countifs(), "cap_holds_warehouse for year"),
         ("Dead money entries", None, _dead_money_countifs(), "dead_money_warehouse for year"),
@@ -836,17 +863,8 @@ def _write_policy_assumptions_section(
     row += 1
     
     # Current roster count (non-two-way with selected-year cap > 0)
-    # This formula matches the one in roster_grid.py
-    cap_choose_expr = (
-        "CHOOSE(SelectedYear-MetaBaseYear+1,"
-        + ",".join(f"tbl_salary_book_warehouse[cap_y{i}]" for i in range(6))
-        + ")"
-    )
-    current_roster_formula = (
-        "SUMPRODUCT(--(tbl_salary_book_warehouse[team_code]=SelectedTeam),"
-        "--(tbl_salary_book_warehouse[is_two_way]=FALSE),"
-        f"--({cap_choose_expr}>0))"
-    )
+    # Uses LET + FILTER + ROWS to match the modern formula pattern
+    current_roster_formula = _salary_book_filter_count(is_two_way=False)
     
     worksheet.write(row, COL_LABEL, "  Current Roster Count:", audit_formats["label_indent"])
     worksheet.write_formula(row, COL_WAREHOUSE, f"={current_roster_formula}", audit_formats["count"])
@@ -986,10 +1004,13 @@ def _write_plan_diff_section(
     - Journal action counts (total rows vs enabled rows)
     - Link to PLAN_JOURNAL for detailed drilldown
     
-    The formulas use SUMPRODUCT to aggregate from tbl_plan_journal where:
+    The formulas use LET + FILTER + SUM (dynamic arrays) to aggregate from
+    tbl_plan_journal where:
     - plan_id matches ActivePlanId (or plan_id is blank)
     - salary_year matches SelectedYear (or is blank, defaulting to SelectedYear)
     - enabled = "Yes" for counting/summing active actions
+    
+    Uses the shared PlanRowMask LAMBDA helper for consistent filtering logic.
     
     Returns next row.
     """
@@ -1026,11 +1047,16 @@ def _write_plan_diff_section(
     
     # Total rows for ActivePlan (regardless of enabled status)
     # Count rows where plan_id matches ActivePlanId AND salary_year matches SelectedYear (or blank)
+    # Uses LET + FILTER + ROWS pattern instead of SUMPRODUCT
     total_rows_formula = (
-        '=SUMPRODUCT('
-        '((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))>0,'
-        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))>0,'
-        '(tbl_plan_journal[action_type]<>"")*1'  # Count only rows with an action_type
+        '=LET('
+        'tbl,tbl_plan_journal,'
+        'plan_mask,(tbl[plan_id]=ActivePlanId)+(tbl[plan_id]=""),'
+        'year_mask,(tbl[salary_year]=SelectedYear)+(tbl[salary_year]=""),'
+        'action_mask,tbl[action_type]<>"",'
+        'mask,(plan_mask>0)*(year_mask>0)*action_mask,'
+        'filtered,FILTER(tbl[action_type],mask,""),'
+        'IF(ISTEXT(filtered),0,ROWS(filtered))'
         ')'
     )
     worksheet.write(row, COL_LABEL, "Total Journal Rows:", audit_formats["label_indent"])
@@ -1039,11 +1065,12 @@ def _write_plan_diff_section(
     row += 1
     
     # Enabled rows count
+    # Uses LET + FILTER + ROWS with PlanRowMask for consistent filtering
     enabled_rows_formula = (
-        '=SUMPRODUCT('
-        '((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))>0,'
-        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))>0,'
-        '(tbl_plan_journal[enabled]="Yes")*1'
+        '=LET('
+        'mask,PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),'
+        'filtered,FILTER(tbl_plan_journal[enabled],mask,""),'
+        'IF(ISTEXT(filtered),0,ROWS(filtered))'
         ')'
     )
     worksheet.write(row, COL_LABEL, "Enabled Actions:", audit_formats["label_indent"])
@@ -1076,30 +1103,24 @@ def _write_plan_diff_section(
         worksheet.write(row, col, header, audit_formats["col_header"])
     row += 1
     
-    # Delta Cap Total
+    # Delta Cap Total - uses LET + FILTER + SUM with PlanRowMask
     delta_cap_formula = (
-        '=IFERROR(SUMPRODUCT('
-        '((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))>0,'
-        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))>0,'
-        '(tbl_plan_journal[enabled]="Yes")*1,'
-        'tbl_plan_journal[delta_cap]'
-        '),0)'
+        '=LET('
+        'mask,PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),'
+        'IFERROR(SUM(FILTER(tbl_plan_journal[delta_cap],mask,0)),0)'
+        ')'
     )
     delta_tax_formula = (
-        '=IFERROR(SUMPRODUCT('
-        '((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))>0,'
-        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))>0,'
-        '(tbl_plan_journal[enabled]="Yes")*1,'
-        'tbl_plan_journal[delta_tax]'
-        '),0)'
+        '=LET('
+        'mask,PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),'
+        'IFERROR(SUM(FILTER(tbl_plan_journal[delta_tax],mask,0)),0)'
+        ')'
     )
     delta_apron_formula = (
-        '=IFERROR(SUMPRODUCT('
-        '((tbl_plan_journal[plan_id]=ActivePlanId)+(tbl_plan_journal[plan_id]=""))>0,'
-        '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))>0,'
-        '(tbl_plan_journal[enabled]="Yes")*1,'
-        'tbl_plan_journal[delta_apron]'
-        '),0)'
+        '=LET('
+        'mask,PlanRowMask(tbl_plan_journal[plan_id],tbl_plan_journal[salary_year],tbl_plan_journal[enabled]),'
+        'IFERROR(SUM(FILTER(tbl_plan_journal[delta_apron],mask,0)),0)'
+        ')'
     )
     
     worksheet.write(row, COL_LABEL, "PLAN DELTA TOTAL", audit_formats["label_bold"])

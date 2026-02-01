@@ -61,12 +61,6 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
   - Use `INDEX` + `ModeYearIndex` for SelectedYear delta pick
   - Preserve stretch toggle logic and validations
 
-### 11) AUDIT_AND_RECONCILE: SUM(FILTER) instead of SUMPRODUCT
-- [ ] Replace drilldown formulas with `LET + FILTER + SUM`
-  - Use shared named masks (TeamYearMask / PlanRowMask)
-  - Keep tolerance behavior unchanged
-  - Fail loudly: any non-zero reconciliation delta must remain visually loud
-
 ### 12) TEAM_COCKPIT: Quick Drivers via FILTER/SORTBY/TAKE
 - [ ] Replace AGGREGATE/MATCH "top N" extraction with spill formulas
   - Build Top Cap Hits / Top Holds / Top Dead Money as dynamic arrays
@@ -99,6 +93,13 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
 
 ### 6) ROSTER_GRID: roster + two-way rows via FILTER/SORTBY/TAKE
 - [x] Replace AGGREGATE/MATCH row extraction with dynamic arrays
+
+### 11) AUDIT_AND_RECONCILE: SUM(FILTER) instead of SUMPRODUCT
+- [x] Replace drilldown formulas with `LET + FILTER + SUM`
+  - Uses LET + CHOOSECOLS + FILTER for salary_book year-column selection
+  - Uses shared PlanRowMask LAMBDA for plan_journal filtering
+  - Tolerance behavior unchanged (ABS < 1 is OK)
+  - Non-zero deltas remain visually loud (red conditional formatting)
 
 ### 17) TRADE_MACHINE: journal output rows
 - [x] Add per-lane Journal Output rows
