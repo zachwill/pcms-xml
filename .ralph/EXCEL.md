@@ -2,7 +2,7 @@
 
 Build a new, self-contained Sean-style Excel cap workbook **generated from code** (Python + XlsxWriter) and powered by Postgres (`pcms.*`).
 
-This backlog reflects the post-v2 audit. Core sheets exist; remaining work focuses on correctness, usability, and explicit policy wiring.
+This backlog reflects the post-v2 audit. Core sheets exist; remaining work focuses on feature-complete scenario tooling, subsystem wiring, and UI polish.
 
 **Canon:** `reference/blueprints/README.md`
 
@@ -24,7 +24,103 @@ This backlog reflects the post-v2 audit. Core sheets exist; remaining work focus
 
 ---
 
-## Backlog (ordered)
+## Backlog (feature complete)
+
+### 1) Docs alignment (blueprints + agents + comments)
+- [ ] Update docs to reflect current workbook semantics
+  - Remove two-way toggles from the blueprint command bar section
+  - Add GENERATED section to ROSTER_GRID lists (blueprint + excel/AGENTS.md)
+  - Update command_bar.py comment about fill rows being "not implemented yet"
+  - Note policy decisions (two-way counting, fill rows) in blueprint if missing
+
+### 2) HOME sheet: implement full landing page
+- [ ] Replace HOME stub with a full landing page
+  - Show Active Team/Year/Mode/As-of/ActivePlan/Compare Plans using named ranges
+  - Show validation + reconcile status from META
+  - Add navigation hyperlinks to all major sheets
+  - Include top-line readouts (cap/tax/apron room, roster count) from warehouse totals
+
+### 3) PLAN_JOURNAL: add salary_year context + update plan delta filters
+- [ ] Add salary_year to tbl_plan_journal and filter deltas by SelectedYear
+  - Update PLAN_JOURNAL table columns + instructions
+  - Default salary_year to SelectedYear via formula
+  - Update BUDGET_LEDGER plan delta SUMIFS to filter salary_year=SelectedYear
+  - Adjust any audit/cockpit references that assume yearless deltas
+
+### 4) PLAN_JOURNAL: ActivePlan summary + running totals panel
+- [ ] Add a running-state panel for ActivePlan + SelectedYear
+  - Summary box: total deltas (cap/tax/apron) + action count
+  - Cumulative running totals by step for ActivePlan
+  - Conditional formatting to gray out rows not in ActivePlan/SelectedYear
+
+### 5) AUDIT_AND_RECONCILE: implement plan diff section
+- [ ] Replace plan diff placeholder with real Plan Diff outputs
+  - Baseline vs ActivePlan delta totals (cap/tax/apron) for SelectedYear
+  - Journal action counts + enabled counts
+  - Link note back to PLAN_JOURNAL for drilldown
+
+### 6) TEAM_COCKPIT: add plan comparison panel
+- [ ] Surface ComparePlan A/B/C/D deltas
+  - For each compare plan, show delta vs Baseline (cap/tax/apron)
+  - Warn if ComparePlan is blank or equals Baseline
+  - Link to PLAN_JOURNAL for details
+
+### 7) ASSETS: wire exceptions + picks to DATA_* tables
+- [ ] Replace placeholder notes with live formulas
+  - FILTER/IFERROR for tbl_exceptions_warehouse (SelectedTeam)
+  - FILTER/IFERROR for tbl_draft_picks_warehouse (SelectedTeam)
+  - Apply money/date formats + explicit "None" empty-state
+
+### 8) SIGNINGS_AND_EXCEPTIONS: wire exception inventory + validation
+- [ ] Drive exception inventory from DATA_exceptions_warehouse
+  - Add live exception table filtered by SelectedTeam
+  - Create a helper list/named range for exception_used validation
+  - Align formats with RULES_REFERENCE (money/date)
+
+### 9) SIGNINGS_AND_EXCEPTIONS: compute deltas + journal output
+- [ ] Add formula-driven SelectedYear deltas for signings
+  - Per-row SelectedYear delta (cap/tax/apron) based on year columns
+  - Add a "Journal Output" block with aggregated deltas + source label
+  - Document manual publish workflow (copy into PLAN_JOURNAL)
+
+### 10) WAIVE_BUYOUT_STRETCH: formula-driven net owed + dead money
+- [ ] Compute waive/buyout deltas via formulas
+  - net_owed = remaining_gtd - giveback
+  - dead_year_* formulas based on stretch toggle (simple distribution)
+  - Add SelectedYear delta + journal output block
+
+### 11) TRADE_MACHINE: team selectors + status summary
+- [ ] Add team dropdowns and lane status summaries
+  - Team validation list from tbl_team_salary_warehouse[team_code]
+  - Show each lane’s cap/tax/apron totals + room for SelectedYear
+  - Display apron level / taxpayer status from warehouse
+
+### 12) TRADE_MACHINE: matching rules + legality outputs
+- [ ] Implement matching math per lane
+  - Compute max incoming using rule tiers + outgoing total
+  - Output legality flag + notes (aggregation/apron restrictions)
+  - Tie to SelectedMode/SelectedYear context
+
+### 13) TRADE_MACHINE: journal output rows
+- [ ] Add per-lane Journal Output rows
+  - Net delta for SelectedYear (cap/tax/apron)
+  - Source label (e.g., "Trade Lane A")
+  - Publish instructions (copy into PLAN_JOURNAL)
+
+### 14) PLAN_JOURNAL: subsystem outputs integration
+- [ ] Add SUBSYSTEM_OUTPUTS rollup + include in budget ledger
+  - Reference Journal Output blocks from Trade/Signings/Waive
+  - Update BUDGET_LEDGER plan deltas to include subsystem outputs
+  - Document workflow so analysts know what feeds totals
+
+### 15) Incomplete roster charges policy
+- [ ] Decide + implement (or explicitly exclude) incomplete roster charges
+  - If implemented: GENERATED rows + policy delta + audit note
+  - If excluded: explicit note in AUDIT_AND_RECONCILE policy assumptions
+
+---
+
+## Completed (v2 backlog)
 
 ### 1) ROSTER_GRID: implement EXISTS_ONLY rows + wire `ShowExistsOnlyRows`
 - [x] Add an `EXISTS_ONLY` section (non-counting rows) for analyst reference

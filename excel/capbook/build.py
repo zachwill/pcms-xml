@@ -148,7 +148,8 @@ def build_capbook(
     }
 
     # We create the workbook early so we can always emit an artifact.
-    workbook = xlsxwriter.Workbook(str(out_path))
+    # remove_timezone avoids XlsxWriter errors when DB timestamps include tzinfo.
+    workbook = xlsxwriter.Workbook(str(out_path), {"remove_timezone": True})
 
     try:
         formats = create_standard_formats(workbook)
