@@ -10,6 +10,7 @@ from typing import Any
 from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
+from . import _create_plan_formats
 from ..command_bar import (
     write_command_bar_readonly,
     get_content_start_row,
@@ -26,9 +27,6 @@ PM_COL_PLAN_NAME = 1
 PM_COL_NOTES = 2
 PM_COL_CREATED_AT = 3
 PM_COL_IS_ACTIVE = 4  # Helper for filtering
-
-
-from . import _create_plan_formats
 
 
 def write_plan_manager(

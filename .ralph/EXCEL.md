@@ -70,11 +70,11 @@ This file is 4 unrelated sheets jammed together. Pure file-move refactor, no for
 
 Two logical units: plan manager (definitions) and plan journal (actions).
 
-- [ ] Extract `plan_manager.py` — `write_plan_manager()` (~160 lines)
-- [ ] Extract `plan_journal.py` — `write_plan_journal()`, `_write_subsystem_outputs_table()`, `_write_running_state_panel()` (~1200 lines)
-- [ ] Keep helper functions `get_plan_names_formula()`, `get_plan_manager_table_ref()` in `plan_journal.py`
-- [ ] Update imports in `build.py`
-- [ ] Delete original `plan.py`
+- [x] Extract `plan_manager.py` — `write_plan_manager()` (~160 lines)
+- [x] Extract `plan_journal.py` — `write_plan_journal()`, `_write_subsystem_outputs_table()`, `_write_running_state_panel()` (~1200 lines)
+- [x] Keep helper functions `get_plan_names_formula()`, `get_plan_manager_table_ref()` in `plan_journal.py`
+- [x] Update imports in `build.py`
+- [x] Delete original `plan.py`
 
 ### Phase 4: Expand `named_formulas.py`
 
@@ -99,6 +99,7 @@ Replace inline LET formulas with helper functions from `named_formulas.py`.
 - [ ] Migrate `_write_dead_money_section()` — ~10 column formulas → helper calls
 - [ ] Migrate `_write_exists_only_section()` — ~8 column formulas → helper calls
 - [ ] Verify XML has no bare LET variables: `unzip -p shared/capbook.xlsx xl/worksheets/*.xml | grep -oE "LET\([a-z_]+," | grep -v "_xlpm"`
+- [ ] Implement per-row cumulative sums in `plan_journal.py` (SCAN + LAMBDA caused repair issues; try non-LAMBDA approach or simpler per-row formula)
 
 ### Phase 6: Modernize legacy formula patterns
 
