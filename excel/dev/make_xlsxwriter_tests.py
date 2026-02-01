@@ -72,7 +72,7 @@ def test_defined_name_nested_equals_bad() -> None:
 
 
 def test_defined_name_future_functions_unprefixed() -> None:
-    """Defined name using LET/FILTER/UNIQUE without explicit _xlfn prefixes."""
+    """Defined name using UNIQUE() without explicit _xlfn prefixes."""
 
     path = _mk("test_defined_name_future_unprefixed.xlsx")
     wb = xlsxwriter.Workbook(path, {"use_future_functions": True})
@@ -81,6 +81,7 @@ def test_defined_name_future_functions_unprefixed() -> None:
     ws.write_column("A1", [1, 2, 2, 3, 3, 3])
 
     # In defined names, XlsxWriter may not auto-prefix future functions.
+    # Also: workbook-level names that reference cells may need a sheet qualifier.
     wb.define_name("U", "=UNIQUE(A1:A6)")
     ws.write_dynamic_array_formula("C1", "=U")
 
@@ -96,9 +97,47 @@ def test_defined_name_future_functions_prefixed() -> None:
 
     ws.write_column("A1", [1, 2, 2, 3, 3, 3])
 
-    # _xlfn.UNIQUE is the stored form.
     wb.define_name("U", "=_xlfn.UNIQUE(A1:A6)")
     ws.write_dynamic_array_formula("C1", "=U")
+
+    wb.close()
+
+
+def test_defined_name_future_prefixed_with_sheetref() -> None:
+    """Defined name with explicit _xlfn prefix AND explicit sheet reference.
+
+    Hypothesis: workbook-level names that reference cells should include the
+    sheet name (Excel tends to store them as Sheet!$A$1:$A$6).
+    """
+
+    path = _mk("test_defined_name_future_prefixed_sheetref.xlsx")
+    wb = xlsxwriter.Workbook(path, {"use_future_functions": True})
+    ws = wb.add_worksheet("UI")
+
+    ws.write_column("A1", [1, 2, 2, 3, 3, 3])
+
+    wb.define_name("U", "=_xlfn.UNIQUE(UI!$A$1:$A$6)")
+    ws.write_dynamic_array_formula("C1", "=U")
+
+    wb.close()
+
+
+def test_defined_name_plain_sum_with_metadata() -> None:
+    """Plain defined name plus a dynamic array formula (forces metadata.xml).
+
+    Used to test whether the combination of defined names + dynamic array
+    metadata triggers Excel warnings.
+    """
+
+    path = _mk("test_defined_name_plain_sum_plus_metadata.xlsx")
+    wb = xlsxwriter.Workbook(path, {"use_future_functions": True})
+    ws = wb.add_worksheet("UI")
+
+    wb.define_name("TwoPlusTwo", "=2+2")
+    ws.write_formula("B1", "=TwoPlusTwo")
+
+    ws.write_column("A1", [1, 2, 2, 3, 3, 3])
+    ws.write_dynamic_array_formula("C1", "=UNIQUE(A1:A6)")
 
     wb.close()
 
@@ -158,12 +197,23 @@ def test_complicated_prefixed_no_future_functions() -> None:
 
 def main() -> None:
     test_data_validation_range()
+
+    # Baselines
     test_defined_name_plain_sum()
     test_dynamic_array_only_simple()
+
+    # Defined-name failure modes
+    test_defined_name_plain_sum_with_metadata()
     test_defined_name_nested_equals_bad()
+
+    # Future funcs in defined names
     test_defined_name_future_functions_unprefixed()
     test_defined_name_future_functions_prefixed()
+    test_defined_name_future_prefixed_with_sheetref()
+
+    # Stress
     test_complicated_prefixed_no_future_functions()
+
     print(f"Wrote tests to: {OUT_DIR}")
 
 
