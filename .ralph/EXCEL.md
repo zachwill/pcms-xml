@@ -14,7 +14,6 @@ This document tracks the Excel capbook modernization effort—splitting massive 
 - Modern functions (FILTER, XLOOKUP, LET) are used in many places
 
 ### 🔴 What Needs Work
-- **One large sheet writer remains** — `budget_ledger.py` is still ~1.3k lines
 - **Plan journal running totals** — implement row-by-row cumulative deltas without SCAN/LAMBDA repair issues
 - **Legacy patterns** — a handful of remaining SUMPRODUCT hotspots where FILTER+SUM/ROWS would be clearer
 - **Ongoing guardrails** — keep XML sanity checks (LET `_xlpm.` vars, no spill `#` in defined names) in the test loop
@@ -23,7 +22,7 @@ This document tracks the Excel capbook modernization effort—splitting massive 
 | File | Lines | Status |
 |------|------:|--------|
 | `excel/capbook/sheets/audit/` | 1528 | ✅ Split done (9 modules) |
-| `excel/capbook/sheets/budget_ledger.py` | 1271 | 🟡 Large but stable (split only if it becomes painful) |
+| `excel/capbook/sheets/budget_ledger/` | 1331 | ✅ Split done (10 modules) |
 | `excel/capbook/sheets/cockpit.py` | 1183 | 🟡 Large but stable |
 | `excel/capbook/sheets/plan/plan_journal.py` | 775 | 🔴 Needs cumulative running totals implementation |
 | `excel/capbook/sheets/subsystems/trade_machine.py` | 475 | ✅ Split done |
@@ -132,7 +131,7 @@ Replace SUMPRODUCT/COUNTIFS with FILTER+SUM/ROWS where it improves readability.
 Lower priority. Only do if the files become pain points.
 
 - [x] `audit.py` — split by reconciliation type (cap, tax, apron, row counts, plan diff)
-- [ ] `budget_ledger.py` — split by section (snapshot, thresholds, plan deltas, policy, derived)
+- [x] `budget_ledger.py` — split by section (snapshot, thresholds, plan deltas, policy, derived)
 - [ ] `cockpit.py` — split by panel (readouts, alerts, plan comparison, quick drivers)
 
 ---
