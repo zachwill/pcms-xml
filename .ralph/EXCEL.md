@@ -117,11 +117,11 @@ Replace inline LET formulas with helper functions from `named_formulas.py`.
 
 Replace SUMPRODUCT/COUNTIFS with FILTER+SUM/ROWS where it improves readability.
 
-- [ ] `excel/capbook/sheets/cockpit.py` — modernize remaining SUMPRODUCT hotspots (search `SUMPRODUCT(`; only change where readability improves)
+- [x] `excel/capbook/sheets/cockpit.py` — modernize remaining SUMPRODUCT hotspots (search `SUMPRODUCT(`; only change where readability improves)
 - [x] `excel/capbook/sheets/roster_grid/helpers.py` — `_salary_book_sumproduct()` is FILTER-based (no legacy SUMPRODUCT)
-- [ ] `excel/capbook/sheets/roster_grid/generated_section.py` — replace `current_roster_count_formula` SUMPRODUCT with ROWS(FILTER(...)) to match the modern formula standard
-- [ ] `excel/capbook/sheets/budget_ledger.py` — modernize remaining SUMPRODUCT patterns (search `SUMPRODUCT(`)
-- [ ] `excel/capbook/sheets/audit.py` — optional: COUNTIFS → ROWS(FILTER(...)) (only if it improves clarity; COUNTIFS is fine)
+- [x] `excel/capbook/sheets/roster_grid/generated_section.py` — replace `current_roster_count_formula` SUMPRODUCT with ROWS(FILTER(...)) to match the modern formula standard
+- [x] `excel/capbook/sheets/budget_ledger.py` — modernize remaining SUMPRODUCT patterns (search `SUMPRODUCT(`)
+- [x] `excel/capbook/sheets/audit.py` — modernized `_salary_book_filter_sum/count` and fixed CHOOSECOLS bug
 
 **Note:** SUMIFS/COUNTIFS are fine for simple two-column lookups. Only modernize SUMPRODUCT patterns (harder to read, slower).
 

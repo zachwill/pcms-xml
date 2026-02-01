@@ -5,6 +5,7 @@ from typing import Any
 from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
+from ...named_formulas import SalaryBookRosterFilter
 from .helpers import (
     COL_BUCKET, COL_COUNTS_TOTAL, COL_COUNTS_ROSTER, COL_NAME,
     COL_OPTION, COL_GUARANTEE, COL_TRADE, COL_MIN_LABEL,
@@ -160,11 +161,9 @@ def _write_generated_section(
     # Current roster count formula
     # =========================================================================
     # Count of roster players (non-two-way) with selected-year cap > 0
-    cap_choose_expr = _salary_book_choose_mode_aware()
+    # Uses ROWS(FILTER(...)) instead of SUMPRODUCT for consistency with modern standard
     current_roster_count_formula = (
-        "SUMPRODUCT(--(tbl_salary_book_warehouse[team_code]=SelectedTeam),"
-        "--(tbl_salary_book_warehouse[is_two_way]=FALSE),"
-        f"--({cap_choose_expr}>0))"
+        "IFERROR(ROWS(FILTER(tbl_salary_book_warehouse[player_id],SalaryBookRosterFilter())),0)"
     )
 
     # Number of fill rows needed = MAX(0, RosterFillTarget - current_roster_count)

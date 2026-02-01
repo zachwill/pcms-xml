@@ -31,6 +31,11 @@ from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
 from ..xlsx import FMT_MONEY, COLOR_ALERT_FAIL, COLOR_ALERT_WARN, COLOR_ALERT_OK
+from ..named_formulas import (
+    SalaryBookModeAmt,
+    CapHoldsModeAmt,
+    DeadMoneyModeAmt,
+)
 from .command_bar import (
     write_command_bar_editable,
     get_content_start_row,
@@ -143,83 +148,15 @@ def _salary_book_min_contract_sum_formula() -> str:
 
 
 def _if_formula(data_col: str) -> str:
-    """Build INDEX/MATCH formula for boolean/text values from tbl_team_salary_warehouse.
+    """Build XLOOKUP formula for boolean/text values from tbl_team_salary_warehouse.
 
     For booleans like is_repeater_taxpayer, we convert to display text.
     """
-    # Use SUMPRODUCT with INDEX to get single value (works for text/bool)
     return (
-        f"=IFERROR(INDEX(tbl_team_salary_warehouse[{data_col}],"
-        f"MATCH(1,(tbl_team_salary_warehouse[team_code]=SelectedTeam)*"
-        f"(tbl_team_salary_warehouse[salary_year]=SelectedYear),0)),\"\")"
+        f"=IFERROR(XLOOKUP(1,(tbl_team_salary_warehouse[team_code]=SelectedTeam)*"
+        f"(tbl_team_salary_warehouse[salary_year]=SelectedYear),"
+        f"tbl_team_salary_warehouse[{data_col}],\"\"),\"\")"
     )
-
-
-def _countifs_formula(table: str, filters: list[tuple[str, str]]) -> str:
-    """Build COUNTIFS formula with multiple conditions.
-    
-    Args:
-        table: Table name (without brackets)
-        filters: List of (column_name, criteria) tuples
-    
-    Returns:
-        Excel formula string
-    """
-    parts = []
-    for col, criteria in filters:
-        parts.append(f"{table}[{col}],{criteria}")
-    return f"=COUNTIFS({','.join(parts)})"
-
-
-def _sumifs_multi_formula(table: str, sum_col: str, filters: list[tuple[str, str]]) -> str:
-    """Build SUMIFS formula with multiple conditions.
-    
-    Args:
-        table: Table name (without brackets)
-        sum_col: Column to sum
-        filters: List of (column_name, criteria) tuples
-    
-    Returns:
-        Excel formula string
-    """
-    parts = [f"{table}[{sum_col}]"]
-    for col, criteria in filters:
-        parts.append(f"{table}[{col}],{criteria}")
-    return f"=SUMIFS({','.join(parts)})"
-
-
-def _large_formula(table: str, value_col: str, name_col: str, rank: int, filters: list[tuple[str, str]]) -> tuple[str, str]:
-    """Build formulas to get the Nth largest value and corresponding name.
-    
-    Returns (value_formula, name_formula) tuple.
-    Uses AGGREGATE(14,...) which ignores errors.
-    """
-    # For the value, we use AGGREGATE(14, 6, ..., rank) = LARGE ignoring errors
-    # We need to filter by team_code=SelectedTeam
-    # This is complex in Excel - we'll use a SUMPRODUCT approach with LARGE on array
-    
-    # Value formula: Get the Nth largest cap_y0 for the team
-    # AGGREGATE(14, 6, array, k) = LARGE(array, k) ignoring errors
-    value_formula = (
-        f"=IFERROR(AGGREGATE(14,6,"
-        f"({table}[{value_col}])/("
-        f"({table}[team_code]=SelectedTeam)"
-    )
-    for col, criteria in filters:
-        value_formula += f"*({table}[{col}]={criteria})"
-    value_formula += f"),{rank}),0)"
-    
-    # Name formula: INDEX/MATCH to find the name for this value
-    # Use MATCH with SUMPRODUCT for multi-criteria
-    name_formula = (
-        f"=IFERROR(INDEX({table}[{name_col}],"
-        f"MATCH(1,({table}[team_code]=SelectedTeam)"
-    )
-    for col, criteria in filters:
-        name_formula += f"*({table}[{col}]={criteria})"
-    name_formula += f"*({table}[{value_col}]=" + value_formula[1:] + f"),0)),\"\")"
-    
-    return value_formula, name_formula
 
 
 # =============================================================================
@@ -286,69 +223,31 @@ _MODE_INDEX_EXPR = 'IF(SelectedMode="Cap",1,IF(SelectedMode="Tax",2,IF(SelectedM
 def _mode_drilldown_sum_formula() -> str:
     """Build formula to sum drilldowns for SelectedMode (Cap/Tax/Apron).
     
-    Uses CHOOSE with nested IF for mode selection (avoids inline array constants
-    which cause XlsxWriter issues in conditional formatting).
+    Uses modern Excel 365 formulas (FILTER + SUM) and named formulas
+    to replace legacy SUMPRODUCT patterns.
     
     Returns an expression (no leading '=') suitable for use in formulas.
     """
-    # For salary_book_warehouse: need CHOOSE for relative-year columns
-    # cap_y0..cap_y5, tax_y0..tax_y5, apron_y0..apron_y5
-    def salary_book_mode_choose(mode_col: str) -> str:
-        """Choose expression for salary_book_warehouse by mode and year."""
-        cols = ",".join(f"tbl_salary_book_warehouse[{mode_col}_y{{i}}]" for i in range(6))
-        return f"CHOOSE(SelectedYear-MetaBaseYear+1,{cols})"
-    
-    # Build the SUMPRODUCT for salary_book (both is_two_way=TRUE and FALSE)
-    # Mode-aware: CHOOSE(mode_index, cap_expr, tax_expr, apron_expr)
-    cap_sb = (
-        "SUMPRODUCT((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-        f"CHOOSE(SelectedYear-MetaBaseYear+1,"
-        + ",".join(f"tbl_salary_book_warehouse[cap_y{i}]" for i in range(6))
-        + "))"
-    )
-    tax_sb = (
-        "SUMPRODUCT((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-        f"CHOOSE(SelectedYear-MetaBaseYear+1,"
-        + ",".join(f"tbl_salary_book_warehouse[tax_y{i}]" for i in range(6))
-        + "))"
-    )
-    apron_sb = (
-        "SUMPRODUCT((tbl_salary_book_warehouse[team_code]=SelectedTeam)*"
-        f"CHOOSE(SelectedYear-MetaBaseYear+1,"
-        + ",".join(f"tbl_salary_book_warehouse[apron_y{i}]" for i in range(6))
-        + "))"
-    )
+    # salary_book_warehouse sum (both roster and two-way)
+    # Uses SalaryBookModeAmt() which handles both SelectedMode and SelectedYear
     salary_book_sum = (
-        f'CHOOSE({_MODE_INDEX_EXPR},'
-        f'{cap_sb},{tax_sb},{apron_sb})'
+        "SUM(FILTER(SalaryBookModeAmt(),(tbl_salary_book_warehouse[team_code]=SelectedTeam),0))"
     )
     
-    # cap_holds_warehouse: cap_amount, tax_amount, apron_amount
+    # cap_holds_warehouse sum
+    # Uses CapHoldsModeAmt() which handles SelectedMode
     cap_holds_sum = (
-        f'CHOOSE({_MODE_INDEX_EXPR},'
-        "SUMIFS(tbl_cap_holds_warehouse[cap_amount],"
-        "tbl_cap_holds_warehouse[team_code],SelectedTeam,"
-        "tbl_cap_holds_warehouse[salary_year],SelectedYear),"
-        "SUMIFS(tbl_cap_holds_warehouse[tax_amount],"
-        "tbl_cap_holds_warehouse[team_code],SelectedTeam,"
-        "tbl_cap_holds_warehouse[salary_year],SelectedYear),"
-        "SUMIFS(tbl_cap_holds_warehouse[apron_amount],"
-        "tbl_cap_holds_warehouse[team_code],SelectedTeam,"
-        "tbl_cap_holds_warehouse[salary_year],SelectedYear))"
+        "SUM(FILTER(CapHoldsModeAmt(),"
+        "(tbl_cap_holds_warehouse[team_code]=SelectedTeam)*"
+        "(tbl_cap_holds_warehouse[salary_year]=SelectedYear),0))"
     )
     
-    # dead_money_warehouse: cap_value, tax_value, apron_value
+    # dead_money_warehouse sum
+    # Uses DeadMoneyModeAmt() which handles SelectedMode
     dead_money_sum = (
-        f'CHOOSE({_MODE_INDEX_EXPR},'
-        "SUMIFS(tbl_dead_money_warehouse[cap_value],"
-        "tbl_dead_money_warehouse[team_code],SelectedTeam,"
-        "tbl_dead_money_warehouse[salary_year],SelectedYear),"
-        "SUMIFS(tbl_dead_money_warehouse[tax_value],"
-        "tbl_dead_money_warehouse[team_code],SelectedTeam,"
-        "tbl_dead_money_warehouse[salary_year],SelectedYear),"
-        "SUMIFS(tbl_dead_money_warehouse[apron_value],"
-        "tbl_dead_money_warehouse[team_code],SelectedTeam,"
-        "tbl_dead_money_warehouse[salary_year],SelectedYear))"
+        "SUM(FILTER(DeadMoneyModeAmt(),"
+        "(tbl_dead_money_warehouse[team_code]=SelectedTeam)*"
+        "(tbl_dead_money_warehouse[salary_year]=SelectedYear),0))"
     )
     
     return f"({salary_book_sum}+{cap_holds_sum}+{dead_money_sum})"
@@ -895,56 +794,22 @@ def _write_quick_drivers(
     # =========================================================================
     # Top Cap Hits (salary_book_warehouse)
     # =========================================================================
-    # Uses LET + FILTER + SORTBY + TAKE pattern:
-    #   1. mode_amt: mode-aware amount for SelectedYear (cap/tax/apron)
-    #   2. filter_cond: team match + non-two-way + amount > 0
-    #   3. FILTER columns by filter_cond
-    #   4. SORTBY amount (descending)
-    #   5. TAKE first N rows
-    # =========================================================================
-    
     worksheet.write(row, COL_DRIVERS_LABEL, "TOP CAP HITS", section_header_fmt)
     worksheet.write(row, COL_DRIVERS_PLAYER, "Player", section_header_fmt)
     worksheet.write(row, COL_DRIVERS_VALUE, "Amount", section_header_fmt)
     row += 1
     
-    # LET prefix for salary_book filtering (SelectedYear-aware, mode-aware)
-    # The salary_book_warehouse has relative-year columns: cap_y0..cap_y5, tax_y0..tax_y5, apron_y0..apron_y5
-    # We use CHOOSE(SelectedYear-MetaBaseYear+1, ...) to pick the correct year column
-    # and IF(SelectedMode=...) to pick the correct mode prefix
-    salary_book_let_prefix = (
-        '_xlpm.mode_amt,IF(SelectedMode="Cap",'
-        'CHOOSE(SelectedYear-MetaBaseYear+1,'
-        + ','.join(f'tbl_salary_book_warehouse[cap_y{i}]' for i in range(6))
-        + '),'
-        'IF(SelectedMode="Tax",'
-        'CHOOSE(SelectedYear-MetaBaseYear+1,'
-        + ','.join(f'tbl_salary_book_warehouse[tax_y{i}]' for i in range(6))
-        + '),'
-        'CHOOSE(SelectedYear-MetaBaseYear+1,'
-        + ','.join(f'tbl_salary_book_warehouse[apron_y{i}]' for i in range(6))
-        + '))),'
-        '_xlpm.filter_cond,(tbl_salary_book_warehouse[team_code]=SelectedTeam)*'
-        '(tbl_salary_book_warehouse[is_two_way]=FALSE)*(_xlpm.mode_amt>0),'
-    )
-    
-    # Name formula: FILTER player_name, SORTBY mode_amt DESC, TAKE N
+    # Name formula: uses FilterSortTake with SalaryBookModeAmt/Filter
     cap_hits_name_formula = (
-        "=LET("
-        + salary_book_let_prefix
-        + "_xlpm.filtered,FILTER(tbl_salary_book_warehouse[player_name],_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_amounts,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + f"IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_amounts,-1),{n}),\"\"))"
+        f"=FilterSortTake(tbl_salary_book_warehouse[player_name],"
+        f"SalaryBookModeAmt(),SalaryBookRosterFilter(),{n})"
     )
     worksheet.write_formula(row, COL_DRIVERS_PLAYER, cap_hits_name_formula, player_fmt)
     
-    # Amount formula: FILTER mode_amt, SORTBY mode_amt DESC, TAKE N
+    # Amount formula: uses FilterSortTake with SalaryBookModeAmt/Filter
     cap_hits_amount_formula = (
-        "=LET("
-        + salary_book_let_prefix
-        + "_xlpm.filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_amounts,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + f"IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_amounts,-1),{n}),\"\"))"
+        f"=FilterSortTake(SalaryBookModeAmt(),"
+        f"SalaryBookModeAmt(),SalaryBookRosterFilter(),{n})"
     )
     worksheet.write_formula(row, COL_DRIVERS_VALUE, cap_hits_amount_formula, money_fmt)
     
@@ -969,32 +834,17 @@ def _write_quick_drivers(
     worksheet.write(row, COL_DRIVERS_VALUE, "Amount", section_header_fmt)
     row += 1
     
-    # LET prefix for dead_money filtering (mode-aware)
-    dead_money_let_prefix = (
-        '_xlpm.mode_amt,IF(SelectedMode="Cap",tbl_dead_money_warehouse[cap_value],'
-        'IF(SelectedMode="Tax",tbl_dead_money_warehouse[tax_value],'
-        'tbl_dead_money_warehouse[apron_value])),'
-        '_xlpm.filter_cond,(tbl_dead_money_warehouse[team_code]=SelectedTeam)*'
-        '(tbl_dead_money_warehouse[salary_year]=SelectedYear)*(_xlpm.mode_amt>0),'
-    )
-    
     # Name formula
     dead_money_name_formula = (
-        "=LET("
-        + dead_money_let_prefix
-        + "_xlpm.filtered,FILTER(tbl_dead_money_warehouse[player_name],_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_amounts,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + f"IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_amounts,-1),{n}),\"\"))"
+        f"=FilterSortTake(tbl_dead_money_warehouse[player_name],"
+        f"DeadMoneyModeAmt(),DeadMoneyFilter(),{n})"
     )
     worksheet.write_formula(row, COL_DRIVERS_PLAYER, dead_money_name_formula, player_fmt)
     
     # Amount formula
     dead_money_amount_formula = (
-        "=LET("
-        + dead_money_let_prefix
-        + "_xlpm.filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_amounts,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + f"IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_amounts,-1),{n}),\"\"))"
+        f"=FilterSortTake(DeadMoneyModeAmt(),"
+        f"DeadMoneyModeAmt(),DeadMoneyFilter(),{n})"
     )
     worksheet.write_formula(row, COL_DRIVERS_VALUE, dead_money_amount_formula, money_fmt)
     
@@ -1007,9 +857,7 @@ def _write_quick_drivers(
     # Dead money total for the team/year (mode-aware)
     worksheet.write(row, COL_DRIVERS_LABEL, "Total:", bold_fmt)
     dead_money_total_formula = (
-        "=LET("
-        + dead_money_let_prefix
-        + "SUM(FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0)))"
+        "=SUM(FILTER(DeadMoneyModeAmt(),DeadMoneyFilter(),0))"
     )
     worksheet.write_formula(row, COL_DRIVERS_VALUE, dead_money_total_formula, money_fmt)
     row += 1
@@ -1029,32 +877,17 @@ def _write_quick_drivers(
     worksheet.write(row, COL_DRIVERS_VALUE, "Amount", section_header_fmt)
     row += 1
     
-    # LET prefix for cap_holds filtering (mode-aware)
-    cap_holds_let_prefix = (
-        '_xlpm.mode_amt,IF(SelectedMode="Cap",tbl_cap_holds_warehouse[cap_amount],'
-        'IF(SelectedMode="Tax",tbl_cap_holds_warehouse[tax_amount],'
-        'tbl_cap_holds_warehouse[apron_amount])),'
-        '_xlpm.filter_cond,(tbl_cap_holds_warehouse[team_code]=SelectedTeam)*'
-        '(tbl_cap_holds_warehouse[salary_year]=SelectedYear)*(_xlpm.mode_amt>0),'
-    )
-    
     # Name formula
     cap_holds_name_formula = (
-        "=LET("
-        + cap_holds_let_prefix
-        + "_xlpm.filtered,FILTER(tbl_cap_holds_warehouse[player_name],_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_amounts,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + f"IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_amounts,-1),{n}),\"\"))"
+        f"=FilterSortTake(tbl_cap_holds_warehouse[player_name],"
+        f"CapHoldsModeAmt(),CapHoldsFilter(),{n})"
     )
     worksheet.write_formula(row, COL_DRIVERS_PLAYER, cap_holds_name_formula, player_fmt)
     
     # Amount formula
     cap_holds_amount_formula = (
-        "=LET("
-        + cap_holds_let_prefix
-        + "_xlpm.filtered,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,\"\"),"
-        + "_xlpm.sorted_amounts,FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0),"
-        + f"IFNA(TAKE(SORTBY(_xlpm.filtered,_xlpm.sorted_amounts,-1),{n}),\"\"))"
+        f"=FilterSortTake(CapHoldsModeAmt(),"
+        f"CapHoldsModeAmt(),CapHoldsFilter(),{n})"
     )
     worksheet.write_formula(row, COL_DRIVERS_VALUE, cap_holds_amount_formula, money_fmt)
     
@@ -1067,9 +900,7 @@ def _write_quick_drivers(
     # Holds total for the team/year (mode-aware)
     worksheet.write(row, COL_DRIVERS_LABEL, "Total:", bold_fmt)
     cap_holds_total_formula = (
-        "=LET("
-        + cap_holds_let_prefix
-        + "SUM(FILTER(_xlpm.mode_amt,_xlpm.filter_cond,0)))"
+        "=SUM(FILTER(CapHoldsModeAmt(),CapHoldsFilter(),0))"
     )
     worksheet.write_formula(row, COL_DRIVERS_VALUE, cap_holds_total_formula, money_fmt)
     row += 1

@@ -45,6 +45,7 @@ import xlsxwriter.utility
 from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
+from ..named_formulas import SalaryBookRosterFilter
 from ..xlsx import FMT_MONEY, FMT_PERCENT
 from .command_bar import (
     write_command_bar_readonly,
@@ -755,15 +756,9 @@ def _write_policy_delta_section(
     # Generated Fill Rows calculation
     # ------------------------------------------------------------------
     # Current roster count formula (matches roster_grid.py and audit.py)
-    cap_choose_expr = (
-        "CHOOSE(SelectedYear-MetaBaseYear+1,"
-        + ",".join(f"tbl_salary_book_warehouse[cap_y{i}]" for i in range(6))
-        + ")"
-    )
+    # Uses ROWS(FILTER(...)) instead of SUMPRODUCT for consistency with modern standard
     current_roster_formula = (
-        "SUMPRODUCT(--(tbl_salary_book_warehouse[team_code]=SelectedTeam),"
-        "--(tbl_salary_book_warehouse[is_two_way]=FALSE),"
-        f"--({cap_choose_expr}>0))"
+        "IFERROR(ROWS(FILTER(tbl_salary_book_warehouse[player_id],SalaryBookRosterFilter())),0)"
     )
     
     # Fill rows needed = MAX(0, RosterFillTarget - current_roster_count)

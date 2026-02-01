@@ -38,6 +38,13 @@ from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
 from ..xlsx import FMT_MONEY
+from ..named_formulas import (
+    SalaryBookModeAmt,
+    SalaryBookRosterFilter,
+    SalaryBookTwoWayFilter,
+    SalaryBookYearCol,
+    ModeYearIndex,
+)
 from .command_bar import (
     write_command_bar_readonly,
     get_content_start_row,
@@ -196,7 +203,7 @@ def _salary_book_filter_sum(col_base: str, *, is_two_way: bool) -> str:
     Replaces the legacy SUMPRODUCT pattern with modern dynamic arrays.
 
     salary_book_warehouse exports relative-year columns (cap_y0..cap_y5, etc.)
-    relative to MetaBaseYear. We use CHOOSECOLS to extract the correct year column.
+    relative to MetaBaseYear. We use CHOOSE to extract the correct year column.
 
     Args:
         col_base: Column prefix (cap, tax, apron)
@@ -207,9 +214,9 @@ def _salary_book_filter_sum(col_base: str, *, is_two_way: bool) -> str:
     """
     two_way_val = "TRUE" if is_two_way else "FALSE"
 
-    # Build the year column selector using CHOOSECOLS
+    # Build the year column selector using CHOOSE (ModeYearIndex = SelectedYear-MetaBaseYear+1)
     year_cols = ",".join(f"tbl_salary_book_warehouse[{col_base}_y{i}]" for i in range(6))
-    year_col_expr = f"CHOOSECOLS({year_cols},(SelectedYear-MetaBaseYear+1))"
+    year_col_expr = f"CHOOSE(ModeYearIndex,{year_cols})"
 
     return (
         "LET("
@@ -236,9 +243,9 @@ def _salary_book_filter_count(*, is_two_way: bool) -> str:
     """
     two_way_val = "TRUE" if is_two_way else "FALSE"
 
-    # Build the year column selector for cap using CHOOSECOLS
+    # Build the year column selector for cap using CHOOSE
     cap_year_cols = ",".join(f"tbl_salary_book_warehouse[cap_y{i}]" for i in range(6))
-    cap_year_col_expr = f"CHOOSECOLS({cap_year_cols},(SelectedYear-MetaBaseYear+1))"
+    cap_year_col_expr = f"CHOOSE(ModeYearIndex,{cap_year_cols})"
 
     return (
         "LET("
