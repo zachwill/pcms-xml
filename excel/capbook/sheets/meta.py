@@ -140,6 +140,11 @@ def write_meta_sheet(
     worksheet.write(row, COL_VALUE, build_meta.get("exporter_git_sha", ""))
     row += 1
 
+    # Excel version requirement
+    worksheet.write(row, COL_LABEL, "excel_version_required")
+    worksheet.write(row, COL_VALUE, "Excel 365 or Excel 2021 (dynamic arrays: FILTER, XLOOKUP, LET)")
+    row += 1
+
     # === Validation errors (if any) ===
     if validation_status != "PASS" and validation_errors:
         row += 1  # Blank row

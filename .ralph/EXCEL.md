@@ -35,7 +35,7 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
 ## Backlog (modern formula refactor)
 
 ### 1) Document Excel 365+ requirement + formula standard
-- [ ] Add explicit "Excel 365/2021 required" note to docs + workbook UI
+- [x] Add explicit "Excel 365/2021 required" note to docs + workbook UI
   - Update relevant blueprints to call out dynamic array usage
   - Add a short note on HOME or META sheet
   - Update `excel/AGENTS.md` with formula standard

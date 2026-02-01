@@ -397,5 +397,26 @@ def write_home_sheet(
         worksheet.write(row, COL_A, step, desc_fmt)
         row += 1
 
+    # =========================================================================
+    # Section 7: Excel Version Requirement
+    # =========================================================================
+    row += 1
+    worksheet.write(row, COL_A, "REQUIREMENTS", section_header_fmt)
+    worksheet.write(row, COL_B, "", section_header_fmt)
+    row += 1
+
+    # Version requirement warning
+    req_fmt = workbook.add_format({
+        "font_color": "#92400E",  # Amber-700
+        "bg_color": "#FEF3C7",    # Amber-100
+        "italic": True,
+    })
+    worksheet.write(row, COL_A, "⚠ Excel 365 or 2021 required", req_fmt)
+    worksheet.write(row, COL_B, "This workbook uses dynamic arrays (FILTER, XLOOKUP, LET, etc.)", req_fmt)
+    row += 1
+    worksheet.write(row, COL_A, "", muted_fmt)
+    worksheet.write(row, COL_B, "Excel 2019 or earlier will show #NAME? errors.", muted_fmt)
+    row += 1
+
     # Apply sheet protection
     _protect_sheet(worksheet)

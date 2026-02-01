@@ -26,6 +26,25 @@ Start with the Blueprints:
 
 ---
 
+## Excel version requirement
+
+**This workbook requires Microsoft Excel 365 or Excel 2021 (or later).**
+
+The workbook uses modern Excel features including:
+- **Dynamic arrays**: `FILTER`, `SORTBY`, `UNIQUE`, `TAKE`, `CHOOSECOLS`
+- **XLOOKUP**: replaces legacy `INDEX/MATCH` patterns
+- **LET**: named sub-expressions for complex formulas
+- **LAMBDA** (optional): reusable formula helpers via named ranges
+
+These features are **not available** in:
+- Excel 2019 or earlier
+- Excel Online (limited support)
+- Google Sheets
+
+If you open the workbook in an unsupported version, formulas may show `#NAME?` errors or fail to spill correctly.
+
+---
+
 ## CLI usage
 
 The main entrypoint is `excel/export_capbook.py`.

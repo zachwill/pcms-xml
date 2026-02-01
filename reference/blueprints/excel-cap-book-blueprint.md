@@ -12,6 +12,8 @@ The goal is to preserve Sean's strengths (speed + dense functionality) while eli
 
 This blueprint is deliberately "worksheet-first," but it's compatible with a DB-backed model (warehouses + primitives).
 
+**Excel version requirement:** This workbook requires **Excel 365 or Excel 2021** (or later). It uses dynamic array formulas (`FILTER`, `XLOOKUP`, `LET`, `UNIQUE`, `SORTBY`, `TAKE`, `CHOOSECOLS`) that are not available in Excel 2019 or earlier.
+
 ---
 
 ## Design goals
