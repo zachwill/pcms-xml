@@ -115,7 +115,7 @@ The workbook includes these UI sheets (per `excel-cap-book-blueprint.md`):
 | `META` | Build metadata (timestamp, git SHA, validation status) |
 | `TEAM_COCKPIT` | Primary flight display: key readouts + alerts + quick drivers + plan comparison |
 | `ROSTER_GRID` | Full roster/ledger view with reconciliation + EXISTS_ONLY section |
-| `BUDGET_LEDGER` | Authoritative totals + plan deltas |
+| `BUDGET_LEDGER` | Authoritative totals + plan deltas (journal + subsystem outputs) |
 | `PLAN_MANAGER` | Scenario/plan definitions |
 | `PLAN_JOURNAL` | Ordered action journal for scenario modeling + running-state panel |
 | `TRADE_MACHINE` | Lane-based trade iteration (A/B/C/D) |
@@ -176,6 +176,31 @@ The `ROSTER_GRID` sheet includes these sections:
    - Controlled by `ShowExistsOnlyRows` toggle ("Yes" to show, "No" to hide)
    - For analyst reference only — excluded from totals
 7. **RECONCILIATION** — proves grid sums match warehouse totals
+
+### BUDGET_LEDGER features
+
+The `BUDGET_LEDGER` sheet includes:
+
+1. **Snapshot Totals** — authoritative totals from `tbl_team_salary_warehouse`:
+   - Cap/Tax/Apron totals by bucket (ROST, FA, TERM, 2WAY)
+   - System thresholds for context (Cap, Tax Level, Aprons)
+
+2. **Plan Deltas** — aggregated from two sources:
+   - **Journal Entries (`tbl_plan_journal`)**: manual actions by action type
+   - **Subsystem Outputs (`tbl_subsystem_outputs`)**: auto-linked from Trade lanes A-D, Signings, Waive/Buyout
+   - Both filtered by `ActivePlanId + SelectedYear`
+   - Combined into **PLAN DELTA TOTAL**
+   - Info banner shows when subsystem outputs are included
+
+3. **Policy Deltas** — generated assumptions:
+   - Fill rows (when RosterFillTarget > 0)
+   - Amber styling indicates policy assumptions vs authoritative data
+
+4. **Derived Totals** — `Snapshot + Plan + Policy = Derived`:
+   - Room/Over analysis for Cap, Tax, Apron 1, Apron 2
+   - Positive room = green, negative = red
+
+5. **Verification** — confirms formulas are consistent with warehouse
 
 ### PLAN_JOURNAL features
 

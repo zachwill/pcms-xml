@@ -1,4 +1,4 @@
-# Excel Cap Workbook — Modern Formula Backlog
+# Excel Cap Workbook - Modern Formula Backlog
 
 Build a new, self-contained Sean-style Excel cap workbook **generated from code** (Python + XlsxWriter) and powered by Postgres (`pcms.*`). Core sheets exist; the next push is **modern formula refactors** plus a small set of carryover functional items.
 
@@ -35,7 +35,7 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
 ## Backlog (modern formula refactor)
 
 ### 1) Document Excel 365+ requirement + formula standard
-- [ ] Add explicit “Excel 365/2021 required” note to docs + workbook UI
+- [ ] Add explicit "Excel 365/2021 required" note to docs + workbook UI
   - Update relevant blueprints to call out dynamic array usage
   - Add a short note on HOME or META sheet
   - Update `excel/AGENTS.md` with formula standard
@@ -55,7 +55,7 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
 
 ### 4) PLAN_JOURNAL: totals + running state via LET/FILTER/SCAN
 - [ ] Replace `SUMPRODUCT` panels with modern formulas
-  - Keep “blank salary_year = SelectedYear” logic in mask
+  - Keep "blank salary_year = SelectedYear" logic in mask
   - Use `SCAN` (or `BYROW`) for cumulative totals
   - Ensure conditional formatting still matches ActivePlan/SelectedYear
 
@@ -80,7 +80,7 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
 
 ### 8) ROSTER_GRID: EXISTS_ONLY section using LET/BYROW
 - [ ] Replace custom SUMPRODUCT logic with LET + BYROW/MAP
-  - Compute per-player “future total”
+  - Compute per-player "future total"
   - Filter to SelectedYear=0 and future > 0
   - Respect `ShowExistsOnlyRows` toggle
 
@@ -106,11 +106,35 @@ Build a new, self-contained Sean-style Excel cap workbook **generated from code*
 
 ## Carryover functional backlog
 
-### 12) BUDGET_LEDGER: include SUBSYSTEM_OUTPUTS in plan delta totals
-- [ ] Sum `tbl_subsystem_outputs` into the PLAN DELTA section
-  - Add “Subsystem Outputs” row with totals
-  - Update PLAN DELTA TOTAL to include subsystem rows
-  - Show warning banner when any subsystem outputs are included
+### 17) TRADE_MACHINE: journal output rows
+- [x] Add per-lane Journal Output rows
+  - Net delta for SelectedYear (cap/tax/apron)
+  - Source label (e.g., "Trade Lane A")
+  - Publish instructions (copy into PLAN_JOURNAL)
+
+### 18) PLAN_JOURNAL: SUBSYSTEM_OUTPUTS staging table (no copy/paste)
+- [x] Add `tbl_subsystem_outputs` rollup (Trade lane + Signings + Waive)
+  - On `PLAN_JOURNAL`, add a **SUBSYSTEM_OUTPUTS** block implemented as an Excel Table `tbl_subsystem_outputs`
+  - Rows (fixed):
+    - Trade Lane A / B / C / D
+    - Signings (SIGNINGS_AND_EXCEPTIONS)
+    - Waive/Buyout (WAIVE_BUYOUT_STRETCH)
+  - Columns (minimum viable):
+    - `include_in_plan` (Yes/No)
+    - `plan_id` (default to `ActivePlanId` via formula)
+    - `salary_year` (default to `SelectedYear` via formula)
+    - `delta_cap`, `delta_tax`, `delta_apron` (formula links to each subsystem's Journal Output block)
+    - `source` (fixed label per row)
+    - `notes`
+  - Add a loud note: **do not also copy these into `tbl_plan_journal`** or you will double count
+
+### 19) BUDGET_LEDGER: include SUBSYSTEM_OUTPUTS in plan delta totals
+- [x] Sum `tbl_subsystem_outputs` into the PLAN DELTA section
+  - Add a "Subsystem Outputs" row (or mini-section) showing the total of included subsystem deltas
+  - Update **PLAN DELTA TOTAL** to include:
+    - `tbl_plan_journal` (enabled rows, ActivePlanId, SelectedYear)
+    - PLUS included `tbl_subsystem_outputs` rows for ActivePlanId + SelectedYear
+  - Add a visible warning banner when any subsystem outputs are included
 
 ### 13) Incomplete roster charges policy
 - [ ] Decide + implement (or explicitly exclude) incomplete roster charges

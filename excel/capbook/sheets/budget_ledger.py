@@ -6,7 +6,10 @@ This module implements the "accounting statement" for team salary cap:
 2. Snapshot totals section (from tbl_team_salary_warehouse)
    - Cap/Tax/Apron totals by bucket (ROST, FA, TERM, 2WAY)
    - System thresholds for context
-3. Plan delta section (from tbl_plan_journal, filtered by ActivePlanId AND SelectedYear)
+3. Plan delta section (from tbl_plan_journal + tbl_subsystem_outputs)
+   - Journal entries: manual actions filtered by ActivePlanId AND SelectedYear
+   - Subsystem outputs: auto-linked deltas from TRADE_MACHINE, SIGNINGS, WAIVE sheets
+   - Combined PLAN DELTA TOTAL from both sources
 4. Policy delta section (generated fill rows and other analyst assumptions)
 5. Derived totals section (snapshot + plan + policy)
 6. Delta vs snapshot verification
@@ -20,8 +23,11 @@ Per the blueprint (excel-cap-book-blueprint.md):
 Design notes:
 - Uses Excel formulas filtered by SelectedTeam + SelectedYear + SelectedMode
 - Mode-aware display (Cap vs Tax vs Apron columns)
-- Plan deltas are aggregated from tbl_plan_journal (enabled rows, filtered by ActivePlanId + salary_year)
+- Plan deltas are aggregated from BOTH:
+  - tbl_plan_journal (enabled rows, filtered by ActivePlanId + salary_year)
+  - tbl_subsystem_outputs (include_in_plan="Yes", plan_id=ActivePlanId, salary_year=SelectedYear)
 - Each journal entry has a salary_year column; blank means "use SelectedYear"
+- Subsystem outputs auto-link to TRADE_MACHINE, SIGNINGS_AND_EXCEPTIONS, WAIVE_BUYOUT_STRETCH
 - Policy deltas show generated fill impact with amber styling to indicate assumptions
 """
 
@@ -315,17 +321,21 @@ def _write_thresholds_section(
 
 
 def _write_plan_delta_section(
+    workbook: Workbook,
     worksheet: Worksheet,
     row: int,
     formats: dict[str, Any],
     budget_formats: dict[str, Any],
 ) -> tuple[int, int]:
-    """Write the plan delta section sourced from tbl_plan_journal.
+    """Write the plan delta section sourced from tbl_plan_journal AND tbl_subsystem_outputs.
     
     This section summarizes journal actions for the active plan and selected year.
     It uses SUMPRODUCT to aggregate deltas from enabled journal entries where:
     - plan_id matches the ActivePlanId (derived from ActivePlan name)
     - salary_year matches SelectedYear (or is blank, which defaults to SelectedYear)
+    
+    Per backlog task #19, this section ALSO includes deltas from tbl_subsystem_outputs
+    where include_in_plan="Yes" AND plan_id=ActivePlanId AND salary_year=SelectedYear.
     
     Fallback behavior:
     - If ActivePlanId is blank/error (e.g., plan not found), deltas are 0
@@ -337,7 +347,7 @@ def _write_plan_delta_section(
     # Section header
     worksheet.merge_range(
         row, COL_LABEL, row, COL_NOTES,
-        "PLAN DELTAS (from tbl_plan_journal)",
+        "PLAN DELTAS (from tbl_plan_journal + tbl_subsystem_outputs)",
         budget_formats["section_header"]
     )
     row += 1
@@ -345,13 +355,15 @@ def _write_plan_delta_section(
     # Column headers
     row = _write_column_headers(worksheet, row, budget_formats)
     
-    # Note about plan journal sourcing
+    # -------------------------------------------------------------------------
+    # JOURNAL ENTRIES subsection
+    # -------------------------------------------------------------------------
     worksheet.write(
         row, COL_LABEL,
-        "Journal deltas for ActivePlan + SelectedYear (enabled rows only):",
-        budget_formats["label_indent"]
+        "Journal Entries (tbl_plan_journal):",
+        budget_formats["label_bold"]
     )
-    worksheet.write(row, COL_NOTES, "See PLAN_JOURNAL tab for details", budget_formats["note"])
+    worksheet.write(row, COL_NOTES, "Enabled rows for ActivePlan + SelectedYear", budget_formats["note"])
     row += 1
     
     # Helper: SUMIFS for plan journal filtered by ActivePlanId and enabled="Yes"
@@ -394,7 +406,7 @@ def _write_plan_delta_section(
         ("Other", "Other actions"),
     ]
     
-    delta_row_start = row  # Track for total formula
+    delta_row_start = row  # Track for conditional formatting
     
     for action_type, note in action_categories:
         worksheet.write(row, COL_LABEL, f"  {action_type}", budget_formats["label_indent"])
@@ -410,16 +422,10 @@ def _write_plan_delta_section(
         worksheet.write(row, COL_NOTES, note, budget_formats["note"])
         row += 1
     
-    delta_row_end = row - 1  # Last data row
+    journal_delta_row_end = row - 1  # Last journal data row
     
-    # Delta total row - sum all enabled journal entries for ActivePlanId and SelectedYear
-    row += 1
-    worksheet.write(row, COL_LABEL, "PLAN DELTA TOTAL", budget_formats["label_bold"])
-    
-    # Total formula: sum all enabled deltas for ActivePlanId and SelectedYear
-    # Uses SUMPRODUCT to handle blank salary_year as "SelectedYear"
-    # Uses IFERROR for robustness when ActivePlanId is blank
-    total_cap_formula = (
+    # Journal entries subtotal
+    journal_subtotal_cap_formula = (
         '=IFERROR(SUMPRODUCT('
         '(tbl_plan_journal[delta_cap])*'
         '(tbl_plan_journal[enabled]="Yes")*'
@@ -427,7 +433,7 @@ def _write_plan_delta_section(
         '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))'
         '),0)'
     )
-    total_tax_formula = (
+    journal_subtotal_tax_formula = (
         '=IFERROR(SUMPRODUCT('
         '(tbl_plan_journal[delta_tax])*'
         '(tbl_plan_journal[enabled]="Yes")*'
@@ -435,7 +441,7 @@ def _write_plan_delta_section(
         '((tbl_plan_journal[salary_year]=SelectedYear)+(tbl_plan_journal[salary_year]=""))'
         '),0)'
     )
-    total_apron_formula = (
+    journal_subtotal_apron_formula = (
         '=IFERROR(SUMPRODUCT('
         '(tbl_plan_journal[delta_apron])*'
         '(tbl_plan_journal[enabled]="Yes")*'
@@ -444,17 +450,218 @@ def _write_plan_delta_section(
         '),0)'
     )
     
-    worksheet.write_formula(row, COL_CAP, total_cap_formula, budget_formats["money_total"])
-    worksheet.write_formula(row, COL_TAX, total_tax_formula, budget_formats["money_total"])
-    worksheet.write_formula(row, COL_APRON, total_apron_formula, budget_formats["money_total"])
-    worksheet.write(row, COL_NOTES, "Sum of enabled plan adjustments for ActivePlan + SelectedYear", budget_formats["note"])
+    worksheet.write(row, COL_LABEL, "  Journal Subtotal", budget_formats["label_indent"])
+    worksheet.write_formula(row, COL_CAP, journal_subtotal_cap_formula, budget_formats["money"])
+    worksheet.write_formula(row, COL_TAX, journal_subtotal_tax_formula, budget_formats["money"])
+    worksheet.write_formula(row, COL_APRON, journal_subtotal_apron_formula, budget_formats["money"])
+    worksheet.write(row, COL_NOTES, "Sum of tbl_plan_journal entries", budget_formats["note"])
+    journal_subtotal_row = row
+    row += 2
+    
+    # -------------------------------------------------------------------------
+    # SUBSYSTEM OUTPUTS subsection
+    # -------------------------------------------------------------------------
+    # Per backlog task #19, include deltas from tbl_subsystem_outputs where:
+    # - include_in_plan = "Yes"
+    # - plan_id = ActivePlanId (tbl_subsystem_outputs.plan_id defaults to ActivePlanId)
+    # - salary_year = SelectedYear (tbl_subsystem_outputs.salary_year defaults to SelectedYear)
+    #
+    # The subsystem outputs table (on PLAN_JOURNAL) auto-links to subsystem sheets.
+    # -------------------------------------------------------------------------
+    
+    # Create subsystem-specific formats (blue tint to differentiate from journal)
+    subsystem_header_fmt = workbook.add_format({
+        "bold": True,
+        "font_size": 10,
+        "bg_color": "#DBEAFE",  # blue-100
+        "font_color": "#1E40AF",  # blue-800
+    })
+    subsystem_value_fmt = workbook.add_format({
+        "num_format": FMT_MONEY,
+        "bg_color": "#EFF6FF",  # blue-50
+    })
+    subsystem_note_fmt = workbook.add_format({
+        "font_size": 9,
+        "font_color": "#1E40AF",  # blue-800
+        "italic": True,
+        "bg_color": "#EFF6FF",  # blue-50
+    })
+    
+    worksheet.write(
+        row, COL_LABEL,
+        "Subsystem Outputs (tbl_subsystem_outputs):",
+        budget_formats["label_bold"]
+    )
+    worksheet.write(row, COL_NOTES, "Included rows for ActivePlan + SelectedYear", budget_formats["note"])
+    row += 1
+    
+    # Subsystem output row breakdown
+    # List each subsystem source (Trade lanes A-D, Signings, Waive/Buyout)
+    # with SUMPRODUCT filtering by include_in_plan="Yes" AND plan_id=ActivePlanId AND salary_year=SelectedYear
+    #
+    # For the source breakdown, use SUMIFS filtered by source column
+    subsystem_sources = [
+        ("Trade Lane A", "Trade Lane A"),
+        ("Trade Lane B", "Trade Lane B"),
+        ("Trade Lane C", "Trade Lane C"),
+        ("Trade Lane D", "Trade Lane D"),
+        ("Signings", "Signings (SIGNINGS_AND_EXCEPTIONS)"),
+        ("Waive/Buyout", "Waive/Buyout (WAIVE_BUYOUT_STRETCH)"),
+    ]
+    
+    subsystem_row_start = row
+    
+    for label, source_value in subsystem_sources:
+        worksheet.write(row, COL_LABEL, f"  {label}", budget_formats["label_indent"])
+        
+        # SUMPRODUCT for subsystem outputs filtered by source AND include_in_plan AND plan/year match
+        cap_formula = (
+            f'=IFERROR(SUMPRODUCT('
+            f'(tbl_subsystem_outputs[delta_cap])*'
+            f'(tbl_subsystem_outputs[include_in_plan]="Yes")*'
+            f'(tbl_subsystem_outputs[plan_id]=ActivePlanId)*'
+            f'(tbl_subsystem_outputs[salary_year]=SelectedYear)*'
+            f'(tbl_subsystem_outputs[source]="{source_value}")'
+            f'),0)'
+        )
+        tax_formula = (
+            f'=IFERROR(SUMPRODUCT('
+            f'(tbl_subsystem_outputs[delta_tax])*'
+            f'(tbl_subsystem_outputs[include_in_plan]="Yes")*'
+            f'(tbl_subsystem_outputs[plan_id]=ActivePlanId)*'
+            f'(tbl_subsystem_outputs[salary_year]=SelectedYear)*'
+            f'(tbl_subsystem_outputs[source]="{source_value}")'
+            f'),0)'
+        )
+        apron_formula = (
+            f'=IFERROR(SUMPRODUCT('
+            f'(tbl_subsystem_outputs[delta_apron])*'
+            f'(tbl_subsystem_outputs[include_in_plan]="Yes")*'
+            f'(tbl_subsystem_outputs[plan_id]=ActivePlanId)*'
+            f'(tbl_subsystem_outputs[salary_year]=SelectedYear)*'
+            f'(tbl_subsystem_outputs[source]="{source_value}")'
+            f'),0)'
+        )
+        
+        worksheet.write_formula(row, COL_CAP, cap_formula, subsystem_value_fmt)
+        worksheet.write_formula(row, COL_TAX, tax_formula, subsystem_value_fmt)
+        worksheet.write_formula(row, COL_APRON, apron_formula, subsystem_value_fmt)
+        worksheet.write(row, COL_NOTES, f"From {source_value}", subsystem_note_fmt)
+        row += 1
+    
+    subsystem_row_end = row - 1
+    
+    # Subsystem outputs subtotal
+    # Sum all included subsystem rows for ActivePlanId + SelectedYear
+    subsystem_subtotal_cap_formula = (
+        '=IFERROR(SUMPRODUCT('
+        '(tbl_subsystem_outputs[delta_cap])*'
+        '(tbl_subsystem_outputs[include_in_plan]="Yes")*'
+        '(tbl_subsystem_outputs[plan_id]=ActivePlanId)*'
+        '(tbl_subsystem_outputs[salary_year]=SelectedYear)'
+        '),0)'
+    )
+    subsystem_subtotal_tax_formula = (
+        '=IFERROR(SUMPRODUCT('
+        '(tbl_subsystem_outputs[delta_tax])*'
+        '(tbl_subsystem_outputs[include_in_plan]="Yes")*'
+        '(tbl_subsystem_outputs[plan_id]=ActivePlanId)*'
+        '(tbl_subsystem_outputs[salary_year]=SelectedYear)'
+        '),0)'
+    )
+    subsystem_subtotal_apron_formula = (
+        '=IFERROR(SUMPRODUCT('
+        '(tbl_subsystem_outputs[delta_apron])*'
+        '(tbl_subsystem_outputs[include_in_plan]="Yes")*'
+        '(tbl_subsystem_outputs[plan_id]=ActivePlanId)*'
+        '(tbl_subsystem_outputs[salary_year]=SelectedYear)'
+        '),0)'
+    )
+    
+    worksheet.write(row, COL_LABEL, "  Subsystem Subtotal", budget_formats["label_indent"])
+    worksheet.write_formula(row, COL_CAP, subsystem_subtotal_cap_formula, subsystem_value_fmt)
+    worksheet.write_formula(row, COL_TAX, subsystem_subtotal_tax_formula, subsystem_value_fmt)
+    worksheet.write_formula(row, COL_APRON, subsystem_subtotal_apron_formula, subsystem_value_fmt)
+    worksheet.write(row, COL_NOTES, "Sum of tbl_subsystem_outputs entries", subsystem_note_fmt)
+    subsystem_subtotal_row = row
+    row += 2
+    
+    # -------------------------------------------------------------------------
+    # PLAN DELTA TOTAL (Journal + Subsystem)
+    # -------------------------------------------------------------------------
+    # This is the combined total from both sources
+    
+    journal_cap_cell = xlsxwriter.utility.xl_rowcol_to_cell(journal_subtotal_row, COL_CAP)
+    journal_tax_cell = xlsxwriter.utility.xl_rowcol_to_cell(journal_subtotal_row, COL_TAX)
+    journal_apron_cell = xlsxwriter.utility.xl_rowcol_to_cell(journal_subtotal_row, COL_APRON)
+    
+    subsystem_cap_cell = xlsxwriter.utility.xl_rowcol_to_cell(subsystem_subtotal_row, COL_CAP)
+    subsystem_tax_cell = xlsxwriter.utility.xl_rowcol_to_cell(subsystem_subtotal_row, COL_TAX)
+    subsystem_apron_cell = xlsxwriter.utility.xl_rowcol_to_cell(subsystem_subtotal_row, COL_APRON)
+    
+    worksheet.write(row, COL_LABEL, "PLAN DELTA TOTAL", budget_formats["label_bold"])
+    worksheet.write_formula(row, COL_CAP, f"={journal_cap_cell}+{subsystem_cap_cell}", budget_formats["money_total"])
+    worksheet.write_formula(row, COL_TAX, f"={journal_tax_cell}+{subsystem_tax_cell}", budget_formats["money_total"])
+    worksheet.write_formula(row, COL_APRON, f"={journal_apron_cell}+{subsystem_apron_cell}", budget_formats["money_total"])
+    worksheet.write(row, COL_NOTES, "Journal + Subsystem Outputs for ActivePlan + SelectedYear", budget_formats["note"])
     
     delta_total_row = row
+    row += 1
+    
+    # -------------------------------------------------------------------------
+    # WARNING BANNER when subsystem outputs are included
+    # -------------------------------------------------------------------------
+    # Show a visible alert when any subsystem outputs are included
+    # Count rows where include_in_plan="Yes" for current plan/year context
+    
+    warning_fmt = workbook.add_format({
+        "bold": True,
+        "font_size": 9,
+        "font_color": "#1E40AF",  # blue-800
+        "bg_color": "#DBEAFE",  # blue-100
+        "italic": True,
+    })
+    
+    # Formula: if subsystem subtotal != 0, show warning
+    worksheet.write_formula(
+        row, COL_LABEL,
+        f'=IF({subsystem_cap_cell}<>0,"ℹ️ Subsystem outputs included in PLAN DELTA TOTAL","")',
+        warning_fmt
+    )
+    worksheet.write_formula(
+        row, COL_NOTES,
+        f'=IF({subsystem_cap_cell}<>0,"See PLAN_JOURNAL → SUBSYSTEM_OUTPUTS table","")',
+        warning_fmt
+    )
+    
+    # Conditional formatting to highlight the entire row when subsystem outputs are active
+    worksheet.conditional_format(row, COL_LABEL, row, COL_NOTES, {
+        "type": "formula",
+        "criteria": f"={subsystem_cap_cell}<>0",
+        "format": warning_fmt,
+    })
+    
     row += 2
     
     # Conditional formatting for delta cells (positive=red/cost, negative=green/savings)
-    # Apply to the category rows
-    for delta_row in range(delta_row_start, delta_row_end + 1):
+    # Apply to the journal category rows
+    for delta_row in range(delta_row_start, journal_delta_row_end + 1):
+        for col in [COL_CAP, COL_TAX, COL_APRON]:
+            worksheet.conditional_format(delta_row, col, delta_row, col, {
+                "type": "cell",
+                "criteria": ">",
+                "value": 0,
+                "format": budget_formats["delta_positive"],
+            })
+            worksheet.conditional_format(delta_row, col, delta_row, col, {
+                "type": "cell",
+                "criteria": "<",
+                "value": 0,
+                "format": budget_formats["delta_negative"],
+            })
+    
+    # Apply to subsystem rows as well
+    for delta_row in range(subsystem_row_start, subsystem_row_end + 1):
         for col in [COL_CAP, COL_TAX, COL_APRON]:
             worksheet.conditional_format(delta_row, col, delta_row, col, {
                 "type": "cell",
@@ -998,9 +1205,9 @@ def write_budget_ledger(
         worksheet, content_row, formats, budget_formats
     )
     
-    # 3. Plan delta section (from tbl_plan_journal for ActivePlanId)
+    # 3. Plan delta section (from tbl_plan_journal + tbl_subsystem_outputs)
     content_row, plan_delta_total_row = _write_plan_delta_section(
-        worksheet, content_row, formats, budget_formats
+        workbook, worksheet, content_row, formats, budget_formats
     )
     
     # 4. Policy delta section (generated fill rows and other assumptions)
