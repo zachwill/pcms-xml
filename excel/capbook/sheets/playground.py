@@ -390,27 +390,47 @@ _xlpm.base-_xlpm.out-_xlpm.waived+_xlpm.in+_xlpm.signed
     worksheet.write_formula(TOTALS_START + 5, 5, cap_level_formula, fmt_totals_value)  # F26
     workbook.define_name("CapLevel", "=PLAYGROUND!$F$26")
     
+    # Cap Space - delta from cap (positive = under cap/room, negative = over cap)
+    worksheet.write(TOTALS_START + 6, 4, "Cap Space", fmt_totals_label_indent)  # E27
+    cap_space_formula = '=CapLevel-TeamSalaryFilled'
+    worksheet.write_formula(TOTALS_START + 6, 5, cap_space_formula, fmt_delta_positive)  # F27
+    workbook.define_name("CapSpace", "=PLAYGROUND!$F$27")
+    
+    # Conditional formatting for Cap Space: green if >= 0, red if < 0
+    worksheet.conditional_format("F27", {
+        "type": "cell",
+        "criteria": ">=",
+        "value": 0,
+        "format": fmt_delta_positive,
+    })
+    worksheet.conditional_format("F27", {
+        "type": "cell",
+        "criteria": "<",
+        "value": 0,
+        "format": fmt_delta_negative,
+    })
+    
     # -------------------------------------------------------------------------
-    # KPIs - in left panel below trade math (rows 28-30)
-    # Uses ModifiedSalary (F22) for scenario-adjusted comparisons
+    # KPIs - in left panel below trade math (rows 29-31)
+    # Uses ModifiedSalary (F23) for scenario-adjusted comparisons
     # -------------------------------------------------------------------------
-    worksheet.write("A28", "Cap:", fmt_kpi_label)
+    worksheet.write("A29", "Cap:", fmt_kpi_label)
     worksheet.write_formula(
-        "B28",
+        "B29",
         '=XLOOKUP(MetaBaseYear,tbl_system_values[salary_year],tbl_system_values[salary_cap_amount])-ModifiedSalary',
         fmt_kpi_value
     )
     
-    worksheet.write("A29", "Tax:", fmt_kpi_label)
+    worksheet.write("A30", "Tax:", fmt_kpi_label)
     worksheet.write_formula(
-        "B29",
+        "B30",
         '=XLOOKUP(MetaBaseYear,tbl_system_values[salary_year],tbl_system_values[tax_level_amount])-ModifiedSalary',
         fmt_kpi_value
     )
     
-    worksheet.write("A30", "Apron:", fmt_kpi_label)
+    worksheet.write("A31", "Apron:", fmt_kpi_label)
     worksheet.write_formula(
-        "B30",
+        "B31",
         '=XLOOKUP(MetaBaseYear,tbl_system_values[salary_year],tbl_system_values[tax_apron_amount])-ModifiedSalary',
         fmt_kpi_value
     )

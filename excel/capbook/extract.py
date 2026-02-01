@@ -154,7 +154,7 @@ def extract_tax_rates(
         FROM pcms.league_tax_rates
         WHERE league_lk = %(league)s
           AND salary_year BETWEEN %(base_year)s AND %(base_year)s + 5
-        ORDER BY salary_year, bracket_number
+        ORDER BY salary_year, ui_bracket_number
     """
 
     try:
