@@ -1,44 +1,6 @@
 # AGENTS.md — `excel/`
 
-Code-generated Excel workbook for NBA salary cap analysts.
-
----
-
-## Current status
-
-**DATA_ sheets:** ✅ Solid. Authoritative datasets embedded as Excel Tables.
-
-**UI sheets:** 🚧 Rebuilding from scratch. First target: **PLAYGROUND** sheet.
-
----
-
-## Next step: Build the PLAYGROUND sheet
-
-Sean's "Playground" is the core working surface — a dense, reactive view where analysts:
-- See team roster + cap position
-- Model changes (trades, signings, waives) inline
-- See deltas immediately without navigating
-
-We're rebuilding this with:
-- Modern Excel (dynamic arrays, XLOOKUP, LET, LAMBDA)
-- Proper formatting (Aptos Narrow, alignment, subtle borders)
-- Yellow input cells, reactive conditional formatting
-- Code-generated consistency
-
-See `reference/blueprints/excel-cap-book-blueprint.md` for design principles.
-
----
-
-## Key references
-
-| Doc | Purpose |
-|-----|---------|
-| `excel/XLSXWRITER.md` | XlsxWriter patterns, formula gotchas, recipes |
-| `reference/blueprints/excel-cap-book-blueprint.md` | Design vision + principles |
-| `reference/blueprints/mental-models-and-design-principles.md` | Foundational thinking |
-| `reference/blueprints/data-contract.md` | DATA_ sheet specifications |
-| `excel/UI.md` | **Authoritative** PLAYGROUND UI spec (do not shortcut) |
-| `reference/blueprints/specs/playground.md` | Legacy notes (defer to `excel/UI.md`) |
+Code-generated Excel workbook for NBA salary cap analysis.
 
 ---
 
@@ -47,23 +9,25 @@ See `reference/blueprints/excel-cap-book-blueprint.md` for design principles.
 ```
 excel/
 ├── AGENTS.md                    # This file
-├── XLSXWRITER.md                # XlsxWriter patterns + recipes
+├── XLSXWRITER.md                # XlsxWriter patterns + gotchas (READ THIS)
 ├── export_capbook.py            # CLI entrypoint
 └── capbook/
     ├── build.py                 # Orchestration
-    ├── db.py                    # Database connection
-    ├── extract.py               # Dataset extraction (solid ✅)
-    ├── xlsx.py                  # XlsxWriter helpers + formats
+    ├── db.py                    # Database helpers
+    ├── extract.py               # Dataset extraction
+    ├── xlsx.py                  # XlsxWriter helpers + shared formats
     └── sheets/
-        ├── __init__.py
-        └── meta.py              # META sheet
+        ├── meta.py              # META sheet (base year, as-of date)
+        └── playground/
+            ├── writer.py        # Main sheet writer
+            ├── formulas.py      # Formula builders (LET/LAMBDA/etc)
+            ├── formats.py       # Cell formats
+            └── layout.py        # Grid constants (rows, columns)
 ```
-
-UI sheets will be added to `excel/capbook/sheets/` as we build them.
 
 ---
 
-## CLI usage
+## CLI
 
 ```bash
 # Build workbook
@@ -73,54 +37,96 @@ uv run excel/export_capbook.py \
   --as-of today
 
 # Skip SQL assertions (faster iteration)
-uv run excel/export_capbook.py \
-  --out shared/capbook.xlsx \
-  --base-year 2025 \
-  --as-of today \
-  --skip-assertions
+uv run excel/export_capbook.py --out shared/capbook.xlsx --skip-assertions
 ```
 
 Requires `POSTGRES_URL` environment variable.
 
 ---
 
-## DATA_ sheets (solid ✅)
+## DATA_ Sheets
 
-Embedded datasets from Postgres. Hidden + locked in final workbook.
+Embedded datasets from Postgres, hidden in final workbook:
 
-| Sheet | Table | Source | Purpose |
-|-------|-------|--------|---------|
-| DATA_system_values | tbl_system_values | pcms.league_system_values | Cap/tax/apron thresholds |
-| DATA_tax_rates | tbl_tax_rates | pcms.league_tax_rates | Luxury tax brackets |
-| DATA_rookie_scale | tbl_rookie_scale | pcms.rookie_scale_amounts | Rookie scale by pick |
-| DATA_minimum_scale | tbl_minimum_scale | pcms.league_salary_scales | Min salary by YOS |
-| DATA_team_salary_warehouse | tbl_team_salary_warehouse | pcms.team_salary_warehouse | **Authoritative team totals** |
-| DATA_salary_book_warehouse | tbl_salary_book_warehouse | pcms.salary_book_warehouse | Wide salary book |
-| DATA_salary_book_yearly | tbl_salary_book_yearly | pcms.salary_book_yearly | Tall salary book |
-| DATA_cap_holds_warehouse | tbl_cap_holds_warehouse | pcms.cap_holds_warehouse | Cap holds/rights |
-| DATA_dead_money_warehouse | tbl_dead_money_warehouse | pcms.dead_money_warehouse | Dead money |
-| DATA_exceptions_warehouse | tbl_exceptions_warehouse | pcms.exceptions_warehouse | Exception inventory |
-| DATA_draft_picks_warehouse | tbl_draft_picks_warehouse | pcms.draft_picks_warehouse | Draft picks |
+| Sheet | Table Name | Purpose |
+|-------|------------|---------|
+| DATA_system_values | `tbl_system_values` | Cap/tax/apron thresholds |
+| DATA_team_salary_warehouse | `tbl_team_salary_warehouse` | **Authoritative team totals** |
+| DATA_salary_book_yearly | `tbl_salary_book_yearly` | Player salaries (tall format) |
+| DATA_salary_book_warehouse | `tbl_salary_book_warehouse` | Player salaries (wide format) |
+| DATA_minimum_scale | `tbl_minimum_scale` | Min salary by YOS |
+| DATA_tax_rates | `tbl_tax_rates` | Luxury tax brackets |
+| DATA_exceptions_warehouse | `tbl_exceptions_warehouse` | Exception inventory |
+| DATA_draft_picks_warehouse | `tbl_draft_picks_warehouse` | Draft picks |
+| DATA_dead_money_warehouse | `tbl_dead_money_warehouse` | Dead money |
+| DATA_cap_holds_warehouse | `tbl_cap_holds_warehouse` | Cap holds |
 
-Extractors in `excel/capbook/extract.py`. All filter to 6-year horizon (base_year through base_year + 5).
-
----
-
-## Constraints (non-negotiable)
-
-- **Trust:** Totals reconcile to authoritative warehouse
-- **Offline:** No live DB dependency — workbook works offline
-- **Explicit:** Generated/assumption rows are visible and labeled
-- **Modern Excel:** Requires Excel 365 / 2021+ (dynamic arrays, XLOOKUP)
+All filter to 6-year horizon (base_year through base_year + 5).
 
 ---
 
-## Formatting conventions
+## PLAYGROUND Sheet Structure
 
-- **Input cells:** Light yellow background (`#FFFFC0` or similar)
-- **Typography:** Aptos Narrow for data, consistent sizes
-- **Alignment:** Numbers right, text left, decimals aligned
-- **Borders:** Subtle section dividers, not heavy gridlines
-- **Conditional formatting:** Reactive feedback (over cap → red, etc.)
+### Frozen Regions
+- **Rows 1-3:** Team context, KPI bar, column headers
+- **Columns A-C:** Input rail (scenario inputs)
 
-See `XLSXWRITER.md` for implementation patterns.
+### Key Patterns
+
+**Scenario calculations live in hidden CALC sheet:**
+```python
+calc_ws.write_formula("A1", "=LET(...complex scenario formula...)")
+wb.define_name("ScnCapTotal0", "=CALC!$A$1")
+```
+
+**Spill formatting uses column formats:**
+```python
+ws.set_column(COL_PLAYER, COL_PLAYER, 20, fmts["player"])
+ws.write_dynamic_array_formula("D4", "=RosterNames")
+```
+
+**Complex formulas use the builder in formulas.py:**
+```python
+def scenario_team_total(*, year_expr: str, year_offset: int) -> str:
+    # Returns formula with proper _xlpm. prefixes and balanced parens
+```
+
+---
+
+## Formula Conventions
+
+All formulas follow patterns in `XLSXWRITER.md`. Key rules:
+
+1. **Always enable `use_future_functions`** on workbook creation
+2. **LAMBDA params use `_xlpm.` prefix** (e.g., `_xlpm.x`)
+3. **Spill refs use `ANCHORARRAY()`** not `F2#`
+4. **Comment closing parens** in complex nested formulas
+5. **Set column formats** for spill columns (anchor format doesn't propagate)
+
+---
+
+## Key Named Ranges
+
+| Name | Purpose |
+|------|---------|
+| `SelectedTeam` | Team selector input |
+| `TradeOutNames` / `TradeInNames` | Trade scenario inputs |
+| `WaivedNames` / `StretchNames` | Waive/stretch inputs |
+| `SignNames` / `SignSalaries` | Signing inputs |
+| `MetaBaseYear` / `MetaAsOfDate` | From META sheet |
+| `ScnCapTotal{0-3}` | Scenario-adjusted cap totals by year offset |
+| `ScnRosterCount{0-3}` | Scenario-adjusted roster counts |
+
+---
+
+## Progress Tracking
+
+See `.ralph/EXCEL.md` for current state and remaining work.
+
+---
+
+## Constraints
+
+- **Offline:** No live DB—workbook works offline with embedded DATA_ sheets
+- **Trust:** Totals must reconcile to `tbl_team_salary_warehouse`
+- **Modern Excel:** Requires Excel 365/2021+ (dynamic arrays, XLOOKUP)

@@ -4,176 +4,128 @@
 
 ---
 
-## Current State
+## Current State: PLAYGROUND Sheet
 
-PLAYGROUND sheet exists with basic functionality:
-- Team selector with dropdown (yellow input)
-- Roster pulls from `tbl_salary_book_yearly` (MetaBaseYear), sorted by salary
-- Trade Out/In/Waive/Sign inputs with named ranges
-- Roster includes Trade In + Sign rows; Trade Out/Waive are shown via strike-through
-- Dense money display: `#,##0` (no `$`)
-- Totals block includes Minimum/Cap/Tax comparisons with GREEN/RED conditional formatting
-- KPIs (Cap/Tax/Apron room) displayed in millions
+### ✅ Done
 
-**But it's nowhere near Sean's professional workbook.**
+**Layout & Structure**
+- Freeze panes (rows 1-3, cols A-C)
+- Left rail inputs (Trade Out/In, Waive, Stretch, Sign)
+- Team selector with dropdown validation
+- Hidden CALC sheet for scenario formulas
 
----
+**KPI Bar (Row 1)**
+- ROSTER count, TWO-WAY count, TOTAL salary (filled to 14)
+- CAP/TAX/APR1 room with conditional formatting (green/red)
 
-## The Gap (Sean's vs Ours)
+**Roster Grid**
+- 4-year salary columns with % of cap
+- Trade In + Sign additions appear; Trade Out/Waive show strikethrough
+- Sorted by base-year salary descending
 
-### Formatting
-| Sean's | Ours | Priority |
-|--------|------|----------|
-| No `$` in roster - just `32,400,000` | ✅ `32,400,000` (no `$`) | DONE |
-| `%` column right next to each salary year | Single `%` column | HIGH |
-| Smaller, denser fonts | Default sizing, too much whitespace | MEDIUM |
-| Green/red conditional formatting on thresholds | ✅ Minimum/Cap/Tax done; Aprons TBD | MEDIUM |
-| Multi-year columns (2025-2030) | Single year only | HIGH |
+**Trade Math**
+- Outgoing/incoming salary with trade bonus handling
+- Apron post-trade, 250K padding, max incoming, remaining, legal status
 
-### Structure - Totals Section
-Sean has a comprehensive totals block. We need:
+**Scenario Logic**
+- All inputs reactive: Trade Out/In, Waive, Stretch, Sign
+- Roster fills to 14 at rookie minimum
 
-- [x] **Team Salary** - sum of all roster salaries (uses `tbl_team_salary_warehouse[cap_total]`)
-- [x] **Team Salary (fill to 14)** - with roster fills added
-- [x] **Minimum Level** - league minimum team salary (from `tbl_system_values[minimum_team_salary_amount]`)
-- [x] **+/- Minimum** - delta from minimum (GREEN if above, RED if below)
-- [x] **Cap Level** - salary cap amount
-- [x] **Cap Space** - GREEN if positive, RED if negative
-- [x] **Tax Level** - luxury tax threshold
-- [x] **+/- Tax** - GREEN if under, RED if over
-- [ ] **Tax Payment** - calculated tax owed (if over)
-- [ ] **Tax Refund** - (if applicable)
-- [ ] **Apron 1 Level** - first apron threshold
-- [ ] **+/- Apron 1** - GREEN/RED
-- [ ] **Apron 2 Level** - second apron threshold  
-- [ ] **+/- Apron 2** - GREEN/RED
-- [ ] **Net Cost** - total cost including tax
-- [ ] **Cost Savings** - (for trade scenarios)
+### 🚧 Remaining
 
-### Structure - Roster Fills
-- [ ] **Roster Count** - current count vs 15
-- [ ] **(+) Rookie Mins** - slots filled at rookie minimum
-- [ ] **(+) Vet Mins** - slots filled at vet minimum
-- [ ] **Dead Money** - stretched/waived amounts
+**Multi-Year**
+- [ ] 6-year view (currently 4)
+- [ ] Option year coloring (PO/TO/ETO)
 
-### Structure - Multi-Year View
-- [ ] Columns for 2025, 2026, 2027, 2028, 2029, 2030
-- [ ] Each year shows: Salary | % of Cap
-- [ ] Option years highlighted (PO/TO/ETO in different colors)
-- [ ] Contract end years visible
+**Totals Completeness**
+- [ ] Minimum Level and +/- Minimum
+- [ ] Tax Payment / Tax Refund
+- [ ] Apron 2 Level and +/- Apron 2
+- [ ] Net Cost, Cost Savings
 
-### Structure - Depth Chart
-- [ ] Actual player names by position (not just PG/SG/SF labels)
-- [ ] Shows starters + backups
-- [ ] Reactive to roster changes
-
-### Structure - Draft Picks
-- [ ] Grid by year (2025-2032)
-- [ ] 1st Round / 2nd Round columns
-- [ ] Shows: Own, owed to team, protections
-- [ ] Pull from `tbl_draft_picks_warehouse`
-
-### Structure - Trade Machine
-Sean has a dedicated trade machine section:
-- [ ] Expanded salary matching view
-- [ ] Shows outgoing vs incoming
-- [ ] 125% + $250K rule calculation
-- [ ] Multi-team trade support (future)
-
-### Structure - Contract Calculators
-- [ ] Contract Calculator - Total (max contract by years)
-- [ ] Contract Calculator - Start Number (given starting salary)
-- [ ] Renegotiation Calculator
+**Additional Sections**
+- [ ] Exceptions inventory
+- [ ] Draft picks grid
+- [ ] Depth chart
+- [ ] Contract calculators
 
 ---
 
-## Immediate TODO (Formatting Polish)
+## Scenario Semantics (Modeling Contract)
 
-### Phase 1: Clean up roster formatting
-- [x] Remove `$` from salary display (roster + totals) - use `#,##0`
-- [ ] Tighten column widths
-- [ ] Smaller font (10pt instead of 11pt for data)
-- [x] Right-align all numbers
+These are the rules for what each input *means*. If these drift, the UI feels wrong.
 
-### Phase 2: Conditional formatting for thresholds
-- [x] Cap Space cell: GREEN if positive, RED if negative
-- [x] Tax cell: GREEN if under, RED if over
-- [ ] Apron cells: GREEN/RED based on threshold
-- [ ] Apply to both base + modified rows consistently
+### TRADE OUT
+- Removes player's salary from team totals (affected years)
+- Player stays visible, marked gray + strikethrough
+- Uses `outgoing_apron_amount` for apron calculations
 
-### Phase 3: Better totals section
-- [ ] Add all the totals rows Sean has (see list above)
-- [ ] Color-code the threshold comparisons
-- [ ] Show deltas clearly (Base → Modified)
+### TRADE IN
+- Adds player's salary to team totals (affected years)
+- Player appears in roster, marked purple
+- Uses `incoming_cap_amount` / `incoming_apron_amount` (includes trade bonus)
 
-### Phase 4: Multi-year view
-- [ ] Expand roster to show cap_y0 through cap_y5
-- [ ] Add % column for each year
-- [ ] Highlight option years with color
+### WAIVE
+- Removes player from active roster count
+- Player's cap hit becomes **Dead Money** (posture doesn't magically improve)
+- Player marked gray + strikethrough
 
----
+### STRETCH
+- Does WAIVE + stretches remaining guaranteed across stretch years
+- Changes *timing* of dead money, not whether it exists
+- Formula: `2 * years_remaining + 1` stretch years
 
-## Later TODO (Structure)
-
-### Phase 5: Roster fills
-- [ ] Calculate roster count
-- [ ] Add rookie min fills to reach 14
-- [ ] Add vet min fills to reach 15 (if needed)
-- [ ] Show dead money
-
-### Phase 6: Depth chart
-- [ ] Filter roster by position
-- [ ] Display in depth chart grid
-- [ ] Make reactive to trade/waive inputs
-
-### Phase 7: Draft picks
-- [ ] Pull from `tbl_draft_picks_warehouse`
-- [ ] Display ownership grid by year
-- [ ] Show protections
-
-### Phase 8: Trade machine improvements
-- [ ] Dedicated trade matching section
-- [ ] Show 125% rule calculation
-- [ ] Better UX for entering trades
+### SIGN (v1)
+- Adds manual salary in **base year only**
+- Future years default to 0 until multi-year signing terms added
 
 ---
 
-## Technical Notes
+## Non-Negotiables
 
-### XlsxWriter Patterns (from XLSXWRITER.md)
-- Use `write_dynamic_array_formula("E3", formula)` for spill formulas
-- Use `ANCHORARRAY(E3)` to reference spilled ranges (not `E3#`)
-- LAMBDA params need `_xlpm.` prefix: `LAMBDA(_xlpm.x, _xlpm.x+1)`
-- Pre-format columns with `set_column("F:F", width, fmt)` for spill formatting
-- Enable `use_future_functions: True` on workbook creation
-
-### Data Sources
-| Need | Table | Key Columns |
-|------|-------|-------------|
-| Player salaries (calc) | `tbl_salary_book_yearly` | player_name, team_code, salary_year, cap_amount |
-| Player salaries (wide display, later) | `tbl_salary_book_warehouse` | cap_2025..cap_2030, option flags, etc |
-| Team totals | `tbl_team_salary_warehouse` | All threshold comparisons |
-| System values | `tbl_system_values` | salary_cap_amount, tax_level_amount, tax_apron_amount |
-| Draft picks | `tbl_draft_picks_warehouse` | Ownership by year |
-| Cap holds | `tbl_cap_holds_warehouse` | Player rights |
-| Dead money | `tbl_dead_money_warehouse` | Stretched/waived |
-| Exceptions | `tbl_exceptions_warehouse` | MLE, BAE, TPE amounts |
-
-### Named Ranges Defined
-- `SelectedTeam` - B1 (team selector)
-- `TradeOutNames` - B3:B8
-- `TradeInNames` - B10:B15
-- `WaivedNames` - B17:B19
-- `SignNames` - B21:B22
-- `SignSalaries` - C21:C22
-- `TeamSalary` - F21 (base team salary from warehouse)
-- `TeamSalaryFilled` - F22 (base + rookie-min roster fills to 14)
-- `ModifiedSalary` - F23 (scenario-adjusted total)
+1. **Multi-year is central.** 6-year view, not optional.
+2. **Inputs stay in frozen left rail.** Columns A-C, always visible.
+3. **KPI bar stays visible.** Frozen rows 1-3.
+4. **Roster fills are first-class.** Cap room is meaningless without fills.
+5. **Totals reconcile to warehouse.** Don't invent numbers.
+6. **Color has semantics:**
+   - Green = room / under threshold
+   - Red = over / negative room
+   - Purple = traded in
+   - Gray + strikethrough = traded out / waived
 
 ---
 
-## Reference
-- Sean's workbook: The gold standard for density and functionality
-- Blueprints: `reference/blueprints/excel-cap-book-blueprint.md`
-- Data contract: `reference/blueprints/data-contract.md`
-- XlsxWriter docs: `excel/XLSXWRITER.md`
+## Named Ranges (API Contract)
+
+These names are stable and used by formulas:
+
+| Name | Location | Purpose |
+|------|----------|---------|
+| `SelectedTeam` | B1 | Team selector |
+| `TradeOutNames` | B range | Trade out player names |
+| `TradeInNames` | B range | Trade in player names |
+| `WaivedNames` | B range | Waived player names |
+| `StretchNames` | B range | Stretched player names |
+| `SignNames` | B range | Signed player names |
+| `SignSalaries` | C range | Signed player salaries |
+| `MetaBaseYear` | META sheet | Base year for calculations |
+| `MetaAsOfDate` | META sheet | As-of date |
+
+---
+
+## Key References
+
+| Doc | Purpose |
+|-----|---------|
+| `excel/AGENTS.md` | Technical guide + architecture |
+| `excel/XLSXWRITER.md` | XlsxWriter patterns and gotchas |
+| `reference/blueprints/` | Design principles |
+
+---
+
+## CLI
+
+```bash
+uv run excel/export_capbook.py --out shared/capbook.xlsx --base-year 2025 --as-of today
+```
