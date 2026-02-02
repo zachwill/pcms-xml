@@ -286,6 +286,72 @@ def test_complicated_prefixed_no_future_functions() -> None:
     wb.close()
 
 
+def test_dynamic_array_table_structured_ref_unique() -> None:
+    """Dynamic array formula that uses structured references to an Excel Table.
+
+    Hypothesis: Excel warnings in our capbook are caused by dynamic-array
+    formulas that reference Table columns (structured refs) rather than plain
+    A1 ranges.
+    """
+
+    path = _mk("test_dynamic_array_table_structured_ref_unique.xlsx")
+    wb = xlsxwriter.Workbook(path, {"use_future_functions": True})
+    ws = wb.add_worksheet("UI")
+    data = wb.add_worksheet("DATA")
+    data.hide()
+
+    # Write a 1-col table.
+    data.write_row("B1", ["player_name"])
+    names = ["Alpha", "Bravo", "Bravo", "Charlie", "Delta"]
+    for i, n in enumerate(names, start=2):
+        data.write(f"B{i}", n)
+
+    data.add_table("B1:B6", {"name": "tbl_demo", "columns": [{"header": "player_name"}]})
+
+    # Structured reference in dynamic array.
+    ws.write_dynamic_array_formula("D1", "=UNIQUE(tbl_demo[player_name])")
+
+    wb.close()
+
+
+def test_dynamic_array_table_structured_ref_filter() -> None:
+    path = _mk("test_dynamic_array_table_structured_ref_filter.xlsx")
+    wb = xlsxwriter.Workbook(path, {"use_future_functions": True})
+    ws = wb.add_worksheet("UI")
+    data = wb.add_worksheet("DATA")
+    data.hide()
+
+    data.write_row("B1", ["player_name"])
+    names = ["Alpha", "", "Bravo", "Bravo", "Charlie"]
+    for i, n in enumerate(names, start=2):
+        data.write(f"B{i}", n)
+
+    data.add_table("B1:B6", {"name": "tbl_demo", "columns": [{"header": "player_name"}]})
+
+    ws.write_dynamic_array_formula("D1", "=FILTER(tbl_demo[player_name],tbl_demo[player_name]<>\"\")")
+
+    wb.close()
+
+
+def test_dynamic_array_plain_range_unique() -> None:
+    """Control: same as structured-ref UNIQUE, but using an A1 range."""
+
+    path = _mk("test_dynamic_array_plain_range_unique.xlsx")
+    wb = xlsxwriter.Workbook(path, {"use_future_functions": True})
+    ws = wb.add_worksheet("UI")
+    data = wb.add_worksheet("DATA")
+    data.hide()
+
+    data.write_row("B1", ["player_name"])
+    names = ["Alpha", "Bravo", "Bravo", "Charlie", "Delta"]
+    for i, n in enumerate(names, start=2):
+        data.write(f"B{i}", n)
+
+    ws.write_dynamic_array_formula("D1", "=UNIQUE(DATA!$B$2:$B$6)")
+
+    wb.close()
+
+
 def main() -> None:
     test_data_validation_range()
 
@@ -311,6 +377,11 @@ def main() -> None:
     test_defined_name_let_scalar()
     test_defined_name_points_to_cell_with_let()
     test_defined_name_points_to_cell_with_unique()
+
+    # Table structured reference interaction
+    test_dynamic_array_table_structured_ref_unique()
+    test_dynamic_array_table_structured_ref_filter()
+    test_dynamic_array_plain_range_unique()
 
     print(f"Wrote tests to: {OUT_DIR}")
 
