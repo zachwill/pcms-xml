@@ -249,8 +249,8 @@ def write_playground_sheet(
     worksheet.write_formula(ROW_HEADER, COL_SAL_Y3, year_label(3), fmts["header_center"])
     worksheet.write(ROW_HEADER, COL_PCT_Y3, "%", fmts["header_right"])
 
-    worksheet.write(ROW_HEADER, COL_TOTAL, "Total", fmts["header_right"])
-    worksheet.write(ROW_HEADER, COL_AGENT, "Agent", fmts["header"])
+    worksheet.write(ROW_HEADER, COL_TOTAL, "Total", fmts["header_center"])
+    worksheet.write(ROW_HEADER, COL_AGENT, "Agent", fmts["header_center"])
     worksheet.write(ROW_HEADER, COL_STATUS, "Status", fmts["header"])
 
     # ---------------------------------------------------------------------
@@ -626,6 +626,8 @@ def write_playground_sheet(
     rng_cap = f"DATA_salary_book_yearly!$E$2:$E${data_end}"
     rng_tw = f"DATA_salary_book_yearly!$H$2:$H${data_end}"
 
+    trade_in_flag = f"COUNTIF(TradeInNames,{player_ref})>0"
+
     # NOTE: player_ref is defined above (used for both restriction + two-way logic)
 
     for i, off in enumerate(YEAR_OFFSETS):
@@ -637,10 +639,13 @@ def write_playground_sheet(
 
         # Only apply when:
         #  - this salary cell is 0 (so we don't hide real numeric values)
-        #  - the player is marked as two-way for SelectedTeam + year
+        #  - the player is marked as two-way for the selected team or trade-ins + year
         #  - the player has a non-blank cap_amount for that year (i.e. actual contract)
-        tw_cond = (
+        tw_cond_team = (
             f"SUMPRODUCT(({rng_team}=SelectedTeam)*({rng_name}={player_ref})*({rng_year}={year_expr})*({rng_tw}=TRUE)*({rng_cap}<>\"\"))>0"
+        )
+        tw_cond_any = (
+            f"SUMPRODUCT(({rng_name}={player_ref})*({rng_year}={year_expr})*({rng_tw}=TRUE)*({rng_cap}<>\"\"))>0"
         )
 
         # Two-Way contracts can be trade restricted / consent-required in the current season.
@@ -651,7 +656,7 @@ def write_playground_sheet(
                 col_range,
                 {
                     "type": "formula",
-                    "criteria": f"=AND({sal_cell}=0,{tw_cond},{cond_restricted_now})",
+                    "criteria": f"=AND({sal_cell}=0,{tw_cond_any},{cond_restricted_now})",
                     "format": fmts["two_way_salary_restricted"],
                     "stop_if_true": True,
                 },
@@ -661,7 +666,17 @@ def write_playground_sheet(
             col_range,
             {
                 "type": "formula",
-                "criteria": f"=AND({sal_cell}=0,{tw_cond})",
+                "criteria": f"=AND({sal_cell}=0,{trade_in_flag},{tw_cond_any})",
+                "format": fmts["two_way_salary_in"],
+                "stop_if_true": True,
+            },
+        )
+
+        worksheet.conditional_format(
+            col_range,
+            {
+                "type": "formula",
+                "criteria": f"=AND({sal_cell}=0,{tw_cond_team})",
                 "format": fmts["two_way_salary"],
                 "stop_if_true": True,
             },

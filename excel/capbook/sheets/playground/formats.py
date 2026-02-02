@@ -24,7 +24,7 @@ def create_playground_formats(workbook, shared: dict[str, Any]) -> dict[str, Any
             "bold": True,
             "font_size": 14,
             "bg_color": "#FFFDE7",
-            "align": "left",
+            "align": "center",
             "locked": False,
         }
     )
@@ -71,6 +71,8 @@ def create_playground_formats(workbook, shared: dict[str, Any]) -> dict[str, Any
             "bg_color": "#F3F4F6",
             "bottom": 1,
             "bottom_color": "#D1D5DB",
+            "top": 2,
+            "top_color": "#9CA3AF",
             "font_size": 10,
         }
     )
@@ -81,6 +83,8 @@ def create_playground_formats(workbook, shared: dict[str, Any]) -> dict[str, Any
             "bg_color": "#F3F4F6",
             "bottom": 1,
             "bottom_color": "#D1D5DB",
+            "top": 2,
+            "top_color": "#9CA3AF",
             "font_size": 10,
             "align": "right",
         }
@@ -92,6 +96,8 @@ def create_playground_formats(workbook, shared: dict[str, Any]) -> dict[str, Any
             "bg_color": "#F3F4F6",
             "bottom": 1,
             "bottom_color": "#D1D5DB",
+            "top": 2,
+            "top_color": "#9CA3AF",
             "font_size": 10,
             "align": "center",
         }
@@ -149,6 +155,19 @@ def create_playground_formats(workbook, shared: dict[str, Any]) -> dict[str, Any
         }
     )
 
+    # Two-way salary display (trade-in rows): purple pill with text override.
+    fmts["two_way_salary_in"] = workbook.add_format(
+        {
+            **base_font,
+            "font_size": 9,
+            "align": "right",
+            "bold": True,
+            "bg_color": "#EDE9FE",
+            "font_color": "#7C3AED",
+            "num_format": '"Two-Way";"Two-Way";"Two-Way";"Two-Way"',
+        }
+    )
+
     # Two-way salary display (trade restricted): same pill, but red.
     # Web: PlayerSalary.tsx uses bg-red-200 + text-red-700.
     fmts["two_way_salary_restricted"] = workbook.add_format(
@@ -163,7 +182,17 @@ def create_playground_formats(workbook, shared: dict[str, Any]) -> dict[str, Any
     )
 
     # Totals section
-    fmts["totals_section"] = workbook.add_format({**base_font, "bold": True, "font_size": 10, "align": "center", "top": 2, "top_color": "#9CA3AF"})
+    fmts["totals_section"] = workbook.add_format(
+        {
+            **base_font,
+            "bold": True,
+            "font_size": 10,
+            "align": "center",
+            "top": 2,
+            "top_color": "#9CA3AF",
+            "bg_color": "#F3F4F6",
+        }
+    )
     fmts["totals_label"] = workbook.add_format({**base_font, "font_size": 10})
     fmts["totals_value"] = workbook.add_format({**base_font, "font_size": 10, "align": "right", "num_format": '#,##0;[Red]-#,##0;"-"'})
     fmts["totals_delta_pos"] = workbook.add_format({**base_font, "font_size": 10, "align": "right", "font_color": "#16A34A", "num_format": '+#,##0;-#,##0;"-"'})
@@ -185,8 +214,8 @@ def create_playground_formats(workbook, shared: dict[str, Any]) -> dict[str, Any
     fmts["trade_match_valid"] = workbook.add_format({**base_font, "font_size": 9, "font_color": "#16A34A", "num_format": "0%"})
     fmts["trade_match_invalid"] = workbook.add_format({**base_font, "font_size": 9, "font_color": "#DC2626", "num_format": "0%"})
 
-    # Base year display (left-aligned to match team input)
-    fmts["base_value"] = workbook.add_format({**base_font, "bold": True, "font_size": 14, "align": "left"})
+    # Base year display (center-aligned to match team input)
+    fmts["base_value"] = workbook.add_format({**base_font, "bold": True, "font_size": 14, "align": "center"})
 
     fmts["placeholder"] = workbook.add_format({**base_font, "bg_color": "#F3F4F6", "font_color": "#9CA3AF", "align": "center"})
 
