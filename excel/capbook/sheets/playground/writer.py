@@ -32,9 +32,9 @@ from .layout import (
     COL_STATUS,
     COL_TOTAL,
     ROSTER_RESERVED,
+    ROW_BASE,
     ROW_BODY_START,
     ROW_HEADER,
-    ROW_KPI,
     ROW_TEAM_CONTEXT,
     SIGN_SLOTS,
     STRETCH_SLOTS,
@@ -65,21 +65,26 @@ def write_playground_sheet(
     worksheet.set_column(COL_INPUT, COL_INPUT, 18)
     worksheet.set_column(COL_INPUT_SALARY, COL_INPUT_SALARY, 12)
 
-    worksheet.set_column(COL_RANK, COL_RANK, 4)
-    worksheet.set_column(COL_PLAYER, COL_PLAYER, 20)
+    # NOTE: XlsxWriter's write_dynamic_array_formula only formats the anchor cell.
+    # Spilled cells inherit the column format. We apply column formats here so
+    # the spilled roster data displays correctly.
+    # COL_RANK widened to 8 so "ROSTER" KPI label fits
+    worksheet.set_column(COL_RANK, COL_RANK, 8, fmts["rank"])
+    worksheet.set_column(COL_PLAYER, COL_PLAYER, 20, fmts["player"])
 
     # Salaries and % of cap (4-year slice)
-    worksheet.set_column(COL_SAL_Y0, COL_SAL_Y0, 10)
-    worksheet.set_column(COL_PCT_Y0, COL_PCT_Y0, 6)
-    worksheet.set_column(COL_SAL_Y1, COL_SAL_Y1, 10)
-    worksheet.set_column(COL_PCT_Y1, COL_PCT_Y1, 6)
-    worksheet.set_column(COL_SAL_Y2, COL_SAL_Y2, 10)
-    worksheet.set_column(COL_PCT_Y2, COL_PCT_Y2, 6)
-    worksheet.set_column(COL_SAL_Y3, COL_SAL_Y3, 10)
-    worksheet.set_column(COL_PCT_Y3, COL_PCT_Y3, 6)
+    # NOTE: % columns are widened to 10 so KPI money values (row 1) fit
+    worksheet.set_column(COL_SAL_Y0, COL_SAL_Y0, 10, fmts["money_m"])
+    worksheet.set_column(COL_PCT_Y0, COL_PCT_Y0, 10, fmts["pct"])
+    worksheet.set_column(COL_SAL_Y1, COL_SAL_Y1, 10, fmts["money_m"])
+    worksheet.set_column(COL_PCT_Y1, COL_PCT_Y1, 10, fmts["pct"])
+    worksheet.set_column(COL_SAL_Y2, COL_SAL_Y2, 10, fmts["money_m"])
+    worksheet.set_column(COL_PCT_Y2, COL_PCT_Y2, 10, fmts["pct"])
+    worksheet.set_column(COL_SAL_Y3, COL_SAL_Y3, 10, fmts["money_m"])
+    worksheet.set_column(COL_PCT_Y3, COL_PCT_Y3, 10, fmts["pct"])
 
-    worksheet.set_column(COL_TOTAL, COL_TOTAL, 10)
-    worksheet.set_column(COL_AGENT, COL_AGENT, 18)
+    worksheet.set_column(COL_TOTAL, COL_TOTAL, 10, fmts["money_m"])
+    worksheet.set_column(COL_AGENT, COL_AGENT, 18, fmts["agent"])
     worksheet.set_column(COL_STATUS, COL_STATUS, 10)
 
     # ---------------------------------------------------------------------
@@ -88,7 +93,7 @@ def write_playground_sheet(
     worksheet.freeze_panes(ROW_HEADER + 1, COL_RANK)
 
     # ---------------------------------------------------------------------
-    # Row 1: Team context
+    # Row 1: Team selector + KPI bar (on same row)
     # ---------------------------------------------------------------------
     worksheet.write(ROW_TEAM_CONTEXT, COL_SECTION_LABEL, "TEAM", fmts["section"])
     worksheet.write(ROW_TEAM_CONTEXT, COL_INPUT, "POR", fmts["team_input"])
@@ -104,11 +109,59 @@ def write_playground_sheet(
 
     workbook.define_name("SelectedTeam", "=PLAYGROUND!$B$1")
 
-    # Context fields (not inputs)
-    worksheet.write(ROW_TEAM_CONTEXT, COL_RANK, "Base", fmts["kpi_label"])
-    worksheet.write_formula(ROW_TEAM_CONTEXT, COL_PLAYER, "=MetaBaseYear", fmts["kpi_value"])
-    worksheet.write(ROW_TEAM_CONTEXT, COL_SAL_Y0, "As of", fmts["kpi_label"])
-    worksheet.write_formula(ROW_TEAM_CONTEXT, COL_PCT_Y0, "=MetaAsOfDate", fmts["kpi_value"])
+    # KPIs on row 1 (starting at COL_RANK)
+    r = ROW_TEAM_CONTEXT
+
+    worksheet.write(r, COL_RANK, "ROSTER", fmts["kpi_label"])
+    worksheet.write_formula(r, COL_PLAYER, "=ScnRosterCount0", fmts["kpi_value"])
+
+    worksheet.write(r, COL_SAL_Y0, "TWO-WAY", fmts["kpi_label"])
+    worksheet.write_formula(
+        r,
+        COL_PCT_Y0,
+        "=XLOOKUP(SelectedTeam&MetaBaseYear,tbl_team_salary_warehouse[team_code]&tbl_team_salary_warehouse[salary_year],tbl_team_salary_warehouse[two_way_row_count])",
+        fmts["kpi_value"],
+    )
+
+    worksheet.write(r, COL_SAL_Y1, "TOTAL", fmts["kpi_label"])
+    worksheet.write_formula(r, COL_PCT_Y1, "=ScnCapTotalFilled0", fmts["kpi_money"])
+    workbook.define_name("TeamTotal", f"=PLAYGROUND!${col_letter(COL_PCT_Y1)}$1")
+
+    worksheet.write(r, COL_SAL_Y2, "CAP", fmts["kpi_label"])
+    worksheet.write_formula(
+        r,
+        COL_PCT_Y2,
+        "=XLOOKUP(MetaBaseYear,tbl_system_values[salary_year],tbl_system_values[salary_cap_amount])-ScnCapTotalFilled0",
+        fmts["kpi_delta_pos"],
+    )
+
+    worksheet.write(r, COL_SAL_Y3, "TAX", fmts["kpi_label"])
+    worksheet.write_formula(
+        r,
+        COL_PCT_Y3,
+        "=XLOOKUP(MetaBaseYear,tbl_system_values[salary_year],tbl_system_values[tax_level_amount])-ScnCapTotalFilled0",
+        fmts["kpi_delta_pos"],
+    )
+
+    worksheet.write(r, COL_TOTAL, "APR1", fmts["kpi_label"])
+    worksheet.write_formula(
+        r,
+        COL_AGENT,
+        "=XLOOKUP(MetaBaseYear,tbl_system_values[salary_year],tbl_system_values[tax_apron_amount])-ScnCapTotalFilled0",
+        fmts["kpi_delta_pos"],
+    )
+
+    # KPI conditional formatting (green if >=0, red if <0)
+    for col in [COL_PCT_Y2, COL_PCT_Y3, COL_AGENT]:
+        cell = f"{col_letter(col)}{r + 1}"
+        worksheet.conditional_format(cell, {"type": "cell", "criteria": ">=", "value": 0, "format": fmts["kpi_delta_pos"]})
+        worksheet.conditional_format(cell, {"type": "cell", "criteria": "<", "value": 0, "format": fmts["kpi_delta_neg"]})
+
+    # ---------------------------------------------------------------------
+    # Row 2: Base year context (left-aligned to match TEAM/POR above)
+    # ---------------------------------------------------------------------
+    worksheet.write(ROW_BASE, COL_SECTION_LABEL, "Base", fmts["section"])
+    worksheet.write_formula(ROW_BASE, COL_INPUT, "=MetaBaseYear", fmts["base_value"])
 
     # ---------------------------------------------------------------------
     # Scenario calculations (CALC sheet) + stable defined names
@@ -158,65 +211,6 @@ def write_playground_sheet(
         )
         _define_calc_name(f"ScnFillAmount{off}", r0, 6, f"=ScnFillCount{off}*ScnRookieMin{off}")
         _define_calc_name(f"ScnCapTotalFilled{off}", r0, 7, f"=ScnCapTotal{off}+ScnFillAmount{off}")
-
-    # ---------------------------------------------------------------------
-    # Row 2: KPI bar (scenario-adjusted, base year)
-    # Layout pattern: label cell + value cell pairs.
-    # ---------------------------------------------------------------------
-    r = ROW_KPI
-
-    worksheet.write(r, COL_RANK, "ROSTER", fmts["kpi_label"])
-    worksheet.write_formula(r, COL_PLAYER, "=ScnRosterCount0", fmts["kpi_value"])
-
-    worksheet.write(r, COL_SAL_Y0, "TWO-WAY", fmts["kpi_label"])
-    worksheet.write_formula(
-        r,
-        COL_PCT_Y0,
-        "=XLOOKUP(SelectedTeam&MetaBaseYear,tbl_team_salary_warehouse[team_code]&tbl_team_salary_warehouse[salary_year],tbl_team_salary_warehouse[two_way_row_count])",
-        fmts["kpi_value"],
-    )
-
-    worksheet.write(r, COL_SAL_Y1, "TOTAL", fmts["kpi_label"])
-    worksheet.write_formula(r, COL_PCT_Y1, "=ScnCapTotalFilled0", fmts["kpi_money"])
-    workbook.define_name("TeamTotal", "=PLAYGROUND!$I$2")
-
-    worksheet.write(r, COL_SAL_Y2, "CAP", fmts["kpi_label"])
-    worksheet.write_formula(
-        r,
-        COL_PCT_Y2,
-        "=XLOOKUP(MetaBaseYear,tbl_system_values[salary_year],tbl_system_values[salary_cap_amount])-ScnCapTotalFilled0",
-        fmts["kpi_delta_pos"],
-    )
-
-    worksheet.write(r, COL_SAL_Y3, "TAX", fmts["kpi_label"])
-    worksheet.write_formula(
-        r,
-        COL_PCT_Y3,
-        "=XLOOKUP(MetaBaseYear,tbl_system_values[salary_year],tbl_system_values[tax_level_amount])-ScnCapTotalFilled0",
-        fmts["kpi_delta_pos"],
-    )
-
-    worksheet.write(r, COL_TOTAL, "APR1", fmts["kpi_label"])
-    worksheet.write_formula(
-        r,
-        COL_AGENT,
-        "=XLOOKUP(MetaBaseYear,tbl_system_values[salary_year],tbl_system_values[tax_apron_amount])-ScnCapTotalFilled0",
-        fmts["kpi_delta_pos"],
-    )
-
-    worksheet.write(r, COL_STATUS, "APR2", fmts["kpi_label"])
-    worksheet.write_formula(
-        r,
-        COL_STATUS + 1,
-        "=XLOOKUP(MetaBaseYear,tbl_system_values[salary_year],tbl_system_values[tax_apron2_amount])-ScnCapTotalFilled0",
-        fmts["kpi_delta_pos"],
-    )
-
-    # KPI conditional formatting (green if >=0, red if <0)
-    for col in [COL_PCT_Y2, COL_PCT_Y3, COL_AGENT, COL_STATUS + 1]:
-        cell = f"{col_letter(col)}{r + 1}"
-        worksheet.conditional_format(cell, {"type": "cell", "criteria": ">=", "value": 0, "format": fmts["kpi_delta_pos"]})
-        worksheet.conditional_format(cell, {"type": "cell", "criteria": "<", "value": 0, "format": fmts["kpi_delta_neg"]})
 
     # ---------------------------------------------------------------------
     # Row 3: Roster headers
@@ -345,7 +339,33 @@ def write_playground_sheet(
     input_row += 1
 
     worksheet.write(input_row, COL_SECTION_LABEL, "Match:", fmts["trade_label"])
-    worksheet.write_formula(input_row, COL_INPUT, '=IF(TradeOutSalary=0,"-",TEXT(TradeInSalary/TradeOutSalary,"0%"))')
+    # Match % as numeric (not TEXT) so conditional formatting works
+    # Trade rules: incoming salary must be within ~75-125% of outgoing (simplified)
+    worksheet.write_formula(
+        input_row,
+        COL_INPUT,
+        '=IF(TradeOutSalary=0,0,TradeInSalary/TradeOutSalary)',
+        fmts["trade_match"],
+    )
+    match_cell = f"B{input_row + 1}"
+    # Valid trade match: 0% (no trade) or between 75% and 125%
+    worksheet.conditional_format(
+        match_cell,
+        {
+            "type": "formula",
+            "criteria": f"=OR({match_cell}=0,AND({match_cell}>=0.75,{match_cell}<=1.25))",
+            "format": fmts["trade_match_valid"],
+        },
+    )
+    # Invalid: outside 75-125% range (and not zero)
+    worksheet.conditional_format(
+        match_cell,
+        {
+            "type": "formula",
+            "criteria": f"=AND({match_cell}<>0,OR({match_cell}<0.75,{match_cell}>1.25))",
+            "format": fmts["trade_match_invalid"],
+        },
+    )
 
     # ---------------------------------------------------------------------
     # Roster grid (reactive)
@@ -467,8 +487,8 @@ def write_playground_sheet(
     # ---------------------------------------------------------------------
     # Totals block (scenario-adjusted) below roster
     # ---------------------------------------------------------------------
-    depth_rows = 6
-    totals_start = roster_end + depth_rows + 3
+    # Totals block immediately after roster (just 1 row gap)
+    totals_start = roster_end + 2
 
     row = totals_start
 
