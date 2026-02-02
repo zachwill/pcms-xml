@@ -559,21 +559,61 @@ def write_playground_sheet(
     )
 
     # -------------------------------------------------------------------------
+    # Trade restrictions conditional formatting (red)
+    #
+    # Web parity (SalaryBook):
+    # - No-Trade Clause (is_no_trade): red in ALL seasons, but options can take
+    #   visual precedence in future years.
+    # - Player consent required now (is_trade_consent_required_now): red in the
+    #   current season only and should override other coloring.
+    # - Trade restricted now (is_trade_restricted_now): red in the current
+    #   season only and should override other coloring.
+    #
+    # We avoid structured refs / XLOOKUP in conditional formatting to prevent
+    # Excel "repair" warnings. We also avoid hardcoding column letters for the
+    # boolean flags by using MATCH() against the header row.
+    # -------------------------------------------------------------------------
+
+    player_ref = f"${col_letter(COL_PLAYER)}{roster_start + 1}"  # e.g. $E4
+
+    sbw_end = 5000
+    sbw_hdr = "DATA_salary_book_warehouse!$1:$1"
+    sbw_data = f"DATA_salary_book_warehouse!$A$2:$ZZ${sbw_end}"
+
+    sbw_name = f'INDEX({sbw_data},0,MATCH("player_name",{sbw_hdr},0))'
+    sbw_no_trade = f'INDEX({sbw_data},0,MATCH("is_no_trade",{sbw_hdr},0))'
+    sbw_consent = f'INDEX({sbw_data},0,MATCH("is_trade_consent_required_now",{sbw_hdr},0))'
+    sbw_trade_restricted = f'INDEX({sbw_data},0,MATCH("is_trade_restricted_now",{sbw_hdr},0))'
+
+    # NOTE: salary_book_warehouse is 1 row per player. We match by player_name
+    # only (no team_code filter) so trade-in rows still get correct styling.
+    cond_no_trade = f"SUMPRODUCT(({sbw_name}={player_ref})*({sbw_no_trade}=TRUE))>0"
+    cond_consent = f"SUMPRODUCT(({sbw_name}={player_ref})*({sbw_consent}=TRUE))>0"
+    cond_trade_restricted = f"SUMPRODUCT(({sbw_name}={player_ref})*({sbw_trade_restricted}=TRUE))>0"
+    cond_restricted_now = f"OR({cond_consent},{cond_trade_restricted})"
+
+    # -------------------------------------------------------------------------
     # Two-way salary display: show "Two-Way" (gray pill) instead of "-".
     #
     # IMPORTANT: Conditional formatting formulas have quirks (see options block
     # below). We avoid structured refs and XLOOKUP here.
     #
     # DATA_salary_book_yearly columns:
-    #   B=player_name, C=team_code, D=salary_year, H=is_two_way
+    #   B=player_name, C=team_code, D=salary_year, E=cap_amount, H=is_two_way
+    #
+    # Two-Way contracts can be 1 or 2 years. We must check that cap_amount is
+    # not blank (NULL in DB = empty cell) to confirm an actual contract row
+    # exists for that year. Otherwise we'd show the pill for projected years
+    # where the player isn't actually under contract.
     # -------------------------------------------------------------------------
     data_end = 20000
     rng_name = f"DATA_salary_book_yearly!$B$2:$B${data_end}"
     rng_team = f"DATA_salary_book_yearly!$C$2:$C${data_end}"
     rng_year = f"DATA_salary_book_yearly!$D$2:$D${data_end}"
+    rng_cap = f"DATA_salary_book_yearly!$E$2:$E${data_end}"
     rng_tw = f"DATA_salary_book_yearly!$H$2:$H${data_end}"
 
-    player_ref = f"${col_letter(COL_PLAYER)}{roster_start + 1}"  # e.g. $E4
+    # NOTE: player_ref is defined above (used for both restriction + two-way logic)
 
     for i, off in enumerate(YEAR_OFFSETS):
         year_expr = f"MetaBaseYear+{off}" if off else "MetaBaseYear"
@@ -585,72 +625,94 @@ def write_playground_sheet(
         # Only apply when:
         #  - this salary cell is 0 (so we don't hide real numeric values)
         #  - the player is marked as two-way for SelectedTeam + year
-        criteria = (
-            f"=AND({sal_cell}=0,"
-            f"SUMPRODUCT(({rng_team}=SelectedTeam)*({rng_name}={player_ref})*({rng_year}={year_expr})*({rng_tw}=TRUE))>0)"
+        #  - the player has a non-blank cap_amount for that year (i.e. actual contract)
+        tw_cond = (
+            f"SUMPRODUCT(({rng_team}=SelectedTeam)*({rng_name}={player_ref})*({rng_year}={year_expr})*({rng_tw}=TRUE)*({rng_cap}<>\"\"))>0"
         )
+
+        # Two-Way contracts can be trade restricted / consent-required in the current season.
+        # In web/ we render the Two-Way badge red in that case; replicate here by using a
+        # dedicated red pill format.
+        if off == 0:
+            worksheet.conditional_format(
+                col_range,
+                {
+                    "type": "formula",
+                    "criteria": f"=AND({sal_cell}=0,{tw_cond},{cond_restricted_now})",
+                    "format": fmts["two_way_salary_restricted"],
+                    "stop_if_true": True,
+                },
+            )
 
         worksheet.conditional_format(
             col_range,
             {
                 "type": "formula",
-                "criteria": criteria,
+                "criteria": f"=AND({sal_cell}=0,{tw_cond})",
                 "format": fmts["two_way_salary"],
                 "stop_if_true": True,
             },
         )
 
     # -------------------------------------------------------------------------
+    # Current-season trade restrictions (override other coloring)
+    #
+    # Applies ONLY to the base-year salary column. This matches web/ where
+    # consent-required and trade-restricted flags are "current season" behavior.
+    #
+    # NOTE: Two-Way restricted players are handled above with a dedicated
+    # two_way_salary_restricted pill so we preserve the "Two-Way" display.
+    # -------------------------------------------------------------------------
+    y0_range = f"{col_letter(COL_SAL_Y0)}{roster_start + 1}:{col_letter(COL_SAL_Y0)}{roster_end + 1}"
+    worksheet.conditional_format(
+        y0_range,
+        {
+            "type": "formula",
+            "criteria": f"={cond_restricted_now}",
+            "format": fmts["trade_restriction"],
+            "stop_if_true": True,
+        },
+    )
+
+    # -------------------------------------------------------------------------
     # Contract option conditional formatting (Team Option / Player Option)
     #
-    # Apply per-column since each salary column maps to a specific year.
-    # Looks up option status from DATA_salary_book_warehouse.
+    # Web parity (PlayerRow.tsx): options ALWAYS take precedence visually over
+    # no-trade in future seasons.
     #
-    # NOTE: Skip base year (offset 0) since those options have already been
-    # exercised/decided for the current season.
-    #
-    # IMPORTANT: Conditional formatting formulas have quirks:
-    # - use_future_functions doesn't apply (must manually prefix _xlfn.)
-    # - Table structured references may cause Excel repair warnings
-    #
-    # We use INDEX/MATCH with absolute sheet references to avoid both issues.
-    # The DATA_salary_book_warehouse sheet has:
-    #   - Column B: player_name (col 2)
-    #   - Columns for option_YYYY at ordinal positions 27-32 (AA-AF in Excel)
-    #
-    # Column mapping (0-indexed): option_2025=26 (col AA), option_2026=27 (col AB), etc.
+    # IMPORTANT: Avoid structured refs / XLOOKUP in CF; use INDEX/MATCH with
+    # absolute sheet references.
     # -------------------------------------------------------------------------
-    # Map year offset to option column letter in DATA_salary_book_warehouse
-    # Column A=1 (player_id), B=2 (player_name), ..., AA=27 (option_2025), AB=28 (option_2026), etc.
-    option_col_letters = {
-        0: "AA",  # option_2025
-        1: "AB",  # option_2026
-        2: "AC",  # option_2027
-        3: "AD",  # option_2028
-    }
 
     for i, off in enumerate(YEAR_OFFSETS):
         # Skip base year - options already decided for current season
         if off == 0:
             continue
 
+        year_num = base_year + off
+        year_expr = f"MetaBaseYear+{off}" if off else "MetaBaseYear"
+
         sal_col = [COL_SAL_Y0, COL_SAL_Y1, COL_SAL_Y2, COL_SAL_Y3][i]
         col_range = f"{col_letter(sal_col)}{roster_start + 1}:{col_letter(sal_col)}{roster_end + 1}"
-        player_ref = f"${col_letter(COL_PLAYER)}{roster_start + 1}"
-        opt_col = option_col_letters[off]
 
-        # Use INDEX/MATCH pattern with absolute references to avoid CF formula issues
-        # MATCH finds the row, INDEX retrieves the option value
-        # Formula: =INDEX(DATA_salary_book_warehouse!$AA:$AA,MATCH($E4,DATA_salary_book_warehouse!$B:$B,0))="TEAM"
-        match_formula = f"MATCH({player_ref},DATA_salary_book_warehouse!$B:$B,0)"
+        # Only color true contract years (avoid tinting trailing '-' years).
+        # NOTE: We don't team-scope this check; roster salary lookups aren't team-scoped.
+        has_contract = f"SUMPRODUCT(({rng_name}={player_ref})*({rng_year}={year_expr})*({rng_cap}<>\"\"))>0"
+
+        # Option value from DATA_salary_book_warehouse (schema evolves; lookup by header name).
+        opt_expr = f'INDEX({sbw_data},0,MATCH("option_{year_num}",{sbw_hdr},0))'
+
+        has_team_option = f'SUMPRODUCT(({sbw_name}={player_ref})*({opt_expr}="TEAM"))>0'
+        has_player_option = f'SUMPRODUCT(({sbw_name}={player_ref})*({opt_expr}="PLYR"))>0'
 
         # Team Option (TO) - purple
         worksheet.conditional_format(
             col_range,
             {
                 "type": "formula",
-                "criteria": f'=INDEX(DATA_salary_book_warehouse!${opt_col}:${opt_col},{match_formula})="TEAM"',
+                "criteria": f"=AND({has_contract},{has_team_option})",
                 "format": fmts["option_team"],
+                "stop_if_true": True,
             },
         )
 
@@ -659,8 +721,30 @@ def write_playground_sheet(
             col_range,
             {
                 "type": "formula",
-                "criteria": f'=INDEX(DATA_salary_book_warehouse!${opt_col}:${opt_col},{match_formula})="PLYR"',
+                "criteria": f"=AND({has_contract},{has_player_option})",
                 "format": fmts["option_player"],
+                "stop_if_true": True,
+            },
+        )
+
+    # -------------------------------------------------------------------------
+    # No-Trade Clause (all seasons, but only for actual contract years)
+    #
+    # Must come AFTER option CF so options take precedence (Excel CF priority).
+    # -------------------------------------------------------------------------
+    for i, off in enumerate(YEAR_OFFSETS):
+        year_expr = f"MetaBaseYear+{off}" if off else "MetaBaseYear"
+        sal_col = [COL_SAL_Y0, COL_SAL_Y1, COL_SAL_Y2, COL_SAL_Y3][i]
+        col_range = f"{col_letter(sal_col)}{roster_start + 1}:{col_letter(sal_col)}{roster_end + 1}"
+
+        has_contract = f"SUMPRODUCT(({rng_name}={player_ref})*({rng_year}={year_expr})*({rng_cap}<>\"\"))>0"
+
+        worksheet.conditional_format(
+            col_range,
+            {
+                "type": "formula",
+                "criteria": f"=AND({has_contract},{cond_no_trade})",
+                "format": fmts["trade_restriction"],
             },
         )
 

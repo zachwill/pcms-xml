@@ -185,6 +185,105 @@ Key points:
 - INDEX/MATCH are legacy functions that work reliably in CF formulas
 - Avoid XLOOKUP, FILTER, and other future functions in CF formulas
 
+#### Deep dive: writing CF rules that don’t get “repaired” by Excel
+
+Conditional formatting (CF) is the #1 place Excel will silently drop rules or show a
+workbook-repair warning if you use the wrong function family.
+
+**Why CF is different than normal formulas**
+
+- CF formulas are stored inside `<cfRule>` XML and evaluated in a restricted context.
+- `Workbook(..., {"use_future_functions": True})` **does not help** CF. If you use
+  modern functions (LET/FILTER/XLOOKUP/MAP/etc.) you typically must manually prefix
+  with `_xlfn.` *and* even then Excel may still repair/remove the rule.
+- Table structured references (`tbl_x[col]`) are a common trigger for repair warnings
+  inside CF rules.
+
+**Rule #1: Prefer legacy functions + A1 references**
+
+When you need lookup-like behavior in CF, stick to combinations of:
+
+- `INDEX` / `MATCH`
+- `COUNTIF` / `COUNTIFS`
+- `SUMPRODUCT`
+- `AND` / `OR` / `IF`
+
+…and reference the exported DATA sheets by absolute A1 ranges:
+
+- Good: `DATA_salary_book_yearly!$B$2:$B$20000`
+- Risky: `tbl_salary_book_yearly[player_name]`
+
+**Rule #2: Write the formula as-if it’s evaluated for the TOP-LEFT cell**
+
+Excel “fills” a CF rule across the target range the same way it fills normal formulas:
+relative references move as the rule applies down the range.
+
+So for a range like `F4:F200`:
+
+- Use **relative row** for the in-range cell reference: `F4` (not `$F$4`)
+- Use **absolute column + relative row** for a paired column you want to track:
+  `$E4` (locks to Player column, row shifts)
+
+Example pattern:
+
+```text
+Applies to:  F4:F200
+Criteria:    =AND(F4=0, $E4<>"")
+```
+
+**Rule #3: Avoid XLOOKUP in CF; use INDEX/MATCH**
+
+Even if XLOOKUP works in a normal cell formula, it can be unstable in CF.
+
+```python
+# ✅ Stable CF lookup
+criteria = '=INDEX(DATA_salary_book_warehouse!$AA:$AA, MATCH($E4, DATA_salary_book_warehouse!$B:$B, 0))="TEAM"'
+```
+
+**Rule #4: For multi-key lookups, use SUMPRODUCT**
+
+When you need to match multiple columns (team + player + year + flag),
+`SUMPRODUCT` is the most reliable CF “join”.
+
+Example: show a gray "Two-Way" pill only when the salary cell is 0 and the player
+is a two-way for the selected team/year:
+
+```text
+Applies to:  F4:F200
+Criteria:    =AND(
+               F4=0,
+               SUMPRODUCT(
+                 (DATA_salary_book_yearly!$C$2:$C$20000=SelectedTeam)*
+                 (DATA_salary_book_yearly!$B$2:$B$20000=$E4)*
+                 (DATA_salary_book_yearly!$D$2:$D$20000=MetaBaseYear+1)*
+                 (DATA_salary_book_yearly!$H$2:$H$20000=TRUE)
+               )>0
+             )
+```
+
+Notes:
+- Use a fixed max row (e.g. `20000`) instead of whole-column ranges for performance.
+- Prefer `SUMPRODUCT(...)>0` over array formulas; CF is already “array-ish”.
+
+**Rule #5: Ordering + `stop_if_true` matters**
+
+If you layer multiple CF rules (e.g. option coloring + two-way pill + traded-out
+strike-through), Excel will apply them in order.
+
+In XlsxWriter you can set:
+
+```python
+worksheet.conditional_format(rng, {
+  "type": "formula",
+  "criteria": "=...",
+  "format": fmt,
+  "stop_if_true": True,
+})
+```
+
+Use `stop_if_true` for rules that should “win” and prevent later rules from
+overwriting the format.
+
 ---
 
 ## 4. Error Diagnosis

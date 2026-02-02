@@ -128,6 +128,10 @@ def create_playground_formats(workbook, shared: dict[str, Any]) -> dict[str, Any
     # Player Option (PO) - blue background matching web
     fmts["option_player"] = workbook.add_format({**base_font, "bg_color": "#DBEAFE", "font_color": "#1D4ED8"})
 
+    # Trade restrictions (conditional formatting)
+    # Web uses red-100/60 + red-700 for no-trade / consent / trade restricted.
+    fmts["trade_restriction"] = workbook.add_format({**base_font, "bg_color": "#FEE2E2", "font_color": "#B91C1C"})
+
     # Two-way salary display (conditional formatting): show "Two-Way" instead of "-".
     fmts["two_way_salary"] = workbook.add_format(
         {
@@ -137,6 +141,19 @@ def create_playground_formats(workbook, shared: dict[str, Any]) -> dict[str, Any
             "bg_color": "#E5E7EB",
             "font_color": "#4B5563",
             # Force display text regardless of underlying numeric value.
+            "num_format": '"Two-Way";"Two-Way";"Two-Way";"Two-Way"',
+        }
+    )
+
+    # Two-way salary display (trade restricted): same pill, but red.
+    # Web: PlayerSalary.tsx uses bg-red-200 + text-red-700.
+    fmts["two_way_salary_restricted"] = workbook.add_format(
+        {
+            **base_font,
+            "font_size": 9,
+            "align": "right",
+            "bg_color": "#FECACA",
+            "font_color": "#B91C1C",
             "num_format": '"Two-Way";"Two-Way";"Two-Way";"Two-Way"',
         }
     )

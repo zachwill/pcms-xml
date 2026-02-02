@@ -30,8 +30,8 @@ ROW_BASE = 1            # Excel row 2 - Base year
 ROW_HEADER = 2          # Excel row 3 - column headers
 ROW_BODY_START = 3      # Excel row 4 - roster/inputs start
 
-# Roster display headroom (reduced to keep totals visible without scrolling)
-ROSTER_RESERVED = 20
+# Roster display headroom
+ROSTER_RESERVED = 25
 
 # Scenario input slots
 TRADE_OUT_SLOTS = 6

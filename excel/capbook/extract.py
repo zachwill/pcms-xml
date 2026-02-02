@@ -251,7 +251,12 @@ def extract_team_salary_warehouse(
 def extract_salary_book_yearly(
     base_year: int, league: str = "NBA"
 ) -> tuple[list[str], list[dict[str, Any]]]:
-    """Extract tbl_salary_book_yearly dataset (DATA_salary_book_yearly)."""
+    """Extract tbl_salary_book_yearly dataset (DATA_salary_book_yearly).
+
+    Note: We intentionally do NOT filter by league_lk here. The salary_book
+    tables contain NBA players, but some may be temporarily assigned to
+    G League (league_lk='DLG'). Filtering by league would exclude them.
+    """
 
     columns = [
         "player_id",
@@ -284,13 +289,12 @@ def extract_salary_book_yearly(
             outgoing_apron_amount,
             incoming_apron_amount
         FROM pcms.salary_book_yearly
-        WHERE league_lk = %(league)s
-          AND salary_year BETWEEN %(base_year)s AND %(base_year)s + 5
+        WHERE salary_year BETWEEN %(base_year)s AND %(base_year)s + 5
         ORDER BY team_code, player_name, salary_year
     """
 
     try:
-        rows = fetch_all(sql, {"league": league, "base_year": base_year})
+        rows = fetch_all(sql, {"base_year": base_year})
     except Exception as e:  # noqa: BLE001
         raise DatasetExtractError("salary_book_yearly", columns, e) from e
 
@@ -313,6 +317,9 @@ def extract_salary_book_warehouse(
         warehouse is a wide table with explicit year columns (e.g. cap_2025).
         The workbook's year-aware UI should generally use
         `tbl_salary_book_yearly` instead.
+      - We intentionally do NOT filter by league_lk. The salary_book tables
+        contain NBA players, but some may be temporarily assigned to G League
+        (league_lk='DLG'). Filtering by league would exclude them.
     """
 
     # Discover columns directly from Postgres so Excel mirrors the warehouse.
@@ -341,12 +348,11 @@ def extract_salary_book_warehouse(
     sql = f"""
         SELECT {select_cols}
         FROM pcms.salary_book_warehouse
-        WHERE league_lk = %(league)s
         ORDER BY team_code, player_name
     """
 
     try:
-        rows = fetch_all(sql, {"league": league})
+        rows = fetch_all(sql)
     except Exception as e:  # noqa: BLE001
         raise DatasetExtractError("salary_book_warehouse", columns, e) from e
 
