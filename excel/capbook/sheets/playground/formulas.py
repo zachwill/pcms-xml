@@ -114,30 +114,63 @@ def scenario_roster_count(*, year_expr: str) -> str:
     - Base count is derived from tbl_salary_book_yearly rows for SelectedTeam + year
       (excluding two-way, and requiring a non-blank cap_amount so we only count
       true contract rows).
-    - Adjustments:
-        base - trade_out - waive - stretch + trade_in + sign
-      where sign applies to the base year only.
+    - Scenario adjustments are year-aware:
+        - TradeOut / Waive / Stretch subtract ONLY if the player has a contract
+          row for SelectedTeam in that year.
+        - TradeIn adds ONLY if the player has an incoming contract row in that year
+          (incoming_cap_amount non-blank). Also avoids double-counting names already
+          present on the team that year.
+        - Sign applies to base year only and avoids double-counting names already
+          on the team in base year.
 
     Note: We intentionally do NOT use tbl_team_salary_warehouse[roster_row_count]
     here. That warehouse rollup can include modeling artifacts; this count should
     match what the roster grid is actually showing for each year.
     """
 
+    team_names_year = (
+        "IFERROR(UNIQUE(FILTER(tbl_salary_book_yearly[player_name],"
+        "(tbl_salary_book_yearly[team_code]=_xlpm.team)"
+        "*(tbl_salary_book_yearly[salary_year]=_xlpm.y)"
+        "*(tbl_salary_book_yearly[cap_amount]<>\"\")"
+        "*(tbl_salary_book_yearly[is_two_way]<>TRUE)"
+        ")),\"\")"
+    )
+
+    incoming_names_year = (
+        "IFERROR(UNIQUE(FILTER(tbl_salary_book_yearly[player_name],"
+        "(tbl_salary_book_yearly[salary_year]=_xlpm.y)"
+        "*(tbl_salary_book_yearly[incoming_cap_amount]<>\"\")"
+        "*(tbl_salary_book_yearly[is_two_way]<>TRUE)"
+        ")),\"\")"
+    )
+
     return (
         "=LET("  # noqa: ISC003
         f"_xlpm.y,{year_expr},"
         "_xlpm.team,SelectedTeam,"
-        "_xlpm.mask,(tbl_salary_book_yearly[team_code]=_xlpm.team)"
-        "*(tbl_salary_book_yearly[salary_year]=_xlpm.y)"
-        "*(tbl_salary_book_yearly[cap_amount]<>\"\")"
-        "*(tbl_salary_book_yearly[is_two_way]<>TRUE),"
-        "_xlpm.base,IFERROR(ROWS(UNIQUE(FILTER(tbl_salary_book_yearly[player_name],_xlpm.mask))),0),"
-        f"_xlpm.out,{_count_unique_nonblank('TradeOutNames')},"
-        f"_xlpm.waive,{_count_unique_nonblank('WaivedNames')},"
-        f"_xlpm.stretch,{_count_unique_nonblank('StretchNames')},"
-        f"_xlpm.in,{_count_unique_nonblank('TradeInNames')},"
-        f"_xlpm.sign,IF(_xlpm.y=MetaBaseYear,{_count_unique_nonblank('SignNames')},0),"
-        "MAX(0,_xlpm.base-_xlpm.out-_xlpm.waive-_xlpm.stretch+_xlpm.in+_xlpm.sign)"
+        f"_xlpm.baseNames,{team_names_year},"
+        "_xlpm.baseN,MAX(0,IF(_xlpm.baseNames=\"\",0,ROWS(_xlpm.baseNames))),"
+        "_xlpm.outNames,IFERROR(UNIQUE(FILTER(TradeOutNames,TradeOutNames<>\"\")),\"\"),"
+        "_xlpm.out,IF(OR(_xlpm.baseNames=\"\",_xlpm.outNames=\"\"),0,IFERROR(SUM(--ISNUMBER(MATCH(_xlpm.outNames,_xlpm.baseNames,0))),0)),"
+        "_xlpm.waiveNames,IFERROR(UNIQUE(FILTER(WaivedNames,WaivedNames<>\"\")),\"\"),"
+        "_xlpm.waive,IF(OR(_xlpm.baseNames=\"\",_xlpm.waiveNames=\"\"),0,IFERROR(SUM(--ISNUMBER(MATCH(_xlpm.waiveNames,_xlpm.baseNames,0))),0)),"
+        "_xlpm.stretchNames,IFERROR(UNIQUE(FILTER(StretchNames,StretchNames<>\"\")),\"\"),"
+        "_xlpm.stretch,IF(OR(_xlpm.baseNames=\"\",_xlpm.stretchNames=\"\"),0,IFERROR(SUM(--ISNUMBER(MATCH(_xlpm.stretchNames,_xlpm.baseNames,0))),0)),"
+        "_xlpm.inNames,IFERROR(UNIQUE(FILTER(TradeInNames,TradeInNames<>\"\")),\"\"),"
+        f"_xlpm.inYearNames,{incoming_names_year},"
+        "_xlpm.in,IF(OR(_xlpm.inNames=\"\",_xlpm.inYearNames=\"\"),0,"
+        "IFERROR(SUM("
+        "--ISNUMBER(MATCH(_xlpm.inNames,_xlpm.inYearNames,0))"
+        "*IF(_xlpm.baseN=0,1,--ISNA(MATCH(_xlpm.inNames,_xlpm.baseNames,0)))"
+        "),0)),"
+        "_xlpm.signNames,IF(_xlpm.y=MetaBaseYear,IFERROR(UNIQUE(FILTER(SignNames,SignNames<>\"\")),\"\"),\"\"),"
+        "_xlpm.sign,IF(_xlpm.y<>MetaBaseYear,0,"
+        "IF(_xlpm.signNames=\"\",0,"
+        "IF(_xlpm.baseN=0,ROWS(_xlpm.signNames),IFERROR(SUM(--ISNA(MATCH(_xlpm.signNames,_xlpm.baseNames,0))),0))"
+        ")"
+        "),"
+        "MAX(0,_xlpm.baseN-_xlpm.out-_xlpm.waive-_xlpm.stretch+_xlpm.in+_xlpm.sign)"
         ")"
     )
 

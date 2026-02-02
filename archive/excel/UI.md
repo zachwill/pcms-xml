@@ -32,9 +32,10 @@ The sheet is not a wizard and not a form. It’s one live surface.
 3. **KPI bar exists and stays visible** (frozen rows). It answers “what’s our situation *right now*?”
 4. **Roster fills and thresholds are first-class.** Cap/tax/apron room is meaningless without fills.
 5. **Color has semantics:**
-   - Green = room / under threshold
+   - Green = room / under threshold (positive deltas, under-cap/tax)
    - Red = over / negative room
-   - Purple = traded in / added
+   - Purple = traded in (IN)
+   - Green (bold) = signed / manually added (SIGN)
    - Gray + strikethrough = traded out / waived
 6. **Everything updates from the same state** (SelectedTeam + scenario inputs). No hidden “submit”.
 7. **Offline workbook.** No live DB connections. All data comes from embedded `DATA_*` sheets.
@@ -111,6 +112,7 @@ This is the critical modeling contract. If these rules drift, the UI will feel "
 
 ### SIGN (v1)
 - Adds a manual salary **only in the base year**.
+- Player is marked **SIGN** (green).
 - Future years default to 0/blank until we add multi-year signing terms.
 
 ### WAIVE
