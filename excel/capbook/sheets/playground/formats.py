@@ -132,6 +132,10 @@ def create_playground_formats(workbook, shared: dict[str, Any]) -> dict[str, Any
     # Web uses red-100/60 + red-700 for no-trade / consent / trade restricted.
     fmts["trade_restriction"] = workbook.add_format({**base_font, "bg_color": "#FEE2E2", "font_color": "#B91C1C"})
 
+    # Trade kicker / trade bonus (conditional formatting)
+    # Web uses orange for trade kickers.
+    fmts["trade_kicker"] = workbook.add_format({**base_font, "bg_color": "#FFEDD5", "font_color": "#C2410C"})
+
     # Two-way salary display (conditional formatting): show "Two-Way" instead of "-".
     fmts["two_way_salary"] = workbook.add_format(
         {

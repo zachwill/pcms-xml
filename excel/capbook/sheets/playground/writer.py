@@ -582,12 +582,14 @@ def write_playground_sheet(
 
     sbw_name = f'INDEX({sbw_data},0,MATCH("player_name",{sbw_hdr},0))'
     sbw_no_trade = f'INDEX({sbw_data},0,MATCH("is_no_trade",{sbw_hdr},0))'
+    sbw_trade_bonus = f'INDEX({sbw_data},0,MATCH("is_trade_bonus",{sbw_hdr},0))'
     sbw_consent = f'INDEX({sbw_data},0,MATCH("is_trade_consent_required_now",{sbw_hdr},0))'
     sbw_trade_restricted = f'INDEX({sbw_data},0,MATCH("is_trade_restricted_now",{sbw_hdr},0))'
 
     # NOTE: salary_book_warehouse is 1 row per player. We match by player_name
     # only (no team_code filter) so trade-in rows still get correct styling.
     cond_no_trade = f"SUMPRODUCT(({sbw_name}={player_ref})*({sbw_no_trade}=TRUE))>0"
+    cond_trade_bonus = f"SUMPRODUCT(({sbw_name}={player_ref})*({sbw_trade_bonus}=TRUE))>0"
     cond_consent = f"SUMPRODUCT(({sbw_name}={player_ref})*({sbw_consent}=TRUE))>0"
     cond_trade_restricted = f"SUMPRODUCT(({sbw_name}={player_ref})*({sbw_trade_restricted}=TRUE))>0"
     cond_restricted_now = f"OR({cond_consent},{cond_trade_restricted})"
@@ -728,9 +730,34 @@ def write_playground_sheet(
         )
 
     # -------------------------------------------------------------------------
+    # Trade kicker / trade bonus (orange)
+    #
+    # Matches web behavior at a high level:
+    # - Only tint real contract years (avoid trailing '-' years)
+    # - Options (PO/TO) should win (we add option CF above with stop_if_true)
+    # - No-trade should win over this (we add no-trade CF below)
+    # -------------------------------------------------------------------------
+    for i, off in enumerate(YEAR_OFFSETS):
+        year_expr = f"MetaBaseYear+{off}" if off else "MetaBaseYear"
+        sal_col = [COL_SAL_Y0, COL_SAL_Y1, COL_SAL_Y2, COL_SAL_Y3][i]
+        col_range = f"{col_letter(sal_col)}{roster_start + 1}:{col_letter(sal_col)}{roster_end + 1}"
+
+        has_contract = f"SUMPRODUCT(({rng_name}={player_ref})*({rng_year}={year_expr})*({rng_cap}<>\"\"))>0"
+
+        worksheet.conditional_format(
+            col_range,
+            {
+                "type": "formula",
+                "criteria": f"=AND({has_contract},{cond_trade_bonus})",
+                "format": fmts["trade_kicker"],
+            },
+        )
+
+    # -------------------------------------------------------------------------
     # No-Trade Clause (all seasons, but only for actual contract years)
     #
     # Must come AFTER option CF so options take precedence (Excel CF priority).
+    # Also comes AFTER trade kicker so no-trade wins over orange.
     # -------------------------------------------------------------------------
     for i, off in enumerate(YEAR_OFFSETS):
         year_expr = f"MetaBaseYear+{off}" if off else "MetaBaseYear"
