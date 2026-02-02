@@ -813,6 +813,19 @@ def write_playground_sheet(
     for i, off in enumerate(YEAR_OFFSETS):
         col = [COL_SAL_Y0, COL_SAL_Y1, COL_SAL_Y2, COL_SAL_Y3][i]
         worksheet.write_formula(row, col, year_label(off), fmts["totals_section"])
+
+    legend_col = COL_AGENT
+    legend_row = row
+    worksheet.write(legend_row, legend_col, "LEGEND", fmts["totals_section"])
+    legend_items = [
+        ("PLAYER OPTION", fmts["option_player"]),
+        ("TEAM OPTION", fmts["option_team"]),
+        ("TRADE BONUS", fmts["trade_kicker"]),
+        ("TRADE RESTRICTION", fmts["trade_restriction"]),
+    ]
+    for i, (label, fmt) in enumerate(legend_items, start=1):
+        worksheet.write(legend_row + i, legend_col, label, fmt)
+
     row += 1
 
     # Scenario Team Total (cap_total)
