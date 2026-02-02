@@ -94,7 +94,18 @@ def write_playground_sheet(
     worksheet.freeze_panes(ROW_HEADER + 1, COL_RANK)
 
     # ---------------------------------------------------------------------
-    # Row 1: Team selector + KPI bar (on same row)
+    # Row 1: Season context (left-aligned to match TEAM/POR below)
+    # ---------------------------------------------------------------------
+    worksheet.write(ROW_BASE, COL_SECTION_LABEL, "SEASON", fmts["section"])
+    worksheet.write_formula(
+        ROW_BASE,
+        COL_INPUT,
+        "=TEXT(MOD(MetaBaseYear,100),\"00\")&\"-\"&TEXT(MOD(MetaBaseYear+1,100),\"00\")",
+        fmts["base_value"],
+    )
+
+    # ---------------------------------------------------------------------
+    # Row 2: Team selector
     # ---------------------------------------------------------------------
     worksheet.write(ROW_TEAM_CONTEXT, COL_SECTION_LABEL, "TEAM", fmts["section"])
     worksheet.write(ROW_TEAM_CONTEXT, COL_INPUT, "POR", fmts["team_input"])
@@ -108,10 +119,13 @@ def write_playground_sheet(
             {"validate": "list", "source": team_codes},
         )
 
-    workbook.define_name("SelectedTeam", "=PLAYGROUND!$B$1")
+    workbook.define_name(
+        "SelectedTeam",
+        f"=PLAYGROUND!${col_letter(COL_INPUT)}${ROW_TEAM_CONTEXT + 1}",
+    )
 
     # KPIs on row 1 (starting at COL_RANK)
-    r = ROW_TEAM_CONTEXT
+    r = ROW_BASE
 
     worksheet.write(r, COL_RANK, "ROSTER", fmts["kpi_label"])
     worksheet.write_formula(r, COL_PLAYER, "=ScnRosterCount0", fmts["kpi_value"])
@@ -126,7 +140,10 @@ def write_playground_sheet(
 
     worksheet.write(r, COL_SAL_Y1, "TOTAL", fmts["kpi_label"])
     worksheet.write_formula(r, COL_PCT_Y1, "=ScnCapTotalFilled0", fmts["kpi_money"])
-    workbook.define_name("TeamTotal", f"=PLAYGROUND!${col_letter(COL_PCT_Y1)}$1")
+    workbook.define_name(
+        "TeamTotal",
+        f"=PLAYGROUND!${col_letter(COL_PCT_Y1)}${r + 1}",
+    )
 
     worksheet.write(r, COL_SAL_Y2, "CAP", fmts["kpi_label"])
     worksheet.write_formula(
@@ -157,12 +174,6 @@ def write_playground_sheet(
         cell = f"{col_letter(col)}{r + 1}"
         worksheet.conditional_format(cell, {"type": "cell", "criteria": ">=", "value": 0, "format": fmts["kpi_delta_pos"]})
         worksheet.conditional_format(cell, {"type": "cell", "criteria": "<", "value": 0, "format": fmts["kpi_delta_neg"]})
-
-    # ---------------------------------------------------------------------
-    # Row 2: Base year context (left-aligned to match TEAM/POR above)
-    # ---------------------------------------------------------------------
-    worksheet.write(ROW_BASE, COL_SECTION_LABEL, "Base", fmts["section"])
-    worksheet.write_formula(ROW_BASE, COL_INPUT, "=MetaBaseYear", fmts["base_value"])
 
     # ---------------------------------------------------------------------
     # Scenario calculations (CALC sheet) + stable defined names

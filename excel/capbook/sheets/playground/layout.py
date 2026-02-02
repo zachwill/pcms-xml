@@ -25,8 +25,8 @@ COL_AGENT = 14          # O
 COL_STATUS = 15         # P
 
 # Rows (0-indexed)
-ROW_TEAM_CONTEXT = 0    # Excel row 1 - TEAM + KPIs
-ROW_BASE = 1            # Excel row 2 - Base year
+ROW_BASE = 0            # Excel row 1 - Base year
+ROW_TEAM_CONTEXT = 1    # Excel row 2 - TEAM + KPIs
 ROW_HEADER = 2          # Excel row 3 - column headers
 ROW_BODY_START = 3      # Excel row 4 - roster/inputs start
 
