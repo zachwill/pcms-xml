@@ -51,6 +51,8 @@ def write_playground_sheet(
     worksheet: Worksheet,
     formats_shared: dict[str, Any],
     team_codes: list[str],
+    *,
+    calc_worksheet: Worksheet,
 ) -> None:
     """Write the PLAYGROUND sheet."""
 
@@ -109,23 +111,53 @@ def write_playground_sheet(
     worksheet.write_formula(ROW_TEAM_CONTEXT, COL_PCT_Y0, "=MetaAsOfDate", fmts["kpi_value"])
 
     # ---------------------------------------------------------------------
-    # Define scenario named formulas (base + 3 years)
+    # Scenario calculations (CALC sheet) + stable defined names
+    #
+    # Excel appears to warn/repair when workbook-level <definedName> formulas
+    # contain dynamic-array functions like UNIQUE/FILTER/MAP.
+    #
+    # Workaround: write the complex formulas into hidden CALC cells, then
+    # define names as simple cell references (=CALC!$B$12).
     # ---------------------------------------------------------------------
+
+    # Simple grid: each year offset gets its own row; each metric gets its own column.
+    #
+    #   Row:  off (0..3)
+    #   Cols: B=RosterCount, C=CapTotal, D=DeadMoney, E=FillCount,
+    #         F=RookieMin, G=FillAmount, H=CapTotalFilled
+
+    calc_worksheet.write(0, 1, "ScnRosterCount")
+    calc_worksheet.write(0, 2, "ScnCapTotal")
+    calc_worksheet.write(0, 3, "ScnDeadMoney")
+    calc_worksheet.write(0, 4, "ScnFillCount")
+    calc_worksheet.write(0, 5, "ScnRookieMin")
+    calc_worksheet.write(0, 6, "ScnFillAmount")
+    calc_worksheet.write(0, 7, "ScnCapTotalFilled")
+
+    def _define_calc_name(name: str, row0: int, col0: int, formula: str) -> None:
+        # Write the scalar formula into CALC.
+        calc_worksheet.write_formula(row0, col0, formula)
+        # Define name as a pure cell reference.
+        colA = col_letter(col0)
+        workbook.define_name(name, f"=CALC!${colA}${row0 + 1}")
+
     for off in YEAR_OFFSETS:
         year_expr = f"MetaBaseYear+{off}" if off else "MetaBaseYear"
+        r0 = 1 + off
 
-        workbook.define_name(f"ScnRosterCount{off}", formulas.scenario_roster_count(year_expr=year_expr))
-        workbook.define_name(f"ScnCapTotal{off}", formulas.scenario_team_total(year_expr=year_expr, year_offset=off))
-        workbook.define_name(f"ScnDeadMoney{off}", formulas.scenario_dead_money(year_expr=year_expr))
+        _define_calc_name(f"ScnRosterCount{off}", r0, 1, formulas.scenario_roster_count(year_expr=year_expr))
+        _define_calc_name(f"ScnCapTotal{off}", r0, 2, formulas.scenario_team_total(year_expr=year_expr, year_offset=off))
+        _define_calc_name(f"ScnDeadMoney{off}", r0, 3, formulas.scenario_dead_money(year_expr=year_expr))
 
-        # Fill to 14 (rookie min)
-        workbook.define_name(f"ScnFillCount{off}", f"=MAX(0,14-ScnRosterCount{off})")
-        workbook.define_name(
+        _define_calc_name(f"ScnFillCount{off}", r0, 4, f"=MAX(0,14-ScnRosterCount{off})")
+        _define_calc_name(
             f"ScnRookieMin{off}",
+            r0,
+            5,
             f"=XLOOKUP(({year_expr})&0,tbl_minimum_scale[salary_year]&tbl_minimum_scale[years_of_service],tbl_minimum_scale[minimum_salary_amount])",
         )
-        workbook.define_name(f"ScnFillAmount{off}", f"=ScnFillCount{off}*ScnRookieMin{off}")
-        workbook.define_name(f"ScnCapTotalFilled{off}", f"=ScnCapTotal{off}+ScnFillAmount{off}")
+        _define_calc_name(f"ScnFillAmount{off}", r0, 6, f"=ScnFillCount{off}*ScnRookieMin{off}")
+        _define_calc_name(f"ScnCapTotalFilled{off}", r0, 7, f"=ScnCapTotal{off}+ScnFillAmount{off}")
 
     # ---------------------------------------------------------------------
     # Row 2: KPI bar (scenario-adjusted, base year)

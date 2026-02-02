@@ -5,7 +5,7 @@ PLAYGROUND sheet package.
 `excel/UI.md` is the source of truth for layout/behavior.
 
 Public API:
-- write_playground_sheet(workbook, worksheet, formats, team_codes)
+- write_playground_sheet(workbook, worksheet, formats, team_codes, *, calc_worksheet)
 """
 
 from .writer import write_playground_sheet

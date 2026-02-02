@@ -42,6 +42,7 @@ from .sheets import write_meta_sheet, write_playground_sheet
 UI_SHEETS = [
     "PLAYGROUND",
     "META",
+    "CALC",  # hidden helper sheet for named-formula cells (avoids future funcs in defined names)
 ]
 
 # DATA sheets (hidden, contain authoritative data)
@@ -136,7 +137,13 @@ def build_capbook(
         # Create UI sheets first (so they appear at the front)
         ui_worksheets: dict[str, Any] = {}
         for name in UI_SHEETS:
-            ui_worksheets[name] = workbook.add_worksheet(name)
+            ws = workbook.add_worksheet(name)
+            # CALC is a hidden helper sheet used for scalar calculations that we
+            # reference via defined names. This avoids putting dynamic-array
+            # functions inside <definedName> formulas (Excel may warn/repair).
+            if name == "CALC":
+                ws.hide()
+            ui_worksheets[name] = ws
 
         # Create DATA sheets (hidden)
         data_worksheets: dict[str, Any] = {}
@@ -291,6 +298,7 @@ def build_capbook(
                 ui_worksheets["PLAYGROUND"],
                 formats,
                 team_codes=team_codes,
+                calc_worksheet=ui_worksheets["CALC"],
             )
         except Exception as e:
             _mark_failed(build_meta, f"PLAYGROUND writer crashed: {e}\n{traceback.format_exc()}")
