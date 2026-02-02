@@ -511,17 +511,22 @@ def write_playground_sheet(
             fmts["pct"],
         )
 
-    # Total across visible years
+    # Total contract value (warehouse), fallback to visible years when missing.
     y0 = f"ANCHORARRAY({col_letter(COL_SAL_Y0)}{roster_start + 1})"
     y1 = f"ANCHORARRAY({col_letter(COL_SAL_Y1)}{roster_start + 1})"
     y2 = f"ANCHORARRAY({col_letter(COL_SAL_Y2)}{roster_start + 1})"
     y3 = f"ANCHORARRAY({col_letter(COL_SAL_Y3)}{roster_start + 1})"
+    total_visible = f"IFERROR({y0}+{y1}+{y2}+{y3},0)"
     worksheet.write_dynamic_array_formula(
         roster_start,
         COL_TOTAL,
         roster_start,
         COL_TOTAL,
-        f"=IFERROR({y0}+{y1}+{y2}+{y3},0)",
+        "=LET("  # noqa: ISC003
+        f"_xlpm.total,XLOOKUP({names_spill},tbl_salary_book_warehouse[player_name],tbl_salary_book_warehouse[total_salary_from_2025]),"
+        f"_xlpm.visible,{total_visible},"
+        "IFERROR(_xlpm.total,_xlpm.visible)"
+        ")",
         fmts["money_m"],
     )
 
