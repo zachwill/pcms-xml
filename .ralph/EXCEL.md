@@ -29,7 +29,7 @@
 
 **Scenario Logic**
 - All inputs reactive: Trade Out/In, Waive, Stretch, Sign
-- Roster fills to 14 at rookie minimum
+- Roster fills to 12 at rookie minimum; slots 12–14 filled at vet minimum (Sean convention)
 
 ### 🚧 Remaining
 
@@ -42,6 +42,11 @@
 - [ ] Tax Payment / Tax Refund
 - [ ] Apron 2 Level and +/- Apron 2
 - [ ] Net Cost, Cost Savings
+
+**Roster Fill Controls (Sean parity)**
+- [ ] Inputs for a *fill pricing date* (event date + delay days; e.g. trade date + 14)
+- [ ] Allow fill-to-12 basis selection (rookie min vs vet min) for realistic midseason modeling
+- [ ] Default fill-to-14 basis = vet min
 
 **Additional Sections**
 - [ ] Exceptions inventory

@@ -42,11 +42,12 @@ This is distinct from `machine.json` which focuses on single-trade mechanics —
 | Cell | Description |
 |------|-------------|
 | `AI3` | Season year (`2025`) |
-| `AI4` | Season start date (for proration) |
+| `AI4` | **Regular season start date** (used to convert dates → “day of season” for proration). In the JSON export this is a literal datetime like `2025-10-20 00:00:00` (timezone quirks apply). In Postgres, prefer `pcms.league_system_values.playing_start_at`. |
 | `AI5` | Date of trade (`=TODAY()`) |
+| `AI9` | **Day to Sign (+14)** — `=AI5+14`. This models the CBA/ops reality that a team can run short of 14 roster spots for a short window and then signs minimums later. |
+| `AI10` | **Day of season for proration** (derived from the “day to sign” date, not the trade date). |
 | `AI6` | Outgoing days responsible (calculated from trade date) |
 | `AI7` | Incoming days responsible (`=174-AI6`) |
-| `AI10` | Day of season for proration |
 
 ### Salary Constants (Rows 11-16)
 | Cell | Description | Example |
@@ -56,6 +57,8 @@ This is distinct from `machine.json` which focuses on single-trade mechanics —
 | `AI14` | Trade bracket 1 threshold | 8277000 |
 | `AI15` | TPE allowance | 8527000 |
 | `AI16` | Trade bracket multiplier threshold | 33208000 |
+
+**Important nuance (Sean behavior):** the proration driver here is `AI10` (day of season), which is computed from **`AI9 = trade_date + 14`**. That means the sheet’s minimum-salary “fill” rows (rookie mins / vet mins) are effectively priced as if the team doesn’t complete those signings until the end of the 14-day window.
 
 ### Player Input Zones (Rows 4-14, each team pair)
 - **Outgoing players:** columns AK, AW, BI, BU (Team 1-4)

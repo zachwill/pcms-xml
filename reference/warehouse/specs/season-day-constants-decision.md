@@ -9,12 +9,14 @@
 ### What Sean uses (buyout_calculator.json)
 
 ```excel
-C2: 2025-10-20 00:00:00     -- season start (literal)
+C2: 2025-10-20 00:00:00     -- regular season start (literal)
 C4: =C3+2                   -- clears waivers = waive_date + 2
 C5: =C4-C2                  -- day of season
 C6: =174-C5                 -- days remaining
 B17: =(C6/174)*B11          -- pro-rata salary
 ```
+
+**Important:** This “season start” is the *regular-season* start, not the July 1 league-year start. In Postgres, map this to `pcms.league_system_values.playing_start_at` (not `season_start_at`).
 
 Both constants are **hardcoded literals** in Sean's formulas — not referencing any system table.
 
@@ -23,7 +25,9 @@ Both constants are **hardcoded literals** in Sean's formulas — not referencing
 | Column | Source | Status |
 |--------|--------|--------|
 | `pcms.league_system_values.days_in_season` | PCMS (`yearly_system_values.json`) | ✅ Ingested, per-year |
-| `pcms.league_system_values.season_start_at` | PCMS (`first_day_of_season`) | ✅ Ingested, per-year |
+| `pcms.league_system_values.season_start_at` | PCMS league-year start (July 1) | ✅ Ingested, per-year |
+| `pcms.league_system_values.playing_start_at` | PCMS regular-season start (used for `/174` proration) | ✅ Ingested, per-year |
+| `pcms.league_system_values.playing_end_at` | PCMS regular-season end (used for “days remaining”) | ✅ Ingested, per-year |
 | Waiver clearance period (2 days) | — | ❌ Not stored |
 
 Evidence from `import_pcms_data.flow/league_config.inline_script.py`:
@@ -89,7 +93,7 @@ AS $$
   WITH cal AS (
     SELECT
       days_in_season,
-      (season_start_at AT TIME ZONE 'UTC')::date AS season_start
+      (playing_start_at AT TIME ZONE 'UTC')::date AS season_start
     FROM pcms.league_system_values
     WHERE league_lk = 'NBA'
       AND salary_year = p_salary_year
@@ -123,7 +127,8 @@ p_waive_date + 2  -- or: INTERVAL '2 days'
 |----------|-------|---------|---------------|
 | Regular season days | 174 | `pcms.league_system_values.days_in_season` | Already exists, per-year, from PCMS |
 | Waiver clearance | +2 days | Hardcode in SQL | Stable CBA rule, not in source |
-| Season start | date | `pcms.league_system_values.season_start_at` | Already exists, per-year, from PCMS |
+| Regular season start | date | `pcms.league_system_values.playing_start_at` | Already exists, per-year, from PCMS |
+| League-year start | date | `pcms.league_system_values.season_start_at` | Exists, but is July 1 (not used for `/174` proration) |
 
 ---
 

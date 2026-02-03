@@ -57,6 +57,22 @@ Not all YOS tiers can sign multi-year minimum deals. The table structure implies
 
 Sean uses `/174` for **prorated roster charges** when calculating incomplete roster penalties.
 
+### 4.1 The Matrix “+14 days to sign” nuance
+
+In addition to the straightforward `days_left/174` proration used in `team_summary.json` / `playground.json`, **The Matrix** models a short grace window by pricing minimum signings as if they occur on:
+
+- `sign_date = trade_date + 14`
+
+So the proration is effectively computed from **`sign_date`**, not from `trade_date`.
+
+Evidence (from `reference/warehouse/the_matrix.json`):
+- `AI9 = AI5 + 14` (“Day to Sign (+14)”) 
+- `AI10` (day of season) is derived from `AI9 - AI4`
+- `AI12` (Vet Min prorated) uses `AI10`:
+  `=2296274*((174-AI10+1)/174)`
+
+This is the behavior we likely want to replicate in tooling for trade-deadline scenarios.
+
 **Formula from `team_summary.json` (row 3):**
 ```excel
 D3: =IF(C3<12,12-C3,0)*('Minimum Salary Scale'!$C$16*($D$1/174))

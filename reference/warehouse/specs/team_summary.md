@@ -149,6 +149,8 @@ If roster < 12, charge rookie min per empty slot, prorated by days remaining.
 ```
 Same logic for slots 12–14, vet minimum salary.
 
+**Note:** This is the “immediate” version of Sean’s fill-to-14 logic (prorate from *today*). The Matrix sheet also has a more nuanced variant that prorates vet mins as-of `trade_date + 14` (see [`the_matrix.md`](the_matrix.md)).
+
 ### Team cap salary (F3)
 ```excel
 =SUMIF(Y!C:C,A3,Y!D:D)

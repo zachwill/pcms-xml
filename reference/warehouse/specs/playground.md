@@ -40,6 +40,8 @@ Additionally includes:
 | `AD24` | Trade mode | `Expanded` | Standard vs Expanded trade rules |
 | `AF24` | Trade year | `2025` | Year context for trade calculations |
 
+**Note:** Playground prorates roster-fill amounts using `H1/174` (days remaining ÷ season days) and assumes the fill is effective immediately as of `F1`. It does **not** model The Matrix’s “sign in up to 14 days” grace window.
+
 ---
 
 ## 3. Key Outputs
@@ -60,8 +62,10 @@ Additionally includes:
 | Row | D label | Formula pattern |
 |-----|---------|-----------------|
 | 42 | Roster Count | `COUNTIF(E4:E38,">1")` |
-| 43 | (+) Rookie Mins | Fill to 12 roster spots with Rookie Min from Y |
-| 44 | (+) Vet Mins | Fill to 14 roster spots with Vet Min from Y |
+| 43 | (+) Rookie Mins | Fill to 12 roster spots with Rookie Min from Y (prorated) |
+| 44 | (+) Vet Mins | Fill to 14 roster spots with Vet Min from Y (prorated) |
+
+**Modeling note:** in Sean’s workbook this is an *assumption layer* ("if we need extra bodies, assume they are minimum signings, prorated by days remaining"). The Matrix refines this for trade scenarios by pricing the min signings as of `trade_date + 14`.
 | 45 | Dead Money | Team-specific dead cap from Y (e.g., "POR Dead Money") |
 | 47 | Team Salary | `=SUM(E4:E41)+E45` |
 | 48 | Team Salary (fill to 14) | Includes vet mins |
