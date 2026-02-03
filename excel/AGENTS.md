@@ -76,10 +76,14 @@ All filter to 6-year horizon (base_year through base_year + 5).
 
 ### Key Patterns
 
-**Scenario calculations live in hidden CALC sheet:**
+**Scenario calculations live in a hidden CALC block on each PLAYGROUND sheet:**
 ```python
-calc_ws.write_formula("A1", "=LET(...complex scenario formula...)")
-wb.define_name("ScnCapTotal0", "=CALC!$A$1")
+# Write scalar formulas into hidden columns on PLAYGROUND (implementation detail;
+# current exporter starts the block at column AE)
+ws.write_formula("AG2", "=LET(...complex scenario formula...)")
+
+# Define worksheet-scoped names so duplicating the sheet creates a new scenario
+wb.define_name("PLAYGROUND!ScnCapTotal0", "='PLAYGROUND'!$AG$2")
 ```
 
 **Spill formatting uses column formats:**
@@ -110,6 +114,9 @@ All formulas follow patterns in `XLSXWRITER.md`. Key rules:
 
 ## Key Named Ranges
 
+**All scenario names are worksheet-scoped** (e.g. `PLAYGROUND!SelectedTeam`, `PLAYGROUND!ScnCapTotal0`).
+This is what makes “duplicate PLAYGROUND” work for multiple scenarios.
+
 | Name | Purpose |
 |------|---------|
 | `SelectedTeam` | Team selector input |
@@ -119,9 +126,9 @@ All formulas follow patterns in `XLSXWRITER.md`. Key rules:
 | `FillEventDate` / `FillDelayDays` | Roster-fill pricing date + delay window (Matrix-style +14 supported) |
 | `FillTo12MinType` / `FillTo14MinType` | Roster-fill basis selection (rookie vs vet minimum assumptions) |
 | `MetaBaseYear` / `MetaAsOfDate` | From META sheet |
-| `ScnCapTotal{0-3}` | Scenario-adjusted cap totals by year offset |
-| `ScnRosterCount{0-3}` | Scenario-adjusted roster counts |
-| `ScnFill12Amount{0-3}` / `ScnFill14Amount{0-3}` | Roster fill amounts (to 12 / to 14) |
+| `ScnCapTotal{0-5}` | Scenario-adjusted cap totals by year offset |
+| `ScnRosterCount{0-5}` | Scenario-adjusted roster counts |
+| `ScnFill12Amount{0-5}` / `ScnFill14Amount{0-5}` | Roster fill amounts (to 12 / to 14) |
 
 ---
 

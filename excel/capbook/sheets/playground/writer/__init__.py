@@ -9,7 +9,7 @@ from xlsxwriter.workbook import Workbook
 from xlsxwriter.worksheet import Worksheet
 
 from ..formats import create_playground_formats
-from .calc import write_calc_sheet
+from .calc import write_calc_block
 from .inputs import write_inputs
 from .roster import write_roster
 from .setup import write_setup
@@ -24,7 +24,6 @@ def write_playground_sheet(
     formats_shared: dict[str, Any],
     team_codes: list[str],
     *,
-    calc_worksheet: Worksheet,
     base_year: int = 2025,
     as_of: "date | None" = None,
     salary_book_yearly_nrows: int = 20000,
@@ -35,7 +34,6 @@ def write_playground_sheet(
     fmts = create_playground_formats(workbook, formats_shared)
 
     write_setup(workbook, worksheet, fmts, team_codes)
-    write_calc_sheet(workbook, calc_worksheet)
     write_inputs(
         workbook,
         worksheet,
@@ -44,6 +42,7 @@ def write_playground_sheet(
         salary_book_warehouse_nrows=salary_book_warehouse_nrows,
         as_of=as_of,
     )
+    write_calc_block(workbook, worksheet)
     write_roster(
         worksheet,
         fmts,

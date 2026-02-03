@@ -38,6 +38,9 @@ def write_inputs(
     # ---------------------------------------------------------------------
     input_row = ROW_BODY_START
 
+    sheet_name = worksheet.get_name()
+    sheet_ref = "'" + sheet_name.replace("'", "''") + "'"
+
     # Player list for data validation dropdowns.
     #
     # Important UX: use the wide warehouse (1 row per player) so the dropdown is
@@ -57,7 +60,10 @@ def write_inputs(
         worksheet.data_validation(input_row, COL_INPUT, input_row, COL_INPUT, {"validate": "list", "source": player_list_source})
         input_row += 1
     trade_out_end = input_row - 1
-    workbook.define_name("TradeOutNames", f"=PLAYGROUND!$B${trade_out_start + 1}:$B${trade_out_end + 1}")
+    workbook.define_name(
+        f"{sheet_name}!TradeOutNames",
+        f"={sheet_ref}!$B${trade_out_start + 1}:$B${trade_out_end + 1}",
+    )
 
     input_row += 1
 
@@ -72,7 +78,10 @@ def write_inputs(
         worksheet.data_validation(input_row, COL_INPUT, input_row, COL_INPUT, {"validate": "list", "source": player_list_source})
         input_row += 1
     trade_in_end = input_row - 1
-    workbook.define_name("TradeInNames", f"=PLAYGROUND!$B${trade_in_start + 1}:$B${trade_in_end + 1}")
+    workbook.define_name(
+        f"{sheet_name}!TradeInNames",
+        f"={sheet_ref}!$B${trade_in_start + 1}:$B${trade_in_end + 1}",
+    )
 
     input_row += 1
 
@@ -87,7 +96,10 @@ def write_inputs(
         worksheet.data_validation(input_row, COL_INPUT, input_row, COL_INPUT, {"validate": "list", "source": player_list_source})
         input_row += 1
     waive_end = input_row - 1
-    workbook.define_name("WaivedNames", f"=PLAYGROUND!$B${waive_start + 1}:$B${waive_end + 1}")
+    workbook.define_name(
+        f"{sheet_name}!WaivedNames",
+        f"={sheet_ref}!$B${waive_start + 1}:$B${waive_end + 1}",
+    )
 
     input_row += 1
 
@@ -102,7 +114,10 @@ def write_inputs(
         worksheet.data_validation(input_row, COL_INPUT, input_row, COL_INPUT, {"validate": "list", "source": player_list_source})
         input_row += 1
     stretch_end = input_row - 1
-    workbook.define_name("StretchNames", f"=PLAYGROUND!$B${stretch_start + 1}:$B${stretch_end + 1}")
+    workbook.define_name(
+        f"{sheet_name}!StretchNames",
+        f"={sheet_ref}!$B${stretch_start + 1}:$B${stretch_end + 1}",
+    )
 
     input_row += 1
 
@@ -117,8 +132,14 @@ def write_inputs(
         worksheet.write(input_row, COL_INPUT_SALARY, "", fmts["input_money"])
         input_row += 1
     sign_end = input_row - 1
-    workbook.define_name("SignNames", f"=PLAYGROUND!$B${sign_start + 1}:$B${sign_end + 1}")
-    workbook.define_name("SignSalaries", f"=PLAYGROUND!$C${sign_start + 1}:$C${sign_end + 1}")
+    workbook.define_name(
+        f"{sheet_name}!SignNames",
+        f"={sheet_ref}!$B${sign_start + 1}:$B${sign_end + 1}",
+    )
+    workbook.define_name(
+        f"{sheet_name}!SignSalaries",
+        f"={sheet_ref}!$C${sign_start + 1}:$C${sign_end + 1}",
+    )
 
     input_row += 1
 
@@ -136,28 +157,46 @@ def write_inputs(
         worksheet.write_formula(input_row, COL_INPUT, "=DATEVALUE(MetaAsOfDate)", fmts["input_date_right"])
     else:
         worksheet.write_datetime(input_row, COL_INPUT, datetime(as_of.year, as_of.month, as_of.day), fmts["input_date_right"])
+    # Date validation:
+    # Use *datetime objects* so XlsxWriter writes proper Excel serial date bounds.
+    # (If we pass strings like "1990-01-01", Excel interprets them as math
+    #  expressions (1990-1-1) and rejects modern dates.)
     worksheet.data_validation(
         input_row,
         COL_INPUT,
         input_row,
         COL_INPUT,
-        {"validate": "date", "criteria": "between", "minimum": "1990-01-01", "maximum": "2100-12-31"},
+        {
+            "validate": "date",
+            "criteria": "between",
+            "minimum": datetime(1990, 1, 1),
+            "maximum": datetime(2100, 12, 31),
+        },
     )
-    workbook.define_name("FillEventDate", f"=PLAYGROUND!$B${input_row + 1}")
+    workbook.define_name(
+        f"{sheet_name}!FillEventDate",
+        f"={sheet_ref}!$B${input_row + 1}",
+    )
     input_row += 1
 
     # Fill-to-12 minimum type (rookie vs vet). Default: ROOKIE.
     worksheet.write(input_row, COL_SECTION_LABEL, "To 12:", fmts["trade_label"])
     worksheet.write(input_row, COL_INPUT, "ROOKIE", fmts["input_right"])
     worksheet.data_validation(input_row, COL_INPUT, input_row, COL_INPUT, {"validate": "list", "source": ["ROOKIE", "VET"]})
-    workbook.define_name("FillTo12MinType", f"=PLAYGROUND!$B${input_row + 1}")
+    workbook.define_name(
+        f"{sheet_name}!FillTo12MinType",
+        f"={sheet_ref}!$B${input_row + 1}",
+    )
     input_row += 1
 
     # Fill-to-14 minimum type. Default: VET.
     worksheet.write(input_row, COL_SECTION_LABEL, "To 14:", fmts["trade_label"])
     worksheet.write(input_row, COL_INPUT, "VET", fmts["input_right"])
     worksheet.data_validation(input_row, COL_INPUT, input_row, COL_INPUT, {"validate": "list", "source": ["VET", "ROOKIE"]})
-    workbook.define_name("FillTo14MinType", f"=PLAYGROUND!$B${input_row + 1}")
+    workbook.define_name(
+        f"{sheet_name}!FillTo14MinType",
+        f"={sheet_ref}!$B${input_row + 1}",
+    )
     input_row += 1
 
     # Delay to 14: for pricing the fill-to-14 minimums (Matrix-style +14 supported).
@@ -166,7 +205,10 @@ def write_inputs(
     delay_opts = ["Immediate"] + ["1 Day"] + [f"{d} Days" for d in range(2, 15)]
     worksheet.write(input_row, COL_INPUT, "14 Days", fmts["input_right"])
     worksheet.data_validation(input_row, COL_INPUT, input_row, COL_INPUT, {"validate": "list", "source": delay_opts})
-    workbook.define_name("FillDelayDays", f"=PLAYGROUND!$B${input_row + 1}")
+    workbook.define_name(
+        f"{sheet_name}!FillDelayDays",
+        f"={sheet_ref}!$B${input_row + 1}",
+    )
     input_row += 1
 
     input_row += 1
@@ -184,7 +226,10 @@ def write_inputs(
         formulas.sum_names_salary_yearly("TradeOutNames", year_expr="MetaBaseYear", team_scoped=True),
         fmts["trade_value"],
     )
-    workbook.define_name("TradeOutSalary", f"=PLAYGROUND!$B${input_row + 1}")
+    workbook.define_name(
+        f"{sheet_name}!TradeOutSalary",
+        f"={sheet_ref}!$B${input_row + 1}",
+    )
     input_row += 1
 
     worksheet.write(input_row, COL_SECTION_LABEL, "In:", fmts["trade_label"])
@@ -199,7 +244,10 @@ def write_inputs(
         ),
         fmts["trade_value"],
     )
-    workbook.define_name("TradeInSalary", f"=PLAYGROUND!$B${input_row + 1}")
+    workbook.define_name(
+        f"{sheet_name}!TradeInSalary",
+        f"={sheet_ref}!$B${input_row + 1}",
+    )
     input_row += 1
 
     # Post-trade apron total for SelectedTeam (baseline - outgoing + incoming)
@@ -235,7 +283,10 @@ def write_inputs(
         ")",
         fmts["trade_value"],
     )
-    workbook.define_name("TradePostApronTotal", f"=PLAYGROUND!$B${input_row + 1}")
+    workbook.define_name(
+        f"{sheet_name}!TradePostApronTotal",
+        f"={sheet_ref}!$B${input_row + 1}",
+    )
     input_row += 1
 
     # 250K padding is removed if post-trade apron total exceeds the First Apron.
@@ -249,7 +300,10 @@ def write_inputs(
         ")",
         fmts["trade_value"],
     )
-    workbook.define_name("TradePadAmount", f"=PLAYGROUND!$B${input_row + 1}")
+    workbook.define_name(
+        f"{sheet_name}!TradePadAmount",
+        f"={sheet_ref}!$B${input_row + 1}",
+    )
     input_row += 1
 
     # Max incoming:
@@ -280,7 +334,10 @@ def write_inputs(
         ")",
         fmts["trade_value"],
     )
-    workbook.define_name("TradeMaxIncoming", f"=PLAYGROUND!$B${input_row + 1}")
+    workbook.define_name(
+        f"{sheet_name}!TradeMaxIncoming",
+        f"={sheet_ref}!$B${input_row + 1}",
+    )
     input_row += 1
 
     worksheet.write(input_row, COL_SECTION_LABEL, "Rem:", fmts["trade_label"])
@@ -293,7 +350,10 @@ def write_inputs(
     rem_cell = f"B{input_row + 1}"
     worksheet.conditional_format(rem_cell, {"type": "cell", "criteria": ">=", "value": 0, "format": fmts["trade_delta_pos"]})
     worksheet.conditional_format(rem_cell, {"type": "cell", "criteria": "<", "value": 0, "format": fmts["trade_delta_neg"]})
-    workbook.define_name("TradeRemaining", f"=PLAYGROUND!$B${input_row + 1}")
+    workbook.define_name(
+        f"{sheet_name}!TradeRemaining",
+        f"={sheet_ref}!$B${input_row + 1}",
+    )
     input_row += 1
 
     worksheet.write(input_row, COL_SECTION_LABEL, "Legal:", fmts["trade_label"])

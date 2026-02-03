@@ -1,4 +1,22 @@
-"""PLAYGROUND sheet CALC block writers."""
+"""PLAYGROUND sheet scenario calc block writers.
+
+Historically we wrote scalar scenario formulas to a dedicated hidden `CALC` sheet
+and then exposed each cell via workbook-scoped defined names like `ScnCapTotal0`.
+
+To support *multiple scenarios in a single workbook* (by duplicating the
+PLAYGROUND worksheet in Excel), we instead:
+
+1) Write the scalar calc grid into a hidden block **on the PLAYGROUND sheet
+   itself** (hidden columns far to the right of the visible UI).
+2) Define all scenario names as **worksheet-scoped** names.
+
+With worksheet-scoped names, when analysts duplicate the PLAYGROUND sheet Excel
+copies the names + their cell references, producing an independent scenario.
+
+We still avoid putting future/dynamic functions directly inside `<definedName>`
+formulas (Excel can warn/repair). Defined names only point at *plain cell
+references*; the complex LET/XLOOKUP formulas live in the calc cells.
+"""
 
 from __future__ import annotations
 
@@ -9,14 +27,35 @@ from .. import formulas
 from ..layout import YEAR_OFFSETS, col_letter
 
 
-def write_calc_sheet(workbook: Workbook, calc_worksheet: Worksheet) -> None:
-    """Write the CALC worksheet formulas + defined names.
+# Hidden calc grid location (0-indexed).
+# Visible UI currently ends at column T (index 19). We write the calc block far
+# to the right and hide the columns so the sheet looks clean.
+CALC_START_ROW = 0
+CALC_START_COL = 30  # Column AE
 
-    CALC is a simple scalar grid.
+
+def _quote_sheet(sheet_name: str) -> str:
+    """Return an Excel-safe single-quoted sheet name."""
+
+    # Excel escapes a single quote inside a sheet name by doubling it.
+    return "'" + sheet_name.replace("'", "''") + "'"
+
+
+def write_calc_block(
+    workbook: Workbook,
+    worksheet: Worksheet,
+    *,
+    start_row: int = CALC_START_ROW,
+    start_col: int = CALC_START_COL,
+    hide_columns: bool = True,
+) -> None:
+    """Write the hidden CALC block formulas + worksheet-scoped defined names.
+
+    The CALC block is a simple scalar grid.
 
     Each year offset gets its own row. Each metric gets its own column.
 
-    Column map (0-indexed):
+    Column map (0-indexed, relative to `start_col`):
       B=RosterCount
       C=CapTotal
       D=TaxTotal
@@ -42,11 +81,15 @@ def write_calc_sheet(workbook: Workbook, calc_worksheet: Worksheet) -> None:
       T=ApronTotalFilled
       U=TaxPayment
 
-    Naming convention: all CALC scalars are surfaced via defined names like:
+    Naming convention: all scalars are surfaced via worksheet-scoped defined
+    names like:
       ScnCapTotal0, ScnFill12Amount0, etc.
     """
 
-    # Header row (for debugging when CALC sheet is inspected)
+    sheet_name = worksheet.get_name()
+    sheet_ref = _quote_sheet(sheet_name)
+
+    # Header row (for debugging when the hidden columns are unhidden)
     headers = [
         (1, "ScnRosterCount"),
         (2, "ScnCapTotal"),
@@ -70,17 +113,31 @@ def write_calc_sheet(workbook: Workbook, calc_worksheet: Worksheet) -> None:
         (20, "ScnTaxPayment"),
     ]
 
+    max_col0 = max(col0 for col0, _ in headers)
+
+    # Hide the calc block columns so analysts only see the UI.
+    if hide_columns:
+        # Width is arbitrary since hidden; pick something reasonable for debug.
+        worksheet.set_column(start_col, start_col + max_col0, 12, None, {"hidden": True})
+
     for col0, label in headers:
-        calc_worksheet.write(0, col0, label)
+        worksheet.write(start_row, start_col + col0, label)
 
     def _define_calc_name(name: str, row0: int, col0: int, formula: str) -> None:
-        """Write formula into CALC and define a stable named range."""
+        """Write formula into the calc grid and define a stable local name."""
 
-        # Write the scalar formula into CALC.
-        calc_worksheet.write_formula(row0, col0, formula)
-        # Define name as a pure cell reference.
-        colA = col_letter(col0)
-        workbook.define_name(name, f"=CALC!${colA}${row0 + 1}")
+        r = start_row + row0
+        c = start_col + col0
+
+        # Write the scalar formula into the worksheet.
+        worksheet.write_formula(r, c, formula)
+
+        # Define a worksheet-scoped name as a pure cell reference.
+        colA = col_letter(c)
+        workbook.define_name(
+            f"{sheet_name}!{name}",
+            f"={sheet_ref}!${colA}${r + 1}",
+        )
 
     # Shared proration helper fragments (base-year only)
     #
@@ -98,6 +155,9 @@ def write_calc_sheet(workbook: Workbook, calc_worksheet: Worksheet) -> None:
     for off in YEAR_OFFSETS:
         year_expr = f"MetaBaseYear+{off}" if off else "MetaBaseYear"
         r0 = 1 + off
+
+        # Optional row label (hidden) for easier inspection
+        worksheet.write(start_row + r0, start_col, f"Y{off}")
 
         # Base scenario metrics
         _define_calc_name(f"ScnRosterCount{off}", r0, 1, formulas.scenario_roster_count(year_expr=year_expr))

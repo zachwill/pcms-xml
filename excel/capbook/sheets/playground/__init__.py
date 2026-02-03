@@ -11,7 +11,6 @@ Public API:
     formats,
     team_codes,
     *,
-    calc_worksheet,
     base_year=2025,
     salary_book_yearly_nrows=...,
     salary_book_warehouse_nrows=...,

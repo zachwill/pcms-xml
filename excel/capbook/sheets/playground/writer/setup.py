@@ -107,9 +107,12 @@ def write_setup(
             {"validate": "list", "source": team_codes},
         )
 
+    sheet_name = worksheet.get_name()
+    sheet_ref = "'" + sheet_name.replace("'", "''") + "'"
+
     workbook.define_name(
-        "SelectedTeam",
-        f"=PLAYGROUND!${col_letter(COL_INPUT)}${ROW_TEAM_CONTEXT + 1}",
+        f"{sheet_name}!SelectedTeam",
+        f"={sheet_ref}!${col_letter(COL_INPUT)}${ROW_TEAM_CONTEXT + 1}",
     )
 
     # ---------------------------------------------------------------------
@@ -131,8 +134,8 @@ def write_setup(
     worksheet.write(r, COL_SAL_Y1, "TOTAL", fmts["kpi_label"])
     worksheet.write_formula(r, COL_PCT_Y1, "=ScnCapTotalFilled0", fmts["kpi_money"])
     workbook.define_name(
-        "TeamTotal",
-        f"=PLAYGROUND!${col_letter(COL_PCT_Y1)}${r + 1}",
+        f"{sheet_name}!TeamTotal",
+        f"={sheet_ref}!${col_letter(COL_PCT_Y1)}${r + 1}",
     )
 
     worksheet.write(r, COL_SAL_Y2, "CAP", fmts["kpi_label"])
