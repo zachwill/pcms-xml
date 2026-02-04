@@ -1,6 +1,88 @@
-# Guide
+# Datastar docs (vendor snapshot)
 
-# Getting Started
+Lightly-normalized copy/paste of Datastar documentation (headings + link cleanup), kept here so it’s:
+
+- local / grep-able
+- LLM-ingestible
+- version-pinned-ish (this snapshot references `datastar@1.0.0-RC.7` in the install snippet)
+
+Repo conventions and opinions live in:
+- `reference/datastar/insights.md` (naming rules, gotchas, patterns)
+- `reference/datastar/rails.md` (Rails + Datastar SSE framing)
+
+## Table of contents
+
+- [Guide](#guide)
+  - [Getting Started](#getting-started)
+  - [Reactive Signals](#reactive-signals)
+  - [Datastar Expressions](#datastar-expressions)
+  - [Backend Requests](#backend-requests)
+  - [The Tao of Datastar](#the-tao-of-datastar)
+- [Reference](#reference)
+  - [Attributes](#attributes)
+  - [Rocket (Alpha)](#rocket-alpha)
+  - [Actions](#actions)
+  - [SSE Events](#sse-events)
+  - [SDKs](#sdks)
+  - [Security](#security)
+
+## Quick index
+
+Use this as a fast "what is the attribute/action called?" list (details are below).
+
+**Attributes**
+
+- `data-animate`
+- `data-attr`
+- `data-bind`
+- `data-class`
+- `data-computed`
+- `data-custom-validity`
+- `data-effect`
+- `data-ignore`
+- `data-ignore-morph`
+- `data-indicator`
+- `data-init`
+- `data-json-signals`
+- `data-on`
+- `data-on-intersect`
+- `data-on-interval`
+- `data-on-raf`
+- `data-on-resize`
+- `data-on-signal-patch`
+- `data-on-signal-patch-filter`
+- `data-persist`
+- `data-preserve-attr`
+- `data-query-string`
+- `data-ref`
+- `data-replace-url`
+- `data-rocket`
+- `data-scroll-into-view`
+- `data-show`
+- `data-signals`
+- `data-style`
+- `data-text`
+- `data-view-transition`
+
+**Actions**
+
+- `@clipboard()`
+- `@fit()`
+- `@get()`
+- `@peek()`
+- `@setAll()`
+- `@toggleAll()`
+
+**SSE events**
+
+- `datastar-patch-elements`
+- `datastar-patch-signals`
+
+---
+
+## Guide
+
+### Getting Started
 
 Datastar simplifies frontend development, allowing you to build backend-driven, interactive UIs using a [hypermedia-first](https://hypermedia.systems/hypermedia-a-reintroduction/) approach that extends and enhances HTML. 
 
@@ -9,11 +91,11 @@ Datastar provides backend reactivity like [htmx](https://htmx.org/) and frontend
 1. Modify the DOM and state by sending events from your backend.
 2. Build reactivity into your frontend using standard `data-*` HTML attributes.
 
-> Other useful resources include an AI-generated [deep wiki](https://deepwiki.com/starfederation/datastar), LLM-ingestible [code samples](https://context7.com/websites/data-star_dev), and [single-page docs](https://www.google.com/search?q=/docs). 
+> Other useful resources include an AI-generated [deep wiki](https://deepwiki.com/starfederation/datastar), LLM-ingestible [code samples](https://context7.com/websites/data-star_dev), and [single-page docs](https://data-star.dev/docs). 
 > 
 > 
 
-## Installation
+#### Installation
 
 The quickest way to use Datastar is to include it using a `script` tag that fetches it from a CDN. 
 
@@ -24,7 +106,7 @@ The quickest way to use Datastar is to include it using a `script` tag that fetc
 
 
 
-If you prefer to host the file yourself, download the [script](https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.7/bundles/datastar.js) or create your own bundle using the [bundler](https://www.google.com/search?q=/bundler), then include it from the appropriate path. 
+If you prefer to host the file yourself, download the [script](https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.7/bundles/datastar.js) or create your own bundle using the [bundler](https://data-star.dev/bundler), then include it from the appropriate path. 
 
 ```html
 <script type="module" src="/path/to/datastar.js"></script>
@@ -43,15 +125,15 @@ import 'https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.7/bundles/d
 
 
 
-## `data-*`
+#### `data-*`
 
-At the core of Datastar are [`data-*`](https://www.google.com/search?q=%5Bhttps://developer.mozilla.org/en-US/docs/Web/HTML/How_to/Use_data_attributes%5D(https://developer.mozilla.org/en-US/docs/Web/HTML/How_to/Use_data_attributes)) HTML attributes (hence the name). They allow you to add reactivity to your frontend and interact with your backend in a declarative way. 
+At the core of Datastar are [`data-*`](https://developer.mozilla.org/en-US/docs/Web/HTML/How_to/Use_data_attributes) HTML attributes (hence the name). They allow you to add reactivity to your frontend and interact with your backend in a declarative way. 
 
 > The Datastar [VSCode extension](https://marketplace.visualstudio.com/items?itemName=starfederation.datastar-vscode) and [IntelliJ plugin](https://plugins.jetbrains.com/plugin/26072-datastar-support) provide autocompletion for all available `data-*` attributes. 
 > 
 > 
 
-The [`data-on`](https://www.google.com/search?q=/reference/attributes%23data-on) attribute can be used to attach an event listener to an element and execute an expression whenever the event is triggered. The value of the attribute is a [Datastar expression](https://www.google.com/search?q=/guide/datastar_expressions) in which JavaScript can be used. 
+The [`data-on`](https://data-star.dev/reference/attributes#data-on) attribute can be used to attach an event listener to an element and execute an expression whenever the event is triggered. The value of the attribute is a [Datastar expression](https://data-star.dev/guide/datastar_expressions) in which JavaScript can be used. 
 
 ```html
 <button data-on:click="alert('I’m sorry, Dave. I’m afraid I can’t do that.')">
@@ -62,13 +144,13 @@ The [`data-on`](https://www.google.com/search?q=/reference/attributes%23data-on)
 
 
 
-## Patching Elements
+#### Patching Elements
 
 With Datastar, the backend *drives* the frontend by **patching** (adding, updating and removing) HTML elements in the DOM. 
 
-Datastar receives elements from the backend and manipulates the DOM using a morphing strategy (by default). Morphing ensures that only modified parts of the DOM are updated, and that only data attributes that have changed are [reapplied](https://www.google.com/search?q=/reference/attributes%23attribute-evaluation-order), preserving state and improving performance. 
+Datastar receives elements from the backend and manipulates the DOM using a morphing strategy (by default). Morphing ensures that only modified parts of the DOM are updated, and that only data attributes that have changed are [reapplied](https://data-star.dev/reference/attributes#attribute-evaluation-order), preserving state and improving performance. 
 
-Datastar provides [actions](https://www.google.com/search?q=/reference/actions%23backend-actions) for sending requests to the backend. The [`@get()`](https://www.google.com/search?q=/reference/actions%23get) action sends a `GET` request to the provided URL using a [fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) request. 
+Datastar provides [actions](https://data-star.dev/reference/actions#backend-actions) for sending requests to the backend. The [`@get()`](https://data-star.dev/reference/actions#get) action sends a `GET` request to the provided URL using a [fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) request. 
 
 ```html
 <button data-on:click="@get('/endpoint')">
@@ -80,7 +162,7 @@ Datastar provides [actions](https://www.google.com/search?q=/reference/actions%2
 
 
 
-> Actions in Datastar are helper functions that have the syntax `@actionName()`. Read more about actions in the [reference](https://www.google.com/search?q=/reference/actions). 
+> Actions in Datastar are helper functions that have the syntax `@actionName()`. Read more about actions in the [reference](https://data-star.dev/reference/actions). 
 > 
 > 
 
@@ -97,9 +179,9 @@ If the response has a `content-type` of `text/html`, the top-level HTML elements
 
 We call this a “Patch Elements” event because multiple elements can be patched into the DOM at once. 
 
-In the example above, the DOM must contain an element with a `hal` ID in order for morphing to work. Other [patching strategies](https://www.google.com/search?q=/reference/sse_events%23datastar-patch-elements) are available, but morph is the best and simplest choice in most scenarios. 
+In the example above, the DOM must contain an element with a `hal` ID in order for morphing to work. Other [patching strategies](https://data-star.dev/reference/sse_events#datastar-patch-elements) are available, but morph is the best and simplest choice in most scenarios. 
 
-If the response has a `content-type` of `text/event-stream`, it can contain zero or more [SSE events](https://www.google.com/search?q=/reference/sse_events). The example above can be replicated using a `datastar-patch-elements` SSE event. 
+If the response has a `content-type` of `text/event-stream`, it can contain zero or more [SSE events](https://data-star.dev/reference/sse_events). The example above can be replicated using a `datastar-patch-elements` SSE event. 
 
 ```text
 event: datastar-patch-elements
@@ -128,27 +210,27 @@ data: elements </div>
 
 
 
-> In addition to your browser’s dev tools, the [Datastar Inspector](https://www.google.com/search?q=/datastar_pro%23datastar-inspector) can be used to monitor and inspect SSE events received by Datastar. 
+> In addition to your browser’s dev tools, the [Datastar Inspector](https://data-star.dev/datastar_pro#datastar-inspector) can be used to monitor and inspect SSE events received by Datastar. 
 > 
 > 
 
 ---
 
-# Reactive Signals
+### Reactive Signals
 
 In a hypermedia approach, the backend drives state to the frontend and acts as the primary source of truth. It’s up to the backend to determine what actions the user can take next by patching appropriate elements in the DOM. 
 
 Sometimes, however, you may need access to frontend state that’s driven by user interactions. Click, input and keydown events are some of the more common user events that you’ll want your frontend to be able to react to. 
 
-Datastar uses *signals* to manage frontend state. You can think of signals as reactive variables that automatically track and propagate changes in and to [Datastar expressions](https://www.google.com/search?q=/guide/datastar_expressions). Signals are denoted using the `$` prefix. 
+Datastar uses *signals* to manage frontend state. You can think of signals as reactive variables that automatically track and propagate changes in and to [Datastar expressions](https://data-star.dev/guide/datastar_expressions). Signals are denoted using the `$` prefix. 
 
-## Data Attributes
+#### Data Attributes
 
-Datastar allows you to add reactivity to your frontend and interact with your backend in a declarative way using [custom `data-*` attributes](https://www.google.com/search?q=%5Bhttps://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/data-%5D(https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/data-)*). 
+Datastar allows you to add reactivity to your frontend and interact with your backend in a declarative way using [custom `data-*` attributes](https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/data-*). 
 
-### `data-bind`
+##### `data-bind`
 
-The [`data-bind`](https://www.google.com/search?q=/reference/attributes%23data-bind) attribute sets up two-way data binding on any HTML element that receives user input or selections. These include `input`, `textarea`, `select`, `checkbox` and `radio` elements, as well as web components whose value can be made reactive. 
+The [`data-bind`](https://data-star.dev/reference/attributes#data-bind) attribute sets up two-way data binding on any HTML element that receives user input or selections. These include `input`, `textarea`, `select`, `checkbox` and `radio` elements, as well as web components whose value can be made reactive. 
 
 ```html
 <input data-bind:foo />
@@ -168,7 +250,7 @@ You can accomplish the same thing passing the signal name as a *value*. This syn
 
 
 
-According to the [HTML spec](https://www.google.com/search?q=https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/data-*), all [`data-*`](https://www.google.com/search?q=%5Bhttps://developer.mozilla.org/en-US/docs/Web/HTML/How_to/Use_data_attributes%5D(https://developer.mozilla.org/en-US/docs/Web/HTML/How_to/Use_data_attributes)) attributes are case-insensitive. When Datastar processes these attributes, hyphenated names are automatically converted to camel case by removing hyphens and uppercasing the letter following each hyphen. For example, `data-bind:foo-bar` creates a signal named `$fooBar`. 
+According to the [HTML spec](https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/data-*), all [`data-*`](https://developer.mozilla.org/en-US/docs/Web/HTML/How_to/Use_data_attributes) attributes are case-insensitive. When Datastar processes these attributes, hyphenated names are automatically converted to camel case by removing hyphens and uppercasing the letter following each hyphen. For example, `data-bind:foo-bar` creates a signal named `$fooBar`. 
 
 ```html
 <input data-bind:foo-bar />
@@ -178,9 +260,9 @@ According to the [HTML spec](https://www.google.com/search?q=https://developer.m
 
 
 
-### `data-text`
+##### `data-text`
 
-The [`data-text`](https://www.google.com/search?q=/reference/attributes%23data-text) attribute sets the text content of an element to the value of a signal. The `$` prefix is required to denote a signal. 
+The [`data-text`](https://data-star.dev/reference/attributes#data-text) attribute sets the text content of an element to the value of a signal. The `$` prefix is required to denote a signal. 
 
 ```html
 <input data-bind:foo-bar />
@@ -190,7 +272,7 @@ The [`data-text`](https://www.google.com/search?q=/reference/attributes%23data-t
 
 
 
-The value of the `data-text` attribute is a [Datastar expression](https://www.google.com/search?q=/guide/datastar_expressions) that is evaluated, meaning that we can use JavaScript in it. 
+The value of the `data-text` attribute is a [Datastar expression](https://data-star.dev/guide/datastar_expressions) that is evaluated, meaning that we can use JavaScript in it. 
 
 ```html
 <input data-bind:foo-bar />
@@ -200,9 +282,9 @@ The value of the `data-text` attribute is a [Datastar expression](https://www.go
 
 
 
-### `data-computed`
+##### `data-computed`
 
-The [`data-computed`](https://www.google.com/search?q=/reference/attributes%23data-computed) attribute creates a new signal that is derived from a reactive expression. The computed signal is read-only, and its value is automatically updated when any signals in the expression are updated. 
+The [`data-computed`](https://data-star.dev/reference/attributes#data-computed) attribute creates a new signal that is derived from a reactive expression. The computed signal is read-only, and its value is automatically updated when any signals in the expression are updated. 
 
 ```html
 <input data-bind:foo-bar />
@@ -214,9 +296,9 @@ The [`data-computed`](https://www.google.com/search?q=/reference/attributes%23da
 
 This results in the `$repeated` signal’s value always being equal to the value of the `$fooBar` signal repeated twice. Computed signals are useful for memoizing expressions containing other signals. 
 
-### `data-show`
+##### `data-show`
 
-The [`data-show`](https://www.google.com/search?q=/reference/attributes%23data-show) attribute can be used to show or hide an element based on whether an expression evaluates to `true` or `false`. 
+The [`data-show`](https://data-star.dev/reference/attributes#data-show) attribute can be used to show or hide an element based on whether an expression evaluates to `true` or `false`. 
 
 ```html
 <input data-bind:foo-bar />
@@ -242,9 +324,9 @@ Since the button is visible until Datastar processes the `data-show` attribute, 
 
 
 
-### `data-class`
+##### `data-class`
 
-The [`data-class`](https://www.google.com/search?q=/reference/attributes%23data-class) attribute allows us to add or remove an element’s class based on an expression. 
+The [`data-class`](https://data-star.dev/reference/attributes#data-class) attribute allows us to add or remove an element’s class based on an expression. 
 
 ```html
 <input data-bind:foo-bar />
@@ -282,9 +364,9 @@ The `data-class` attribute can also be used to add or remove multiple classes fr
 
 Note how the `font-bold` key must be wrapped in quotes because it contains a hyphen. 
 
-### `data-attr`
+##### `data-attr`
 
-The [`data-attr`](https://www.google.com/search?q=/reference/attributes%23data-attr) attribute can be used to bind the value of any HTML attribute to an expression. 
+The [`data-attr`](https://data-star.dev/reference/attributes#data-attr) attribute can be used to bind the value of any HTML attribute to an expression. 
 
 ```html
 <input data-bind:foo />
@@ -316,11 +398,11 @@ The `data-attr` attribute can also be used to set the values of multiple attribu
 
 
 
-### `data-signals`
+##### `data-signals`
 
 Signals are globally accessible from anywhere in the DOM. So far, we’ve created signals on the fly using `data-bind` and `data-computed`. If a signal is used without having been created, it will be created automatically and its value set to an empty string. 
 
-Another way to create signals is using the [`data-signals`](https://www.google.com/search?q=/reference/attributes%23data-signals) attribute, which patches (adds, updates or removes) one or more signals into the existing signals. 
+Another way to create signals is using the [`data-signals`](https://data-star.dev/reference/attributes#data-signals) attribute, which patches (adds, updates or removes) one or more signals into the existing signals. 
 
 ```html
 <div data-signals:foo-bar="1"></div>
@@ -358,9 +440,9 @@ The `data-signals` attribute can also be used to patch multiple signals using a 
 
 
 
-### `data-on`
+##### `data-on`
 
-The [`data-on`](https://www.google.com/search?q=/reference/attributes%23data-on) attribute can be used to attach an event listener to an element and run an expression whenever the event is triggered. 
+The [`data-on`](https://data-star.dev/reference/attributes#data-on) attribute can be used to attach an event listener to an element and run an expression whenever the event is triggered. 
 
 ```html
 <input data-bind:foo />
@@ -385,15 +467,15 @@ Custom events can also be used. Like the `data-class` attribute, the `data-on` a
 
 
 
-## Frontend Reactivity
+#### Frontend Reactivity
 
 Datastar’s data attributes enable declarative signals and expressions, providing a simple yet powerful way to add reactivity to the frontend. 
 
-Datastar expressions are strings that are evaluated by Datastar [attributes](https://www.google.com/search?q=/reference/attributes) and [actions](https://www.google.com/search?q=/reference/actions). 
+Datastar expressions are strings that are evaluated by Datastar [attributes](https://data-star.dev/reference/attributes) and [actions](https://data-star.dev/reference/actions). 
 
-## Patching Signals
+#### Patching Signals
 
-Remember that in a hypermedia approach, the backend drives state to the frontend. Just like with elements, frontend signals can be **patched** (added, updated and removed) from the backend using [backend actions](https://www.google.com/search?q=/reference/actions%23backend-actions). 
+Remember that in a hypermedia approach, the backend drives state to the frontend. Just like with elements, frontend signals can be **patched** (added, updated and removed) from the backend using [backend actions](https://data-star.dev/reference/actions#backend-actions). 
 
 ```html
 <div data-signals:hal="'...'">
@@ -416,7 +498,7 @@ If a response has a `content-type` of `application/json`, the signal values are 
 
 
 
-If the response has a `content-type` of `text/event-stream`, it can contain zero or more [SSE events](https://www.google.com/search?q=/reference/sse_events). The example above can be replicated using a `datastar-patch-signals` SSE event. 
+If the response has a `content-type` of `text/event-stream`, it can contain zero or more [SSE events](https://data-star.dev/reference/sse_events). The example above can be replicated using a `datastar-patch-signals` SSE event. 
 
 ```text
 event: datastar-patch-signals
@@ -441,17 +523,17 @@ data: signals {hal: '...'}
 
 
 
-> In addition to your browser’s dev tools, the [Datastar Inspector](https://www.google.com/search?q=/datastar_pro%23datastar-inspector) can be used to monitor and inspect SSE events received by Datastar. 
+> In addition to your browser’s dev tools, the [Datastar Inspector](https://data-star.dev/datastar_pro#datastar-inspector) can be used to monitor and inspect SSE events received by Datastar. 
 > 
 > 
 
 ---
 
-# Datastar Expressions
+### Datastar Expressions
 
 Datastar expressions are strings that are evaluated by `data-*` attributes. While they are similar to JavaScript, there are some important differences that make them more powerful for declarative hypermedia applications. 
 
-## Datastar Expressions
+#### Datastar Expressions
 
 A variable `el` is available in every Datastar expression, representing the element that the attribute is attached to. 
 
@@ -504,17 +586,17 @@ Multiple statements can be used in a single expression by separating them with a
 
 
 
-## Using JavaScript
+#### Using JavaScript
 
-Most of your JavaScript logic should go in `data-*` attributes, since reactive signals and actions only work in [Datastar expressions](https://www.google.com/search?q=/guide/datastar_expressions). 
+Most of your JavaScript logic should go in `data-*` attributes, since reactive signals and actions only work in [Datastar expressions](https://data-star.dev/guide/datastar_expressions). 
 
-Any JavaScript functionality you require that cannot belong in `data-*` attributes should be extracted out into [external scripts](https://www.google.com/search?q=%23external-scripts) or, better yet, [web components](https://www.google.com/search?q=%23web-components). 
+Any JavaScript functionality you require that cannot belong in `data-*` attributes should be extracted out into [external scripts](#external-scripts) or, better yet, [web components](#web-components). 
 
 > Always encapsulate state and send **props down, events up**. 
 > 
 > 
 
-### External Scripts
+##### External Scripts
 
 When using external scripts, you should pass data into functions via arguments and return a result. Alternatively, listen for custom events dispatched from them (props down, events up). 
 
@@ -539,7 +621,7 @@ function myfunction(data) {
 
 
 
-### Web Components
+##### Web Components
 
 [Web components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components) allow you create reusable, encapsulated, custom elements. 
 
@@ -559,13 +641,13 @@ When using web components, pass data into them via attributes and listen for cus
 
 
 
-## Executing Scripts
+#### Executing Scripts
 
-Just like elements and signals, the backend can also send JavaScript to be executed on the frontend using [backend actions](https://www.google.com/search?q=/reference/actions%23backend-actions). 
+Just like elements and signals, the backend can also send JavaScript to be executed on the frontend using [backend actions](https://data-star.dev/reference/actions#backend-actions). 
 
 If a response has a `content-type` of `text/javascript`, the value will be executed as JavaScript in the browser. 
 
-If the response has a `content-type` of `text/event-stream`, it can contain zero or more [SSE events](https://www.google.com/search?q=/reference/sse_events). The example above can be replicated by including a `script` tag inside of a `datastar-patch-elements` SSE event. 
+If the response has a `content-type` of `text/event-stream`, it can contain zero or more [SSE events](https://data-star.dev/reference/sse_events). The example above can be replicated by including a `script` tag inside of a `datastar-patch-elements` SSE event. 
 
 ```text
 event: datastar-patch-elements
@@ -591,15 +673,15 @@ data: elements <script>alert('This mission is too important for me to allow you 
 
 ---
 
-# Backend Requests
+### Backend Requests
 
-Between [attributes](https://www.google.com/search?q=/reference/attributes) and [actions](https://www.google.com/search?q=/reference/actions), Datastar provides you with everything you need to build hypermedia-driven applications. 
+Between [attributes](https://data-star.dev/reference/attributes) and [actions](https://data-star.dev/reference/actions), Datastar provides you with everything you need to build hypermedia-driven applications. 
 
-## Sending Signals
+#### Sending Signals
 
 By default, all signals (except for local signals whose keys begin with an underscore) are sent in an object with every backend request. When using a `GET` request, the signals are sent as a `datastar` query parameter, otherwise they are sent as a JSON body. 
 
-### Nesting Signals
+##### Nesting Signals
 
 Signals can be nested, making it easier to target signals in a more granular way on the backend. 
 
@@ -630,23 +712,23 @@ Using two-way binding:
 
 
 
-A practical use-case of nested signals is when you have repetition of state on a page, and use the [toggleAll()](https://www.google.com/search?q=/reference/actions%23toggleAll) action to toggle the state of all menus at once. 
+A practical use-case of nested signals is when you have repetition of state on a page, and use the [toggleAll()](https://data-star.dev/reference/actions#toggleAll) action to toggle the state of all menus at once. 
 
-## Reading Signals
+#### Reading Signals
 
 To read signals from the backend, JSON decode the `datastar` query param for `GET` requests, and the request body for all other methods. 
 
-## SSE Events
+#### Server-Sent Events (SSE)
 
 Datastar can stream zero or more [Server-Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events) (SSE) from the web server to the browser. 
 
-> The [Datastar Inspector](https://www.google.com/search?q=/datastar_pro%23datastar-inspector) can be used to monitor and inspect SSE events received by Datastar. 
+> The [Datastar Inspector](https://data-star.dev/datastar_pro#datastar-inspector) can be used to monitor and inspect SSE events received by Datastar. 
 > 
 > 
 
-### `data-indicator`
+##### `data-indicator`
 
-The [`data-indicator`](https://www.google.com/search?q=/reference/attributes%23data-indicator) attribute sets the value of a signal to `true` while the request is in flight, otherwise `false`. We can use this signal to show a loading indicator. 
+The [`data-indicator`](https://data-star.dev/reference/attributes#data-indicator) attribute sets the value of a signal to `true` while the request is in flight, otherwise `false`. We can use this signal to show a loading indicator. 
 
 ```html
 <div id="question"></div>
@@ -662,81 +744,85 @@ The [`data-indicator`](https://www.google.com/search?q=/reference/attributes%23d
 
 
 
-## Backend Actions
+#### Backend Actions
 
-We’re not limited to sending just `GET` requests. Datastar provides [backend actions](https://www.google.com/search?q=/reference/actions%23backend-actions) for each of the methods available: `@get()`, `@post()`, `@put()`, `@patch()` and `@delete()`. 
+We’re not limited to sending just `GET` requests. Datastar provides [backend actions](https://data-star.dev/reference/actions#backend-actions) for each of the methods available: `@get()`, `@post()`, `@put()`, `@patch()` and `@delete()`. 
 
 ---
 
-# The Tao of Datastar
+### The Tao of Datastar
 
 Datastar is just a tool. The Tao of Datastar, or “the Datastar way” as it is often referred to, is a set of opinions from the core team on how to best use Datastar to build maintainable, scalable, high-performance web apps. 
 
-## State in the Right Place
+#### State in the Right Place
 
 Most state should live in the backend. Since the frontend is exposed to the user, the backend should be the source of truth for your application state. 
 
-## Start with the Defaults
+#### Start with the Defaults
 
 The default configuration options are the recommended settings for the majority of applications. 
 
-## Patch Elements & Signals
+#### Patch Elements & Signals
 
 Since the backend is the source of truth, it should *drive* the frontend by **patching** (adding, updating and removing) HTML elements and signals. 
 
-## Use Signals Sparingly
+#### Use Signals Sparingly
 
 Overusing signals typically indicates trying to manage state on the frontend. Favor fetching current state from the backend rather than pre-loading and assuming frontend state is current. A good rule of thumb is to *only* use signals for user interactions (e.g. toggling element visibility) and for sending new state to the backend (e.g. by binding signals to form input elements). 
 
-## In Morph We Trust
+#### In Morph We Trust
 
 Morphing ensures that only modified parts of the DOM are updated, preserving state and improving performance. This allows you to send down large chunks of the DOM tree (all the way up to the `html` tag). 
 
-## SSE Responses
+#### SSE Responses
 
-[SSE](https://html.spec.whatwg.org/multipage/server-sent-events.html) responses allow you to send `0` to `n` events, in which you can [patch elements](https://www.google.com/search?q=/guide/getting_started/%23patching-elements), [patch signals](https://www.google.com/search?q=/guide/reactive_signals%23patching-signals), and [execute scripts](https://www.google.com/search?q=/guide/datastar_expressions%23executing-scripts). 
+[SSE](https://html.spec.whatwg.org/multipage/server-sent-events.html) responses allow you to send `0` to `n` events, in which you can [patch elements](https://data-star.dev/guide/getting_started/#patching-elements), [patch signals](https://data-star.dev/guide/reactive_signals#patching-signals), and [execute scripts](https://data-star.dev/guide/datastar_expressions#executing-scripts). 
 
-## Compression
+#### Compression
 
 Since SSE responses stream events from the backend and morphing allows sending large chunks of DOM, compressing the response is a natural choice. Compression ratios of 200:1 are not uncommon when compressing streams using Brotli. 
 
-## Backend Templating
+#### Backend Templating
 
-Since your backend generates your HTML, you can and should use your templating language to [keep things DRY](https://www.google.com/search?q=/how_tos/keep_datastar_code_dry) (Don’t Repeat Yourself). 
+Since your backend generates your HTML, you can and should use your templating language to [keep things DRY](https://data-star.dev/how_tos/keep_datastar_code_dry) (Don’t Repeat Yourself). 
 
-## Page Navigation
+#### Page Navigation
 
-Use the [anchor element](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a) (`<a>`) to navigate to a new page, or a [redirect](https://www.google.com/search?q=/how_tos/redirect_the_page_from_the_backend) if redirecting from the backend. For smooth page transitions, use the [View Transition API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API). 
+Use the [anchor element](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a) (`<a>`) to navigate to a new page, or a [redirect](https://data-star.dev/how_tos/redirect_the_page_from_the_backend) if redirecting from the backend. For smooth page transitions, use the [View Transition API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API). 
 
-## Browser History
+#### Browser History
 
 Browsers automatically keep a history of pages visited. As soon as you start trying to manage browser history yourself, you are adding complexity. 
 
-## CQRS
+#### CQRS
 
 [CQRS](https://martinfowler.com/bliki/CQRS.html) makes it possible to have a single long-lived request to receive updates from the backend (reads), while making multiple short-lived requests to the backend (writes). 
 
-## Loading Indicators
+#### Loading Indicators
 
-Loading indicators inform the user that an action is in progress. Use the [`data-indicator`](https://www.google.com/search?q=/reference/attributes%23data-indicator) attribute to show loading indicators on elements that trigger backend requests. 
+Loading indicators inform the user that an action is in progress. Use the [`data-indicator`](https://data-star.dev/reference/attributes#data-indicator) attribute to show loading indicators on elements that trigger backend requests. 
 
-## Optimistic Updates
+#### Optimistic Updates
 
-Optimistic updates are when the UI updates immediately as if an operation succeeded, before the backend actually confirms it. Rather than deceive the user, use [loading indicators](https://www.google.com/search?q=%23loading-indicators) to show the user that the action is in progress. 
+Optimistic updates are when the UI updates immediately as if an operation succeeded, before the backend actually confirms it. Rather than deceive the user, use [loading indicators](#loading-indicators) to show the user that the action is in progress. 
 
-## Accessibility
+#### Accessibility
 
 The web should be accessible to everyone. Datastar stays out of your way and leaves [accessibility](https://developer.mozilla.org/en-US/docs/Web/Accessibility) to you. Use semantic HTML and apply ARIA where it makes sense. 
 
 ---
 
-# Reference
 
-# Attributes
+---
 
-Data attributes are [evaluated in the order](https://www.google.com/search?q=%23attribute-evaluation-order) they appear in the DOM. 
+## Reference
 
-### `data-attr`
+
+### Attributes
+
+Data attributes are [evaluated in the order](https://data-star.dev/reference/attributes#attribute-evaluation-order) they appear in the DOM. 
+
+#### `data-attr`
 
 Sets the value of any HTML attribute to an expression, and keeps it in sync. 
 
@@ -756,7 +842,7 @@ You can also set values of multiple attributes using a key-value pair object:
 
 
 
-### `data-bind`
+#### `data-bind`
 
 Creates a signal (if one doesn’t already exist) and sets up two-way data binding between it and an element’s value. 
 
@@ -775,7 +861,7 @@ Creates a signal (if one doesn’t already exist) and sets up two-way data bindi
 
 
 
-### `data-class`
+#### `data-class`
 
 Adds or removes a class to or from an element based on an expression. 
 
@@ -787,7 +873,7 @@ Adds or removes a class to or from an element based on an expression.
 
 
 
-### `data-computed`
+#### `data-computed`
 
 Creates a signal that is computed based on an expression. The computed signal is read-only. 
 
@@ -800,7 +886,7 @@ Creates a signal that is computed based on an expression. The computed signal is
 
 **Modifiers:** `__case` 
 
-### `data-effect`
+#### `data-effect`
 
 Executes an expression on page load and whenever any signals in the expression change. 
 
@@ -811,7 +897,7 @@ Executes an expression on page load and whenever any signals in the expression c
 
 
 
-### `data-ignore`
+#### `data-ignore`
 
 Tells Datastar to ignore an element and its descendants. 
 
@@ -826,11 +912,11 @@ Tells Datastar to ignore an element and its descendants.
 
 **Modifiers:** `__self` (only ignore the element itself, not descendants). 
 
-### `data-ignore-morph`
+#### `data-ignore-morph`
 
 Tells the `PatchElements` watcher to skip processing an element and its children when morphing. 
 
-### `data-indicator`
+#### `data-indicator`
 
 Creates a signal and sets its value to `true` while a fetch request is in flight, otherwise `false`. 
 
@@ -841,7 +927,7 @@ Creates a signal and sets its value to `true` while a fetch request is in flight
 
 
 
-### `data-init`
+#### `data-init`
 
 Runs an expression when the attribute is initialized (page load, patch, etc.). 
 
@@ -854,7 +940,7 @@ Runs an expression when the attribute is initialized (page load, patch, etc.).
 
 **Modifiers:** `__delay`, `__viewtransition`. 
 
-### `data-json-signals`
+#### `data-json-signals`
 
 Sets the text content of an element to a reactive JSON stringified version of signals. 
 
@@ -868,7 +954,7 @@ Sets the text content of an element to a reactive JSON stringified version of si
 
 **Modifiers:** `__terse`. 
 
-### `data-on`
+#### `data-on`
 
 Attaches an event listener to an element, executing an expression whenever the event is triggered. 
 
@@ -881,7 +967,7 @@ Attaches an event listener to an element, executing an expression whenever the e
 
 **Modifiers:** `__once`, `__passive`, `__capture`, `__case`, `__delay`, `__debounce`, `__throttle`, `__viewtransition`, `__window`, `__outside`, `__prevent`, `__stop`. 
 
-### `data-on-intersect`
+#### `data-on-intersect`
 
 Runs an expression when the element intersects with the viewport. 
 
@@ -894,7 +980,7 @@ Runs an expression when the element intersects with the viewport.
 
 **Modifiers:** `__once`, `__exit`, `__half`, `__full`, `__threshold`, `__delay`, `__debounce`, `__throttle`, `__viewtransition`. 
 
-### `data-on-interval`
+#### `data-on-interval`
 
 Runs an expression at a regular interval (default 1s). 
 
@@ -907,7 +993,7 @@ Runs an expression at a regular interval (default 1s).
 
 **Modifiers:** `__duration`, `__viewtransition`. 
 
-### `data-on-signal-patch`
+#### `data-on-signal-patch`
 
 Runs an expression whenever any signals are patched. 
 
@@ -920,7 +1006,7 @@ Runs an expression whenever any signals are patched.
 
 **Modifiers:** `__delay`, `__debounce`, `__throttle`. 
 
-### `data-on-signal-patch-filter`
+#### `data-on-signal-patch-filter`
 
 Filters which signals to watch when using the `data-on-signal-patch` attribute. 
 
@@ -931,7 +1017,7 @@ Filters which signals to watch when using the `data-on-signal-patch` attribute.
 
 
 
-### `data-preserve-attr`
+#### `data-preserve-attr`
 
 Preserves the value of an attribute when morphing DOM elements. 
 
@@ -944,7 +1030,7 @@ Preserves the value of an attribute when morphing DOM elements.
 
 
 
-### `data-ref`
+#### `data-ref`
 
 Creates a new signal that is a reference to the element on which the data attribute is placed. 
 
@@ -955,7 +1041,7 @@ Creates a new signal that is a reference to the element on which the data attrib
 
 
 
-### `data-show`
+#### `data-show`
 
 Shows or hides an element based on whether an expression evaluates to `true` or `false`. 
 
@@ -966,7 +1052,7 @@ Shows or hides an element based on whether an expression evaluates to `true` or 
 
 
 
-### `data-signals`
+#### `data-signals`
 
 Patches (adds, updates or removes) one or more signals into the existing signals. 
 
@@ -980,7 +1066,7 @@ Patches (adds, updates or removes) one or more signals into the existing signals
 
 **Modifiers:** `__case`, `__ifmissing`. 
 
-### `data-style`
+#### `data-style`
 
 Sets the value of inline CSS styles on an element based on an expression, and keeps them in sync. 
 
@@ -991,7 +1077,7 @@ Sets the value of inline CSS styles on an element based on an expression, and ke
 
 
 
-### `data-text`
+#### `data-text`
 
 Binds the text content of an element to an expression. 
 
@@ -1002,53 +1088,53 @@ Binds the text content of an element to an expression.
 
 
 
-## Pro Attributes
+#### Pro Attributes
 
-### `data-animate`
+##### `data-animate`
 
 Allows you to animate element attributes over time. 
 
-### `data-custom-validity`
+##### `data-custom-validity`
 
 Allows you to add custom validity to an element using an expression. 
 
-### `data-on-raf`
+##### `data-on-raf`
 
 Runs an expression on every `requestAnimationFrame` event. 
 
-### `data-on-resize`
+##### `data-on-resize`
 
 Runs an expression whenever an element’s dimensions change. 
 
-### `data-persist`
+##### `data-persist`
 
 Persists signals in local storage. 
 
-### `data-query-string`
+##### `data-query-string`
 
 Syncs query string params to signal values. 
 
-### `data-replace-url`
+##### `data-replace-url`
 
 Replaces the URL in the browser without reloading the page. 
 
-### `data-scroll-into-view`
+##### `data-scroll-into-view`
 
 Scrolls the element into view. 
 
-### `data-rocket`
+##### `data-rocket`
 
 Creates a Rocket web component. 
 
-### `data-view-transition`
+##### `data-view-transition`
 
 Sets the `view-transition-name` style attribute explicitly. 
 
 ---
 
-# Rocket (Alpha)
+### Rocket (Alpha)
 
-Rocket is a [Datastar Pro](https://www.google.com/search?q=/datastar_pro) plugin that bridges Web Components with Datastar’s reactive system. 
+Rocket is a [Datastar Pro](https://data-star.dev/datastar_pro) plugin that bridges Web Components with Datastar’s reactive system. 
 
 > Rocket should be used sparingly. For most applications, standard Datastar templates and global signals are sufficient. 
 > 
@@ -1056,7 +1142,7 @@ Rocket is a [Datastar Pro](https://www.google.com/search?q=/datastar_pro) plugin
 
 Rocket components are defined using a HTML `template` element with the `data-rocket:my-component` attribute. Component signals are automatically scoped with `$$`. 
 
-## Examples
+#### Examples
 
 **Defining a component:**
 
@@ -1085,27 +1171,27 @@ Rocket components are defined using a HTML `template` element with the `data-roc
 
 ---
 
-# Actions
+### Actions
 
 Datastar provides actions (helper functions) that can be used in Datastar expressions. 
 
-### `@peek()`
+#### `@peek()`
 
 Allows accessing signals without subscribing to their changes in expressions. 
 
-### `@setAll()`
+#### `@setAll()`
 
 Sets the value of all matching signals. 
 
-### `@toggleAll()`
+#### `@toggleAll()`
 
 Toggles the boolean value of all matching signals. 
 
-## Backend Actions
+#### Backend Actions
 
-### `@get()`, `@post()`, `@put()`, `@patch()`, `@delete()`
+##### `@get()`, `@post()`, `@put()`, `@patch()`, `@delete()`
 
-Sends a request to the backend using the Fetch API. The URI can be any valid endpoint and the response must contain zero or more [Datastar SSE events](https://www.google.com/search?q=/reference/sse_events). 
+Sends a request to the backend using the Fetch API. The URI can be any valid endpoint and the response must contain zero or more [Datastar SSE events](https://data-star.dev/reference/sse_events). 
 
 **Options:**
 
@@ -1118,35 +1204,35 @@ Sends a request to the backend using the Fetch API. The URI can be any valid end
 
 
 
-## Pro Actions
+#### Pro Actions
 
-### `@clipboard()`
+##### `@clipboard()`
 
 Copies text to clipboard. 
 
-### `@fit()`
+##### `@fit()`
 
 Linearly interpolates a value from one range to another. 
 
 ---
 
-# SSE Events
+### SSE Events
 
 Responses to backend actions with a content type of `text/event-stream` can contain zero or more Datastar SSE events. 
 
-## Event Types
+#### Event Types
 
-### `datastar-patch-elements`
+##### `datastar-patch-elements`
 
 Patches one or more elements in the DOM. Options: `selector`, `mode` (outer, inner, replace, prepend, append, before, after, remove), `useViewTransition`. 
 
-### `datastar-patch-signals`
+##### `datastar-patch-signals`
 
 Patches signals into the existing signals on the page. 
 
 ---
 
-# SDKs
+### SDKs
 
 Datastar provides backend SDKs for:
 
@@ -1193,7 +1279,7 @@ Datastar provides backend SDKs for:
 
 ---
 
-# Security
+### Security
 
 Datastar expressions are strings that are evaluated in a sandboxed context. 
 
