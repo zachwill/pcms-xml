@@ -1,0 +1,161 @@
+# SalarySwish — Team Cap Page Brief
+
+## Overview
+
+### Description
+Provides a complete, up-to-date picture of a team’s financial position under the NBA CBA, from high-level cap health to player-level commitments and future obligations. Users can scan current cap posture, see available exceptions and assets, inspect the roster segmented by status, and look multiple seasons ahead.
+
+### Main UI Patterns
+- Dashboard for current-state cap metrics and roster vitals
+- Data tables for exceptions, draft assets, roster, and projections
+- Control panel elements (tabs, buttons) to pivot views and toggle primary financial metric
+
+### Notes
+- Surfaces multi-tier budget constraints (Cap, Tax, 1st Apron, 2nd Apron) as first-class metrics
+- Roster is segmented by cap status (Active, Disabled, Exhibit 10/Training Camp, G League, Dead Cap), reflecting real CBA implications
+- Toggleable primary metric in roster tables supports multiple analytic frames (cap hit vs guaranteed vs base vs incentives)
+- Draft asset table relies on logos and icons to compress complex conditionality into a scannable view
+- Tooltips minimize jargon friction without sacrificing density
+- Multi-year projections are visible inline for long-range planning
+
+## Key Modules
+
+### 1. Persistent Header & Global Navigation
+- Description: Centralized access to league-wide tools (calculators, depth charts, draft boards, agents/coaches) reduces navigation cost and anchors the page in a broader analysis workflow
+- Core Elements:
+  - Global search
+  - Dropdown mega-menus linking to calculators and league resources
+- Interaction Patterns:
+  - Persistent header
+  - Mega-menu expansion on hover/click
+- Notes:
+  - Pattern to reuse: “analysis toolbox” as global nav, not just page links
+
+### 2. Team Summary Dashboard
+- Description: Instant read on constraints that drive every downstream decision
+- Core Elements:
+  - Cap Hit, Cap Room, Luxury Tax Room, 1st Apron Room, 2nd Apron Room
+  - Roster size and Two-Way slots used
+  - Head executive and head coach for context
+- Interaction Patterns:
+  - Inline tooltips to explain thresholds and terms
+- Notes:
+  - Pattern to reuse: multi-tier budget lanes surfaced at the top level, not buried in tables
+
+### 3. Secondary Team Tools
+- Description: Quick pivots to adjacent team contexts (Trade History, Depth Charts, Staff) without leaving the analysis flow
+- Core Elements:
+  - Row of action buttons/links
+- Interaction Patterns:
+  - Single-click navigation to related team pages
+- Notes:
+  - Pattern to reuse: lateral pivots placed adjacent to the primary summary
+
+### 4. Exceptions & Assets
+- Description: Shows the instruments available to add talent and their remaining value/expiry
+- Core Elements:
+  - Signing exceptions (MLE, BAE) with progress bars for remaining value
+  - Trade exceptions with amounts and expiration dates
+- Interaction Patterns:
+  - Visual bars to represent partial consumption
+  - Tabular list with expiry metadata
+- Notes:
+  - Pattern to reuse: “consumable budget” visualized with progress bars plus exact values and deadlines
+
+### 5. Draft Pick Table
+- Description: Compresses future draft capital into a single, visual timeline including conditions
+- Core Elements:
+  - Year-by-year grid using team logos to indicate ownership
+  - Icons for conditional/contested picks
+- Interaction Patterns:
+  - Tooltips for conditions
+  - Click-through to detail (if available)
+- Notes:
+  - Pattern to reuse: iconography for conditional assets; logos reduce label clutter
+
+### 6. Roster Tables (Segmented + Tabbed)
+- Description: The core planning surface for player commitments aligned to their cap status and terms
+- Core Elements:
+  - Segments: Active, Disabled, Training Camp/Exhibit 10, G League/Minors, Dead Cap
+  - Player attributes: age, position, acquisition method, contract terms (team/player options, rookie scale, incentives)
+  - Multi-year columns for future seasons
+  - Tabs to toggle primary financial column (Cap Hit, Guaranteed, Base, Incentives)
+- Interaction Patterns:
+  - Tab switch changes the primary value column without changing table structure
+  - Horizontal scanning across seasons
+- Notes:
+  - Pattern to reuse: a single table schema with an interchangeable primary metric “lens”
+  - Pattern to reuse: segmentation by operational status to clarify rule differences and totals
+
+### 7. Summaries & Projections
+- Description: Aggregates that answer “what does it add up to?” for future seasons
+- Core Elements:
+  - Projected cap space, luxury tax exposure, and contract counts
+- Interaction Patterns:
+  - Read-only summaries supporting quick scenario baselines
+- Notes:
+  - Pattern to reuse: near-table aggregation that rolls up the many-to-one
+
+### 8. Holds & Non-Roster
+- Description: Prevents blind spots by including dead money and future holds that affect cap planning
+- Core Elements:
+  - Non-roster players with holds
+  - Dead cap list with amounts and timelines
+- Interaction Patterns:
+  - Static tables with tooltip definitions
+- Notes:
+  - Pattern to reuse: explicit inclusion of “off-balance-sheet” liabilities in the same view
+
+## Best Ideas
+
+### 1. Multi-Tier Cap Constraints Upfront
+- Why It Works: Aligns the UI with the decision hierarchy; most constraints derive from the tax/apron thresholds, not the cap line alone
+- Where It Breaks Down: Without assumptions/notes, users may misinterpret how hard caps are triggered or what room is actually usable
+- Notes: Reusable for any domain with stacked thresholds (e.g., spend tiers, compliance bands)
+
+### 2. Toggleable Primary Financial Column
+- Why It Works: Lets users keep context (same rows/columns) while swapping the analytic lens, reducing cognitive load vs. switching pages
+- Where It Breaks Down: Users may miss that the lens changed; comparisons across lenses require repeated toggling
+- Notes: Persist the chosen lens across segments; label the active lens prominently
+
+### 3. Roster Segmentation by Status
+- Why It Works: Encodes rules directly into layout; users instantly see which commitments affect cap vs. tax vs. roster spots
+- Where It Breaks Down: Cross-segment comparisons require more scrolling; totals across segments can be overlooked if not repeated
+- Notes: Add segment-level subtotals and a sticky grand total
+
+### 4. Visual Draft Asset Matrix with Conditions
+- Why It Works: Logos compress team names; condition icons signal uncertainty without verbose text
+- Where It Breaks Down: Icon meanings and conditional logic may be opaque without hover; logos are less accessible and harder to parse on mobile
+- Notes: Include a legend and text fallback on small screens
+
+### 5. Exception Consumption as Progress Bars
+- Why It Works: Quickly shows remaining spend from pooled instruments and urgency via expiry
+- Where It Breaks Down: Bars alone don’t convey usage rules (e.g., MLE variants, stacking limits) or what’s locked by other constraints
+- Notes: Pair bars with rule tooltips and a “usable vs theoretical” indicator
+
+### 6. Tooltip Glossary for CBA Terms
+- Why It Works: Maintains density while keeping domain terminology accessible at the point of need
+- Where It Breaks Down: On touch devices, hover is fragile; tooltips are not searchable or exportable
+- Notes: Provide a glossary page and ensure tooltips are keyboard/touch friendly
+
+### 7. Multi-Year Inline Projections
+- Why It Works: Removes context switching; users can read the time horizon directly where decisions are made
+- Where It Breaks Down: Assumptions (caps, options, incentives) may be unclear; horizontal sprawl on smaller screens
+- Notes: Include an assumptions banner and collapsible future years
+
+## Metadata
+
+### Data Density
+High. Managed through segmentation, toggleable lenses, iconography, and pervasive tooltips. Horizontal spread is significant due to multi-year columns.
+
+### Notable Omissions
+- Scenario modeling (“what if” toggles for options, waivers, renouncements, stretch)
+- Table tooling (column sorting/filtering, pinning, grouping, quick search within roster)
+- Compare views (side-by-side teams or year deltas)
+- Save/export (CSV/PDF), shareable states, or saved lenses
+- Update metadata (last updated, data sources, projection assumptions) not mentioned
+- Mobile adaptations for tooltips and wide tables not described
+
+### Misc Notes
+- The global calculators (Bird Rights, Qualifying Offer) complement the page, but lightweight inline calculators (e.g., toggle an option, apply a trade exception to a row) would reduce context switching
+- Consider surfacing segment subtotals and a sticky footer/header with running totals for cap/tax/apron across the current lens

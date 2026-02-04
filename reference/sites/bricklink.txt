@@ -1,0 +1,112 @@
+# BrickLink — Set Detail Page
+
+## Overview
+
+### Description
+A tabbed, data-dense product page for a LEGO set that unifies three views: items currently for sale, historical price data, and the full inventory manifest. It also surfaces role-specific actions for buyers, sellers, and collectors, and provides deep cross-linking into related catalogs, stores, and parts.
+
+### Main UI Patterns
+- Fixed header with mega menu and scoped (pre-filtered) search
+- Breadcrumb-based hierarchy navigation
+- Two-column item header (image gallery + structured metadata and action hubs)
+- Tabbed content area: Marketplace table, Price Guide, Set Inventory
+- Dense data tables with advanced, collapsible filters
+- Footer with comprehensive links
+
+### Notes
+- Data density is intentional; nearly everything is linkable to deeper context
+- Mixing a modern header with a legacy table layout prioritizes function over uniform aesthetics
+- Multi-persona design (buyer/seller/collector) is baked into the primary item view
+
+---
+
+## Key Modules
+
+### 1. Fixed Header with Mega Menu & Scoped Search
+- Description: Keeps global navigation and powerful search always available on scroll for fast task switching
+- Core Elements: Brand/home link; mega menus for Marketplace, Studio, Community; search with category scope selector (All Items, Catalog, Store Name, etc.); icon actions: Sign-in, Cart, More
+- Interaction Patterns: Pre-select a category scope before typing to constrain results; hover/click to open mega menus with deep links
+- Notes: Scoped search reduces noise on a large catalog and encourages correct entry points
+
+### 2. Breadcrumb
+- Description: Shows catalog position and enables quick jumps up taxonomy levels
+- Core Elements: Path like Catalog > Sets > Star Wars > [Item]
+- Interaction Patterns: Click any node to pivot context without re-searching
+
+### 3. Item Hero: Image Gallery + Key Data + Action Hubs
+- Description: Provides at-a-glance item identity and the most common next actions for different user roles
+- Core Elements: Left: primary image with thumbnails (box, instructions, build views); right: metadata (year, weight, dimensions) and composition links (parts, minifigs); role hubs: My Store Inventory (sell/part out), My Wanted List (buy/track), My Collection (own/organize)
+- Interaction Patterns: Thumbnail selection swaps the main image; role hubs link directly into inventory updates, list additions, or collection logging
+- Notes: Clear separation of viewer intent reduces cognitive switching costs
+
+### 4. Tab: Items For Sale (Default)
+- Description: Aggregated marketplace listings with fine-grained filtering to find viable offers quickly
+- Core Elements: Filters (seller location, condition [new/used], min/max price, payment types, and “More Options” for advanced criteria); results table (seller info, ratings/feedback, condition, quantity, price, notes); sort controls on key columns
+- Interaction Patterns: Progressive disclosure (advanced filters appear on demand); iterative filtering/sorting to converge on a target listing; deep links to seller store, feedback, etc.
+- Notes: Table-first design favors comparison and batch decision-making
+
+### 5. Tab: Price Guide
+- Description: Offers market context via recent transaction summaries and detailed monthly breakdowns
+- Core Elements: Six-month summary split by condition (new vs used); month-by-month table of actual sales
+- Interaction Patterns: Scan summaries; drill into monthly rows for specifics
+
+### 6. Tab: Set Inventory
+- Description: Complete manifest of set composition for verification, parting out, or replacements
+- Core Elements: Parts and minifigures with images, colors, quantities
+- Interaction Patterns: Click parts/minifigs to open their catalog pages; use counts and color variants to assess completeness or sourcing needs
+
+### 7. Data Attribution & External Links
+- Description: Credits contributors and bridges to other LEGO databases to validate and enrich data
+- Core Elements: Contributor acknowledgments; links to Rebrickable, Brickset, etc.
+
+### 8. Footer
+- Description: Site-wide utilities and policies to resolve account, help, and legal tasks
+- Core Elements: Company info; Help Center; Contact; community and policy links
+
+---
+
+## Best Ideas
+
+### 1. Unified Three-Tab Model (Marketplace, Price Guide, Inventory)
+- Why It Works: Aligns to the lifecycle of a single item—purchase decision (now), valuation (history), and composition (details)—minimizing page switching
+- Where It Breaks Down: Requires careful state memory (filters/sorts) when switching tabs; lack of visual trends can limit quick valuation
+
+### 2. Scoped Search (Pre-Filter Before Typing)
+- Why It Works: Reduces ambiguous results and funnels users into the correct index (items vs stores vs catalog) from the start
+- Where It Breaks Down: Users may overlook the scope selector and assume global search; defaults matter
+
+### 3. Progressive Disclosure for Power Filters
+- Why It Works: Keeps the primary UI approachable while offering depth for experts when needed
+- Where It Breaks Down: Important but hidden options can be missed; discoverability needs cues and saved preferences
+
+### 4. Multi-Persona Action Hubs (Buyer/Seller/Collector)
+- Why It Works: Anticipates distinct next steps and removes role conflict by grouping actions per intent
+- Where It Breaks Down: Overlap between roles can cause duplication; users might want to reconfigure or hide unused hubs
+
+### 5. Link-Rich Data Density
+- Why It Works: Turns the page into a navigable network; every datapoint doubles as a pivot to related entities
+- Where It Breaks Down: Can feel overwhelming without visual hierarchy; mobile and accessibility require extra care
+
+### 6. Breadcrumb + Deep Taxonomy
+- Why It Works: Fast context shifts across categorical layers without re-querying
+- Where It Breaks Down: Overly long paths truncate on smaller screens; tooltip or overflow patterns may be needed
+
+---
+
+## Metadata
+
+### Data Density
+High. Multiple tables, compact metadata, and extensive cross-links. Optimized for comparison and research workflows.
+
+### Notable Omissions
+- Visual price trends and statistical summaries (e.g., charts, medians vs averages at a glance)
+- Shipping-inclusive total cost calculation and sorting across sellers
+- Saved filters and default buying preferences per user
+- Inline condition glossary/tooltips to standardize expectations
+- Mobile optimizations for wide tables (sticky headers/columns, column toggles)
+- Accessibility details not evident (keyboard navigation, alt text coverage, table headers/ARIA)
+- Localization helpers (explicit currency handling, region-aware defaults) not surfaced in the description
+
+### Misc Notes
+- The blend of modern header and legacy tables favors utility; consistency could improve perceived cohesion
+- Default state choices (search scope, tab selection, collapsed filters) significantly shape first-use outcomes

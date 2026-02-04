@@ -1,0 +1,134 @@
+# PCMS — NBA Team Contracts and Cap Management Sheet
+
+## Overview
+
+### Description
+Consolidates each NBA team’s roster, contract details, cap/tax position, exceptions, and draft assets into a single, per-team report. It supports multi-year planning by showing year-by-year salaries alongside cap rules and asset inventories.
+
+### Main UI Patterns
+- Primary pattern: Data table
+- Supporting patterns: Dashboard-style summary blocks and right-rail supplemental tables
+
+### Notes
+- Single view per team removes context switching across pages for contracts, cap math, exceptions, and draft picks
+- A global legend standardizes color/symbol meaning across modules, enabling rapid scan of dense grids
+- Forward-looking, year-by-year columns match how front offices plan across multiple seasons
+- Clean separation of concerns: core roster grid, financial summaries, assets, and contract nuances live in distinct zones
+
+## Key Modules
+
+### 1. Team Header and Global Legend
+- Description: Sets shared vocabulary for colors/symbols used across all tables to reduce cognitive load when scanning dense data
+- Core Elements:
+  - Team name
+  - Legend for salary colors (e.g., player option, team option, FA amount) and symbol codes (e.g., X for no protection, / for partial)
+- Interaction Patterns:
+  - Users reference legend while scanning grids to decode meaning without extra text
+- Notes:
+  - Keeping the legend persistently visible or easily reachable preserves scan speed on long pages
+
+### 2. Primary Roster & Salaries Grid
+- Description: The main planning surface. Puts player-level salaries by season alongside contract metadata and trade constraints
+- Core Elements:
+  - Player identification
+  - Year-by-year salary columns (e.g., 2025–2030)
+  - Contractual context: protection status, free agency type (UFA/RFA), age, years of service
+  - Trade-related notes: restrictions, bonuses, no-trade clauses
+- Interaction Patterns:
+  - Horizontal scrolling to view future years
+  - Color-coded cells for options/FA placeholders
+  - Symbol flags direct attention to supplemental tables for details (e.g., partial guarantees)
+- Notes:
+  - The grid is the anchor; all other modules contextualize or summarize what appears here
+
+### 3. Financial Summary Blocks (Left Side)
+- Description: Aggregates granular contract data into an executive summary of team obligations and cap/tax position
+- Core Elements:
+  - Roster count and total salaries by season
+  - Cap management: Team Salary (cap purposes), Cap Room/deficit, amounts over/under Tax and Apron levels
+- Interaction Patterns:
+  - Move from player-level inspection to team-level outcomes to evaluate flexibility, tax exposure, and room
+- Notes:
+  - Serves as the decision anchor for trades, signings, and timing questions
+
+### 4. Trade & Draft Asset Summary (Left Side)
+- Description: Inventory of tradable cash and draft capital with conditions/protections
+- Core Elements:
+  - Available cash in trades
+  - First- and second-round picks with notes on trades/protections
+- Interaction Patterns:
+  - Cross-reference with the cap summary to test feasibility of moves across seasons
+- Notes:
+  - Keeping capital and constraints in one place reduces the need for external pick trackers
+
+### 5. Draft Rights List (Right Side)
+- Description: Tracks rights to players not on the roster, informing stashed assets and future signings
+- Core Elements:
+  - Player names and basic rights status
+- Interaction Patterns:
+  - Occasional reference when considering future roster spots and exception usage
+
+### 6. Exceptions (Right Side)
+- Description: Shows available exceptions and expirations that drive acquisition mechanisms
+- Core Elements:
+  - Non-taxpayer MLE, Bi-Annual, TPEs, values, and expiration dates
+- Interaction Patterns:
+  - Timing-sensitive planning for signings/trades relative to expirations
+
+### 7. Partial/Conditional Protections (Right Side)
+- Description: Explains guarantees and trigger dates that affect flexibility and waive-and-stretch decisions
+- Core Elements:
+  - Guarantee amounts, trigger dates, and conditions
+- Interaction Patterns:
+  - Users follow flags from the main grid to check exact terms here
+
+### 8. Incentive Compensation (Right Side)
+- Description: Clarifies likely vs. unlikely incentives that influence cap calculations and projections
+- Core Elements:
+  - Incentive descriptions, amounts, "Likely" vs "Unlikely" classification
+- Interaction Patterns:
+  - Reference during cap scenario work and when reconciling salary totals to cap math
+
+## Best Ideas
+
+### 1. One-Stop Consolidation
+- Why It Works: Reduces context switching across contracts, cap math, exceptions, and draft capital. Decisions can be explored without leaving the page
+- Where It Breaks Down: Density can overwhelm on smaller screens; without filters, targeted queries (e.g., "only 2027 expirings") can be slow
+
+### 2. Color- and Symbol-Based Encoding
+- Why It Works: Encodes status (options, FA placeholders, protections) directly in cells, enabling rapid visual parsing across many rows and years
+- Where It Breaks Down: Color dependence can hinder accessibility and print use; symbol overloading requires constant legend reference for new users
+
+### 3. Granular-to-Summary Hierarchy
+- Why It Works: Mirrors analyst workflow—inspect a contract, then immediately see cap/tax consequences and asset availability
+- Where It Breaks Down: Cross-cutting questions (e.g., "cap if we waive two partials and renounce exceptions") require mental simulation without dedicated scenario tools
+
+### 4. Forward-Looking Year Columns
+- Why It Works: Multi-year columns surface bottlenecks (salary cliffs or clusters) and opportunities (cap space openings) at a glance
+- Where It Breaks Down: Uncertainties (options, incentives, non-guarantees) require assumptions that aren’t always explicit inline
+
+### 5. Flag-and-Detail Pattern for Complex Terms
+- Why It Works: Keeps the main grid clean while supporting drill-down via a dedicated detail table for partial guarantees and conditions
+- Where It Breaks Down: Split-context reading introduces jump cost; without deep links or hover details, users must manually align items
+
+### 6. Executive Cap Summary Anchored to Rule Thresholds
+- Why It Works: Converts raw payroll into decision-ready terms (cap room, tax, apron), which are the actual constraints
+- Where It Breaks Down: Requires timely updates to league thresholds; assumptions (e.g., projected cap) should be explicit to avoid misreads
+
+## Metadata
+
+### Data Density
+High. Wide, multi-year grid plus multiple side blocks. Optimized for large screens; scanning relies on color and compact labeling.
+
+### Notable Omissions
+- No explicit filtering, sorting, or search in the main grid
+- No scenario modeling (e.g., toggles for exercising options, waiving partials, or including/excluding incentives)
+- No explicit "assumptions panel" for projected cap/tax/apron numbers or methodology
+- No timestamps or data provenance (e.g., last updated, source links)
+- No accessibility aids for color vision (e.g., patterns, alt labels)
+- No export/print-optimized view indicated
+- No mobile-friendly adaptation noted
+
+### Misc Notes
+- Keeping the legend persistent, adding quick filters (year, status, FA type), and inline tooltips for symbols would preserve the clean layout while improving speed for targeted queries
+- Deep-linking flags in the grid to their corresponding rows in the detail tables would reduce jump cost and errors

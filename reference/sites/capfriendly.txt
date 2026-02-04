@@ -1,0 +1,120 @@
+# CapFriendly — Team Page Brief
+
+## Overview
+
+### Description
+Consolidates a team’s salary cap, roster status, draft assets, transactions, and multi-year financial outlook into one page. Provides an answer-first cap summary, then progressively reveals detail down to player-level contracts and non-roster assets.
+
+### Main UI Patterns
+- Dashboard (team cap summary)
+- Segmented data tables (roster by position and status)
+- Tabbed column switcher (alternate financial metrics)
+- Mega navigation (site-wide calculators and databases)
+- Linked data web (most values navigate to deeper pages)
+
+### Notes
+- The page functions as a single-stop operational view: current cap position + assets + recent moves + future projections
+- Heavy use of icons, abbreviations, and tooltips layers detail without bloating tables
+- Draft assets are visualized with team logos to convey ownership at a glance
+
+## Key Modules
+
+### 1. Global Header and Mega Navigation
+- Description: Central access to league-wide tools (e.g., calculators) and databases, enabling fast pivots from a team to league context
+- Core Elements: Dropdown mega-menus; links to free agents, trades, buyout/waiver calculators, etc.
+- Interaction Patterns: Hover/click to expand menus; deep links to specialized tools
+- Notes: Establishes a consistent “control panel” across the site
+
+### 2. Team Summary Dashboard
+- Description: Immediate answers to cap-space questions and roster/contract limits for operational decisions
+- Core Elements: Projected Cap Hit, LTIR used, Projected Cap Space; Current Cap Space and Deadline Cap Space; roster size and contract count limits; GM/Coach identifiers
+- Interaction Patterns: Static readout with links into detailed tables and related pages
+- Notes: Prioritizes projection and deadline views alongside current state
+
+### 3. Secondary Team Actions (Contextual Navigation)
+- Description: Shortcuts to team-specific analytical views without leaving context
+- Core Elements: Large icon buttons (Daily Cap Tracker, Depth Charts, Trade History, Reserve List, etc.)
+- Interaction Patterns: Click-through to prefiltered, team-scoped tools
+
+### 4. Draft Pick Asset Table
+- Description: Quick audit of future assets by year/round; highlights traded and acquired picks
+- Core Elements: Grid by year and round; team logos indicate current owner; visual markers (e.g., colored outlines) for trades
+- Interaction Patterns: Hover for details; click for pick histories or team pages
+- Notes: Reduces cognitive load by replacing text labels with recognizable logos
+
+### 5. Recent Transactions and Injuries
+- Description: Surface-level updates on roster churn and availability
+- Core Elements: Compact tables for Recalls/Reassignments and Injuries
+- Interaction Patterns: Links to full logs or player pages via names
+
+### 6. Roster Tables (Position + Status Segmentation)
+- Description: Reflects cap accounting reality by separating Active, IR, LTIR, and Buried contracts across Forwards, Defense, Goalies
+- Core Elements: Player rows with salary columns, contract metadata, and clause indicators
+- Interaction Patterns: Sectioned tables; clickable player names; hover tooltips on icons/abbreviations
+- Notes: Mirrors cap mechanisms, not just depth chart positions
+
+### 7. Tabbed Financial Column Switcher
+- Description: Re-contextualizes the same roster under different financial lenses without changing views
+- Core Elements: Tabs for Cap Hit, AAV, Total Salary, Base Salary, Signing Bonus, Performance Bonus, Clauses
+- Interaction Patterns: Single-click tab switch updates a primary column across all roster tables
+- Notes: Encourages multi-angle analysis (cap vs. cash vs. bonuses)
+
+### 8. Statistical and Financial Summaries (Projections)
+- Description: Multi-year view of cap space, salary spend, and contract counts to understand runway and constraints
+- Core Elements: Season-by-season totals and projections
+- Interaction Patterns: Static tables with links to underlying contracts or seasons
+
+### 9. Non-Roster Section
+- Description: Complete inventory of organizational assets not on the active roster
+- Core Elements: Lists of minors/junior players with contract info
+- Interaction Patterns: Click-through to player details
+
+### 10. Legend and Footer
+- Description: Reduces in-table verbosity by decoding icons/abbreviations elsewhere; site-wide navigation
+- Core Elements: Icon/abbreviation glossary; sitemap-style links
+- Interaction Patterns: Persistent reference at page end
+
+## Best Ideas
+
+### 1. Answer-First Cap Summary
+- Why It Works: Prioritizes decision-critical metrics (cap, LTIR, deadline space) before detail, minimizing time-to-answer
+- Where It Breaks Down: If projection assumptions (roster size, LTIR treatment) aren’t explicit or adjustable, interpretations can diverge
+
+### 2. Tabbed Financial Column Switcher
+- Why It Works: A single control shifts analytical context across the entire roster, avoiding duplicate tables and reducing scrolling
+- Where It Breaks Down: Users can’t compare multiple financial metrics side-by-side without switching tabs or exporting
+
+### 3. Visual Draft Pick Ledger (Logos + Markers)
+- Why It Works: Iconic recognition (team logos) outperforms text for scanning multi-year grids; color/outline draws attention to exceptions (traded picks)
+- Where It Breaks Down: Logo reliance can hinder print, accessibility, or color-blind scenarios without supporting labels
+
+### 4. Layered Detail via Icons, Abbreviations, and Tooltips
+- Why It Works: Preserves table scanability while keeping depth one hover away; supports expert and novice users simultaneously
+- Where It Breaks Down: Hover interactions are weaker on touch devices; heavy legend/tooltips can slow first-time comprehension
+
+### 5. Status-Based Roster Segmentation (Active, IR, LTIR, Buried)
+- Why It Works: Aligns UI structure to cap mechanics, making implications of each status self-evident in totals and cap hits
+- Where It Breaks Down: Increases page length and can fragment cross-roster analysis unless totals roll up across segments
+
+### 6. Data as Hyperlinks (Interconnected Database)
+- Why It Works: Encourages non-linear analysis and rapid investigation of related entities (player, pick, trade) without context loss
+- Where It Breaks Down: Dense linking can cause accidental navigation; copy/paste or export may be less straightforward
+
+### 7. Contextual Secondary Navigation (Team-Scoped Tools)
+- Why It Works: Keeps users in a team-centric workflow while accessing specialized calculators or views
+
+## Metadata
+
+### Data Density
+High. Multiple segments, metrics, and time horizons coexist without modal interruptions. Tooltips and a legend offload explanation from table cells.
+
+### Notable Omissions
+- Page-level search, filters, or saved views are not described
+- Side-by-side team comparison within the same page is not indicated
+- Scenario modeling (what-if adjustments) appears to live in separate calculators, not inline
+- Accessibility details (keyboard navigation, non-hover alternatives, alt text for logos) are not evident from the description
+- Export/print options and API hooks are not mentioned
+
+### Misc Notes
+- The hierarchical flow (summary → assets/transactions → roster details → projections → non-roster → legend) supports both quick checks and deep dives
+- The legend-as-infrastructure pattern is a reusable way to keep dense tables readable while maintaining teachability

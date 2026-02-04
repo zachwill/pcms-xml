@@ -1,0 +1,146 @@
+# Spotrac — NBA Player Page (Damian Lillard)
+
+## Overview
+
+### Description
+A player-centric financial profile that centralizes contract terms, year-by-year earnings (past and projected), injuries, transactions, fines/suspensions, and statistics, with navigation that scales from league to team to player
+
+### Main UI Patterns
+- Primary: Profile hub with tabbed data tables
+- Supporting: Progressive, multi-tier navigation (league → sport → team → player), sticky header, sidebar for related/trending content, visualization embedded within tables
+
+### Notes
+- The layered navigation system prevents cognitive overload on a data-dense site
+- The Contract tab blends at-a-glance metrics, a visual timeline, and granular tables—useful composition for complex financial info
+- Future-dated earnings rows introduce projections inline with historical data, aiding long-term planning
+
+## Key Modules
+
+### 1. Global and Sport-Specific Navigation
+- Description: Lets users traverse from high-level leagues down to sport-specific and then team/player contexts without losing orientation
+- Core Elements: Sticky header with search; sport switcher; sport-level nav (Teams, Rankings, Contracts, Offseason); team sub-nav
+- Interaction Patterns: Hover or click to reveal deeper menus; persistent header for quick cross-league jumps
+- Notes: Scales well for breadth of content and reduces dead ends
+
+### 2. Team Sub-Navigation (within sport)
+- Description: Provides direct access to team-level cap sheets, tax, multi-year outlooks, and positional breakdowns
+- Core Elements: Horizontal tab/links tailored to the selected team
+- Interaction Patterns: Contextual sub-nav updates as users move between team pages
+
+### 3. Player Header (Bio Strip)
+- Description: Establishes identity and essential context before deep data
+- Core Elements: Player name, team, position, age, experience, draft, agent; team color theming
+- Interaction Patterns: Static reference anchor as users switch tabs
+
+### 4. Tabbed Data Container (Player)
+- Description: Segments dense information into focused views to reduce scrolling and context switching
+- Core Elements: Tabs: Contract Details (default), Career Earnings, Injuries, Transactions, Fines & Suspensions, Statistics
+- Interaction Patterns: In-page tab switching preserves scroll position and context
+
+### 5. Contract Details Tab
+- Description: Core financial view for current and historical contracts
+- Core Elements:
+  - At-a-glance metric bubbles (current cap hit, cash, career earnings)
+  - Contract summary in plain language (total value, guarantees, AAV)
+  - Year-by-year tables (salary, cap hit, options, notes)
+  - Visual breakdown chart (cap/dead money over time)
+  - Source link/attribution
+- Interaction Patterns: Toggle across contracts if multiple; scan summary first, then dive into rows
+
+### 6. Career Earnings Tab
+- Description: Consolidates earnings across seasons and teams, with future projections
+- Core Elements: Yearly rows, team attribution, totals; future years labeled
+- Interaction Patterns: Scroll and compare past vs. projected; quick sense of lifetime earnings
+
+### 7. Injuries Tab
+- Description: Chronological log for availability and context
+- Core Elements: Date, injury type, games missed/notes
+- Interaction Patterns: Timeline scanning
+
+### 8. Transactions Tab
+- Description: Complete movement and contract action history for auditability
+- Core Elements: Date, action type (signing, trade, option), entities involved, notes
+- Interaction Patterns: Chronological reading; jump back to correlate with contract changes
+
+### 9. Fines & Suspensions Tab
+- Description: Compliance and disciplinary context
+- Core Elements: Date, event, amount/penalty, notes
+- Interaction Patterns: Rarely used but essential for completeness
+
+### 10. Statistics Tab
+- Description: Season-by-season performance data for correlation with financials
+- Core Elements: Standard stat table (per-season rows)
+- Interaction Patterns: Simple scan; likely non-interactive here
+
+### 11. Sidebar: Featured Player News and Trending
+- Description: Keeps users engaged and offers discovery paths
+- Core Elements: Related news cards, trending players/pages
+- Interaction Patterns: Cross-linking to similar entities; session-lengthening
+
+### 12. Footer
+- Description: Site-level navigation, company/contact info, league links
+- Core Elements: Global links and boilerplate
+- Interaction Patterns: Exit or redirection to other sports/sections
+
+## Best Ideas
+
+### 1. Progressive Hierarchical Navigation
+- Why It Works: Progressive disclosure narrows choices as context increases, aligning information scent with user intent while keeping escape hatches (search, league switch)
+- Where It Breaks Down: Deep menus can hide lesser-known pages without inline search or quick filters
+- Notes: Works best when sticky and consistent across the site
+
+### 2. Tabbed Segmentation of Dense Data
+- Why It Works: Reduces vertical scroll, preserves mental context, and groups homogeneous data types for focused tasks
+- Where It Breaks Down: Tabs can conceal content; without deep-linkable URLs or saved state, shareability and return navigation suffer
+
+### 3. At-a-Glance Metric Bubbles
+- Why It Works: Surfaces the most requested KPIs (cap hit, cash, career total) before granular tables, accelerating common queries
+- Where It Breaks Down: Without tooltips or definitions, users may misinterpret calculations (e.g., cap hit vs. cash)
+
+### 4. Summary + Detailed Table Pairing
+- Why It Works: Plain-language summaries lower the barrier for casual users; tables satisfy power users who need specifics
+- Where It Breaks Down: If the summary isn’t explicitly tied to the table rows, discrepancies or updates can confuse
+
+### 5. Visual Contract Breakdown (Timeline Chart)
+- Why It Works: Converts multi-year financials into a shape users can parse quickly; highlights spikes, options, and dead money risk
+- Where It Breaks Down: Lacks context without annotations for options/guarantee triggers; can oversimplify complex clauses
+
+### 6. Comprehensive Transaction Log
+- Why It Works: Establishes provenance for contract states and team changes; essential for auditing and historical context
+- Where It Breaks Down: Long logs benefit from filters (type, date range) and anchors; otherwise scanning is slow
+
+### 7. Future-Dated Earnings Rows
+- Why It Works: Integrates forward-looking commitments with history, enabling immediate long-term planning views
+- Where It Breaks Down: Requires clear labeling as projections and update cadence; otherwise users may assume finalized amounts
+
+### 8. Source/Attribution Links
+- Why It Works: Builds trust and allows verification; critical on financial pages
+- Where It Breaks Down: Generic or non-specific sources limit auditability; inline citations per figure would increase credibility
+
+## Metadata
+
+### Data Density
+High. Multiple long tables per tab; mitigated with tabbed layout, summaries, and a single visualization. Scan-ability aided by consistent row structure
+
+### Notable Omissions
+- No explicit in-tab filtering/sorting controls noted for long logs (injuries, transactions)
+- No export/print/share actions (CSV/PDF) or API hooks from the UI
+- Tab deep-linking/state preservation not specified; beneficial for shareability
+- Limited definitions/glossary inline for financial terms (e.g., ETO, partial guarantees)
+- No player-to-player comparison or benchmarking within the page
+- No scenario tools (e.g., projection toggles, option/waive simulations, team cap impact)
+- Source links not always pointing to specific documents or articles
+
+### Misc Notes
+- Sticky header and sidebar promote exploration but can compress viewport height on smaller screens
+- Visual hierarchy relies on color and size; ensure accessibility contrast and alt text for charts if used elsewhere
+
+## Patterns to Reuse Elsewhere
+- Progressive disclosure via multi-tier navigation for large taxonomies
+- Tabbed containers to partition heterogeneous datasets
+- KPI bubbles before tables to answer the top questions immediately
+- Summary paragraph + detailed table for “explain then prove” flows
+- Timeline chart overlaying yearly financial obligations to reveal structure
+- Chronological logs with optional filters and anchors for audit trails
+- Future rows with explicit “projected” labeling and update cadence disclosure
+- Inline source badges near figures, linking to specific citations

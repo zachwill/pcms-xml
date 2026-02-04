@@ -1,0 +1,127 @@
+# PuckPedia — Team Page
+
+## Overview
+
+### Description
+Serves as a centralized workspace for an NHL team, aggregating cap/contract, roster, injuries, transactions, draft assets, and related news. Supports fast movement from league-wide navigation to team-specific views and then into detailed, actionable data (e.g., roster tables, draft pick ownership)
+
+### Main UI Patterns
+- Multi-layered navigation: global mega menu + sticky, team-specific sub-navigation
+- Tabbed workspace for the team’s data (Summary, Cap Projections, Draft Picks, etc.)
+- Sidebar with related, lower-priority modules (draft picks, news)
+- Dense tables augmented with toggles, tooltips, and hover-to-drill interactions
+
+### Notes
+- Clear separation between global navigation and team context prevents getting “lost” in deep data views
+- Heavy use of inline, on-demand explanations (tooltips) makes niche cap mechanics approachable without adding copy to the main UI
+- Many data points are entry points into deeper context (e.g., pick counts expand to exact picks and linked trade details)
+
+## Key Modules
+
+### 1. Global Header & Mega Menu
+- Description: Rapid movement across the site (Teams, Players, News) with league structure visible at a glance
+- Core Elements: Logo, category-based mega menus (Teams grouped by division with logos), integrated search, PuckPedia+ login, links to All Teams Comparison and GM Tracker
+- Interaction Patterns: Hover or click to open mega menus; direct links to both team pages and cross-team analysis tools
+- Notes: Division grouping with logos speeds recognition and reduces scanning time
+
+### 2. Team Sticky Sub-Navigation
+- Description: Keeps team context and section links always accessible
+- Core Elements: Team logo, team switcher dropdown, icon-led links to Overview, Roster Breakdown, Team Gear, Free Agents
+- Interaction Patterns: Persistent bar; quick jump between sections without losing scroll position
+- Notes: Useful for multi-section workflows (e.g., bouncing between Summary and Roster)
+
+### 3. Tabbed Team Workspace
+- Description: Segments large data sets into focused views to avoid overload
+- Core Elements: Tabs like Summary (default), Cap Projections, Draft Picks
+- Interaction Patterns: Click to switch tabs; deep links to tabs support shareable states
+
+### 4. Summary: Cap Vitals
+- Description: Snapshot of most critical financial indicators
+- Core Elements: Projected Cap Space, Current Cap Space, Deadline Cap Space; counts for Active Roster, Standard Contracts, Retained Remaining
+- Interaction Patterns: On-demand definitions via tooltips for terms and calculations
+
+### 5. Summary: Projected Cap Hit Bar
+- Description: Visualizes cap posture relative to floor and ceiling
+- Core Elements: Horizontal bar with labeled thresholds and current/projection marks
+- Interaction Patterns: Quick visual scan; may include hover details
+- Notes: Converts multi-number comprehension into a single, relative visual
+
+### 6. Roster Breakdown Table
+- Description: One table serving multiple financial perspectives
+- Core Elements: Player rows with contract attributes; column set for Cap Hit, AAV, Salary
+- Interaction Patterns: Toggle buttons switch displayed metric; sorting and filtering (if present); row-level links to player profiles
+- Notes: Reduces page sprawl by reusing the same table for different analysis modes
+
+### 7. Transactions and Active Injuries Feeds
+- Description: Injects recency into an otherwise static summary
+- Core Elements: Stream of transactions; injury list with status
+- Interaction Patterns: Links to details (e.g., player pages, transaction histories)
+
+### 8. Sidebar: Draft Pick Summary
+- Description: Compact overview of near-term draft capital
+- Core Elements: Year-by-year rounds with counts
+- Interaction Patterns: Hover to expand to specific picks owned or traded; links to underlying trade details for provenance
+- Notes: Pairs high-level asset counts with immediate drill-down
+
+### 9. Sidebar: News and Who to Follow
+- Description: Adds external and social context adjacent to core data
+- Core Elements: Latest news links; suggested follows
+- Interaction Patterns: External linking; optional engagement without distracting from primary tasks
+
+### 10. Contextual Tooltips and Definitions
+- Description: Reduces cognitive load by explaining cap jargon in situ
+- Core Elements: Question mark icons next to complex terms (e.g., LTIR Pool)
+- Interaction Patterns: Hover/click to reveal concise definitions and calculation notes
+- Notes: Lowers barrier for non-experts while keeping UI compact
+
+### 11. Embedded Actionability (e.g., GM Mode)
+- Description: Turns data views into starting points for actions and simulations
+- Core Elements: GM Mode entry points; links from draft picks to trade pages
+- Interaction Patterns: Drill from summary to transactional history; switch from read to simulate mode
+
+## Best Ideas
+
+### 1. Multi-Layered Navigation with Sticky Team Context
+- Why It Works: Separates global wayfinding (league) from local controls (team sections). Reduces back-and-forth scrolling and preserves context during deep dives
+- Where It Breaks Down: Sticky bars consume vertical space on small screens; requires careful mobile adaptation
+
+### 2. On-Demand Definitions via Inline Tooltips
+- Why It Works: Keeps dense screens readable while making advanced terms self-serve; reduces support docs dependency
+- Where It Breaks Down: Hover-only patterns don’t translate to touch; must ensure keyboard and screen reader accessibility
+
+### 3. Metric Toggle within a Single Table (Cap Hit/AAV/Salary)
+- Why It Works: Reuses the same schema for multiple questions; avoids duplicative pages and column bloat
+- Where It Breaks Down: Users can lose track of the active metric; state should be clearly indicated and persist across navigation when appropriate
+
+### 4. Cap Posture Bar (Floor to Ceiling)
+- Why It Works: Anchors numbers to thresholds that matter; supports instant judgment (room vs. overage) without calculation
+- Where It Breaks Down: Requires color and annotation choices that work for color-blind users and dark/light modes
+
+### 5. Hover-to-Drill Draft Pick Details with Linked Provenance
+- Why It Works: Combines overview (counts) and specifics (which picks, via which trades) without a mode switch
+- Where It Breaks Down: Hover interactions can hide discoverability on mobile; ensure tap targets and explicit “view details” affordances
+
+### 6. Transactions and Injuries on the Summary
+- Why It Works: Keeps the “current state” fresh; ties static cap snapshots to recent events
+- Where It Breaks Down: If not timestamped or filtered, can crowd out core summary elements or create recency noise
+
+### 7. Team Switcher in the Sub-Navigation
+- Why It Works: Supports comparative and scouting workflows by minimizing steps to jump teams while staying in the same section
+- Where It Breaks Down: Needs clear indication of current team and section to avoid context slips
+
+## Metadata
+
+### Data Density
+High-density presentation managed through segmentation (tabs), inline explanations (tooltips), and compact visuals (bars, micro-tables). Most elements are scan-first with optional drill-ins
+
+### Notable Omissions
+- In-table advanced filters, saved views, or exports are not described; these are common needs for analysts
+- Accessibility details are unclear (keyboard navigation, screen reader labels, focus states, non-hover alternatives)
+- Mobile/touch adaptations for hover-based patterns are not specified
+- Methodology/provenance panels for calculated fields (e.g., formula details, last updated timestamps) are not called out on page
+- Cross-team comparisons from within a team page (beyond menu links) are not visible
+- Alerts/notifications for threshold breaches (e.g., nearing the cap) are not mentioned
+
+### Misc Notes
+- The combination of global comparison links (All Teams Comparison, GM Tracker) with team-local deep dives supports both league overview and team-specific tasks within one mental model
+- The “Team Gear” link in sub-nav suggests monetization or auxiliary content; ensure it doesn’t distract from primary operational workflows
