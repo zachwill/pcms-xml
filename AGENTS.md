@@ -29,8 +29,11 @@ This root `AGENTS.md` is intentionally a **directory map** — most detailed con
 - Windmill flow: `import_sr_data.flow/AGENTS.md`
 - Schema design docs/specs: `sr/AGENTS.md`
 
-### Web prototype
+### Rails web app (UI + tools)
 - `web/AGENTS.md`
+
+### React prototype (reference implementation)
+- `prototypes/salary-book-react/AGENTS.md`
 
 ### Autonomous agent loops (TypeScript)
 - `agents/AGENTS.md`

@@ -108,7 +108,7 @@ Datastar behavior is driven by the response `Content-Type`:
 |---|---|---|
 | `text/html` | Morph patched elements into the DOM (by matching `id`s by default). | `datastar-selector`, `datastar-mode` (`outer|inner|replace|prepend|append|before|after|remove`), `datastar-use-view-transition` |
 | `application/json` | Merge Patch into signals (set values to `null` to delete). | `datastar-only-if-missing: true` |
-| `text/event-stream` | Stream SSE events (`datastar-patch-elements`, `datastar-patch-signals`). | (SSE framing; see `web/docs/bun-sse.md`) |
+| `text/event-stream` | Stream SSE events (`datastar-patch-elements`, `datastar-patch-signals`). | (SSE framing; see `prototypes/salary-book-react/docs/bun-sse.md`) |
 | `text/javascript` | Execute returned script (use sparingly). | `datastar-script-attributes` |
 
 If you can do it with `text/html` + stable IDs, do that first; reach for SSE when you need streaming / progress / multiple incremental patches.
@@ -197,7 +197,7 @@ Useful conventions:
 - Stop work when the request `AbortSignal` is aborted.
 - For dashboards/streams: `openWhenHidden: true`.
 
-This repo already has framing examples in: `web/docs/bun-sse.md`.
+This repo already has framing examples in: `prototypes/salary-book-react/docs/bun-sse.md`.
 
 ---
 

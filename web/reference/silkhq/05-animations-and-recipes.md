@@ -136,7 +136,7 @@ Silk exports an `animate()` utility:
 
 Net: final styles persist as inline styles and the animation object is released.
 
-This is the pattern we copied into `web/src/lib/animate.ts`.
+This is the pattern we copied into `prototypes/salary-book-react/src/lib/animate.ts`.
 
 ---
 

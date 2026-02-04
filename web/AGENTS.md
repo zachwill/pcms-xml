@@ -1,189 +1,168 @@
-# web/AGENTS.md
+# web/AGENTS.md — Rails + Datastar (primary UI)
 
 > Notes for AI coding agents working in **web/**.
-> This file is the fastest way to get oriented before making changes.
+> This is the *canonical* human-facing app going forward.
 
 ## What `web/` is
 
-`web/` is a **Bun + React + TypeScript** app that consumes the repo's Postgres warehouses.
+`web/` is the home for a **Rails + Datastar** application that turns our Postgres warehouses into:
 
-It exists to provide:
+1) **Entity navigation** (Bricklink-style link graph)
+   - players ↔ contracts ↔ teams ↔ seasons ↔ agents/agencies ↔ transactions ↔ picks
+   - everything should be linkable and pivotable
 
-- A UI (currently: **Salary Book**) for browsing NBA PCMS-derived `pcms.*_warehouse` tables.
-- A small Bun API layer under `/api/*` (currently: `/api/salary-book/*`) that queries Postgres (`pcms` schema).
+2) **Tools** (dense instruments)
+   - `/tools/salary-book` (scroll-driven sheet + right-panel intelligence)
+   - later: trade machine, buyout calculator, scenario builders, etc.
 
-This directory is intentionally isolated from the repo's Python code.
+Core stance:
+- **Postgres is the product.** Warehouses + `fn_*` functions are the API.
+- Rails renders **HTML-first**.
+- Datastar morphs/patches HTML and uses signals for *ephemeral UI state*.
 
-## Start here
+### React prototype
 
-| File | Purpose |
-|------|---------|
-| **`HANDOFF.md`** | Detailed handoff doc — what's done, what's next, architecture diagrams |
-| **`TODO.md`** | Current work items with status |
-| **`specs/00-ui-philosophy.md`** | Core invariants + scroll-driven model |
-| **`specs/01-salary-book.md`** | Full interaction spec |
-| **`RAILS_TODO.md`** | Migration memo: how to turn this React app into **Rails + Datastar** |
+The previous Bun + React Salary Book prototype lives here:
+- `prototypes/salary-book-react/`
 
-## Mental model (read this first)
-
-### The product is Postgres
-
-- Warehouses + SQL functions are the stable API.
-- The web app should remain a thin consumer.
-- Prefer implementing derived fields / rule logic in SQL migrations & refreshes.
-
-### The UI is not documentation
-
-Do **not** add long prose / "rule cards" / content blocks.
-
-Rules should surface as:
-- derived attributes
-- constraint flags
-- badges / glyphs / cell tints
-- short tooltips
-- sidebar intel modules (timeline + constraint report)
-
-See: `web/specs/00-ui-philosophy.md`.
-
-### Scroll position IS state
-
-We take inspiration from Silk (`web/reference/silkhq/`). The scroll container's position drives:
-
-- `activeTeam` — which team's header is sticky
-- `sectionProgress` — 0→1 progress through that section
-- `scrollState` — `idle | scrolling | settling`
-
-Use `sectionProgress` for scroll-linked animations. See `specs/00-ui-philosophy.md` for the full model.
-
-### Interaction invariants
-
-- **Scroll-driven context**: scroll position determines active team + progress.
-- **Sticky iOS-contacts headers**: team header + table header push off between teams.
-- **Sidebar is 2-level**:
-  - base = team context (from scroll)
-  - overlay = single entity detail (player/agent/pick/team/…)
-  - clicking a new entity replaces overlay (no stacking)
-  - Back returns to **current viewport** team
-- **Filters are lenses**: they reshape content without changing navigation state.
-
-Authoritative interaction spec: `web/specs/01-salary-book.md`.
+Use it as a markup/interaction reference (scroll spy, scroll sync, overlay transitions), but treat it as **read-only prototype code**.
 
 ---
 
-## Dependencies / prerequisites
+## Start here (reading order)
 
-- **Bun** installed.
-- A reachable Postgres instance with the `pcms` schema populated (run the Python import flow in the repo root).
-- `POSTGRES_URL` set in the environment (used by Bun API routes).
+1) **UI invariants**
+   - `web/specs/00-ui-philosophy.md`
+   - `web/specs/01-salary-book.md`
 
-## Running locally
+2) **Rails rewrite mental model**
+   - `web/RAILS_TODO.md` (migration memo / interaction mapping)
+   - `web/FEATURE_AUDIT.md` (parity checklist against Postgres + Sean workbook)
 
-```bash
-cd web
-bun install
+3) **Datastar**
+   - `reference/datastar/insights.md` (hard rules + gotchas)
+   - `reference/datastar/rails.md` (Rails SSE + framing)
+   - `reference/datastar/basecamp.md` (Basecamp-ish patterns translated to Datastar)
 
-# dev server (hot reload)
-POSTGRES_URL="$POSTGRES_URL" bun run dev
-
-# optional: override port
-PORT=3001 POSTGRES_URL="$POSTGRES_URL" bun run dev
-
-# typecheck
-bun run typecheck
-```
-
-Notes:
-
-- `src/server.ts` defaults to **port 3002** if `PORT` is not set.
-- `web/tests/api.test.ts` expects the server to be running on **http://localhost:3001**.
+4) **Bricklink navigation inspiration**
+   - `reference/sites/bricklink.txt`
 
 ---
 
-## Project structure
+## Information architecture (URLs)
 
-```
-src/
-  server.ts           # Bun server entry point (Bun.serve)
-  client.tsx          # React app entry point
-  index.html          # HTML shell
-  api/
-    routes/           # API route handlers (one file per domain)
-  components/
-    ui/               # Shared UI components
-    app/              # Legacy app wrappers (AppShell)
-  layouts/
-    ThreePaneFrame/   # Slot-based layout frame (header/main/right)
-  features/           # Feature modules (SalaryBook, etc.)
-    SalaryBook/
-      shell/          # SalaryBook runtime (scroll-spy, sidebar, transitions)
-        CommandBar/   # SalaryBook command bar (teams + filters)
-      components/
-        RightPanel/   # Right-hand intelligence panel
-  lib/
-    animate.ts        # WAAPI helpers (animate, tween, applyProgressStyles)
-    server/
-      router.ts       # Route registry + Bun.serve route compilation
-      utils.ts        # Error handling helpers
-    utils.ts          # Client utilities (cx, focusRing, etc.)
-  state/
-    filters/          # Filter state
-specs/
-  00-ui-philosophy.md
-  01-salary-book.md
-  02-team-header-and-draft-assets.md
-  03-trade-machine.md
-reference/
-  silkhq/             # Reverse-engineered Silk patterns (steal ideas, not the library)
-    AGENTS.md         # Quick patterns to steal
-    *.md              # Detailed docs on scroll, animation, state machines
-tests/
-  api.test.ts         # API endpoint tests (expects PORT=3001)
-```
+### Entities: clean, top-level, slug-first
+
+Goal: URLs that feel like a catalog, without looking like one.
+
+Examples (canonical):
+- `/players/lebron`
+- `/players/damian-lillard`
+- `/teams/bos`
+- `/agents/rich-paul`
+
+Rules:
+- **Canonical routes are slug-only.**
+- Keep an **ID fallback** for migration/debug (ex: `/players/2544` → 301 → `/players/lebron`).
+- Slugs are not auto-magical; maintain a **slug registry** (with aliases) so we can manually promote “short slugs” over time.
+  - Non-canonical slugs should 301 → the canonical slug.
+
+### Tools: everything dense/instrument-like goes under `/tools/*`
+
+Examples:
+- `/tools/salary-book`
+- `/tools/trade-machine`
+
+Tool fragment endpoints (Datastar patch targets) should live *under the tool*:
+- `/tools/salary-book/sidebar/player/:id`
+- `/tools/salary-book/teams/:teamcode/section`
+
+This keeps:
+- entity pages canonical + shareable
+- tools free to be “weird” without polluting the global URL space
 
 ---
 
-## Key conventions
+## Datastar conventions (treat as hard rules)
 
-- **API routes** are registered via `RouteRegistry` in `src/lib/server/router.ts` and merged in `src/server.ts`.
-- Prefer reading tool-facing UI data from `pcms.*_warehouse` tables.
-- Keep the app **read-only** unless there's a strong reason to add writes.
-- Don't re-implement cap/trade rules in React if they can live in SQL.
-- **Animations use WAAPI**, not CSS transitions — see `src/lib/animate.ts`.
-- **Scroll-linked effects** should use `sectionProgress` from `useShellContext()`.
+From `reference/datastar/insights.md`:
 
----
+- **Signals are flatcase**: `activeteam`, `overlaytype`, `displaycapholds`
+- Signals starting with `_` are **local-only** (not serialized to backend)
+- **DOM refs must be underscore-prefixed**:
+  - `data-ref="_dialog"` → use as `$_dialog`
+- Prefer **stable `id` patch boundaries** and patch whole sections.
+- Avoid mixing literal attributes with bindings (`value="..."` + `data-bind`, etc.).
 
-## Performance notes (Jan 2026 state)
-
-Optimizations applied:
-
-- **Memoization**
-  - `PlayerRow`: `React.memo()` + custom comparator (player id + key fields + filter toggles)
-  - `SalaryTable`: `filteredPlayers` in `useMemo()`
-  - `TeamSection`: click handlers in `useCallback()`
-
-- **SWR**
-  - hooks migrated from ad-hoc fetches to SWR
-  - global config: `revalidateOnFocus: false`, `dedupingInterval: 5000`
-
-- **Scroll-spy**
-  - Uses `requestAnimationFrame` for batched updates
-  - Programmatic scroll locks updates to prevent flicker
-
-Future (only if needed): virtualization (`@tanstack/react-virtual`) with care around sticky headers.
+Default response type preference:
+1) `text/html` (stable IDs + morph)
+2) `application/json` (signal-only patches)
+3) `text/event-stream` (only when streaming/progress/live feeds are required)
 
 ---
 
-## When adding new capability (draft assets / trade machine)
+## The irreducible client-side JS (keep it tiny)
 
-Before changing React:
+Even with Datastar, Salary Book needs a small JS runtime for:
 
-1) Identify missing **derived fields** → implement in SQL/warehouses.
-2) Add/extend Bun API endpoints to return structured results.
-3) Keep UI changes minimal and aligned with the scroll + sidebar model.
+1) **Scroll spy** (active team + section progress)
+2) **Sticky + horizontal scroll sync** (header/body scrollers)
+3) **Overlay transitions** (safe-to-unmount exit animations)
 
-Specs to read in order:
-- `web/specs/00-ui-philosophy.md`
-- `web/specs/01-salary-book.md`
-- `web/specs/02-team-header-and-draft-assets.md`
-- `web/specs/03-trade-machine.md`
+Integration pattern:
+- JS updates the DOM directly where appropriate (fades, scroll sync)
+- JS emits bubbling `CustomEvent`s
+- Datastar listens and patches signals (then the server patches HTML)
+
+This keeps the mental model clean:
+- *UI state* → signals
+- *authoritative data* → server-rendered HTML
+
+---
+
+## Data + DB conventions
+
+- Connection string: `POSTGRES_URL` (repo convention)
+  - Rails usually expects `DATABASE_URL`; we should support `POSTGRES_URL` as the primary env var.
+
+- Read-side data:
+  - `pcms.*` warehouses + primitives (`pcms.salary_book_warehouse`, `pcms.fn_tpe_trade_math()`, etc.)
+  - optional: `public.nba_players` (position metadata)
+
+- Write-side app data (Rails-owned):
+  - keep it in an `app` schema (recommended):
+    - slug registry
+    - user accounts/sessions (if needed)
+    - annotations/notes
+    - saved views/scenarios
+
+Guardrail:
+- **Do not re-implement cap/trade/CBA math in Ruby.**
+  - If the UI needs a derived field, add/extend a warehouse or SQL function in `migrations/`.
+
+---
+
+## Where things should live (once Rails is scaffolded)
+
+High-level intended layout:
+
+- Rails code
+  - `web/app/controllers/entities/*` → entity pages (routes are top-level)
+  - `web/app/controllers/tools/*` → Salary Book + other instruments (`/tools/*`)
+  - `web/app/views/...` → partials with stable IDs
+  - `web/app/javascript/...` → the tiny Salary Book runtime (no React)
+
+- Product specs + references (already present)
+  - `web/specs/*`
+  - `web/reference/*`
+  - `web/FEATURE_AUDIT.md`
+
+---
+
+## If you’re about to make changes
+
+Before implementing:
+- Identify the **patch boundary** you want (stable `id`).
+- Prefer returning HTML that patches that region.
+- Ensure URLs remain canonical and shareable (progressive enhancement).
+- If you need new data, add it to Postgres warehouses/functions first.

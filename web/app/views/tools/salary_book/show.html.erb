@@ -1,0 +1,42 @@
+<div
+  id="salarybook"
+  data-signals="{ activeteam: '', sidebarview: 'teamview', overlaytype: 'none', overlayid: '' }"
+>
+  <div id="flash"></div>
+
+  <header id="commandbar">
+    <div class="commandbar-inner">
+      <div class="commandbar-title">Salary Book</div>
+
+      <nav class="commandbar-nav">
+        <a href="/tools/salary-book">Tool</a>
+        <a href="/players/2544">Player (id fallback)</a>
+      </nav>
+    </div>
+  </header>
+
+  <div id="viewport">
+    <main id="maincanvas">
+      <div class="placeholder">
+        <div class="placeholder-title">Main canvas</div>
+        <div class="placeholder-body">
+          Rails + Datastar scaffold is up. Next: render team sections from
+          <code>pcms.salary_book_warehouse</code>.
+        </div>
+      </div>
+    </main>
+
+    <aside id="rightpanel">
+      <div id="rightpanel-base">
+        <div class="placeholder">
+          <div class="placeholder-title">Right panel (base)</div>
+          <div class="placeholder-body">
+            Team context will patch here based on <code>$activeteam</code>.
+          </div>
+        </div>
+      </div>
+
+      <div id="rightpanel-overlay"></div>
+    </aside>
+  </div>
+</div>

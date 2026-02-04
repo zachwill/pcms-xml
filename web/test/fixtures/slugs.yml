@@ -1,0 +1,13 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+lebron_canonical:
+  entity_type: player
+  entity_id: 2544
+  slug: lebron-james
+  canonical: true
+
+lebron_alias:
+  entity_type: player
+  entity_id: 2544
+  slug: lebron
+  canonical: false

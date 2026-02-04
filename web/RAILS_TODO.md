@@ -8,7 +8,8 @@ If you’re starting cold, read first:
 
 - `web/specs/00-ui-philosophy.md` (invariants)
 - `web/specs/01-salary-book.md` (full interaction model)
-- `web/HANDOFF.md` (where things live)
+- `web/AGENTS.md` (current folder map + conventions)
+- `prototypes/salary-book-react/HANDOFF.md` (React prototype file map)
 - Datastar conventions: `reference/datastar/insights.md`, `reference/datastar/rails.md`, `reference/datastar/basecamp.md`
 
 ---
@@ -19,9 +20,9 @@ If you’re starting cold, read first:
 
 ```
 Postgres (pcms.* warehouses + fn_*)
-  -> Bun API (/api/salary-book/*)  [web/src/api/routes/salary-book.ts]
-    -> SWR hooks                  [web/src/features/SalaryBook/hooks/*]
-      -> React UI                 [web/src/features/SalaryBook/components/*]
+  -> Bun API (/api/salary-book/*)  [prototypes/salary-book-react/src/api/routes/salary-book.ts]
+    -> SWR hooks                  [prototypes/salary-book-react/src/features/SalaryBook/hooks/*]
+      -> React UI                 [prototypes/salary-book-react/src/features/SalaryBook/components/*]
 ```
 
 ### UX invariants you must preserve
@@ -39,12 +40,12 @@ From `web/specs/00-ui-philosophy.md`:
 Even with Datastar, this UI is not “no JS”. There are three hard client problems React currently owns:
 
 1) **Scroll spy** (`activeTeam`, fade thresholds, scrollToTeam)
-   - `web/src/features/SalaryBook/shell/useScrollSpy.ts`
+   - `prototypes/salary-book-react/src/features/SalaryBook/shell/useScrollSpy.ts`
 2) **Sticky + horizontal scroll sync** (table header + body scrollers)
-   - `web/src/features/SalaryBook/components/MainCanvas/SalaryTable.tsx`
+   - `prototypes/salary-book-react/src/features/SalaryBook/components/MainCanvas/SalaryTable.tsx`
 3) **WAAPI transitions** (safe-to-unmount sidebar overlay transitions)
-   - `web/src/lib/animate.ts`
-   - `web/src/features/SalaryBook/shell/useSidebarTransition.ts`
+   - `prototypes/salary-book-react/src/lib/animate.ts`
+   - `prototypes/salary-book-react/src/features/SalaryBook/shell/useSidebarTransition.ts`
 
 A Rails + Datastar rewrite should treat these as a **small JS runtime** that stays, while React state/data fetching goes away.
 
@@ -125,7 +126,7 @@ Suggested DOM shape:
 </body>
 ```
 
-Port the styling primitives from `web/src/index.html`:
+Port the styling primitives from `prototypes/salary-book-react/src/index.html`:
 
 - the CSS variables (`--background`, `--border`, …)
 - the `[data-faded] [data-header-content]` fade rule
@@ -152,7 +153,7 @@ Suggested starting signals:
 
 ### Filters (lenses)
 
-Mirror `web/src/state/filters/types.ts`:
+Mirror `prototypes/salary-book-react/src/state/filters/types.ts`:
 
 - `displaycapholds`
 - `displayexceptions`
@@ -202,7 +203,7 @@ Instead, call the same primitives the Bun API calls today:
 
 ### Porting trick
 
-Use `web/src/api/routes/salary-book.ts` as the authoritative list of:
+Use `prototypes/salary-book-react/src/api/routes/salary-book.ts` as the authoritative list of:
 
 - query shapes
 - normalization expectations
@@ -368,8 +369,8 @@ Recommendation:
 
 Use the existing WAAPI helpers as reference:
 
-- `web/src/lib/animate.ts`
-- `web/src/features/SalaryBook/shell/useSidebarTransition.ts`
+- `prototypes/salary-book-react/src/lib/animate.ts`
+- `prototypes/salary-book-react/src/features/SalaryBook/shell/useSidebarTransition.ts`
 
 ---
 
@@ -444,10 +445,10 @@ Choose one:
 
 Use these as *visual reference* when porting markup:
 
-- Team section wrapper: `web/src/features/SalaryBook/components/MainCanvas/TeamSection.tsx`
-- Sticky header/table: `web/src/features/SalaryBook/components/MainCanvas/SalaryTable.tsx`
-- Player row grammar: `web/src/features/SalaryBook/components/MainCanvas/PlayerRow.tsx`
-- Right panel layering: `web/src/features/SalaryBook/components/RightPanel/RightPanel.tsx`
-- Trade overlay: `web/src/features/SalaryBook/components/RightPanel/TradeMachineView.tsx`
-- Buyout overlay: `web/src/features/SalaryBook/components/RightPanel/BuyoutCalculatorView.tsx`
-- Bun SQL contracts: `web/src/api/routes/salary-book.ts`
+- Team section wrapper: `prototypes/salary-book-react/src/features/SalaryBook/components/MainCanvas/TeamSection.tsx`
+- Sticky header/table: `prototypes/salary-book-react/src/features/SalaryBook/components/MainCanvas/SalaryTable.tsx`
+- Player row grammar: `prototypes/salary-book-react/src/features/SalaryBook/components/MainCanvas/PlayerRow.tsx`
+- Right panel layering: `prototypes/salary-book-react/src/features/SalaryBook/components/RightPanel/RightPanel.tsx`
+- Trade overlay: `prototypes/salary-book-react/src/features/SalaryBook/components/RightPanel/TradeMachineView.tsx`
+- Buyout overlay: `prototypes/salary-book-react/src/features/SalaryBook/components/RightPanel/BuyoutCalculatorView.tsx`
+- Bun SQL contracts: `prototypes/salary-book-react/src/api/routes/salary-book.ts`

@@ -32,7 +32,7 @@ Datastar is a hypermedia-first runtime: the backend streams HTML / signal patche
 2) `reference/datastar/docs.md` (deep reference)
 3) `reference/datastar/rails.md` (Rails SSE + Datastar framing + deployment gotchas)
 4) `reference/datastar/basecamp.md` (synthesis: Basecamp patterns → Datastar patterns)
-5) `web/docs/bun-sse.md` (repo-local SSE framing helpers + generator pattern; Bun implementation, but the framing applies everywhere)
+5) `prototypes/salary-book-react/docs/bun-sse.md` (repo-local SSE framing helpers + generator pattern; Bun implementation, but the framing applies everywhere)
 
 If you’re integrating charts/widgets, also remember:
 - Protect widget roots with `data-ignore-morph` and patch around them.
@@ -41,10 +41,10 @@ If you’re integrating charts/widgets, also remember:
 
 ## Repo context
 
-This repo is primarily **PCMS ingestion + Postgres warehouses**. Datastar isn’t currently the primary UI runtime here (the existing `web/` prototype is Bun + React), but we keep these references because:
+This repo is primarily **PCMS ingestion + Postgres warehouses**. Datastar is the intended UI runtime going forward (Rails + Datastar), and we keep these references because:
 
 - Datastar is a strong fit for **server-driven dashboards** over our warehouses.
-- The SSE patch framing (`datastar-patch-elements` / `datastar-patch-signals`) is documented in `web/docs/bun-sse.md` (Bun implementation) and summarized in `reference/datastar/rails.md` (Rails).
+- The SSE patch framing (`datastar-patch-elements` / `datastar-patch-signals`) is documented in `prototypes/salary-book-react/docs/bun-sse.md` (Bun implementation) and summarized in `reference/datastar/rails.md` (Rails).
 
 ---
 

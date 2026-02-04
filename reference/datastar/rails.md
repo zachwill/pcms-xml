@@ -6,7 +6,7 @@ This doc is **Rails-specific glue** (ActionController::Live, SSE framing, produc
 
 - `reference/datastar/insights.md` (curated field notes / naming rules)
 - `reference/datastar/docs.md` (vendor snapshot)
-- `web/docs/bun-sse.md` (SSE framing helpers — useful even if you’re not on Bun)
+- `prototypes/salary-book-react/docs/bun-sse.md` (SSE framing helpers — useful even if you’re not on Bun)
 
 ---
 

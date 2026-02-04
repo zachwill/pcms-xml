@@ -1,38 +1,49 @@
-# PCMS Salary Book (web)
+# web/ — Rails + Datastar
 
-This directory contains the **Salary Book** web app for this repo.
+This directory is the **canonical** web app for this repo.
 
-- Runtime: **Bun**
-- UI: **React + TypeScript**
-- API: Bun `routes` under `/api/*`
-- Data: reads from Postgres `pcms.*` tables (typically `*_warehouse` views/tables)
+- Backend: Rails
+- UI runtime: Datastar (HTML-first morph/patch + signals)
+- Data source: Postgres (`pcms.*` warehouses + `pcms.fn_*` primitives)
 
-## Prereqs
+React prototype (reference only): `prototypes/salary-book-react/`
 
-- Bun installed
-- A Postgres database with the `pcms` schema populated (run the Python import flow in the repo root)
-- `POSTGRES_URL` set when using Salary Book endpoints
+## Requirements
 
-## Dev
+- Ruby (see `web/.ruby-version`)
+- `POSTGRES_URL` pointing at a database that already has the `pcms` schema loaded
+
+### macOS (Homebrew) notes
+
+If you install Ruby via Homebrew on macOS, you likely need Homebrew’s LLVM in
+`PATH` when building native gems (Ruby 3.4 expects `stdckdint.h`).
+
+```bash
+brew install ruby@3.4 llvm
+
+export PATH="/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/ruby@3.4/bin:/opt/homebrew/lib/ruby/gems/3.4.0/bin:$PATH"
+```
+
+## Setup
 
 ```bash
 cd web
-bun install
+bundle install
 
-# Start dev server (hot reload)
-POSTGRES_URL="$POSTGRES_URL" bun run dev
+# Rails migrations (slug registry, etc.)
+POSTGRES_URL="$POSTGRES_URL" bin/rails db:migrate
 
-# Optional: choose a port
-PORT=3001 POSTGRES_URL="$POSTGRES_URL" bun run dev
+POSTGRES_URL="$POSTGRES_URL" bin/rails server
 ```
 
-Default port is **3002** if `PORT` is not set.
+Notes:
+- Repo convention is `POSTGRES_URL`. Rails convention is `DATABASE_URL`. We support both.
+- `web/config/master.key` is ignored (do not commit it).
+- Datastar requires CSP `unsafe-eval` (configured in `config/initializers/content_security_policy.rb`).
 
-## Tests
+## Where to look next
 
-```bash
-cd web
-bun test
-```
-
-Tests spin up a server on an ephemeral port and hit `/api/health`.
+- `web/AGENTS.md` (conventions + directory map)
+- `web/TODO.md` (active backlog)
+- `web/RAILS_TODO.md` (migration memo from React → Rails)
+- `web/specs/*` (interaction invariants)

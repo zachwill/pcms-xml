@@ -1,133 +1,123 @@
-# web/TODO.md
+# web/TODO.md — Rails + Datastar build (active backlog)
 
-Focused follow-ups for the **Salary Book** UI (informed by `web/reference/silkhq/` patterns).
+This is the **active** backlog for the new Rails app in `web/`.
 
----
+React prototype (reference only): `prototypes/salary-book-react/`
 
-## Immediate: Cleanup
-
-### 0) Remove duplicate ScrollSpy code ✅
-
-~~We have two implementations; only one should exist. Do this first to avoid confusion.~~
-
-- [x] **Deleted** `web/src/features/SalaryBook/hooks/useScrollSpy.ts` (dead; Shell uses the canonical one)
-- [x] Canonical hook: `web/src/features/SalaryBook/shell/useScrollSpy.ts`
-- [x] Verified no lingering imports
+If you need deep context:
+- `web/RAILS_TODO.md` (migration memo)
+- `web/specs/00-ui-philosophy.md` + `web/specs/01-salary-book.md` (UX invariants)
+- `web/FEATURE_AUDIT.md` (parity checklist)
+- `reference/datastar/*` (Datastar conventions + Rails SSE)
 
 ---
 
-## High Priority: Core Animation Infrastructure
+## Phase 0 — Repo structure (done)
 
-### 1) WAAPI helper that persists end styles ✅
-
-~~**Problem:** vanilla WAAPI often "snaps back" at the end unless we persist styles.~~
-
-~~**Silk pattern:** `el.animate(..., { fill: "forwards" })` → `onfinish: commitStyles(); cancel();`~~
-
-- [x] Added `web/src/lib/animate.ts`:
-  - `animate()` — async, returns Promise for sequencing
-  - `animateSync()` — sync, returns Animation directly
-  - `tween()` — CSS calc() interpolation helper
-  - `applyProgressStyles()` — progress-driven style application
-  - `easings` / `durations` — common presets
-
-### 2) Sidebar transitions (safeToUnmount pattern) ✅
-
-~~**Goal:** avoid "content disappears before animation completes" when pushing/popping entities.~~
-
-~~**Silk pattern:** Separate `open` from `safeToUnmount`. Mount if `open || !safeToUnmount`. On close, set `open=false` immediately but delay unmount until exit animation finishes.~~
-
-- [x] Added `web/src/features/SalaryBook/shell/useSidebarTransition.ts`:
-  - `stagedEntity` — the entity to render (lags behind during exit)
-  - `transitionState` — `idle | entering | present | exiting | replacing`
-  - `safeToUnmount` — false while animation running
-  - `containerRef` — attach to element for WAAPI animations
-- [x] Updated `RightPanel.tsx` to use the hook
-- [x] Entity now animates out before unmounting (slide + fade)
+- [x] Move Bun + React prototype from `web/` → `prototypes/salary-book-react/`
+- [x] Promote canonical Salary Book specs/docs back into `web/`
+- [x] Write `web/AGENTS.md`
 
 ---
 
-## Medium Priority: State Clarity
+## Phase 1 — Rails scaffold (make it run)
 
-### 3) Transition state enum (if animations get complex) ✅
+Goal: a bootable Rails app that can render a Datastar-enabled page.
 
-~~Current `useSidebarStack` uses a simple stack array. If we find ourselves with multiple `isAnimating` booleans, consider explicit states.~~
-
-**Resolution:** Not needed. `useSidebarTransition` already provides a 5-state machine (`idle | entering | present | exiting | replacing`) which covers the animation lifecycle. `useSidebarStack` remains a simple array since the transition complexity lives in the animation layer, not the data layer.
-
----
-
-## Low Priority: Nice-to-Have Utilities
-
-### 4) Progress-driven styles utility ✅
-
-~~**Silk pattern:** `tween(start, end)` returns CSS calc() for interpolation.~~
-
-- [x] Added to `web/src/lib/animate.ts`:
-  - `tween(start, end, progress)` — CSS calc() interpolation
-  - `applyProgressStyles(el, progress, declarations)` — apply progress-driven styles to element
-
-### 5) Scroll progress exposure ✅
-
-~~Current `useScrollSpy` tracks active team but doesn't expose per-section progress (0-1).~~
-
-- [x] Rewrote `useScrollSpy` with Silk-inspired patterns:
-  - `sectionProgress` (0→1) — how far through current section
-  - `scrollState` (`idle | scrolling | settling`) — scroll lifecycle
-  - Cleaner architecture: sorted sections, proper progress calculation
-  - Programmatic scroll locking to prevent flicker during `scrollToTeam`
-- [x] Updated `SalaryBookShellProvider` and `ShellContextValue` to expose new values
-- [x] Exported `ScrollState` and `ScrollSpyResult` types
-
-**Use cases unlocked:**
-- Scroll-linked header effects (fade/scale as section scrolls)
-- Scroll state awareness (suppress updates during fast scroll, trigger on settle)
-- Per-section progress for parallax or sticky transitions
-
-### 5b) Back button team crossfade ✅
-
-When the user scrolls the main canvas while viewing an entity, the "back" destination changes silently. Now the back button's team logo crossfades to communicate this.
-
-- [x] Added `web/src/features/SalaryBook/components/RightPanel/BackButtonTeamBadge.tsx`:
-  - Tracks previous/current team with safeToUnmount pattern
-  - Crossfades logo when `activeTeam` changes while in entity mode
-  - Uses WAAPI `animate()` for scale+opacity transitions
-- [x] Updated `RightPanel.tsx` to use the new component
-- [x] Removed inline logo loading/error state (now encapsulated in badge)
+- [x] Decide Ruby + Rails versions (Ruby **3.4.8**, Rails **8.1.2**).
+- [x] Scaffold Rails in-place (Rails app root is `web/`).
+- [x] Make Rails accept repo convention `POSTGRES_URL` (wired in `config/database.yml`).
+- [ ] (Optional) Move Rails-owned tables into an `app` schema (notes, scenarios, etc).
+- [x] Add Datastar to the default layout (CDN script).
+- [x] Fix CSP for Datastar expressions (`'unsafe-eval'`).
+- [x] Boot proof: `/tools/salary-book` renders and Datastar loads.
 
 ---
 
-## Deferred: Mobile Hardening
+## Phase 2 — Routing + slug registry (Bricklink-style navigation)
 
-### 6) Scroll/gesture trapping subsystem
+Goal: clean, top-level entity pages with canonical slugs.
 
-We have nested scroll contexts (MainCanvas, Sidebar, per-team horizontal tables). If we see iOS/Android propagation/overscroll bugs:
-
-- [ ] Implement a small dedicated util (not ad-hoc patches)
-- [ ] Optional edge/overscroll trapping
-- [ ] Platform-gated (iOS Safari vs Android non-standalone)
-
-**Silk insight:** Android non-standalone disables Y-axis trapping to allow browser UI reveal. iOS needs explicit 28px edge-swipe blocking.
-
-### 7) Fixed/sticky + transform compensation
-
-If we animate layout wrappers (translate/scale), sticky elements inside transformed subtrees will break.
-
-- [ ] Avoid transforms on ancestors of sticky elements
-- [ ] If unavoidable, implement "transform compensation" (Silk's `Fixed` pattern)
+- [x] Add slug table migration (supports aliases + one canonical slug per entity):
+  - `entity_type` (player/team/agent/contract/…)
+  - `entity_id` (initially NBA/PCMS shared id)
+  - `slug` (unique per entity_type)
+  - `canonical` boolean (one true per entity_id)
+  - timestamps
+- [x] Implement `/players/:slug` (canonical).
+- [x] Implement `/players/:id` numeric fallback → 301 → canonical slug (creates default slug on-demand).
+- [x] Add an admin-only rake task to promote short slugs (make alias canonical):
+  - `bin/rails slugs:promote[player,2544,lebron]`
 
 ---
 
-## Future: When Trade Machine / Modals Land
+## Phase 3 — Tools skeleton: Salary Book layout
 
-### 8) Overlay manager subsystem
+Goal: a working `/tools/salary-book` shell with stable patch boundaries.
 
-Salary Book sidebar is intentionally **non-modal**. Future overlays (trade confirmation, filter popovers) will need:
+- [x] Add `/tools/salary-book` route.
+- [x] Render the 3-pane frame with stable IDs (minimum):
+  - `#flash`
+  - `#commandbar`
+  - `#maincanvas`
+  - `#rightpanel-base`
+  - `#rightpanel-overlay`
+- [ ] Port the CSS variables / dense styling primitives from the prototype.
 
-- [ ] Click-outside routing
-- [ ] Escape key routing  
-- [ ] Focus restore on dismiss
-- [ ] `inertOutside` (optional)
-- [ ] Interactive carve-outs (Silk's "Island" pattern)
+---
 
-**Key insight:** Treat this as a single-owner subsystem, not logic scattered across components.
+## Phase 4 — The tiny JS runtime (non-React)
+
+Goal: preserve the 3 irreducible client problems, but in plain JS.
+
+- [ ] Implement scroll spy + progress (prototype reference: `prototypes/salary-book-react/src/features/SalaryBook/shell/useScrollSpy.ts`).
+- [ ] Implement horizontal scroll sync for sticky header/body.
+- [ ] Implement overlay transition manager (safe-to-unmount).
+- [ ] JS → Datastar glue via bubbling `CustomEvent`:
+  - event: `salarybook-activeteam` → detail `{ team: 'BOS' }`
+  - Datastar listens and sets `$activeteam`, then patches sidebar base.
+
+---
+
+## Phase 5 — Data wiring (HTML-first)
+
+Goal: render real data from Postgres warehouses with HTML patches.
+
+- [ ] Team index source: `pcms.teams` (NBA, active).
+- [ ] Render one team section server-side from:
+  - `pcms.salary_book_warehouse`
+  - `pcms.team_salary_warehouse`
+  - `pcms.exceptions_warehouse`, `pcms.cap_holds_warehouse`, `pcms.dead_money_warehouse`, `pcms.draft_pick_summary_assets`
+- [ ] Sidebar base endpoint (team context): `/tools/salary-book/sidebar/team?team=BOS` → patches `#rightpanel-base`.
+- [ ] Overlay endpoints:
+  - player: `/tools/salary-book/sidebar/player/:id`
+  - agent: `/tools/salary-book/sidebar/agent/:id`
+  - pick: `/tools/salary-book/sidebar/pick?...`
+
+Filters:
+- [ ] Implement as **client-only lenses first** (signals + `data-show`) to avoid scroll jumps.
+
+---
+
+## Phase 6 — Parity + performance
+
+- [ ] Work through gaps listed in `web/FEATURE_AUDIT.md`.
+- [ ] Add fragment caching for:
+  - per-team sections
+  - sidebar base modules
+  - overlays (player/agent/pick)
+- [ ] Key caches by warehouse `refreshed_at` timestamps (don’t invent app-level invalidation).
+
+---
+
+## Done criteria (v1)
+
+- Salary Book tool works end-to-end:
+  - scroll-driven active team
+  - filter lenses
+  - right panel base + entity overlay
+  - URLs are canonical and shareable
+
+- Entity navigation exists and feels Bricklink-like:
+  - player/team/agent pages are link-rich
+  - tools link to entities (and entities can link back to tools)

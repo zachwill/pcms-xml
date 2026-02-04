@@ -1,0 +1,33 @@
+<% full_name = [@player&.fetch("first_name", nil), @player&.fetch("last_name", nil)].compact.join(" ") %>
+
+<main class="entity-page">
+  <header class="entity-header">
+    <div class="entity-title">
+      <h1><%= full_name.presence || "Player" %></h1>
+      <div class="entity-meta">
+        <span class="entity-meta-item">player_id: <code><%= @player_id %></code></span>
+        <span class="entity-meta-item">slug: <code><%= @player_slug %></code></span>
+      </div>
+    </div>
+
+    <nav class="entity-actions">
+      <a href="/tools/salary-book">Open Salary Book</a>
+    </nav>
+  </header>
+
+  <section class="entity-section">
+    <h2>Known slugs</h2>
+    <ul>
+      <% Slug.where(entity_type: "player", entity_id: @player_id).order(canonical: :desc, created_at: :asc).each do |s| %>
+        <li>
+          <a href="/players/<%= s.slug %>">/players/<%= s.slug %></a>
+          <% if s.canonical? %><strong>(canonical)</strong><% end %>
+        </li>
+      <% end %>
+    </ul>
+
+    <p class="entity-note">
+      Short slugs (e.g. <code>/players/lebron</code>) can be promoted over time by adding an alias slug and marking it canonical.
+    </p>
+  </section>
+</main>

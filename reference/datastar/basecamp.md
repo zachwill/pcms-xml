@@ -12,7 +12,7 @@ If Basecamp had picked Datastar as their client runtime (instead of Turbo Stream
 Relevant source notes:
 - Basecamp patterns: `reference/basecamp/specs/*`
 - Datastar conventions: `reference/datastar/insights.md`, `reference/datastar/rails.md`, `reference/datastar/docs.md`
-- SSE framing example: `web/docs/bun-sse.md`
+- SSE framing example: `prototypes/salary-book-react/docs/bun-sse.md`
 
 ---
 
@@ -157,7 +157,7 @@ How to think about patching:
   - headers (above) supply `selector` / `mode` / `useViewTransition`
 - `text/event-stream` does the same thing, but repeatedly.
 
-(See: `reference/datastar/docs.md` for the patch semantics; `reference/datastar/rails.md` + `web/docs/bun-sse.md` for SSE framing helpers.)
+(See: `reference/datastar/docs.md` for the patch semantics; `reference/datastar/rails.md` + `prototypes/salary-book-react/docs/bun-sse.md` for SSE framing helpers.)
 
 ---
 
@@ -343,4 +343,4 @@ Datastar docs (this repo):
 - `reference/datastar/insights.md`
 - `reference/datastar/rails.md`
 - `reference/datastar/docs.md`
-- `web/docs/bun-sse.md`
+- `prototypes/salary-book-react/docs/bun-sse.md`

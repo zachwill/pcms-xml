@@ -9,7 +9,8 @@ Provides:
 - Sheet heading helpers
 
 Note: when mapping UI semantics (options/guarantees/restrictions), prefer the
-existing decisions in web/ (SalaryBook) and keep the mapping explicit.
+existing decisions in the Salary Book UI prototype (`prototypes/salary-book-react/`)
+and keep the mapping explicit.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ DEFAULT_FONT = "Aptos Narrow"
 DEFAULT_FONT_SIZE = 11
 
 # -----------------------------------------------------------------------------
-# Format constants (mapped from web/src/features/SalaryBook/)
+# Format constants (mapped from prototypes/salary-book-react/src/features/SalaryBook/)
 # -----------------------------------------------------------------------------
 
 # Money formatting
