@@ -28,6 +28,18 @@ module Web
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     config.autoload_lib(ignore: %w[assets tasks])
 
+    # This app connects to an existing "warehouse" Postgres with many schemas.
+    # Keep Rails-owned tables isolated in their own schema (defaults to `web`).
+    rails_schema = ENV.fetch("RAILS_APP_SCHEMA", "web")
+
+    # Only dump the Rails-owned schema to db/schema.rb (avoids dumping the whole DB).
+    config.active_record.dump_schemas = rails_schema
+
+    # Ensure Rails metadata tables also live in that schema (avoids colliding with
+    # any other Rails apps using the same database).
+    config.active_record.schema_migrations_table_name = "#{rails_schema}.schema_migrations"
+    config.active_record.internal_metadata_table_name = "#{rails_schema}.ar_internal_metadata"
+
     # Configuration for the application, engines, and railties goes here.
     #
     # These settings can be overridden in specific environments using the files

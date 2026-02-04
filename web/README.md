@@ -30,14 +30,23 @@ export PATH="/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/ruby@3.4/bin:/opt/home
 cd web
 bundle install
 
-# Rails migrations (slug registry, etc.)
-POSTGRES_URL="$POSTGRES_URL" bin/rails db:migrate
+# Rails-owned tables live in a dedicated schema (defaults to `web`).
+# Create it once:
+psql "$POSTGRES_URL" -c "CREATE SCHEMA IF NOT EXISTS web"
 
-POSTGRES_URL="$POSTGRES_URL" bin/rails server
+# Optional: use a different schema name (ex: `app`)
+# export RAILS_APP_SCHEMA=app
+# psql "$POSTGRES_URL" -c "CREATE SCHEMA IF NOT EXISTS app"
+
+bin/rails db:migrate
+bin/rails server
 ```
 
 Notes:
 - Repo convention is `POSTGRES_URL`. Rails convention is `DATABASE_URL`. We support both.
+- Rails writes its own tables to `RAILS_APP_SCHEMA` (default: `web`).
+  - Override the full search path via `DB_SCHEMA_SEARCH_PATH` if you want to include read-side schemas (ex: `pcms`).
+  - Schema dumping is disabled by default (`schema_dump: false`) to avoid hanging on large warehouse databases.
 - `web/config/master.key` is ignored (do not commit it).
 - Datastar requires CSP `unsafe-eval` (configured in `config/initializers/content_security_policy.rb`).
 

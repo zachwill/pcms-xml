@@ -130,7 +130,7 @@ This keeps the mental model clean:
   - optional: `public.nba_players` (position metadata)
 
 - Write-side app data (Rails-owned):
-  - keep it in an `app` schema (recommended):
+  - keep it in a dedicated Rails schema (default: `web`, configurable via `RAILS_APP_SCHEMA`):
     - slug registry
     - user accounts/sessions (if needed)
     - annotations/notes
