@@ -16,13 +16,23 @@ Datastar is a hypermedia-first runtime: the backend streams HTML / signal patche
   - **Curated “field notes”** pulled from ZachBase conventions.
   - Focuses on naming rules, SSE ergonomics, patching strategy, and common gotchas.
 
+- `rails.md`
+  - Rails-specific notes: ActionController::Live, Datastar SSE event framing, and production checklists.
+  - Use when you’re pairing Datastar with a Rails backend.
+
+- `basecamp.md`
+  - A synthesis spec: **Basecamp-style Rails patterns** translated into a Datastar-first UI architecture.
+  - Use when you want “how would Basecamp/Campfire feel built on Datastar?” guidance.
+
 ---
 
 ## Reading order (fastest path)
 
 1) `reference/datastar/insights.md` (project-style conventions + gotchas)
 2) `reference/datastar/docs.md` (deep reference)
-3) `web/docs/bun-sse.md` (repo-local SSE framing helpers + generator pattern)
+3) `reference/datastar/rails.md` (Rails SSE + Datastar framing + deployment gotchas)
+4) `reference/datastar/basecamp.md` (synthesis: Basecamp patterns → Datastar patterns)
+5) `web/docs/bun-sse.md` (repo-local SSE framing helpers + generator pattern; Bun implementation, but the framing applies everywhere)
 
 If you’re integrating charts/widgets, also remember:
 - Protect widget roots with `data-ignore-morph` and patch around them.
@@ -34,7 +44,7 @@ If you’re integrating charts/widgets, also remember:
 This repo is primarily **PCMS ingestion + Postgres warehouses**. Datastar isn’t currently the primary UI runtime here (the existing `web/` prototype is Bun + React), but we keep these references because:
 
 - Datastar is a strong fit for **server-driven dashboards** over our warehouses.
-- The SSE patch framing (`datastar-patch-elements` / `datastar-patch-signals`) is already documented in `web/docs/bun-sse.md`.
+- The SSE patch framing (`datastar-patch-elements` / `datastar-patch-signals`) is documented in `web/docs/bun-sse.md` (Bun implementation) and summarized in `reference/datastar/rails.md` (Rails).
 
 ---
 
