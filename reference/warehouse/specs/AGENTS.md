@@ -1,6 +1,6 @@
 # AGENTS.md — `reference/warehouse/specs/`
 
-**Updated:** 2026-02-03
+**Updated:** 2026-02-04
 
 These specs document Sean’s current workbook exports (`reference/warehouse/*.json`) in a way that future agents can quickly become **elite salary cap / trade analysts**.
 
@@ -78,14 +78,14 @@ Meta / plumbing (important for tooling work, less important for analyst intuitio
 
 ## C‑Tier (stubs / duplicates / examples)
 
-### Stubs (saved views)
-- [`por.md`](por.md) (Playground snapshot)
-- [`2025.md`](2025.md) (Playground snapshot)
-- [`ga.md`](ga.md) (Team/Playground variant)
+### Stubs (saved views / snapshots)
+- [`snapshots/por.md`](snapshots/por.md) (Playground snapshot)
+- [`snapshots/2025.md`](snapshots/2025.md) (Playground snapshot)
+- [`snapshots/ga.md`](snapshots/ga.md) (Team/Playground variant)
 
 ### Examples (scenario worksheets)
-These are “worked examples,” not canonical rules.
+These are “worked examples,” not canonical rules. (They live in `specs/examples/`.)
 
-- [`example_buyout_calculator.md`](example_buyout_calculator.md)
-- [`example_kuzma_buyout.md`](example_kuzma_buyout.md)
-- [`example_set_off.md`](example_set_off.md)
+- [`examples/buyout_calculator.md`](examples/buyout_calculator.md)
+- [`examples/kuzma_buyout.md`](examples/kuzma_buyout.md)
+- [`examples/set-off.md`](examples/set-off.md)

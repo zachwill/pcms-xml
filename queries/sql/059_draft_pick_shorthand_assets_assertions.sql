@@ -20,14 +20,15 @@ BEGIN
       'draft_year',
       'draft_round',
       'asset_slot',
+      'sub_asset_slot',
       'shorthand_input',
       'shorthand',
       'endnote_ids',
       'referenced_team_codes'
     );
 
-  IF c <> 8 THEN
-    RAISE EXCEPTION 'pcms.draft_pick_shorthand_assets missing expected columns (found %/8)', c;
+  IF c <> 9 THEN
+    RAISE EXCEPTION 'pcms.draft_pick_shorthand_assets missing expected columns (found %/9)', c;
   END IF;
 END
 $$;

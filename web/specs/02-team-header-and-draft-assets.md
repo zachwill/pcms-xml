@@ -168,7 +168,7 @@ The table + sidebar should not parse clause text client-side.
 
 ### D.1 Minimal fields for pick pills (table)
 
-From a pick warehouse (`pcms.draft_assets_warehouse` or a dedicated view), per team/year:
+From a pick warehouse (`pcms.draft_pick_summary_assets`), per team/year:
 
 - `team_code`
 - `salary_year` or `draft_year_anchor`

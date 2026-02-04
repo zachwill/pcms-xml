@@ -52,9 +52,7 @@ Runs after base table imports and calls the DB refresh functions:
 - `pcms.refresh_dead_money_warehouse()`
 - `pcms.refresh_cap_holds_warehouse()`
 - `pcms.refresh_player_rights_warehouse()`
-- `pcms.refresh_draft_pick_trade_claims_warehouse()`
-- `pcms.refresh_draft_picks_warehouse()`
-- `pcms.refresh_draft_assets_warehouse()`
+- `pcms.refresh_draft_pick_summary_assets()`
 
 ---
 

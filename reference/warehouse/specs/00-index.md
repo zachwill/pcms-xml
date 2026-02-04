@@ -31,12 +31,12 @@ Shared formula patterns (roster lists, fill-to-12/14, proration, tax) are docume
 | Minimum Salary Scale | `minimum_salary_scale.json` | Minimum salary by years of service | [minimum_salary_scale.md](minimum_salary_scale.md) |
 | Rookie Scale Amounts | `rookie_scale_amounts.json` | Rookie scale salary by pick + year | [rookie_scale_amounts.md](rookie_scale_amounts.md) |
 | Playground | `playground.json` | Interactive team salary book view | [playground.md](playground.md) |
-| POR | `por.json` | Portland-specific playground snapshot | [por.md](por.md) |
-| 2025 | `2025.json` | 2025 season snapshot view | [2025.md](2025.md) |
+| POR | `por.json` | Portland-specific playground snapshot | [snapshots/por.md](snapshots/por.md) |
+| 2025 | `2025.json` | 2025 season snapshot view | [snapshots/2025.md](snapshots/2025.md) |
 | Team | `team.json` | Team roster with contract calculator blocks | [team.md](team.md) |
 | Team Summary | `team_summary.json` | Team salary totals dashboard (vs cap/tax/apron) | [team_summary.md](team_summary.md) |
 | Finance | `finance.json` | Team financial data | [finance.md](finance.md) |
-| GA | `ga.json` | G-League affiliate / two-way data | [ga.md](ga.md) |
+| GA | `ga.json` | G-League affiliate / two-way data | [snapshots/ga.md](snapshots/ga.md) |
 | Machine | `machine.json` | Trade machine logic | [machine.md](machine.md) |
 | Exceptions | `exceptions.json` | Active trade exceptions by team | [exceptions.md](exceptions.md) |
 | Trade Bonus Amounts | `trade_bonus_amounts.json` | Trade bonus / kicker calculations | [trade_bonus_amounts.md](trade_bonus_amounts.md) |
@@ -45,9 +45,9 @@ Shared formula patterns (roster lists, fill-to-12/14, proration, tax) are docume
 | The Matrix | `the_matrix.json` | Multi-team trade scenario tool | [the_matrix.md](the_matrix.md) |
 | High Low | `high_low.json` | Player salary ranking / band search tool | [high_low.md](high_low.md) |
 | Tax Array | `tax_array.json` | Luxury tax bracket calculations | [tax_array.md](tax_array.md) |
-| Buyout Calculator | `buyout_calculator.json` | Buyout scenario calculator | [example_buyout_calculator.md](example_buyout_calculator.md) |
-| Kuzma Buyout | `kuzma_buyout.json` | Specific buyout example | [example_kuzma_buyout.md](example_kuzma_buyout.md) |
-| Set-Off | `set-off.json` | Waiver set-off calculations | [example_set_off.md](example_set_off.md) |
+| Buyout Calculator | `buyout_calculator.json` | Buyout scenario calculator | [examples/buyout_calculator.md](examples/buyout_calculator.md) |
+| Kuzma Buyout | `kuzma_buyout.json` | Specific buyout example | [examples/kuzma_buyout.md](examples/kuzma_buyout.md) |
+| Set-Off | `set-off.json` | Waiver set-off calculations | [examples/set-off.md](examples/set-off.md) |
 
 ---
 
@@ -177,7 +177,7 @@ The workbook has a layered architecture:
 | Team totals | `team_summary.json` | `pcms.team_salary_warehouse`, `pcms.team_budget_snapshots` |
 | Contract protections | `contract_protections.json` | `pcms.contract_protections` (guarantees by contract/version/year) |
 | Rookie scale | `rookie_scale_amounts.json` | `pcms.rookie_scale_amounts` |
-| Draft picks | `draft_picks.json`, `pick_database.json` | `pcms.draft_picks` / `pcms.draft_picks_warehouse` |
+| Draft picks | `draft_picks.json`, `pick_database.json` | `pcms.draft_pick_summary_assets` |
 | Trade kickers | `trade_bonus_amounts.json` | `pcms.contract_versions.trade_bonus_percent` |
 | Minimum salary scale (by YOS) | `minimum_salary_scale.json` | `pcms.league_salary_scales` (min year-1 by YOS) + derived multi-year mins |
 | Luxury tax brackets / rates | `tax_array.json` | `pcms.league_tax_rates` (+ repeater flag from `pcms.tax_team_status`) |

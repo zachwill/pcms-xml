@@ -21,8 +21,8 @@ This is a **web UI audit** against what we already have in Postgres + the Sean w
 | `pcms.exceptions_warehouse` | Trade exceptions by team/year | **Wired** (Exceptions row) |
 | `pcms.cap_holds_warehouse` | Cap hold drilldown (only holds that count) | **Wired** (Cap Holds section) |
 | `pcms.dead_money_warehouse` | Waiver/dead money drilldown | **Wired** (Dead Money section) |
-| `pcms.draft_assets_warehouse` | Draft assets/picks (parsed from PCMS text + endnote refs) | **Wired** (Draft Assets row + draft tab + pick detail) — endnotes now server-side |
-| `pcms.draft_pick_trade_claims_warehouse` | Pick claim chain/rights (warehouse) | **Wired** (Pick detail conveyance history) |
+| `pcms.draft_pick_summary_assets` | Draft assets/picks (split from PCMS summaries, endnote-aligned) | **Wired** (Draft Assets row + draft tab + pick detail) — endnotes now server-side |
+| `pcms.draft_pick_trades` | Pick claim chain/rights evidence (raw) | **Wired** (Pick detail conveyance history; aggregated server-side) |
 | `pcms.player_rights_warehouse` | Draft rights / D-League returning rights | **Wired** (TeamContext → Rights tab) |
 
 ### 1.2 Core primitives (functions)
@@ -88,7 +88,7 @@ Player overlay should show (DB-backed, not hand-wavy):
 
 - Avoid client parsing of clause text.
 - Prefer DB-derived `timeline_json` / `constraint_flags` style output.
-- Use `draft_assets_warehouse.endnote_refs` + `pcms.endnotes` as the starting point.
+- Use `draft_pick_summary_assets.endnote_refs` + `pcms.endnotes` as the starting point.
 
 ## 4) Suggested next build order
 

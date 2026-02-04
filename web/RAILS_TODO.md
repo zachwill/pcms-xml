@@ -196,7 +196,7 @@ Instead, call the same primitives the Bun API calls today:
 
 - `pcms.salary_book_warehouse`
 - `pcms.team_salary_warehouse`
-- `pcms.draft_assets_warehouse`
+- `pcms.draft_pick_summary_assets`
 - `pcms.*_warehouse` for holds/exceptions/dead money/rights
 - `pcms.fn_tpe_trade_math`, `pcms.fn_trade_salary_range`, `pcms.fn_buyout_scenario`, …
 

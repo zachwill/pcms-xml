@@ -592,15 +592,15 @@ def extract_draft_picks_warehouse(
             asset_slot,
             asset_type,
             raw_round_text,
-            raw_fragment,
+            raw_part as raw_fragment,
             is_forfeited,
             is_conditional_text,
             is_swap_text,
             needs_review,
             refreshed_at
-        FROM pcms.draft_picks_warehouse
+        FROM pcms.draft_pick_summary_assets
         WHERE draft_year >= %(base_year)s
-        ORDER BY team_code, draft_year, draft_round, asset_slot
+        ORDER BY team_code, draft_year, draft_round, asset_slot, sub_asset_slot
     """
 
     try:

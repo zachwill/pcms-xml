@@ -32,7 +32,7 @@ The stable interface between Postgres (`pcms.*`) and the Excel workbook (`DATA_*
 | DATA_cap_holds_warehouse | tbl_cap_holds_warehouse | pcms.cap_holds_warehouse | Cap holds/rights |
 | DATA_dead_money_warehouse | tbl_dead_money_warehouse | pcms.dead_money_warehouse | Dead money |
 | DATA_exceptions_warehouse | tbl_exceptions_warehouse | pcms.exceptions_warehouse | Exception inventory |
-| DATA_draft_picks_warehouse | tbl_draft_picks_warehouse | pcms.draft_picks_warehouse | Draft pick ownership |
+| DATA_draft_picks_warehouse | tbl_draft_picks_warehouse | pcms.draft_pick_summary_assets | Draft pick ownership (summary-derived pieces) |
 
 ---
 

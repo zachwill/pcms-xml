@@ -65,7 +65,7 @@ These tables should be the first stop for UI/tool output:
 - `pcms.exceptions_warehouse`
 - `pcms.dead_money_warehouse`
 - `pcms.cap_holds_warehouse`
-- draft caches (`pcms.*draft*_warehouse`, `pcms.draft_assets_warehouse`)
+- draft caches (`pcms.draft_pick_summary_assets`)
 
 Refresh happens via DB functions, called by `import_pcms_data.flow/refresh_caches.inline_script.py`.
 

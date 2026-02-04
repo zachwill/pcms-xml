@@ -7,7 +7,7 @@ This is intentionally a script (not a migration):
 
 Planned steps (initial version):
 1) Normalize original_note prefixes like "31) ...".
-2) Attempt to match endnote_id -> trade_id using evidence from draft_assets_warehouse
+2) Attempt to match endnote_id -> trade_id using evidence from draft_pick_summary_assets
    and draft_pick_trades.
 3) Backfill trade_date from pcms.trades when trade_id is matched.
 4) Write per-endnote match metadata to metadata_json.
@@ -66,7 +66,7 @@ def fetch_trade_candidates(cur) -> list[dict[str, Any]]:
     """Return candidate trades per endnote_id (ranked), for audit + selection.
 
     Evidence source:
-      pcms.draft_assets_warehouse provides (endnote_id, draft_year, draft_round, team_code)
+      pcms.draft_pick_summary_assets provides (endnote_id, draft_year, draft_round, team_code)
       pcms.draft_pick_trades provides (trade_id, trade_date, from/to team_code, year/round)
 
     Output: one row per (endnote_id, trade_id) with a "hits" score.
@@ -80,9 +80,9 @@ def fetch_trade_candidates(cur) -> list[dict[str, Any]]:
             da.draft_year,
             da.draft_round,
             da.team_code
-          from pcms.draft_assets_warehouse da
+          from pcms.draft_pick_summary_assets da
           where da.primary_endnote_id is not null
-            and da.has_endnote_match
+            and da.has_primary_endnote_match
         ), candidates as (
           select
             e.endnote_id,
@@ -233,7 +233,7 @@ def main() -> None:
                     meta["munge"]["matched_trade_confidence"] = conf
                     meta["munge"]["matched_trade_hits"] = top_hits
                     meta["munge"]["matched_trade_candidate_count"] = candidate_count
-                    meta["munge"]["matched_trade_method"] = "draft_assets_warehouse + draft_pick_trades evidence (dominant)"
+                    meta["munge"]["matched_trade_method"] = "draft_pick_summary_assets + draft_pick_trades evidence (dominant)"
 
                     auto_scalar.append(
                         EndnoteMatch(

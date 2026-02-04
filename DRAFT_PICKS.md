@@ -79,8 +79,8 @@ Common patterns:
 | `May have TEAM(N)` | conditional ownership | `May have MIL(202)` |
 | `(via TEAM(N))` | provenance routing | `(via PHX(173))` |
 | `or to TEAM(N)` | alternative destination branch | `or to DET(317)` |
-| `|` | separates multiple asset “slots” | `Own | Has DAL(70)` |
-| `;` | separates conditional branches inside a slot | `may have ORL(...); may have PHX(...)` |
+| `|` | splits this team’s pick status from other teams’ picks owned/controlled (max 2 fragments in practice) | `Own | Has DAL(70)` |
+| `;` | splits multiple pieces within a fragment (multiple picks and/or branch clauses) | `may have ORL(...); may have PHX(...)` |
 
 ### Important: parenthetical numbers
 
@@ -105,28 +105,28 @@ When an id is present in summaries but missing from `pcms.endnotes`, we treat it
 - `pcms.draft_pick_trades`
   - Trade movements (provenance/movement granularity).
 
-### PCMS-derived warehouses (refreshable, do not hand-edit)
+### Summary-derived pieces (refreshable, do not hand-edit)
 
-- `pcms.draft_picks_warehouse`
-  - Explodes `draft_pick_summaries.first_round/second_round` by literal `|` into `asset_slot` rows.
-  - Extracts numeric ids in parentheses into `endnote_refs`.
+- `pcms.draft_pick_summary_assets`
+  - Splits `pcms.draft_pick_summaries.first_round/second_round` by:
+    - `|` → `asset_slot` (PCMS uses at most 2 today: **own-pick status** | **other teams’ picks**)
 
-- `pcms.draft_assets_warehouse`
-  - Further explodes each `raw_fragment` by `;` into `sub_asset_slot` parts.
-  - Extracts:
-    - `counterparty_team_codes` (teams mentioned after To/Has/May have)
-    - `via_team_codes` (provenance chains)
-  - Joins `primary_endnote_id` (first extracted id) to `pcms.endnotes`.
+    - `;` → `sub_asset_slot`
+  - Keeps both:
+    - `raw_fragment` (pipe fragment)
+    - `raw_part` (semicolon piece)
+  - Extracts endnote ids **per raw_part** into `endnote_refs` (this is the key fix vs legacy warehouses).
+  - Adds helper fields:
+    - `missing_endnote_refs`
+    - `counterparty_team_codes`, `via_team_codes`
+    - `primary_endnote_id` + joined `endnote_*` helper columns
 
-- `pcms.draft_pick_trade_claims_warehouse`
-  - Aggregates `pcms.draft_pick_trades` into `trade_claims_json` outcomes.
-
-> Design note: these warehouses intentionally **do not resolve** protections/swaps into a deterministic final pick. They surface the text + refs for humans/tools.
+> Design note: this table is still provenance-first and intentionally **does not resolve** protections/swaps into a deterministic final pick. It surfaces the NBA summary text + endnote refs in an analyzable shape.
 
 ### Curated shorthand (durable, hand-authored or imported)
 
 - `pcms.draft_pick_shorthand_assets`
-  - One row per `(team_code, draft_year, draft_round, asset_slot)`.
+  - One row per `(team_code, draft_year, draft_round, asset_slot, sub_asset_slot)`.
   - Stores:
     - `shorthand_input` (raw, messy)
     - `shorthand` (canonical pretty-printed)
@@ -134,8 +134,9 @@ When an id is present in summaries but missing from `pcms.endnotes`, we treat it
     - `referenced_team_codes text[]` (search/filter)
     - `notes`, `source_lk`, `needs_review`
 
-Migration:
+Migrations:
 - `migrations/065_draft_pick_shorthand_assets.sql`
+- `migrations/068_draft_pick_shorthand_assets_sub_asset_slot.sql`
 
 ---
 
@@ -282,8 +283,8 @@ High-level import steps:
 1) Read Sean `reference/warehouse/draft_picks.json` **Pick Details** (column `F`) — not the display shorthand column.
 2) Normalize team codes (BRK→BKN, SAN→SAS).
 3) Canonicalize formatting (spacing, commas, `p.` spacing).
-4) Map rows to `(team_code, draft_year, draft_round, asset_slot)`.
-   - attach endnotes by copying `pcms.draft_picks_warehouse.endnote_refs` into `endnote_ids`.
+4) Map rows to `(team_code, draft_year, draft_round, asset_slot, sub_asset_slot)` (summary piece keys).
+   - attach endnotes by copying `pcms.draft_pick_summary_assets.endnote_refs` into `endnote_ids` (and optionally add dependencies).
 5) Insert with `source_lk='imported_sean'`.
 6) Mark `needs_review=true` if the string is malformed (e.g. unbalanced brackets) or if mapping is ambiguous.
 
@@ -316,6 +317,6 @@ That is possible but is a distinct project.
   - keep it out of shorthand and in `notes`?
   - or allow an explicit branch operator in AST?
 
-- Add a tool/view that overlays shorthand on top of PCMS warehouse output:
+- Add a tool/view that overlays shorthand on top of PCMS summary output:
   - prefer `pcms.draft_pick_shorthand_assets` when present
-  - fall back to `pcms.draft_picks_warehouse.raw_fragment` when not
+  - fall back to `pcms.draft_pick_summary_assets.raw_part` when not

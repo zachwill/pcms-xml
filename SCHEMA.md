@@ -210,27 +210,25 @@ These are **denormalized cache tables** refreshed periodically. Use these for UI
 
 ---
 
-### `pcms.draft_pick_trade_claims_warehouse`
+### `pcms.draft_pick_summary_assets`
 
-**Purpose:** All trade-derived claims per draft pick slot (NOT deterministic ownership).
+**Purpose:** Summary-derived draft pick pieces (split on `|` and `;`) with endnote refs extracted **per piece**.
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `draft_year` | integer (PK) | Draft year |
-| `draft_round` | integer (PK) | Draft round |
-| `original_team_id` | bigint (PK) | Original team ID |
-| `original_team_code` | text | Original team code |
-| `trade_claims_json` | jsonb | Array of all trade claims |
-| `claims_count` | integer | Number of claims |
-| `distinct_to_teams_count` | integer | Distinct destination teams |
-| `has_conditional_claims` | boolean | Has conditional claims |
-| `has_swap_claims` | boolean | Has swap claims |
-| `latest_trade_id` | bigint | Most recent trade ID |
-| `latest_trade_date` | date | Most recent trade date |
+| `team_code` | text | Team code (NBA) |
+| `draft_year` / `draft_round` | integer | Draft year + round |
+| `asset_slot` / `sub_asset_slot` | integer | Slot ids from `|` and `;` splitting |
+| `raw_fragment` | text | Pipe fragment (slot) |
+| `raw_part` | text | Semicolon piece (the aligned unit) |
+| `endnote_refs` | int[] | Endnote ids referenced in this piece |
+| `missing_endnote_refs` | int[] | Refs missing from `pcms.endnotes` |
+| `counterparty_team_codes` | text[] | Mentioned teams (To/Has/May have) |
+| `via_team_codes` | text[] | Mentioned `via` teams |
 | `needs_review` | boolean | Data quality flag |
 | `refreshed_at` | timestamptz | Last refresh time |
 
-**Refresh:** `SELECT pcms.refresh_draft_pick_trade_claims_warehouse();`
+**Refresh:** `SELECT pcms.refresh_draft_pick_summary_assets();`
 
 ---
 
@@ -422,7 +420,7 @@ Yearly unpivot of salary_book_warehouse (one row per player/year).
 | `pcms.refresh_dead_money_warehouse()` | Refresh dead money cache |
 | `pcms.refresh_cap_holds_warehouse()` | Refresh cap holds cache |
 | `pcms.refresh_player_rights_warehouse()` | Refresh player rights cache |
-| `pcms.refresh_draft_pick_trade_claims_warehouse()` | Refresh draft pick claims |
+| `pcms.refresh_draft_pick_summary_assets()` | Refresh parsed draft pick summary pieces |
 | `pcms.refresh_salary_book_percentiles()` | Refresh salary percentiles |
 
 ---

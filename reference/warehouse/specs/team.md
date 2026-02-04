@@ -159,7 +159,7 @@ No direct `'Team'!` references were found in other JSON exports; this appears to
 | Yearly thresholds (cap/tax/aprons/minimum team salary) | `pcms.league_system_values` |
 | Dead money | `pcms.dead_money_warehouse` (tool-facing drilldown) |
 | Team totals | `pcms.team_salary_warehouse` (tool-facing totals) |
-| Draft picks | `pcms.draft_picks_warehouse` (preferred) or `pcms.draft_picks` |
+| Draft picks | `pcms.draft_pick_summary_assets` |
 | Tax payment | Not currently a first-class warehouse table; would need a bracket table or a function |
 
 ---

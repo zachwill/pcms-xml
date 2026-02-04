@@ -573,7 +573,7 @@ salaryBookRouter.get("/team-salary", async (req) => {
 });
 
 // GET /api/salary-book/picks?team=:teamCode
-// Fetch draft picks from pcms.draft_picks_warehouse
+// Fetch draft picks from pcms.draft_pick_summary_assets (summary-derived)
 salaryBookRouter.get("/picks", async (req) => {
   const url = new URL(req.url);
   const teamCode = url.searchParams.get("team");
@@ -594,8 +594,8 @@ salaryBookRouter.get("/picks", async (req) => {
       asset_type,
       is_conditional,
       is_swap,
-      raw_fragment as description
-    FROM pcms.draft_assets_warehouse
+      raw_part as description
+    FROM pcms.draft_pick_summary_assets
     WHERE team_code = ${teamCode}
       AND draft_year BETWEEN 2025 AND 2030
     ORDER BY draft_year, draft_round, asset_slot, sub_asset_slot
@@ -972,7 +972,7 @@ salaryBookRouter.get("/pick", async (req) => {
       endnote_is_conditional,
       endnote_depends_on,
       needs_review
-    FROM pcms.draft_assets_warehouse
+    FROM pcms.draft_pick_summary_assets
     WHERE team_code = ${teamCode}
       AND draft_year = ${year}
       AND draft_round = ${round}
@@ -1048,23 +1048,49 @@ salaryBookRouter.get("/pick", async (req) => {
 
   const tradeClaimsRows = originTeamCode
     ? await sql`
+        WITH ordered AS (
+          SELECT
+            dpt.*,
+            row_number() OVER (
+              ORDER BY trade_date DESC NULLS LAST, trade_id DESC, id DESC
+            ) AS rnk
+          FROM pcms.draft_pick_trades dpt
+          WHERE original_team_code = ${originTeamCode}
+            AND draft_year = ${year}
+            AND draft_round = ${round}
+        )
         SELECT
-          draft_year,
-          draft_round,
-          original_team_code,
-          trade_claims_json,
-          claims_count,
-          distinct_to_teams_count,
-          has_conditional_claims,
-          has_swap_claims,
-          latest_trade_id,
-          latest_trade_date,
-          needs_review
-        FROM pcms.draft_pick_trade_claims_warehouse
-        WHERE original_team_code = ${originTeamCode}
-          AND draft_year = ${year}
-          AND draft_round = ${round}
-        LIMIT 1
+          max(draft_year) as draft_year,
+          max(draft_round) as draft_round,
+          max(original_team_code) as original_team_code,
+          jsonb_agg(
+            jsonb_build_object(
+              'trade_id', trade_id,
+              'trade_date', trade_date,
+              'from_team_id', from_team_id,
+              'from_team_code', from_team_code,
+              'to_team_id', to_team_id,
+              'to_team_code', to_team_code,
+              'is_swap', is_swap,
+              'is_conditional', is_conditional,
+              'conditional_type_lk', conditional_type_lk
+            )
+            ORDER BY trade_date DESC NULLS LAST, trade_id DESC, id DESC
+          ) as trade_claims_json,
+          count(*)::int as claims_count,
+          count(distinct to_team_code)::int as distinct_to_teams_count,
+          bool_or(coalesce(is_conditional,false)) as has_conditional_claims,
+          bool_or(coalesce(is_swap,false)) as has_swap_claims,
+          max(trade_id) filter (where rnk=1) as latest_trade_id,
+          max(trade_date) filter (where rnk=1) as latest_trade_date,
+          (
+            bool_or(coalesce(is_conditional,false))
+            or bool_or(coalesce(is_swap,false))
+            or count(*) > 1
+            or count(distinct to_team_code) > 1
+          ) as needs_review
+        FROM ordered
+        HAVING count(*) > 0
       `
     : [];
 

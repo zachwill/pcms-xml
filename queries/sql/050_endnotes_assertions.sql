@@ -69,7 +69,7 @@ BEGIN
     RAISE NOTICE 'PASS: endnote 65 fixture correct (swap=%, conditional=%)', rec.is_swap, rec.is_conditional;
 END $$;
 
--- 6) Check endnotes join with draft_picks_warehouse endnote_refs
+-- 6) Check endnotes join with draft_pick_summary_assets endnote_refs
 DO $$
 DECLARE
     match_rate numeric;
@@ -78,7 +78,7 @@ DECLARE
 BEGIN
     WITH fragment_refs AS (
         SELECT DISTINCT unnest(endnote_refs) as ref_id
-        FROM pcms.draft_picks_warehouse
+        FROM pcms.draft_pick_summary_assets
         WHERE endnote_refs IS NOT NULL AND array_length(endnote_refs, 1) > 0
     )
     SELECT 
@@ -89,7 +89,7 @@ BEGIN
     LEFT JOIN pcms.endnotes e ON e.endnote_id = fr.ref_id;
     
     IF total_refs = 0 THEN
-        RAISE NOTICE 'SKIP: no endnote refs in draft_picks_warehouse';
+        RAISE NOTICE 'SKIP: no endnote refs in draft_pick_summary_assets';
         RETURN;
     END IF;
     

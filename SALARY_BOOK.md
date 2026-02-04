@@ -26,7 +26,7 @@ We have **near-complete parity** with Sean's Excel workbook for the core analyst
 | **Multi-Year Minimums** (Years 2–5) | `pcms.fn_minimum_salary()` | ✅ Complete |
 | **Buyout / Waiver scenarios** | `pcms.fn_buyout_scenario()` | ✅ Complete |
 | **Rookie Scale** | `pcms.rookie_scale_amounts` | ✅ Complete |
-| **Draft Picks** | `pcms.draft_picks_warehouse` | ✅ Complete |
+| **Draft Picks** | `pcms.draft_pick_summary_assets` | ✅ Complete |
 | **Dead Money** (waiver charges) | `pcms.dead_money_warehouse` | ✅ Complete |
 | **Cap Holds** (FA holds) | `pcms.cap_holds_warehouse` | ✅ Complete |
 | **Repeater Tax Status** | `pcms.team_salary_warehouse.is_repeater_taxpayer` | ✅ Complete |
@@ -336,9 +336,7 @@ SELECT pcms.refresh_exceptions_warehouse();
 SELECT pcms.refresh_dead_money_warehouse();
 SELECT pcms.refresh_cap_holds_warehouse();
 SELECT pcms.refresh_player_rights_warehouse();
-SELECT pcms.refresh_draft_pick_trade_claims_warehouse();
-SELECT pcms.refresh_draft_picks_warehouse();
-SELECT pcms.refresh_draft_assets_warehouse();
+SELECT pcms.refresh_draft_pick_summary_assets();
 ```
 
 ---

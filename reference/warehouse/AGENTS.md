@@ -144,7 +144,7 @@ The Excel workbook has cross-sheet dependencies. Key patterns:
 | Rookie scale | `rookie_scale_amounts.json` | `pcms.rookie_scale_amounts` |
 | Minimum salary scale (by YOS) | `minimum_salary_scale.json` | `pcms.league_salary_scales` (minimum_salary_amount by YOS/year) |
 | Luxury tax brackets / rates | `tax_array.json` | `pcms.league_tax_rates` (rates + base charges) + `pcms.tax_team_status` (repeater flag) |
-| Draft picks | `draft_picks.json`, `pick_database.json` | `pcms.draft_picks` / `pcms.draft_picks_warehouse` |
+| Draft picks | `draft_picks.json`, `pick_database.json` | `pcms.draft_pick_summary_assets` |
 
 ---
 
