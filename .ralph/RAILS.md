@@ -31,7 +31,7 @@ Tool URL: `/tools/salary-book`
 
 ## Backlog
 
-- [ ] Team section parity: Team Header KPIs + Totals Footer
+- [x] Team section parity: Team Header KPIs + Totals Footer
   - **Do not recompute** totals in Ruby — prefer `pcms.team_salary_warehouse`.
   - Bulk fetch `pcms.team_salary_warehouse` for all teams across the displayed years, grouped by `team_code`.
   - Update `TeamHeader` inside each `#teamsection-<TEAM>` sticky header to match spec:

@@ -18,6 +18,10 @@ module Tools
       @dead_money_by_team = fetch_dead_money_by_team(@team_codes)
       @picks_by_team = fetch_picks_by_team(@team_codes)
 
+      # Bulk fetch team salary summaries for all teams × years (for header KPIs + totals footer)
+      @team_summaries = fetch_all_team_summaries(@team_codes)
+      @team_meta_by_code = fetch_team_meta_by_code(@team_codes)
+
       requested = params[:team]
       @initial_team = if requested.present? && valid_team_code?(requested)
         requested.to_s.strip.upcase
@@ -38,6 +42,8 @@ module Tools
       @exceptions_by_team = {}
       @dead_money_by_team = {}
       @picks_by_team = {}
+      @team_summaries = {}
+      @team_meta_by_code = {}
       @initial_team = nil
       @initial_team_summary = nil
     end
@@ -48,7 +54,30 @@ module Tools
       year = salary_year_param
       players = fetch_team_players(team_code)
 
-      render partial: "tools/salary_book/team_section", locals: { team_code:, players:, year:, salary_years: SALARY_YEARS }, layout: false
+      # Fetch sub-sections for this team
+      cap_holds = fetch_cap_holds_by_team([team_code])[team_code] || []
+      exceptions = fetch_exceptions_by_team([team_code])[team_code] || []
+      dead_money = fetch_dead_money_by_team([team_code])[team_code] || []
+      picks = fetch_picks_by_team([team_code])[team_code] || []
+
+      # Fetch team summaries (all years) for header + footer
+      team_summaries = fetch_all_team_summaries([team_code])[team_code] || {}
+
+      # Get team metadata from conference lookup
+      team_meta = fetch_team_meta(team_code)
+
+      render partial: "tools/salary_book/team_section", locals: {
+        team_code:,
+        players:,
+        cap_holds:,
+        exceptions:,
+        dead_money:,
+        picks:,
+        team_summaries:,
+        team_meta:,
+        year:,
+        salary_years: SALARY_YEARS
+      }, layout: false
     end
 
     # GET /tools/salary-book/sidebar/team?team=BOS
@@ -364,6 +393,91 @@ module Tools
       end
 
       rows.group_by { |r| r["team_code"] }
+    end
+
+    # -------------------------------------------------------------------------
+    # Team summary data (for header KPIs + totals footer)
+    # -------------------------------------------------------------------------
+
+    # Fetch all team salary summaries for all years, grouped by team_code.
+    # Returns: { "BOS" => { 2025 => {...}, 2026 => {...}, ... }, "LAL" => {...} }
+    def fetch_all_team_summaries(team_codes)
+      return {} if team_codes.empty?
+
+      in_list = team_codes.map { |c| conn.quote(c) }.join(",")
+
+      rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          team_code,
+          salary_year,
+          cap_total,
+          tax_total,
+          apron_total,
+          roster_row_count,
+          two_way_row_count,
+          salary_cap_amount,
+          tax_level_amount,
+          tax_apron_amount,
+          tax_apron2_amount,
+          (COALESCE(salary_cap_amount, 0) - COALESCE(cap_total, 0))::bigint AS cap_space,
+          room_under_tax,
+          room_under_apron1 AS room_under_first_apron,
+          room_under_apron2 AS room_under_second_apron,
+          is_taxpayer AS is_over_tax,
+          is_subject_to_apron AS is_over_first_apron,
+          apron_level_lk,
+          refreshed_at
+        FROM pcms.team_salary_warehouse
+        WHERE team_code IN (#{in_list})
+          AND salary_year BETWEEN 2025 AND 2030
+        ORDER BY team_code, salary_year
+      SQL
+
+      result = {}
+      rows.each do |row|
+        team_code = row["team_code"]
+        year = row["salary_year"]
+        result[team_code] ||= {}
+        result[team_code][year] = row
+      end
+      result
+    end
+
+    # Fetch team metadata (name, conference, team_id) for a single team
+    def fetch_team_meta(team_code)
+      team_sql = conn.quote(team_code)
+
+      conn.exec_query(<<~SQL).first || {}
+        SELECT
+          team_code,
+          team_name,
+          conference_name,
+          team_id
+        FROM pcms.teams
+        WHERE team_code = #{team_sql}
+          AND league_lk = 'NBA'
+        LIMIT 1
+      SQL
+    end
+
+    # Bulk fetch team metadata for multiple teams
+    def fetch_team_meta_by_code(team_codes)
+      return {} if team_codes.empty?
+
+      in_list = team_codes.map { |c| conn.quote(c) }.join(",")
+
+      rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          team_code,
+          team_name,
+          conference_name,
+          team_id
+        FROM pcms.teams
+        WHERE team_code IN (#{in_list})
+          AND league_lk = 'NBA'
+      SQL
+
+      rows.each_with_object({}) { |row, h| h[row["team_code"]] = row }
     end
   end
 end

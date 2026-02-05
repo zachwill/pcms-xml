@@ -366,4 +366,55 @@ module SalaryBookHelper
   def dead_money_amount(row, year)
     row["cap_#{year}"]
   end
+
+  # -------------------------------------------------------------------------
+  # Team Header KPI helpers
+  # -------------------------------------------------------------------------
+
+  # Format room amounts with +/- sign (e.g., +5.2M, -3.8M)
+  def format_room_amount(value)
+    return "—" if value.nil?
+
+    amount = value.to_f
+    sign = amount >= 0 ? "+" : ""
+    "#{sign}#{format_compact_currency(amount)}"
+  end
+
+  # NBA CDN team logo URL (uses 10-digit team_id)
+  def team_logo_url(team_id)
+    return nil if team_id.nil?
+
+    "https://cdn.nba.com/logos/nba/#{team_id}/primary/L/logo.svg"
+  end
+
+  # Determine KPI variant based on value sign
+  def kpi_variant(value)
+    return "muted" if value.nil?
+
+    value.to_f >= 0 ? "positive" : "negative"
+  end
+
+  # Get tax/apron status for a year
+  def tax_status(summary)
+    return { label: "—", value: "—", variant: "muted" } if summary.nil?
+
+    room_tax = summary["room_under_tax"]&.to_f
+    room_a1 = summary["room_under_first_apron"]&.to_f
+    room_a2 = summary["room_under_second_apron"]&.to_f
+
+    # Check apron levels first (most restrictive)
+    if room_a2.present? && room_a2 < 0
+      return { label: "Apron 2", value: format_room_amount(room_a2), variant: "negative" }
+    end
+
+    if room_a1.present? && room_a1 < 0
+      return { label: "Apron 1", value: format_room_amount(room_a1), variant: "negative" }
+    end
+
+    if room_tax.present? && room_tax < 0
+      return { label: "Tax", value: format_room_amount(room_tax), variant: "negative" }
+    end
+
+    { label: "Under Tax", value: format_room_amount(room_tax), variant: "positive" }
+  end
 end

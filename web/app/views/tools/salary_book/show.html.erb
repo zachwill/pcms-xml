@@ -126,6 +126,8 @@
             exceptions: (@exceptions_by_team[team_code] || []),
             dead_money: (@dead_money_by_team[team_code] || []),
             picks: (@picks_by_team[team_code] || []),
+            team_summaries: (@team_summaries[team_code] || {}),
+            team_meta: (@team_meta_by_code[team_code] || {}),
             year: @salary_year,
             salary_years: @salary_years
           } %>

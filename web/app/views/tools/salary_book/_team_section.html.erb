@@ -2,14 +2,14 @@
   TeamSection — Wrapper for one team's salary book
 
   Contains:
-  - Team Header (sticky) with team name + roster count
+  - Team Header (sticky) with logo, name, conference, and KPI cards
   - Table Header (sticky, attached to team header)
   - Player Rows (double-height)
   - Cap Holds Section (toggle-controlled)
   - Exceptions Section (toggle-controlled)
   - Draft Assets Section (toggle-controlled)
   - Dead Money Section (toggle-controlled)
-  - Totals Footer (TODO)
+  - Totals Footer
 %>
 
 <% salary_years ||= (2025..2030).to_a %>
@@ -17,26 +17,148 @@
 <% exceptions ||= [] %>
 <% dead_money ||= [] %>
 <% picks ||= [] %>
+<% team_summaries ||= {} %>
+<% team_meta ||= {} %>
+
+<%# Extract team info %>
+<% team_name = team_meta["team_name"] || team_code %>
+<% conference = team_meta["conference_name"] || "—" %>
+<% team_id = team_meta["team_id"] %>
+<% logo_url = team_logo_url(team_id) %>
+
+<%# Current year summary for KPI cards %>
+<% current_summary = team_summaries[year] || team_summaries[2025] || {} %>
+<% roster_count = current_summary["roster_row_count"] %>
+<% two_way_count = current_summary["two_way_row_count"] %>
+<% cap_total = current_summary["cap_total"] %>
+<% cap_space = current_summary["cap_space"] %>
+<% room_tax = current_summary["room_under_tax"] %>
+<% room_a1 = current_summary["room_under_first_apron"] %>
+<% room_a2 = current_summary["room_under_second_apron"] %>
 
 <section id="teamsection-<%= team_code %>" class="teamsection" data-teamcode="<%= team_code %>">
   <%# Sticky header group (Team header + Table header) %>
   <div class="teamsection-sticky-header">
     <div data-header-content>
-      <%# Team header %>
-      <header class="teamsection-header">
-        <h2>
-          <a
-            href="#teamsection-<%= team_code %>"
-            data-on:click="$activeteam = '<%= team_code %>'; @get('<%= tools_salary_book_sidebar_team_path(team: team_code, year: year) %>')"
-          ><%= team_code %></a>
-          <span class="teamsection-count"><%= players.length %></span>
-        </h2>
+      <%# Team header with KPIs %>
+      <header class="teamsection-header teamsection-header--kpi">
+        <%# Left section: Logo + Team name + Conference %>
+        <div class="teamsection-header-left">
+          <%# Team logo %>
+          <div class="teamsection-logo">
+            <% if logo_url %>
+              <img
+                src="<%= logo_url %>"
+                alt="<%= team_name %> logo"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+              />
+              <span class="teamsection-logo-fallback" style="display: none;">
+                <%= team_code %>
+              </span>
+            <% else %>
+              <span class="teamsection-logo-fallback">
+                <%= team_code %>
+              </span>
+            <% end %>
+          </div>
 
-        <div class="teamsection-actions">
-          <a
-            href="<%= tools_salary_book_team_section_path(teamcode: team_code, year: year) %>"
-            data-on:click.prevent="@get('<%= tools_salary_book_team_section_path(teamcode: team_code, year: year) %>')"
-          >Reload</a>
+          <%# Team name + Conference %>
+          <div class="teamsection-header-info">
+            <a
+              href="#teamsection-<%= team_code %>"
+              class="teamsection-name"
+              data-on:click="$activeteam = '<%= team_code %>'; @get('<%= tools_salary_book_sidebar_team_path(team: team_code, year: year) %>')"
+            ><%= team_name %></a>
+            <span class="teamsection-conference"><%= conference %></span>
+          </div>
+        </div>
+
+        <%# KPI Cards %>
+        <div class="teamsection-header-kpis">
+          <%# Roster %>
+          <div class="teamsection-kpi-slot">
+            <% if roster_count %>
+              <div class="teamsection-kpi-card" title="Roster count">
+                <span class="teamsection-kpi-label">Roster</span>
+                <span class="teamsection-kpi-value"><%= roster_count %></span>
+              </div>
+            <% end %>
+          </div>
+
+          <%# Two-Way %>
+          <div class="teamsection-kpi-slot">
+            <% if two_way_count %>
+              <div class="teamsection-kpi-card" title="Two-way contracts">
+                <span class="teamsection-kpi-label">Two-Way</span>
+                <span class="teamsection-kpi-value"><%= two_way_count %></span>
+              </div>
+            <% end %>
+          </div>
+
+          <%# Total Salary %>
+          <div class="teamsection-kpi-slot">
+            <% if cap_total %>
+              <div class="teamsection-kpi-card" title="Current year total salary">
+                <span class="teamsection-kpi-label">Total</span>
+                <span class="teamsection-kpi-value"><%= format_compact_currency(cap_total) %></span>
+              </div>
+            <% end %>
+          </div>
+
+          <%# Cap Space %>
+          <div class="teamsection-kpi-slot">
+            <% if cap_space %>
+              <% cs_variant = cap_space.to_f >= 0 ? "positive" : "negative" %>
+              <div class="teamsection-kpi-card teamsection-kpi-card--<%= cs_variant %>" title="Cap space">
+                <span class="teamsection-kpi-label">Cap Space</span>
+                <span class="teamsection-kpi-value teamsection-kpi-value--<%= cs_variant %>">
+                  <%= format_room_amount(cap_space) %>
+                </span>
+              </div>
+            <% end %>
+          </div>
+
+          <%# Tax Room %>
+          <div class="teamsection-kpi-slot">
+            <% if room_tax %>
+              <% tax_variant = room_tax.to_f >= 0 ? "default" : "negative" %>
+              <div class="teamsection-kpi-card teamsection-kpi-card--<%= tax_variant %>" title="Room under luxury tax">
+                <span class="teamsection-kpi-label">Tax Room</span>
+                <span class="teamsection-kpi-value teamsection-kpi-value--<%= tax_variant %>">
+                  <%= format_room_amount(room_tax) %>
+                </span>
+              </div>
+            <% end %>
+          </div>
+
+          <%# Apron 1 %>
+          <div class="teamsection-kpi-slot">
+            <% if room_a1 %>
+              <% a1_variant = room_a1.to_f >= 0 ? "default" : "negative" %>
+              <div class="teamsection-kpi-card teamsection-kpi-card--<%= a1_variant %>" title="Room under first apron">
+                <span class="teamsection-kpi-label">Apron 1</span>
+                <span class="teamsection-kpi-value teamsection-kpi-value--<%= a1_variant %>">
+                  <%= format_room_amount(room_a1) %>
+                </span>
+              </div>
+            <% end %>
+          </div>
+
+          <%# Apron 2 %>
+          <div class="teamsection-kpi-slot">
+            <% if room_a2 %>
+              <% a2_variant = room_a2.to_f >= 0 ? "default" : "negative" %>
+              <div class="teamsection-kpi-card teamsection-kpi-card--<%= a2_variant %>" title="Room under second apron">
+                <span class="teamsection-kpi-label">Apron 2</span>
+                <span class="teamsection-kpi-value teamsection-kpi-value--<%= a2_variant %>">
+                  <%= format_room_amount(room_a2) %>
+                </span>
+              </div>
+            <% end %>
+          </div>
+
+          <%# Agent column spacer %>
+          <div class="teamsection-kpi-spacer"></div>
         </div>
       </header>
 
@@ -115,4 +237,7 @@
       <% end %>
     </div>
   </div>
+
+  <%# Totals Footer %>
+  <%= render partial: "tools/salary_book/totals_footer", locals: { team_summaries: team_summaries } %>
 </section>
