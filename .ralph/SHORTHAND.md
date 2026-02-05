@@ -182,16 +182,11 @@ Guideline: one checkbox = one endnote cluster.
 
 - [x] (bootstrap) Create SHORTHAND backlog file + agent wiring
 
-### Top clusters (generated 2026-02-05)
+### Top clusters (refreshed 2026-02-05)
 
-- [x] Endnote 125 (6 rows) - DET→WAS MF [BKN, DAL] 2027 2nd
-- [x] Endnote 64 (6 rows) - NYK→DET MF [NYK, MIN] 2026 2nd
-- [x] Endnote 52 (6 rows) - OKC→NYK WAS future conditional 1st
-- [x] Endnote 50 (6 rows) - BOS↔SAS 2028 1st swap
-- [x] Endnote 45 (6 rows) - NOP→POR 2027 2nd
-- [x] Endnote 27 (6 rows) - HOU→OKC WAS 1st (via HOU)
+Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` where `primary_todo_reason='missing_shorthand'` and `draft_year >= 2026`.
+
 - [ ] Endnote 16 (6 rows) - PHI→OKC PHI conditional 1st
-- [ ] Endnote 15 (6 rows) - WAS→HOU WAS 1st (conditional)
 - [ ] Endnote 321 (5 rows) - BOS→UTA MF [BOS, NOP] 2031 2nd
 - [ ] Endnote 320 (5 rows) - BOS→UTA MF [BOS, NOP] 2027 2nd
 - [ ] Endnote 319 (5 rows) - SAS→WAS LF [DAL, SAS, TOR] 2027 2nd
@@ -202,13 +197,23 @@ Guideline: one checkbox = one endnote cluster.
 - [ ] Endnote 293 (5 rows) - UTA→CHA MF [UTA, PHX] 2030 2nd
 - [ ] Endnote 291 (5 rows) - ORL→BOS MF [ORL, POR] 2027 2nd
 - [ ] Endnote 248 (5 rows) - PHI→WAS HOU 2026 1st (via PHI)
-- [ ] Endnote 244 (5 rows) - BOS→HOU LF [NOP, CLE] 2027 2nd
 - [ ] Endnote 231 (5 rows) - UTA→PHX (3-pick conditional logic)
 - [ ] Endnote 230 (5 rows) - UTA→PHX LF [UTA 2027, 2028, 2029] 1st
 - [ ] Endnote 202 (5 rows) - NOP→ATL LF [NOP, CLE] 2028 2nd
 - [ ] Endnote 190 (5 rows) - NYK→POR LF [IND, MIL, DEN] 2029 2nd
-- [ ] Endnote 176 (5 rows) - POR→BOS LF [POR, UTA] 2027 2nd
-- [ ] Endnote 157 (5 rows) - DET→WAS LF [NYK, WAS] 2026 2nd
+- [ ] Endnote 156 (5 rows) - OKC→PHI LF [LAC, OKC] 2026 1st (Harden; feeds endnote 248)
+- [ ] Endnote 129 (5 rows) - IND→NYK LF [IND, WAS] 2029 2nd
+- [ ] Endnote 128 (5 rows) - IND→NYK LF [IND, PHX] 2028 2nd
+- [ ] Endnote 123 (5 rows) - MIA→SAS LF [DAL, OKC, PHI] 2026 2nd (Okpala dependency)
+- [ ] Endnote 101 (5 rows) - DEN→OKC “First Allowable Draft” 1st (DEN 2029/2030 1sts)
+
+### Smaller clusters / follow-ups (refreshed 2026-02-05)
+
+- [ ] Endnote 244 (2 rows) - BOS→HOU LF [NOP, CLE] 2027 2nd
+- [ ] Endnote 194 (2 rows) - PHX→NYK BOS 2028 2nd (via PHX; overlaps endnote 50 swap chain)
+- [ ] Endnote 176 (2 rows) - POR→BOS LF [POR, UTA] 2027 2nd
+- [ ] Endnote 157 (2 rows) - DET→WAS LF [NYK, WAS] 2026 2nd
+- [ ] Endnote 50 (1 row) - BOS 2028 2nd outgoing row: “Own or to SAS(50) or to NYK(194)” (likely shorthand `BOS`)
 
 ---
 
@@ -226,3 +231,5 @@ When you complete a cluster, add a bullet here with:
 - Endnote 50 — BOS↔SAS 2028 1st swap (White-Langford-Richardson trade, 2/10/2022). SAS has right to swap their 2028 1st for BOS's 2028 1st (top-1 protected). If swap lapses (BOS gets #1), SAS gets BOS 2028 2nd (picks 31-45 only). Shorthands: `BOS`/`SAS` for 1st round OWN/MAY_HAVE rows, `BOS (p. 1)` for SAS swap right, `BOS (p. 31-45)` for 2nd round fallback.
 - Endnote 45 — NOP→POR 2027 2nd (McCollum trade, 2/8/2022). NOP conveys 2027 2nd to POR, which then feeds into pool logic: CHA gets MF [POR, NOP] (endnote 95), HOU gets LF [NOP, POR] via BOS (endnotes 176, 244). Shorthand: `NOP` for all 4 rows representing the NOP pick's flow through the chain.
 - Endnote 27 — Already covered by endnote 52 (Sengün trade, 7/30/2021). This was the middle step in the HOU→OKC→NYK chain for WAS 1st. All 6 rows already have shorthand from endnote 52 curation: `WAS (p. 1-8)` / `WAS` for NYK's MAY_HAVE, `Own to NYK (p. 1-8)` / `Own to NYK` for WAS outgoing.
+- Endnote 15 — No remaining `missing_shorthand` rows for `draft_year >= 2026` (this endnote is already covered by the Endnote 52 chain; Wall/Westbrook → Sengün → Dieng).
+- Endnote 197 — Cleanup: removed embedded “To WAS:” prefix from POR’s shorthand (`2nd MF [POR, BOS, MIL]`) so direction stays with `vw_draft_pick_assets.display_text`.
