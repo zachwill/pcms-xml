@@ -31,26 +31,15 @@ Tool URL: `/tools/salary-book`
 
 ## Backlog
 
-- [x] Team section parity: Team Header KPIs + Totals Footer
-  - **Do not recompute** totals in Ruby — prefer `pcms.team_salary_warehouse`.
-  - Bulk fetch `pcms.team_salary_warehouse` for all teams across the displayed years, grouped by `team_code`.
-  - Update `TeamHeader` inside each `#teamsection-<TEAM>` sticky header to match spec:
-    - logo (NBA CDN if possible) + team name + conference label
-    - KPI cards: room under tax, apron 1, apron 2, roster count
-  - Add a Totals Footer at the bottom of each team section:
-    - total salary by year
-    - cap space by year
-    - tax/apron status badges (and luxury tax row later if available)
-  - **Important:** `GET /tools/salary-book/teams/:teamcode/section` should render the *full* team section (players + subsections + totals). Right now it only reloads players.
-
-- [x] Expand team sidebar context (`#rightpanel-base`) to match spec
-  - KPI cards: room under tax, first apron, second apron, roster count
-  - Add lightweight tabs (Cap Outlook / Team Stats) - Team Stats can be placeholder
-  - Keep base panel patchable by stable ID (`#rightpanel-base`)
-
-- [x] Expand Player overlay (`#rightpanel-overlay`) to match spec
-  - Contract breakdown by year, guarantee structure, options, trade kicker info
-  - Back already behaves correctly (returns to current viewport team)
+- [ ] Unify displayed year horizon across table + sub-sections + totals footer
+  - **Problem:** main table currently renders through 2030, but sub-sections + totals footer stop at 2029 (visual misalignment).
+  - Decide canonical year set (spec says 2025–2029; current Rails is 2025–2030).
+  - Keep these in sync:
+    - `Tools::SalaryBookController::SALARY_YEARS`
+    - `SalaryBookHelper::SALARY_YEARS` + `SUBSECTION_YEARS`
+    - `_table_header.html.erb`, `_player_row.html.erb`, `_totals_footer.html.erb`
+    - sub-sections (Cap Holds / Exceptions / Draft Assets / Dead Money)
+  - If we keep 2030, extend the sub-section warehouse pivots (cap holds / exceptions / dead money) to include 2030 **or** intentionally render a blank 2030 column for alignment.
 
 - [ ] Add Agent overlay endpoint (v1 scaffold + wire click)
   - `GET /tools/salary-book/sidebar/agent/:id` → patches `#rightpanel-overlay`
@@ -79,6 +68,18 @@ Tool URL: `/tools/salary-book`
 
 ## Done
 
+- [x] Team section parity: Team Header KPIs + Totals Footer
+  - Bulk fetch `pcms.team_salary_warehouse` across the displayed years (don’t recompute totals in Ruby).
+  - `GET /tools/salary-book/teams/:teamcode/section` renders the full team section (header + players + sub-sections + totals footer).
+
+- [x] Expand team sidebar context (`#rightpanel-base`) to match spec
+  - KPI cards + lightweight tabs (Cap Outlook / Team Stats placeholder)
+  - Base panel patchable by stable ID (`#rightpanel-base`)
+
+- [x] Expand Player overlay (`#rightpanel-overlay`) to match spec
+  - Contract breakdown by year, guarantee structure, options, trade kicker / restrictions
+  - Back behaves correctly (returns to current viewport team)
+
 - [x] Tailwind CDN + config in layout
 - [x] Relax CSP for Tailwind CDN + Datastar
 - [x] CSS variables + design tokens in `application.css`
@@ -93,7 +94,7 @@ Tool URL: `/tools/salary-book`
   - When toggles hide/show sections, rebuild scroll-spy cache and snap back to current `$activeteam` so the user doesn't "jump teams".
   - Exposed `window.__salaryBookRebuildCache()` and `window.__salaryBookPreserveContext()` from scroll-spy script
   - Filter checkboxes call `__salaryBookPreserveContext()` on change
-- [x] Player rows are real links enhanced to patch overlay
+- [x] Player rows patch overlay on click + keyboard
 - [x] Render team sub-sections in the main canvas (toggle-controlled)
   - Cap Holds (`pcms.cap_holds_warehouse`)
   - Exceptions (`pcms.exceptions_warehouse`)
