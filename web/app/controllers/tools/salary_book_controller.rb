@@ -353,10 +353,11 @@ module Tools
           MAX(cap_amount) FILTER (WHERE salary_year = 2026)::numeric AS cap_2026,
           MAX(cap_amount) FILTER (WHERE salary_year = 2027)::numeric AS cap_2027,
           MAX(cap_amount) FILTER (WHERE salary_year = 2028)::numeric AS cap_2028,
-          MAX(cap_amount) FILTER (WHERE salary_year = 2029)::numeric AS cap_2029
+          MAX(cap_amount) FILTER (WHERE salary_year = 2029)::numeric AS cap_2029,
+          MAX(cap_amount) FILTER (WHERE salary_year = 2030)::numeric AS cap_2030
         FROM pcms.cap_holds_warehouse
         WHERE team_code IN (#{in_list})
-          AND salary_year BETWEEN 2025 AND 2029
+          AND salary_year BETWEEN 2025 AND 2030
         GROUP BY non_contract_amount_id, team_code, player_id, player_name, amount_type_lk
         ORDER BY team_code, cap_2025 DESC NULLS LAST, player_name ASC NULLS LAST
       SQL
@@ -383,10 +384,11 @@ module Tools
           MAX(remaining_amount) FILTER (WHERE salary_year = 2026)::numeric AS remaining_2026,
           MAX(remaining_amount) FILTER (WHERE salary_year = 2027)::numeric AS remaining_2027,
           MAX(remaining_amount) FILTER (WHERE salary_year = 2028)::numeric AS remaining_2028,
-          MAX(remaining_amount) FILTER (WHERE salary_year = 2029)::numeric AS remaining_2029
+          MAX(remaining_amount) FILTER (WHERE salary_year = 2029)::numeric AS remaining_2029,
+          MAX(remaining_amount) FILTER (WHERE salary_year = 2030)::numeric AS remaining_2030
         FROM pcms.exceptions_warehouse
         WHERE team_code IN (#{in_list})
-          AND salary_year BETWEEN 2025 AND 2029
+          AND salary_year BETWEEN 2025 AND 2030
           AND COALESCE(is_expired, false) = false
         GROUP BY
           team_exception_id,
@@ -419,10 +421,11 @@ module Tools
           MAX(cap_value) FILTER (WHERE salary_year = 2026)::numeric AS cap_2026,
           MAX(cap_value) FILTER (WHERE salary_year = 2027)::numeric AS cap_2027,
           MAX(cap_value) FILTER (WHERE salary_year = 2028)::numeric AS cap_2028,
-          MAX(cap_value) FILTER (WHERE salary_year = 2029)::numeric AS cap_2029
+          MAX(cap_value) FILTER (WHERE salary_year = 2029)::numeric AS cap_2029,
+          MAX(cap_value) FILTER (WHERE salary_year = 2030)::numeric AS cap_2030
         FROM pcms.dead_money_warehouse
         WHERE team_code IN (#{in_list})
-          AND salary_year BETWEEN 2025 AND 2029
+          AND salary_year BETWEEN 2025 AND 2030
         GROUP BY transaction_waiver_amount_id, team_code, player_id, player_name, waive_date
         ORDER BY team_code, cap_2025 DESC NULLS LAST, player_name ASC NULLS LAST
       SQL

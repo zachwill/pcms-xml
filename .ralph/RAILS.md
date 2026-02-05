@@ -31,15 +31,11 @@ Tool URL: `/tools/salary-book`
 
 ## Backlog
 
-- [ ] Unify displayed year horizon across table + sub-sections + totals footer
+- [x] Unify displayed year horizon across table + sub-sections + totals footer
   - **Problem:** main table currently renders through 2030, but sub-sections + totals footer stop at 2029 (visual misalignment).
-  - Decide canonical year set (spec says 2025–2029; current Rails is 2025–2030).
-  - Keep these in sync:
-    - `Tools::SalaryBookController::SALARY_YEARS`
-    - `SalaryBookHelper::SALARY_YEARS` + `SUBSECTION_YEARS`
-    - `_table_header.html.erb`, `_player_row.html.erb`, `_totals_footer.html.erb`
-    - sub-sections (Cap Holds / Exceptions / Draft Assets / Dead Money)
-  - If we keep 2030, extend the sub-section warehouse pivots (cap holds / exceptions / dead money) to include 2030 **or** intentionally render a blank 2030 column for alignment.
+  - **Solution:** Removed `SUBSECTION_YEARS` constant; all views now use `SALARY_YEARS` (2025–2030).
+  - Updated controller SQL pivots (cap_holds, exceptions, dead_money) to include 2030.
+  - Warehouses without 2030 data (cap_holds, exceptions) will render blank columns for visual alignment.
 
 - [ ] Add Agent overlay endpoint (v1 scaffold + wire click)
   - `GET /tools/salary-book/sidebar/agent/:id` → patches `#rightpanel-overlay`

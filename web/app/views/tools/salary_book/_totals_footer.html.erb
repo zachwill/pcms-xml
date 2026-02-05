@@ -8,7 +8,6 @@
   - show_tax_aprons: boolean (default: true)
 %>
 
-<% salary_years = (2025..2029).to_a %>
 <% show_tax_aprons = local_assigns.fetch(:show_tax_aprons, true) %>
 
 <div class="totals-footer">
@@ -24,7 +23,7 @@
     </div>
 
     <div class="totals-values">
-      <% salary_years.each do |year| %>
+      <% SALARY_YEARS.each do |year| %>
         <% summary = team_summaries[year] %>
         <% cap_total = summary&.dig("cap_total") %>
         <div class="totals-year-cell">
@@ -53,7 +52,7 @@
     </div>
 
     <div class="totals-values">
-      <% salary_years.each do |year| %>
+      <% SALARY_YEARS.each do |year| %>
         <% summary = team_summaries[year] %>
         <% cap_space = summary&.dig("cap_space") %>
         <% variant = cap_space && cap_space.to_f >= 0 ? "positive" : "negative" %>
@@ -85,7 +84,7 @@
       </div>
 
       <div class="totals-values">
-        <% salary_years.each do |year| %>
+        <% SALARY_YEARS.each do |year| %>
           <% summary = team_summaries[year] %>
           <% status = tax_status(summary) %>
           <div class="totals-year-cell">

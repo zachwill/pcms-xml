@@ -1,4 +1,6 @@
 module SalaryBookHelper
+  # Canonical year horizon for the salary book (keep in sync with controller).
+  # If you change this, also update the SQL warehouse pivots in the controller.
   SALARY_YEARS = (2025..2030).to_a.freeze
 
   # Format year as "YY-YY" label (e.g., 2025 → "25-26")
@@ -247,7 +249,7 @@ module SalaryBookHelper
   end
 
   def exception_primary_amount(row)
-    SUBSECTION_YEARS.each do |year|
+    SALARY_YEARS.each do |year|
       amt = row["remaining_#{year}"]
       return amt.to_f if amt.present? && amt.to_f > 0
     end
