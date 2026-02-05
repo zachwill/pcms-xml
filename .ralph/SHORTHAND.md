@@ -189,7 +189,7 @@ As of this refresh: **218 rows** remain with `primary_todo_reason='missing_short
 Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` where `primary_todo_reason='missing_shorthand'` and `draft_year >= 2026`.
 
 - [x] Endnote 128 (5 rows) - IND→NYK LF [IND, PHX] 2028 2nd
-- [ ] Endnote 101 (5 rows) - DEN→OKC "First Allowable Draft" 1st (DEN 2029/2030 1sts)
+- [x] Endnote 101 (5 rows) - DEN→OKC "First Allowable Draft" 1st (DEN 2029/2030 1sts)
 - [ ] Endnote 47 (5 rows) - UTA→SAS LF [HOU, IND] 2027 2nd
 - [ ] Endnote 30 (5 rows) - OKC→UTA LF [OKC, HOU] 2027 2nd
 - [ ] Endnote 19 (5 rows) - DET→OKC HOU 2027 2nd (via DET; depends on endnote 10)
@@ -346,3 +346,4 @@ When you complete a cluster, add a bullet here with:
 - Endnote 109 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; endnote covered by the Endnote 190 chain curation (WAS→IND step).
 - Endnote 8 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; endnote covered by the Endnote 202 curation (MIL pick source in the NOP/ATL pool).
 - Endnote 128 — IND→NYK Toppin trade (7/7/2023). NYK receives LF [IND, PHX] 2028 2nd. PHX pick flows to IND via endnote 107 (Beal trade). Shorthands: `LF [IND, PHX]` for NYK MAY_HAVE rows, `IND`/`PHX` for origin rows. Direction-aware: `To NYK: PHX` for PHX outgoing.
+- Endnote 101 — DEN→OKC "First Allowable Draft" 1st (Pickett-Strawther trade, 6/23/2023). OKC receives DEN 1st 2 years after endnote 53 pick conveys (determined to be 2029). Top-5 protected 2029 and 2030; if not conveyed by 2030, OKC gets DEN 2030 2nd unconditionally. Shorthands: `DEN (p. 1-5)` for OKC MAY_HAVE and DEN OWN 1st round rows, `DEN` for 2nd round fallback. Direction-aware: `To OKC: DEN` for 2nd round outgoing.
