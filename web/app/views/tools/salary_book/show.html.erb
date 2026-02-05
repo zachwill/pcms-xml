@@ -62,6 +62,7 @@
                   type="checkbox"
                   id="filter-capholds"
                   data-bind="displaycapholds"
+                  data-on:change="window.__salaryBookPreserveContext?.()"
                 />
                 <span class="filter-checkbox-label">Cap Holds</span>
               </label>
@@ -70,6 +71,7 @@
                   type="checkbox"
                   id="filter-exceptions"
                   data-bind="displayexceptions"
+                  data-on:change="window.__salaryBookPreserveContext?.()"
                 />
                 <span class="filter-checkbox-label">Exceptions</span>
               </label>
@@ -78,6 +80,7 @@
                   type="checkbox"
                   id="filter-draftpicks"
                   data-bind="displaydraftpicks"
+                  data-on:change="window.__salaryBookPreserveContext?.()"
                 />
                 <span class="filter-checkbox-label">Draft Picks</span>
               </label>
@@ -86,6 +89,7 @@
                   type="checkbox"
                   id="filter-deadmoney"
                   data-bind="displaydeadmoney"
+                  data-on:change="window.__salaryBookPreserveContext?.()"
                 />
                 <span class="filter-checkbox-label">Dead Money</span>
               </label>
@@ -356,6 +360,54 @@
 
     // Expose globally for use in Datastar expressions
     window.__salaryBookScrollToTeam = scrollToTeam;
+
+    // Expose rebuildCache for external callers
+    window.__salaryBookRebuildCache = rebuildCache;
+
+    /**
+     * Preserve context after layout changes (e.g., filter toggles).
+     *
+     * When sections are shown/hidden, their offsetTop values change. This function:
+     * 1. Waits a frame for Datastar to apply display changes
+     * 2. Rebuilds the scroll-spy cache with new offsets
+     * 3. Snaps back to the current active team with instant scroll
+     *
+     * This prevents the user from "jumping teams" when toggling filters.
+     */
+    const preserveContext = () => {
+      // Wait for next frame so Datastar has applied display changes
+      requestAnimationFrame(() => {
+        // Rebuild cache with new section positions
+        rebuildCache();
+
+        // Find the current active team and snap back to it
+        if (lastActiveTeam) {
+          const section = cachedSections.find(s => s.code === lastActiveTeam);
+          if (section) {
+            // Use instant scroll (no animation) to preserve context seamlessly
+            const maxScroll = main.scrollHeight - main.clientHeight;
+            main.scrollTo({
+              top: Math.max(0, Math.min(section.top, maxScroll)),
+              behavior: "instant"
+            });
+
+            // Lock to this team briefly to prevent any flicker
+            forcedActiveTeam = lastActiveTeam;
+            forcedTargetTop = section.top;
+
+            // Clear lock after a short delay (scroll is instant, so this is just safety)
+            setTimeout(() => {
+              if (forcedActiveTeam === lastActiveTeam) {
+                forcedActiveTeam = null;
+                forcedTargetTop = null;
+              }
+            }, 50);
+          }
+        }
+      });
+    };
+
+    window.__salaryBookPreserveContext = preserveContext;
 
     // ---------------------------------------------------------------------------
     // Initial dispatch

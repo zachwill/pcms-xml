@@ -31,9 +31,10 @@ Tool URL: `/tools/salary-book`
 
 ## Backlog
 
-- [ ] Filter toggle UX: preserve context after layout changes
+- [x] Filter toggle UX: preserve context after layout changes
   - When toggles hide/show sections, rebuild scroll-spy cache and snap back to current `$activeteam` (instant scroll) so the user doesn't "jump teams".
-  - (Implementation idea) expose `window.__salaryBookRebuildCache()` from the scroll-spy script and call it from `data-on:change` on filter inputs.
+  - Exposed `window.__salaryBookRebuildCache()` and `window.__salaryBookPreserveContext()` from scroll-spy script
+  - Filter checkboxes call `__salaryBookPreserveContext()` on change
 
 - [ ] Add per-team Totals Footer
   - Total salary by year
