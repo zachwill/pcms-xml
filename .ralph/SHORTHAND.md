@@ -192,7 +192,7 @@ Note: there are currently **no 5-row clusters**; the largest clusters are 4 rows
 
 All entries below are currently tied at 4 rows; ordered by endnote_id desc.
 
-- [ ] Endnote 304 (4 rows) - ATL/HOU 2031 2nd (swap rights)
+- [x] Endnote 304 (4 rows) - ATL/HOU 2031 2nd (swap rights)
 - [ ] Endnote 283 (4 rows) - ATL/MIL/NOP 2026 1st ("Resulting Pick" swap/conditional chain)
 - [ ] Endnote 256 (4 rows) - DET/GSW/MIN 2031 2nd
 - [ ] Endnote 241 (4 rows) - NOP/OKC/ORL 2031 2nd
@@ -337,3 +337,4 @@ When you complete a cluster, add a bullet here with:
 - Endnotes 210 + 239 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; these are now covered by Endnote 101's DEN 2030 2nd fallback chain.
 - Endnotes 10 + 12 + 19 + 20 + 30 + 124 + 187 + 188 — No remaining `missing_shorthand` rows for `draft_year >= 2026` (covered by the Endnote 47 OKC 2027 2nd pool work); removed from active backlog.
 - Endnote 50 (follow-up) — As of 2026-02-05, `pcms.vw_draft_pick_shorthand_todo` still shows 1 `missing_shorthand` row tied to endnote 50 (BOS 2028 2nd outgoing row). Keep this endnote in the One-offs section until resolved.
+- Endnote 304 — HOU→ATL swap rights for 2031 2nd (massive trade, 7/6/2025). ATL has right to swap their 2031 2nd for HOU's, but only if HOU's pick is in picks 31-55. Shorthands: `ATL` for ATL OWN and HOU MAY_HAVE ATL rows, `HOU (p. 31-55)` for ATL MAY_HAVE HOU (reflects protection), `HOU` for HOU OWN.
