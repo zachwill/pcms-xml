@@ -189,7 +189,7 @@ Guideline: one checkbox = one endnote cluster.
 - [x] Endnote 52 (6 rows) - OKC→NYK WAS future conditional 1st
 - [x] Endnote 50 (6 rows) - BOS↔SAS 2028 1st swap
 - [x] Endnote 45 (6 rows) - NOP→POR 2027 2nd
-- [ ] Endnote 27 (6 rows) - HOU→OKC WAS 1st (via HOU)
+- [x] Endnote 27 (6 rows) - HOU→OKC WAS 1st (via HOU)
 - [ ] Endnote 16 (6 rows) - PHI→OKC PHI conditional 1st
 - [ ] Endnote 15 (6 rows) - WAS→HOU WAS 1st (conditional)
 - [ ] Endnote 321 (5 rows) - BOS→UTA MF [BOS, NOP] 2031 2nd
@@ -225,3 +225,4 @@ When you complete a cluster, add a bullet here with:
 - Endnote 52 — OKC→NYK conveys WAS future conditional 1st (Dieng trade, 6/23/2022). Full chain: Endnotes 15→27→52 (Wall-Westbrook → Sengün → Dieng). NYK receives WAS 2026 1st if 9-30 (top-8 protected); if not conveyed, NYK instead receives WAS 2026+2027 2nds. Shorthands: `WAS (p. 1-8)` for the 1st, `WAS` for the fallback 2nds, `Own to NYK (p. 1-8)` / `Own to NYK` for WAS outgoing rows.
 - Endnote 50 — BOS↔SAS 2028 1st swap (White-Langford-Richardson trade, 2/10/2022). SAS has right to swap their 2028 1st for BOS's 2028 1st (top-1 protected). If swap lapses (BOS gets #1), SAS gets BOS 2028 2nd (picks 31-45 only). Shorthands: `BOS`/`SAS` for 1st round OWN/MAY_HAVE rows, `BOS (p. 1)` for SAS swap right, `BOS (p. 31-45)` for 2nd round fallback.
 - Endnote 45 — NOP→POR 2027 2nd (McCollum trade, 2/8/2022). NOP conveys 2027 2nd to POR, which then feeds into pool logic: CHA gets MF [POR, NOP] (endnote 95), HOU gets LF [NOP, POR] via BOS (endnotes 176, 244). Shorthand: `NOP` for all 4 rows representing the NOP pick's flow through the chain.
+- Endnote 27 — Already covered by endnote 52 (Sengün trade, 7/30/2021). This was the middle step in the HOU→OKC→NYK chain for WAS 1st. All 6 rows already have shorthand from endnote 52 curation: `WAS (p. 1-8)` / `WAS` for NYK's MAY_HAVE, `Own to NYK (p. 1-8)` / `Own to NYK` for WAS outgoing.
