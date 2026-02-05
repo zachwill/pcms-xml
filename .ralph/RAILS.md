@@ -32,14 +32,30 @@ Tool URL: `/tools/salary-book`
 ## Backlog
 
 - [ ] Filter Toggles parity (Financials + Contracts) (client-only lenses)
-  - Add new flatcase signals + UI checkboxes:
-    - Financials: `displaytaxaprons` (default **true**), `displaycashvscap` (false), `displayluxurytax` (false)
-    - Contracts: `displayoptions` (true), `displayincentives` (true), `displaytwoway` (true)
-  - Preserve context on change (call `window.__salaryBookPreserveContext?.()` like the Display group)
+  - Add new flatcase signals (defaults match `web/specs/01-salary-book.md`):
+    - Financials:
+      - `displaytaxaprons` (**true**)
+      - `displaycashvscap` (false)
+      - `displayluxurytax` (false)
+    - Contracts:
+      - `displayoptions` (**true**)
+      - `displayincentives` (**true**)
+      - `displaytwoway` (**true**)
+  - UI: add **Financials** + **Contracts** filter groups in the command bar
+    - Use checkboxes bound via `data-bind`
+    - On change: call `window.__salaryBookPreserveContext?.()` (same as Display group)
   - Wire v1 behavior (no server calls):
-    - `displaytaxaprons`: hide/show Tax Status row in totals footer + tax/apron KPI rows/cards where they exist
+    - `displaytaxaprons`: hide/show tax+apron surfaces via `data-show`:
+      - Team section header KPI cards: Tax Room, Apron 1, Apron 2
+      - Sidebar team context: Tax Status badge + Room Under Tax/Aprons rows
+      - Totals footer: Tax Status row
     - `displaytwoway`: hide/show two-way players in the main table (client-side)
-    - `displayoptions` / `displayincentives`: start by gating badges/tooltips (avoid per-cell `data-class` unless needed)
+      - Prefer `data-show` on the player row root so row height collapses cleanly
+    - `displayoptions`: start by gating option *badges/tooltips* (avoid per-cell `data-class` unless needed)
+      - At minimum: hide option badges in the Player overlay Year-by-Year section
+    - `displayincentives`: start by gating incentive *badges/tooltips*
+      - At minimum: hide likely/unlikely bonus rows in the Player overlay Year-by-Year section
+    - `displaycashvscap` / `displayluxurytax`: ok to ship as UI-only (no-op) until we render those rows/cards
 
 ---
 
@@ -59,8 +75,9 @@ NOTE: BrickLink-style **entity pages** now have their own backlog + agent:
 
 - [x] Add Pick overlay endpoint (v1 scaffold + wire click)
   - Route: `GET /tools/salary-book/sidebar/pick?team=:code&year=:year&round=:round` → patches `#rightpanel-overlay`
-  - New partial: `_sidebar_pick.html.erb` (pick identity badge, status badges, provenance, PCMS description, protections)
-  - Wired pick pill clicks in `_draft_assets_section.html.erb`
+  - Data: `pcms.draft_pick_summary_assets` (with `endnote_explanation` when present)
+  - View: `_sidebar_pick.html.erb` (single stable root: `<div id="rightpanel-overlay">…</div>`)
+  - Wired pick pills in `_draft_assets_section.html.erb` via `@get()`
 
 - [x] Add Agent overlay endpoint (v1 scaffold + wire click)
   - Route: `GET /tools/salary-book/sidebar/agent/:id` → patches `#rightpanel-overlay`
@@ -68,12 +85,12 @@ NOTE: BrickLink-style **entity pages** now have their own backlog + agent:
   - Wired agent clicks in `_player_row.html.erb` and `_sidebar_player.html.erb`
 
 - [x] Unify displayed year horizon across table + sub-sections + totals footer
-  - Canonical horizon is now **2025-2030** everywhere (table, sub-sections, totals footer).
+  - Canonical horizon is now **2025–2030** everywhere (table, sub-sections, totals footer).
   - Removed the old subsection-year split; all views use `SALARY_YEARS`.
   - Updated controller SQL pivots (cap_holds, exceptions, dead_money) to include 2030.
 
 - [x] Team section parity: Team Header KPIs + Totals Footer
-  - Bulk fetch `pcms.team_salary_warehouse` across the displayed years (don't recompute totals in Ruby).
+  - Bulk fetch `pcms.team_salary_warehouse` across the displayed years (don’t recompute totals in Ruby).
   - `GET /tools/salary-book/teams/:teamcode/section` renders the full team section (header + players + sub-sections + totals footer).
 
 - [x] Expand team sidebar context (`#rightpanel-base`) to match spec
