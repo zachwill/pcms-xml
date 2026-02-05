@@ -124,6 +124,19 @@ module Tools
       render partial: "tools/salary_book/sidebar_clear", layout: false
     end
 
+    # GET /tools/salary-book/sidebar/agent/:id
+    def sidebar_agent
+      agent_id = Integer(params[:id])
+      agent = fetch_agent(agent_id)
+      raise ActiveRecord::RecordNotFound unless agent
+
+      clients = fetch_agent_clients(agent_id)
+
+      render partial: "tools/salary_book/sidebar_agent", locals: { agent:, clients: }, layout: false
+    rescue ArgumentError
+      raise ActiveRecord::RecordNotFound
+    end
+
     private
 
     def conn
@@ -548,6 +561,57 @@ module Tools
       SQL
 
       rows.each_with_object({}) { |row, h| h[row["team_code"]] = row }
+    end
+
+    # -------------------------------------------------------------------------
+    # Agent data (for sidebar overlay)
+    # -------------------------------------------------------------------------
+
+    def fetch_agent(agent_id)
+      id_sql = conn.quote(agent_id)
+
+      conn.exec_query(<<~SQL).first
+        SELECT
+          agent_id,
+          full_name AS name,
+          agency_id,
+          agency_name
+        FROM pcms.agents
+        WHERE agent_id = #{id_sql}
+        LIMIT 1
+      SQL
+    end
+
+    def fetch_agent_clients(agent_id)
+      id_sql = conn.quote(agent_id)
+
+      conn.exec_query(<<~SQL).to_a
+        SELECT
+          s.player_id,
+          COALESCE(
+            NULLIF(TRIM(CONCAT_WS(' ', p.display_first_name, p.display_last_name)), ''),
+            s.player_name
+          ) AS player_name,
+          p.display_first_name,
+          p.display_last_name,
+          COALESCE(NULLIF(s.person_team_code, ''), s.team_code) AS team_code,
+          s.age,
+          p.years_of_service,
+          s.cap_2025::numeric,
+          s.cap_2026::numeric,
+          s.cap_2027::numeric,
+          s.cap_2028::numeric,
+          s.cap_2029::numeric,
+          s.cap_2030::numeric,
+          COALESCE(s.is_two_way, false)::boolean AS is_two_way,
+          t.team_id,
+          t.team_name
+        FROM pcms.salary_book_warehouse s
+        LEFT JOIN pcms.people p ON s.player_id = p.person_id
+        LEFT JOIN pcms.teams t ON s.team_code = t.team_code AND t.league_lk = 'NBA'
+        WHERE s.agent_id = #{id_sql}
+        ORDER BY s.cap_2025 DESC NULLS LAST, player_name
+      SQL
     end
   end
 end

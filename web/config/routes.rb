@@ -11,6 +11,7 @@ Rails.application.routes.draw do
     get "salary-book/teams/:teamcode/section", to: "salary_book#team_section", as: :salary_book_team_section
     get "salary-book/sidebar/team", to: "salary_book#sidebar_team", as: :salary_book_sidebar_team
     get "salary-book/sidebar/player/:id", to: "salary_book#sidebar_player", as: :salary_book_sidebar_player
+    get "salary-book/sidebar/agent/:id", to: "salary_book#sidebar_agent", as: :salary_book_sidebar_agent
     get "salary-book/sidebar/clear", to: "salary_book#sidebar_clear", as: :salary_book_sidebar_clear
 
     # SSE demo endpoints (prove Rails ActionController::Live + Datastar framing)
