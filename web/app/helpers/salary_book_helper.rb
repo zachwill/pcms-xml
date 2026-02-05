@@ -1,6 +1,5 @@
 module SalaryBookHelper
   SALARY_YEARS = (2025..2030).to_a.freeze
-  SUBSECTION_YEARS = (2025..2029).to_a.freeze  # Sub-sections only show 5 years
 
   # Format year as "YY-YY" label (e.g., 2025 → "25-26")
   def format_year_label(year)

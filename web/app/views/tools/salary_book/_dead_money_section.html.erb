@@ -30,7 +30,7 @@
       </div>
 
       <%# Year columns %>
-      <% SUBSECTION_YEARS.each do |year| %>
+      <% SALARY_YEARS.each do |year| %>
         <% amt = dead_money_amount(row, year) %>
         <% is_empty = amt.nil? || amt.to_f == 0 %>
         <div class="subsection-year-cell <%= 'subsection-year-cell--empty' if is_empty %>">
