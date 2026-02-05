@@ -58,7 +58,7 @@ module Entities
       id_sql = conn.quote(@team_id)
 
       @team = conn.exec_query(<<~SQL).first
-        SELECT team_id, team_code, team_name, conference_name
+        SELECT team_id, team_code, team_name, conference_name, city, division_name
         FROM pcms.teams
         WHERE team_id = #{id_sql}
         LIMIT 1
@@ -75,11 +75,119 @@ module Entities
           sbw.team_code,
           sbw.agent_id,
           sbw.agent_name,
+          sbw.is_two_way,
+          sbw.is_min_contract,
+          sbw.is_trade_restricted_now,
           sbw.cap_2025::numeric AS cap_2025,
           sbw.total_salary_from_2025::numeric AS total_salary_from_2025
         FROM pcms.salary_book_warehouse sbw
         WHERE sbw.team_code = #{code_sql}
         ORDER BY sbw.cap_2025 DESC NULLS LAST, sbw.total_salary_from_2025 DESC NULLS LAST, sbw.player_name
+      SQL
+
+      # Team cap dashboard (2025-2031) + computed luxury tax.
+      @team_salary_rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          tsw.salary_year,
+          tsw.cap_total,
+          tsw.cap_total_hold,
+          tsw.tax_total,
+          tsw.apron_total,
+          tsw.mts_total,
+          tsw.salary_cap_amount,
+          tsw.tax_level_amount,
+          tsw.tax_apron_amount,
+          tsw.tax_apron2_amount,
+          tsw.over_cap,
+          tsw.room_under_tax,
+          tsw.room_under_apron1,
+          tsw.room_under_apron2,
+          tsw.is_taxpayer,
+          tsw.is_repeater_taxpayer,
+          tsw.is_subject_to_apron,
+          tsw.apron_level_lk,
+          tsw.roster_row_count,
+          tsw.fa_row_count,
+          tsw.term_row_count,
+          tsw.two_way_row_count,
+          pcms.fn_luxury_tax_amount(
+            tsw.salary_year,
+            GREATEST(COALESCE(tsw.tax_total, 0) - COALESCE(tsw.tax_level_amount, 0), 0),
+            COALESCE(tsw.is_repeater_taxpayer, false)
+          ) AS luxury_tax_owed,
+          tsw.refreshed_at
+        FROM pcms.team_salary_warehouse tsw
+        WHERE tsw.team_code = #{code_sql}
+          AND tsw.salary_year BETWEEN 2025 AND 2031
+        ORDER BY tsw.salary_year
+      SQL
+
+      @cap_holds = conn.exec_query(<<~SQL).to_a
+        SELECT
+          non_contract_amount_id AS id,
+          player_id,
+          player_name,
+          amount_type_lk,
+          MAX(cap_amount) FILTER (WHERE salary_year = 2025)::numeric AS cap_2025,
+          MAX(cap_amount) FILTER (WHERE salary_year = 2026)::numeric AS cap_2026,
+          MAX(cap_amount) FILTER (WHERE salary_year = 2027)::numeric AS cap_2027,
+          MAX(cap_amount) FILTER (WHERE salary_year = 2028)::numeric AS cap_2028,
+          MAX(cap_amount) FILTER (WHERE salary_year = 2029)::numeric AS cap_2029,
+          MAX(cap_amount) FILTER (WHERE salary_year = 2030)::numeric AS cap_2030
+        FROM pcms.cap_holds_warehouse
+        WHERE team_code = #{code_sql}
+          AND salary_year BETWEEN 2025 AND 2030
+        GROUP BY non_contract_amount_id, player_id, player_name, amount_type_lk
+        ORDER BY cap_2025 DESC NULLS LAST, player_name ASC NULLS LAST
+      SQL
+
+      @exceptions = conn.exec_query(<<~SQL).to_a
+        SELECT
+          team_exception_id AS id,
+          exception_type_lk,
+          exception_type_name,
+          trade_exception_player_id,
+          trade_exception_player_name,
+          expiration_date,
+          is_expired,
+          MAX(remaining_amount) FILTER (WHERE salary_year = 2025)::numeric AS remaining_2025,
+          MAX(remaining_amount) FILTER (WHERE salary_year = 2026)::numeric AS remaining_2026,
+          MAX(remaining_amount) FILTER (WHERE salary_year = 2027)::numeric AS remaining_2027,
+          MAX(remaining_amount) FILTER (WHERE salary_year = 2028)::numeric AS remaining_2028,
+          MAX(remaining_amount) FILTER (WHERE salary_year = 2029)::numeric AS remaining_2029,
+          MAX(remaining_amount) FILTER (WHERE salary_year = 2030)::numeric AS remaining_2030
+        FROM pcms.exceptions_warehouse
+        WHERE team_code = #{code_sql}
+          AND salary_year BETWEEN 2025 AND 2030
+          AND COALESCE(is_expired, false) = false
+        GROUP BY
+          team_exception_id,
+          exception_type_lk,
+          exception_type_name,
+          trade_exception_player_id,
+          trade_exception_player_name,
+          expiration_date,
+          is_expired
+        ORDER BY remaining_2025 DESC NULLS LAST, exception_type_name ASC NULLS LAST
+      SQL
+
+      @dead_money = conn.exec_query(<<~SQL).to_a
+        SELECT
+          transaction_waiver_amount_id AS id,
+          player_id,
+          player_name,
+          waive_date,
+          MAX(cap_value) FILTER (WHERE salary_year = 2025)::numeric AS cap_2025,
+          MAX(cap_value) FILTER (WHERE salary_year = 2026)::numeric AS cap_2026,
+          MAX(cap_value) FILTER (WHERE salary_year = 2027)::numeric AS cap_2027,
+          MAX(cap_value) FILTER (WHERE salary_year = 2028)::numeric AS cap_2028,
+          MAX(cap_value) FILTER (WHERE salary_year = 2029)::numeric AS cap_2029,
+          MAX(cap_value) FILTER (WHERE salary_year = 2030)::numeric AS cap_2030
+        FROM pcms.dead_money_warehouse
+        WHERE team_code = #{code_sql}
+          AND salary_year BETWEEN 2025 AND 2030
+        GROUP BY transaction_waiver_amount_id, player_id, player_name, waive_date
+        ORDER BY cap_2025 DESC NULLS LAST, player_name ASC NULLS LAST
       SQL
 
       # Draft pick assets (future picks) — same source as Salary Book draft pills.
@@ -101,6 +209,62 @@ module Entities
         WHERE team_code = #{code_sql}
           AND draft_year BETWEEN 2025 AND 2030
         ORDER BY draft_year, draft_round, asset_slot, sub_asset_slot
+      SQL
+
+      @recent_ledger_entries = conn.exec_query(<<~SQL).to_a
+        SELECT
+          le.ledger_date,
+          le.salary_year,
+          le.transaction_id,
+          tx.trade_id,
+          le.player_id,
+          COALESCE(
+            NULLIF(TRIM(CONCAT_WS(' ', p.display_first_name, p.display_last_name)), ''),
+            NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+            le.player_id::text
+          ) AS player_name,
+          le.transaction_type_lk,
+          le.transaction_description_lk,
+          le.cap_amount,
+          le.cap_change,
+          le.tax_change,
+          le.apron_change,
+          le.mts_change
+        FROM pcms.ledger_entries le
+        LEFT JOIN pcms.transactions tx ON tx.transaction_id = le.transaction_id
+        LEFT JOIN pcms.people p ON p.person_id = le.player_id
+        WHERE le.team_id = #{id_sql}
+          AND le.league_lk = 'NBA'
+        ORDER BY le.ledger_date DESC, le.transaction_ledger_entry_id DESC
+        LIMIT 80
+      SQL
+
+      @exception_usage_rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          teu.effective_date,
+          teu.exception_action_lk,
+          teu.transaction_type_lk,
+          teu.transaction_id,
+          tx.trade_id,
+          teu.player_id,
+          COALESCE(
+            NULLIF(TRIM(CONCAT_WS(' ', p.display_first_name, p.display_last_name)), ''),
+            NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+            teu.player_id::text
+          ) AS player_name,
+          te.exception_type_lk,
+          teu.change_amount,
+          teu.remaining_exception_amount
+        FROM pcms.team_exception_usage teu
+        JOIN pcms.team_exceptions te
+          ON te.team_exception_id = teu.team_exception_id
+        LEFT JOIN pcms.transactions tx
+          ON tx.transaction_id = teu.transaction_id
+        LEFT JOIN pcms.people p
+          ON p.person_id = teu.player_id
+        WHERE te.team_id = #{id_sql}
+        ORDER BY teu.effective_date DESC NULLS LAST, teu.seqno DESC NULLS LAST
+        LIMIT 80
       SQL
 
       render :show

@@ -65,6 +65,12 @@ Rails.application.routes.draw do
     # ---------------------------------------------------------------------
     get "draft-picks/:team_code/:year/:round", to: "draft_picks#show", as: :draft_pick,
       constraints: { team_code: /[A-Za-z]{3}/, year: /\d{4}/, round: /1|2/ }
+
+    # ---------------------------------------------------------------------
+    # Transactions / trades (numeric canonical for now)
+    # ---------------------------------------------------------------------
+    get "transactions/:id", to: "transactions#show", as: :transaction, constraints: { id: /\d+/ }
+    get "trades/:id", to: "trades#show", as: :trade, constraints: { id: /\d+/ }
   end
 
   root "tools/salary_book#show"

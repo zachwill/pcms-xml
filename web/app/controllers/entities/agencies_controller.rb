@@ -57,10 +57,93 @@ module Entities
       raise ActiveRecord::RecordNotFound unless @agency
 
       @agents = conn.exec_query(<<~SQL).to_a
-        SELECT agent_id, full_name, is_active
-        FROM pcms.agents
-        WHERE agency_id = #{id_sql}
-        ORDER BY full_name
+        SELECT
+          ag.agent_id,
+          ag.full_name,
+          ag.is_active,
+          COUNT(sbw.player_id)::integer AS client_count,
+          COALESCE(SUM(sbw.cap_2025), 0)::bigint AS cap_2025_total,
+          COALESCE(SUM(sbw.total_salary_from_2025), 0)::bigint AS total_salary_from_2025
+        FROM pcms.agents ag
+        LEFT JOIN pcms.salary_book_warehouse sbw
+          ON sbw.agent_id = ag.agent_id
+        WHERE ag.agency_id = #{id_sql}
+        GROUP BY ag.agent_id, ag.full_name, ag.is_active
+        ORDER BY cap_2025_total DESC NULLS LAST, ag.full_name
+      SQL
+
+      @agency_rollup = conn.exec_query(<<~SQL).first || {}
+        SELECT
+          COUNT(DISTINCT ag.agent_id)::integer AS agent_count,
+          COUNT(sbw.player_id)::integer AS client_count,
+          COUNT(DISTINCT sbw.team_code)::integer AS team_count,
+          COALESCE(SUM(sbw.cap_2025), 0)::bigint AS cap_2025_total,
+          COALESCE(SUM(sbw.total_salary_from_2025), 0)::bigint AS total_salary_from_2025,
+          COUNT(sbw.player_id) FILTER (WHERE sbw.is_two_way)::integer AS two_way_count,
+          COUNT(sbw.player_id) FILTER (WHERE sbw.is_min_contract)::integer AS min_contract_count
+        FROM pcms.agents ag
+        LEFT JOIN pcms.salary_book_warehouse sbw
+          ON sbw.agent_id = ag.agent_id
+        WHERE ag.agency_id = #{id_sql}
+      SQL
+
+      @team_distribution = conn.exec_query(<<~SQL).to_a
+        SELECT
+          sbw.team_code,
+          t.team_id,
+          t.team_name,
+          COUNT(sbw.player_id)::integer AS client_count,
+          COALESCE(SUM(sbw.cap_2025), 0)::bigint AS cap_2025_total
+        FROM pcms.agents ag
+        JOIN pcms.salary_book_warehouse sbw
+          ON sbw.agent_id = ag.agent_id
+        LEFT JOIN pcms.teams t
+          ON t.team_code = sbw.team_code
+         AND t.league_lk = 'NBA'
+        WHERE ag.agency_id = #{id_sql}
+        GROUP BY sbw.team_code, t.team_id, t.team_name
+        ORDER BY cap_2025_total DESC NULLS LAST, sbw.team_code
+        LIMIT 12
+      SQL
+
+      @top_clients = conn.exec_query(<<~SQL).to_a
+        SELECT
+          sbw.player_id,
+          sbw.player_name,
+          sbw.team_code,
+          t.team_id,
+          t.team_name,
+          sbw.agent_id,
+          ag.full_name AS agent_name,
+          sbw.cap_2025::numeric AS cap_2025,
+          sbw.total_salary_from_2025::numeric AS total_salary_from_2025
+        FROM pcms.agents ag
+        JOIN pcms.salary_book_warehouse sbw
+          ON sbw.agent_id = ag.agent_id
+        LEFT JOIN pcms.teams t
+          ON t.team_code = sbw.team_code
+         AND t.league_lk = 'NBA'
+        WHERE ag.agency_id = #{id_sql}
+        ORDER BY sbw.cap_2025 DESC NULLS LAST, sbw.player_name
+        LIMIT 20
+      SQL
+
+      @book_by_year = conn.exec_query(<<~SQL).to_a
+        SELECT
+          sby.salary_year,
+          COUNT(*)::integer AS player_count,
+          COALESCE(SUM(sby.cap_amount), 0)::bigint AS cap_total,
+          COALESCE(SUM(sby.tax_amount), 0)::bigint AS tax_total,
+          COALESCE(SUM(sby.apron_amount), 0)::bigint AS apron_total
+        FROM pcms.agents ag
+        JOIN pcms.salary_book_warehouse sbw
+          ON sbw.agent_id = ag.agent_id
+        JOIN pcms.salary_book_yearly sby
+          ON sby.player_id = sbw.player_id
+        WHERE ag.agency_id = #{id_sql}
+          AND sby.salary_year BETWEEN 2025 AND 2030
+        GROUP BY sby.salary_year
+        ORDER BY sby.salary_year
       SQL
 
       render :show

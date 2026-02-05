@@ -18,10 +18,36 @@
     .reject(&:blank?)
 } %>
 
+<% norm_ints = ->(val) {
+  return [] if val.nil?
+  if val.is_a?(Array)
+    return val.filter_map do |v|
+      begin
+        Integer(v)
+      rescue ArgumentError, TypeError
+        nil
+      end
+    end
+  end
+
+  s = val.to_s
+  return [] if s.blank? || s == "{}"
+
+  s.gsub(/[{}\"]/ , "")
+    .split(",")
+    .filter_map do |v|
+      begin
+        Integer(v.to_s.strip)
+      rescue ArgumentError, TypeError
+        nil
+      end
+    end
+} %>
+
 <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
   <%= render partial: "entities/shared/entity_header", locals: {
     title: "#{team_code} — #{year} Round #{round}",
-    subtitle: ((@team.present? && @team["team_name"].present?) ? "#{@team['team_name']} · Source: pcms.draft_pick_summary_assets" : "Source: pcms.draft_pick_summary_assets"),
+    subtitle: ((@team.present? && @team["team_name"].present?) ? "#{@team['team_name']} · Source: pcms.vw_draft_pick_assets" : "Source: pcms.vw_draft_pick_assets"),
     breadcrumbs: [["Teams", "/teams"], [team_code, team_href(team_code: team_code)], ["#{year} R#{round} draft picks", nil]],
     search_scope: "players",
     search_query: "",
@@ -44,7 +70,8 @@
               <th class="text-left px-3 py-2 font-medium">Slot</th>
               <th class="text-left px-3 py-2 font-medium">Type</th>
               <th class="text-left px-3 py-2 font-medium">Related teams</th>
-              <th class="text-left px-3 py-2 font-medium">Description</th>
+              <th class="text-left px-3 py-2 font-medium">Display</th>
+              <th class="text-left px-3 py-2 font-medium">Endnotes</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
@@ -53,6 +80,10 @@
               <% counterparty = a["counterparty_team_code"].to_s.strip.upcase.presence %>
               <% counterparty_codes = norm_codes.call(a["counterparty_team_codes"]) %>
               <% via_codes = norm_codes.call(a["via_team_codes"]) %>
+              <% endnote_ids = norm_ints.call(a["effective_endnote_ids"]) %>
+              <% if endnote_ids.empty? && a["primary_endnote_id"].present? %>
+                <% endnote_ids = [a["primary_endnote_id"].to_i] %>
+              <% end %>
 
               <tr class="hover:bg-muted/30 align-top">
                 <td class="px-3 py-2 font-mono tabular-nums text-muted-foreground"><%= slot %></td>
@@ -69,6 +100,9 @@
                     <% if a["is_conditional"] %>
                       <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">conditional</span>
                     <% end %>
+                    <% if a["needs_review"] %>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">needs review</span>
+                    <% end %>
                   </div>
                 </td>
 
@@ -76,29 +110,41 @@
                   <% if counterparty.present? %>
                     <div>
                       counterparty:
-                      <a href="/teams/<%= counterparty.downcase %>" class="hover:underline"><%= counterparty %></a>
+                      <a href="<%= safe_team_href(team_code: counterparty, team_id: @teams_by_code.dig(counterparty, 'team_id')) %>" class="hover:underline"><%= counterparty %></a>
                     </div>
                   <% end %>
 
                   <% if counterparty_codes.any? %>
                     <div class="mt-1">
                       codes:
-                      <%= counterparty_codes.map { |c| "<a href=\"/teams/#{c.downcase}\" class=\"hover:underline\">#{c}</a>" }.join(", ").html_safe %>
+                      <%= counterparty_codes.map { |c| "<a href=\"#{safe_team_href(team_code: c, team_id: @teams_by_code.dig(c, 'team_id'))}\" class=\"hover:underline\">#{c}</a>" }.join(", ").html_safe %>
                     </div>
                   <% end %>
 
                   <% if via_codes.any? %>
                     <div class="mt-1">
                       via:
-                      <%= via_codes.map { |c| "<a href=\"/teams/#{c.downcase}\" class=\"hover:underline\">#{c}</a>" }.join(" → ").html_safe %>
+                      <%= via_codes.map { |c| "<a href=\"#{safe_team_href(team_code: c, team_id: @teams_by_code.dig(c, 'team_id'))}\" class=\"hover:underline\">#{c}</a>" }.join(" → ").html_safe %>
                     </div>
                   <% end %>
                 </td>
 
                 <td class="px-3 py-2">
-                  <div class="text-sm"><%= a["raw_part"] %></div>
-                  <% if a["endnote_explanation"].present? %>
-                    <div class="mt-1 text-xs text-muted-foreground"><%= a["endnote_explanation"] %></div>
+                  <div class="text-sm"><%= a["display_text"].presence || a["raw_part"] %></div>
+                  <% if a["raw_part"].present? && a["display_text"].present? && a["raw_part"] != a["display_text"] %>
+                    <div class="mt-1 text-xs text-muted-foreground"><%= a["raw_part"] %></div>
+                  <% end %>
+                </td>
+
+                <td class="px-3 py-2 text-xs text-muted-foreground">
+                  <% if endnote_ids.any? %>
+                    <div class="flex flex-wrap gap-1">
+                      <% endnote_ids.each do |eid| %>
+                        <a href="#endnote-<%= eid %>" class="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/70">#<%= eid %></a>
+                      <% end %>
+                    </div>
+                  <% else %>
+                    —
                   <% end %>
                 </td>
               </tr>
@@ -108,7 +154,57 @@
       </div>
 
       <div class="text-xs text-muted-foreground">
-        This page is intentionally link-rich and low-polish — it exists to scaffold entity pivots (team ↔ pick ↔ counterparty teams) while we harden the pick warehouse.
+        This page is intentionally link-rich and low-polish — it scaffolds pivots team ↔ pick ↔ counterparty ↔ endnote ↔ trade.
+      </div>
+    <% end %>
+  </section>
+
+  <section class="space-y-3" id="endnotes">
+    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Referenced endnotes</h2>
+
+    <% if @endnotes.empty? %>
+      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No endnotes referenced by this group.</div>
+    <% else %>
+      <div class="space-y-2">
+        <% @endnotes.each do |n| %>
+          <article id="endnote-<%= n['endnote_id'] %>" class="rounded-lg border border-border bg-background p-3">
+            <div class="flex flex-wrap items-center gap-2 text-sm">
+              <span class="font-mono">#<%= n["endnote_id"] %></span>
+              <% if n["trade_id"].present? %>
+                <span class="text-muted-foreground">·</span>
+                <a href="<%= trade_href(n['trade_id']) %>" class="hover:underline">Trade #<%= n["trade_id"] %></a>
+              <% end %>
+              <% if n["trade_date"].present? %>
+                <span class="text-muted-foreground">· <%= n["trade_date"] %></span>
+              <% end %>
+              <% if n["status_lk"].present? %>
+                <span class="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground"><%= n["status_lk"] %></span>
+              <% end %>
+              <% if n["is_swap"] %>
+                <span class="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">swap</span>
+              <% end %>
+              <% if n["is_conditional"] %>
+                <span class="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">conditional</span>
+              <% end %>
+            </div>
+
+            <div class="mt-2 text-sm whitespace-pre-line"><%= n["explanation"].presence || n["conveyance_text"].presence || "—" %></div>
+
+            <% if n["protections_text"].present? || n["contingency_text"].present? || n["exercise_text"].present? %>
+              <div class="mt-2 text-xs text-muted-foreground space-y-1">
+                <% if n["protections_text"].present? %>
+                  <div><span class="font-medium">Protections:</span> <%= n["protections_text"] %></div>
+                <% end %>
+                <% if n["contingency_text"].present? %>
+                  <div><span class="font-medium">Contingency:</span> <%= n["contingency_text"] %></div>
+                <% end %>
+                <% if n["exercise_text"].present? %>
+                  <div><span class="font-medium">Exercise:</span> <%= n["exercise_text"] %></div>
+                <% end %>
+              </div>
+            <% end %>
+          </article>
+        <% end %>
       </div>
     <% end %>
   </section>

@@ -75,6 +75,9 @@ module Entities
           ds.drafting_team_code,
           ds.draft_amount,
           ds.transaction_date,
+          tx.trade_id,
+          tx.transaction_type_lk,
+          tx.transaction_description_lk,
           COALESCE(
             NULLIF(TRIM(CONCAT_WS(' ', p.display_first_name, p.display_last_name)), ''),
             NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
@@ -82,6 +85,7 @@ module Entities
           ) AS player_name,
           t.team_name
         FROM pcms.draft_selections ds
+        LEFT JOIN pcms.transactions tx ON tx.transaction_id = ds.transaction_id
         LEFT JOIN pcms.people p ON p.person_id = ds.player_id
         LEFT JOIN pcms.teams t ON t.team_id = ds.drafting_team_id
         WHERE ds.transaction_id = #{id_sql}

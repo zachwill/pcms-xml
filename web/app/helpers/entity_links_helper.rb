@@ -107,6 +107,21 @@ module EntityLinksHelper
     entity_href(entity_type: "draft_selection", entity_id: transaction_id)
   end
 
+  # Numeric-canonical entities (no slug registry yet).
+  def transaction_href(transaction_id)
+    id = normalize_entity_id(transaction_id)
+    return "#" if id.nil?
+
+    transaction_path(id)
+  end
+
+  def trade_href(trade_id)
+    id = normalize_entity_id(trade_id)
+    return "#" if id.nil?
+
+    trade_path(id)
+  end
+
   private
 
   def canonical_slug_for(entity_type, entity_id)

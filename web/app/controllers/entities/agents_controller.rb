@@ -75,13 +75,63 @@ module Entities
           sbw.team_code,
           t.team_id,
           t.team_name,
-          sbw.cap_2025::numeric AS cap_2025
+          sbw.cap_2025::numeric AS cap_2025,
+          sbw.total_salary_from_2025::numeric AS total_salary_from_2025,
+          sbw.is_two_way,
+          sbw.is_min_contract,
+          sbw.is_trade_restricted_now
         FROM pcms.salary_book_warehouse sbw
         LEFT JOIN pcms.teams t
           ON t.team_code = sbw.team_code
          AND t.league_lk = 'NBA'
         WHERE sbw.agent_id = #{id_sql}
         ORDER BY sbw.cap_2025 DESC NULLS LAST, sbw.player_name
+      SQL
+
+      @client_rollup = conn.exec_query(<<~SQL).first || {}
+        SELECT
+          COUNT(*)::integer AS client_count,
+          COUNT(DISTINCT sbw.team_code)::integer AS team_count,
+          COALESCE(SUM(sbw.cap_2025), 0)::bigint AS cap_2025_total,
+          COALESCE(SUM(sbw.total_salary_from_2025), 0)::bigint AS total_salary_from_2025,
+          COUNT(*) FILTER (WHERE sbw.is_two_way)::integer AS two_way_count,
+          COUNT(*) FILTER (WHERE sbw.is_min_contract)::integer AS min_contract_count,
+          COUNT(*) FILTER (WHERE sbw.is_trade_restricted_now)::integer AS restricted_now_count
+        FROM pcms.salary_book_warehouse sbw
+        WHERE sbw.agent_id = #{id_sql}
+      SQL
+
+      @team_distribution = conn.exec_query(<<~SQL).to_a
+        SELECT
+          sbw.team_code,
+          t.team_id,
+          t.team_name,
+          COUNT(*)::integer AS client_count,
+          COALESCE(SUM(sbw.cap_2025), 0)::bigint AS cap_2025_total
+        FROM pcms.salary_book_warehouse sbw
+        LEFT JOIN pcms.teams t
+          ON t.team_code = sbw.team_code
+         AND t.league_lk = 'NBA'
+        WHERE sbw.agent_id = #{id_sql}
+        GROUP BY sbw.team_code, t.team_id, t.team_name
+        ORDER BY cap_2025_total DESC NULLS LAST, sbw.team_code
+        LIMIT 12
+      SQL
+
+      @book_by_year = conn.exec_query(<<~SQL).to_a
+        SELECT
+          sby.salary_year,
+          COUNT(*)::integer AS player_count,
+          COALESCE(SUM(sby.cap_amount), 0)::bigint AS cap_total,
+          COALESCE(SUM(sby.tax_amount), 0)::bigint AS tax_total,
+          COALESCE(SUM(sby.apron_amount), 0)::bigint AS apron_total
+        FROM pcms.salary_book_yearly sby
+        JOIN pcms.salary_book_warehouse sbw
+          ON sbw.player_id = sby.player_id
+        WHERE sbw.agent_id = #{id_sql}
+          AND sby.salary_year BETWEEN 2025 AND 2030
+        GROUP BY sby.salary_year
+        ORDER BY sby.salary_year
       SQL
 
       render :show

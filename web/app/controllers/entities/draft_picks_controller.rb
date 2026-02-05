@@ -47,10 +47,14 @@ module Entities
           raw_round_text,
           raw_fragment,
           raw_part,
+          display_text,
+          primary_endnote_id,
+          effective_endnote_ids,
           endnote_explanation,
           endnote_trade_date,
+          needs_review,
           refreshed_at
-        FROM pcms.draft_pick_summary_assets
+        FROM pcms.vw_draft_pick_assets
         WHERE team_code = #{team_sql}
           AND draft_year = #{year_sql}
           AND draft_round = #{round_sql}
@@ -72,8 +76,7 @@ module Entities
         team_rows = conn.exec_query(<<~SQL).to_a
           SELECT team_code, team_id, team_name
           FROM pcms.teams
-          WHERE league_lk = 'NBA'
-            AND team_code IN (#{in_list})
+          WHERE team_code IN (#{in_list})
         SQL
 
         @teams_by_code = team_rows.each_with_object({}) do |t, h|
@@ -82,6 +85,48 @@ module Entities
       else
         @teams_by_code = {}
       end
+
+      # Resolve referenced endnotes for this pick group.
+      endnote_ids = @assets.flat_map do |row|
+        ids = parse_ints(row["effective_endnote_ids"])
+        if ids.empty? && row["primary_endnote_id"].present?
+          row["primary_endnote_id"].to_i
+        else
+          ids
+        end
+      end.uniq.sort
+
+      @referenced_endnote_ids = endnote_ids
+
+      if endnote_ids.any?
+        in_list = endnote_ids.map { |idv| conn.quote(idv) }.join(",")
+        @endnotes = conn.exec_query(<<~SQL).to_a
+          SELECT
+            endnote_id,
+            trade_id,
+            trade_date,
+            status_lk,
+            explanation,
+            conveyance_text,
+            protections_text,
+            contingency_text,
+            exercise_text,
+            is_swap,
+            is_conditional,
+            from_team_code,
+            to_team_code,
+            draft_year_start,
+            draft_year_end,
+            draft_rounds
+          FROM pcms.endnotes
+          WHERE endnote_id IN (#{in_list})
+          ORDER BY endnote_id
+        SQL
+      else
+        @endnotes = []
+      end
+
+      @endnotes_by_id = @endnotes.each_with_object({}) { |row, h| h[row["endnote_id"].to_i] = row }
 
       render :show
     rescue ArgumentError
@@ -106,6 +151,33 @@ module Entities
         .split(",")
         .map { |v| v.to_s.strip.upcase }
         .reject(&:blank?)
+    end
+
+    def parse_ints(val)
+      return [] if val.nil?
+
+      if val.is_a?(Array)
+        return val.filter_map do |v|
+          begin
+            Integer(v)
+          rescue ArgumentError, TypeError
+            nil
+          end
+        end
+      end
+
+      s = val.to_s
+      return [] if s.blank? || s == "{}"
+
+      s.gsub(/[{}\"]/ , "")
+        .split(",")
+        .filter_map do |v|
+          begin
+            Integer(v.to_s.strip)
+          rescue ArgumentError, TypeError
+            nil
+          end
+        end
     end
   end
 end

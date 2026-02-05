@@ -8,7 +8,7 @@
 <main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
   <%= render partial: "entities/shared/entity_header", locals: {
     title: pick_label,
-    subtitle: ((player_name.present? ? "#{player_name} · " : "") + "transaction_id: #{@draft_selection_id} · slug: #{@draft_selection_slug}" + (ds["transaction_date"].present? ? " · date: #{ds['transaction_date']}" : "")),
+    subtitle: ((player_name.present? ? "#{player_name} · " : "") + "transaction_id: #{@draft_selection_id} · slug: #{@draft_selection_slug}" + (ds["transaction_date"].present? ? " · date: #{ds['transaction_date']}" : "") + (ds["trade_id"].present? ? " · trade: ##{ds['trade_id']}" : "")),
     breadcrumbs: [["Draft selections", "/draft-selections"], [pick_label, nil]],
     search_scope: "players",
     search_query: "",
@@ -20,7 +20,7 @@
   <section class="space-y-3">
     <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connections</h2>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
       <div class="p-4 rounded-lg border border-border bg-background">
         <div class="text-xs text-muted-foreground">Player</div>
         <div class="mt-1">
@@ -41,6 +41,18 @@
           <div class="mt-1 text-sm text-muted-foreground italic">Unknown</div>
         <% end %>
       </div>
+
+      <div class="p-4 rounded-lg border border-border bg-background">
+        <div class="text-xs text-muted-foreground">Transaction</div>
+        <div class="mt-1">
+          <a href="<%= transaction_href(ds['transaction_id']) %>" class="font-medium hover:underline">TX #<%= ds["transaction_id"] %></a>
+          <% if ds["trade_id"].present? %>
+            <div class="mt-1 text-sm text-muted-foreground">
+              trade: <a href="<%= trade_href(ds['trade_id']) %>" class="hover:underline">#<%= ds["trade_id"] %></a>
+            </div>
+          <% end %>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -48,6 +60,8 @@
     <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Raw fields</h2>
 
     <div class="p-4 rounded-lg border border-border bg-background text-sm text-muted-foreground space-y-1">
+      <div>transaction_type: <code><%= ds["transaction_type_lk"] || "—" %></code></div>
+      <div>transaction_description: <code><%= ds["transaction_description_lk"] || "—" %></code></div>
       <div>draft_amount: <code><%= ds["draft_amount"] || "—" %></code></div>
       <div>drafting_team_id: <code><%= ds["drafting_team_id"] || "—" %></code></div>
       <div>drafting_team_code: <code><%= drafting_team_code.presence || "—" %></code></div>

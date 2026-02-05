@@ -1,0 +1,197 @@
+<% tx = @transaction %>
+<% content_for :title, "Transaction ##{tx['transaction_id']}" %>
+
+<main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+  <%= render partial: "entities/shared/entity_header", locals: {
+    title: "Transaction ##{tx['transaction_id']}",
+    subtitle: [tx['transaction_date'], tx['transaction_type_lk'], tx['transaction_description_lk']].compact.join(' · '),
+    breadcrumbs: [["Transactions", nil], ["##{tx['transaction_id']}", nil]],
+    search_scope: "players",
+    search_query: "",
+    search_placeholder: "Search players/teams/agents/agencies…",
+    salary_book_label: "Open Salary Book",
+    right_links: [["Draft selections", "/draft-selections"]],
+    search_enabled: false
+  } %>
+
+  <section class="space-y-3">
+    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connections</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div class="p-4 rounded-lg border border-border bg-background">
+        <div class="text-xs text-muted-foreground">Player</div>
+        <div class="mt-1">
+          <% if tx["player_id"].present? %>
+            <a href="<%= player_href(tx['player_id']) %>" class="font-medium hover:underline"><%= tx["player_name"] %></a>
+          <% else %>
+            <span class="text-sm text-muted-foreground italic">—</span>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-lg border border-border bg-background">
+        <div class="text-xs text-muted-foreground">From team</div>
+        <div class="mt-1">
+          <% if tx["from_team_code"].present? %>
+            <a href="<%= safe_team_href(team_code: tx['from_team_code'], team_id: tx['from_team_id']) %>" class="font-medium hover:underline"><%= tx["from_team_code"] %></a>
+            <% if tx["from_team_name"].present? %>
+              <div class="text-sm text-muted-foreground"><%= tx["from_team_name"] %></div>
+            <% end %>
+          <% else %>
+            <span class="text-sm text-muted-foreground italic">—</span>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-lg border border-border bg-background">
+        <div class="text-xs text-muted-foreground">To team</div>
+        <div class="mt-1">
+          <% if tx["to_team_code"].present? %>
+            <a href="<%= safe_team_href(team_code: tx['to_team_code'], team_id: tx['to_team_id']) %>" class="font-medium hover:underline"><%= tx["to_team_code"] %></a>
+            <% if tx["to_team_name"].present? %>
+              <div class="text-sm text-muted-foreground"><%= tx["to_team_name"] %></div>
+            <% end %>
+          <% else %>
+            <span class="text-sm text-muted-foreground italic">—</span>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-lg border border-border bg-background">
+        <div class="text-xs text-muted-foreground">Trade</div>
+        <div class="mt-1">
+          <% if tx["trade_id"].present? %>
+            <a href="<%= trade_href(tx['trade_id']) %>" class="font-medium hover:underline">Trade #<%= tx["trade_id"] %></a>
+            <% if @trade.present? %>
+              <div class="text-xs text-muted-foreground mt-1">
+                teams: <%= @trade["team_count"] || 0 %> · players: <%= @trade["player_line_item_count"] || 0 %> · picks: <%= @trade["pick_line_item_count"] || 0 %>
+              </div>
+            <% end %>
+          <% else %>
+            <span class="text-sm text-muted-foreground italic">Standalone</span>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <% if @draft_selection.present? %>
+      <div class="text-sm text-muted-foreground">
+        Draft selection pivot:
+        <a href="<%= draft_selection_href(@draft_selection['transaction_id']) %>" class="hover:underline">
+          <%= @draft_selection["draft_year"] %> R<%= @draft_selection["draft_round"] %> P<%= @draft_selection["pick_number"] %>
+        </a>
+      </div>
+    <% end %>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ledger impact</h2>
+
+    <% if @ledger_entries.empty? %>
+      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No ledger rows for this transaction.</div>
+    <% else %>
+      <div class="overflow-x-auto rounded-lg border border-border">
+        <table class="min-w-full text-sm">
+          <thead class="bg-muted/50 text-xs text-muted-foreground">
+            <tr>
+              <th class="text-left px-3 py-2 font-medium">Date</th>
+              <th class="text-left px-3 py-2 font-medium">Team</th>
+              <th class="text-left px-3 py-2 font-medium">Type</th>
+              <th class="text-right px-3 py-2 font-medium">Cap change</th>
+              <th class="text-right px-3 py-2 font-medium">Tax change</th>
+              <th class="text-right px-3 py-2 font-medium">Apron change</th>
+              <th class="text-right px-3 py-2 font-medium">MTS change</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <% @ledger_entries.each do |row| %>
+              <tr class="hover:bg-muted/30">
+                <td class="px-3 py-2 font-mono tabular-nums text-xs"><%= row["ledger_date"] || "—" %></td>
+                <td class="px-3 py-2 text-xs">
+                  <% if row["team_code"].present? %>
+                    <a href="<%= safe_team_href(team_code: row['team_code'], team_id: row['team_id']) %>" class="hover:underline"><%= row["team_code"] %></a>
+                  <% else %>
+                    <span class="text-muted-foreground">—</span>
+                  <% end %>
+                </td>
+                <td class="px-3 py-2 text-xs text-muted-foreground"><%= [row["transaction_type_lk"], row["transaction_description_lk"]].compact.reject(&:blank?).join(' · ').presence || '—' %></td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(row["cap_change"]) %></td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(row["tax_change"]) %></td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(row["apron_change"]) %></td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(row["mts_change"]) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </section>
+
+  <% if @trade_transactions.any? %>
+    <section class="space-y-3">
+      <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Other transactions in same trade</h2>
+
+      <div class="overflow-x-auto rounded-lg border border-border">
+        <table class="min-w-full text-sm">
+          <thead class="bg-muted/50 text-xs text-muted-foreground">
+            <tr>
+              <th class="text-left px-3 py-2 font-medium">Transaction</th>
+              <th class="text-left px-3 py-2 font-medium">Date</th>
+              <th class="text-left px-3 py-2 font-medium">Player</th>
+              <th class="text-left px-3 py-2 font-medium">Route</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <% @trade_transactions.each do |row| %>
+              <tr class="hover:bg-muted/30">
+                <td class="px-3 py-2 font-mono tabular-nums">
+                  <a href="<%= transaction_href(row['transaction_id']) %>" class="hover:underline">#<%= row["transaction_id"] %></a>
+                </td>
+                <td class="px-3 py-2 text-xs text-muted-foreground"><%= row["transaction_date"] || "—" %></td>
+                <td class="px-3 py-2 text-xs">
+                  <% if row["player_id"].present? %>
+                    <a href="<%= player_href(row['player_id']) %>" class="hover:underline"><%= row["player_name"] %></a>
+                  <% else %>
+                    <span class="text-muted-foreground">—</span>
+                  <% end %>
+                </td>
+                <td class="px-3 py-2 text-xs text-muted-foreground"><%= [row["from_team_code"], row["to_team_code"]].compact.reject(&:blank?).join(' → ').presence || '—' %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  <% end %>
+
+  <% if @endnotes.any? %>
+    <section class="space-y-3">
+      <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Related endnotes</h2>
+
+      <div class="space-y-2">
+        <% @endnotes.each do |n| %>
+          <article class="rounded-lg border border-border bg-background p-3">
+            <div class="text-sm font-mono">#<%= n["endnote_id"] %></div>
+            <div class="mt-1 text-xs text-muted-foreground"><%= [n["trade_date"], n["status_lk"]].compact.join(' · ') %></div>
+            <div class="mt-2 text-sm whitespace-pre-line"><%= n["explanation"].presence || n["conveyance_text"].presence || "—" %></div>
+          </article>
+        <% end %>
+      </div>
+    </section>
+  <% end %>
+
+  <section class="space-y-3">
+    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Raw fields</h2>
+
+    <div class="p-4 rounded-lg border border-border bg-background text-sm text-muted-foreground space-y-1">
+      <div>transaction_type_lk: <code><%= tx["transaction_type_lk"] || "—" %></code></div>
+      <div>transaction_description_lk: <code><%= tx["transaction_description_lk"] || "—" %></code></div>
+      <div>salary_year: <code><%= tx["salary_year"] || "—" %></code></div>
+      <div>contract_id/version: <code><%= tx["contract_id"] || "—" %> / <%= tx["version_number"] || "—" %></code></div>
+      <div>signed_method_lk: <code><%= tx["signed_method_lk"] || "—" %></code></div>
+      <div>team_exception_id: <code><%= tx["team_exception_id"] || "—" %></code></div>
+      <div>draft_year/round/pick: <code><%= tx["draft_year"] || "—" %> / <%= tx["draft_round"] || "—" %> / <%= tx["draft_pick"] || "—" %></code></div>
+      <div>comments: <code><%= tx["comments"].presence || "—" %></code></div>
+    </div>
+  </section>
+</main>
