@@ -186,8 +186,6 @@ Guideline: one checkbox = one endnote cluster.
 
 Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` where `primary_todo_reason='missing_shorthand'` and `draft_year >= 2026`.
 
-- [x] Endnote 16 (6 rows) - PHI→OKC PHI conditional 1st
-- [x] Endnote 321 (5 rows) - BOS→UTA MF [BOS, CLE] 2031 2nd
 - [ ] Endnote 320 (5 rows) - BOS→UTA MF [BOS, NOP] 2027 2nd
 - [ ] Endnote 319 (5 rows) - SAS→WAS LF [DAL, SAS, TOR] 2027 2nd
 - [ ] Endnote 316 (5 rows) - DET→SAC LF [DET, NYK, WAS] 2029 2nd
@@ -206,6 +204,21 @@ Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` where `primary_todo_reaso
 - [ ] Endnote 128 (5 rows) - IND→NYK LF [IND, PHX] 2028 2nd
 - [ ] Endnote 123 (5 rows) - MIA→SAS LF [DAL, OKC, PHI] 2026 2nd (Okpala dependency)
 - [ ] Endnote 101 (5 rows) - DEN→OKC "First Allowable Draft" 1st (DEN 2029/2030 1sts)
+- [ ] Endnote 70 (5 rows) - OKC→HOU "2nd most favorable" of OKC/DAL 2026 2nds (aka `2nd MF [OKC, DAL]`)
+- [ ] Endnote 63 (5 rows) - MIN→UTA MIN 2029 1st (conditional; see endnote text for protections)
+- [ ] Endnote 47 (5 rows) - UTA→SAS LF [HOU, IND] 2027 2nd
+- [ ] Endnote 46 (5 rows) - OKC→MIA LF [OKC, DAL] 2026 2nd
+- [ ] Endnote 30 (5 rows) - OKC→UTA LF [OKC, HOU] 2027 2nd
+- [ ] Endnote 19 (5 rows) - DET→OKC HOU 2027 2nd (via DET; depends on endnote 10)
+- [ ] Endnote 12 (5 rows) - IND→OKC IND 2027 2nd
+- [ ] Endnote 10 (5 rows) - HOU→DET HOU 2027 2nd (Wood trade)
+- [ ] Endnote 4 (5 rows) - HOU→OKC HOU 2026 1st (conditional)
+
+#### Next up (4-row clusters)
+
+- [ ] Endnote 308 (4 rows) - HOU→PHX HOU 2032 2nd
+- [ ] Endnote 304 (4 rows) - HOU→ATL swap rights (ATL↔HOU 2031 2nds)
+- [ ] Endnote 283 (4 rows) - NOP→ATL "Resulting Pick" (swap/conditional chain)
 
 ### Smaller clusters / follow-ups (refreshed 2026-02-05)
 
