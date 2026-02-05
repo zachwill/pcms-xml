@@ -1,33 +1,29 @@
-<%# Table Header — Column labels for the salary table %>
-<%# One-row header designed to stick with TeamHeader (iOS Contacts pattern) %>
+<%# TableHeader — Tailwind port of the React prototype %>
 
 <% salary_years ||= SalaryBookHelper::SALARY_YEARS %>
 
-<div class="salarytable-header">
-  <div class="salarytable-header-row">
-    <%# Player column (STICKY LEFT) %>
-    <div class="salarytable-sticky-col salarytable-header-cell">
-      <div class="salarytable-sticky-col-inner">
-        <div class="salarytable-headshot-spacer"></div>
-        <div class="salarytable-name-label">Name / Details</div>
+<div class="border-b border-border bg-background">
+  <div class="h-8 flex items-center text-xs font-medium text-muted-foreground">
+    <%# Player column (sticky left) %>
+    <div
+      class="w-52 shrink-0 pl-4 sticky left-0 z-[2] bg-background relative
+             after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/50"
+    >
+      <div class="grid grid-cols-[40px_1fr] items-center h-full">
+        <div></div>
+        <div class="pl-1">Name / Details</div>
       </div>
     </div>
 
     <%# Year columns %>
     <% salary_years.each do |year| %>
-      <div class="salarytable-year-cell salarytable-header-cell">
-        <%= format_year_label(year) %>
-      </div>
+      <div class="w-24 tabular-nums text-center"><%= format_year_label(year) %></div>
     <% end %>
 
     <%# Total column %>
-    <div class="salarytable-total-cell salarytable-header-cell salarytable-header-total">
-      Total
-    </div>
+    <div class="w-24 tabular-nums text-center font-semibold">Total</div>
 
     <%# Agent column %>
-    <div class="salarytable-agent-cell salarytable-header-cell">
-      Agent
-    </div>
+    <div class="w-40 text-center">Agent</div>
   </div>
 </div>

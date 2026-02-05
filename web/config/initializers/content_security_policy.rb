@@ -1,8 +1,8 @@
 # Be sure to restart your server when you modify this file.
 #
-# Internal tool CSP — relaxed for Tailwind CDN + Datastar:
+# Internal tool CSP — relaxed for Datastar + HTML-first patterns:
 # - `unsafe-eval`: Datastar evaluates expressions via the Function constructor
-# - `unsafe-inline`: Tailwind CDN injects styles, Datastar uses inline handlers
+# - `unsafe-inline`: inline <script> blocks (scroll-spy) + inline style attrs in views
 
 Rails.application.configure do
   config.content_security_policy do |policy|

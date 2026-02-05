@@ -1,94 +1,115 @@
 <%#
-  PlayerRow — Double-row player design
+  PlayerRow — Tailwind port of the React prototype (double-row player design)
 
-  Each player occupies TWO visual rows that behave as ONE unit:
-  - Primary Row (Row A): Name, salary per year (monospace), total
-  - Metadata Row (Row B): Age, contract type, badges
-
-  Both rows highlight on hover as a single unit.
-  Click opens Player entity in sidebar.
+  Click anywhere → opens Player overlay.
+  Click agent name → opens Agent overlay (stopPropagation).
 %>
 
 <% player_id = player["player_id"] %>
 <% player_name = player["player_name"] %>
 <% salary_years ||= SalaryBookHelper::SALARY_YEARS %>
+<% is_two_way = player["is_two_way"] %>
 
 <div
   id="player-<%= player_id %>"
-  class="playerrow"
+  class="group cursor-pointer border-b border-border/50 transition-colors duration-75
+         hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10"
   role="button"
   tabindex="0"
   data-on:click="@get('<%= tools_salary_book_sidebar_player_path(id: player_id) %>')"
   data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); @get('<%= tools_salary_book_sidebar_player_path(id: player_id) %>') }"
+  <% if is_two_way %>data-show="$displaytwoway"<% end %>
 >
-  <div class="playerrow-inner">
+  <div class="flex">
     <%# Sticky Player column (Headshot + Name + Details) %>
-    <div class="playerrow-sticky-col">
-      <div class="playerrow-sticky-grid">
+    <div
+      class="w-52 shrink-0 pl-4 sticky left-0 z-20 relative
+             bg-background transition-colors duration-75
+             group-hover:bg-yellow-50/70 dark:group-hover:bg-yellow-900/10
+             after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/30"
+    >
+      <div class="grid grid-cols-[40px_1fr] grid-rows-[24px_16px]" aria-label="<%= player_name %> player info">
         <%# Headshot spans both sub-rows %>
-        <div class="playerrow-headshot-cell">
-          <div class="playerrow-headshot">
+        <div class="row-span-2 flex items-center justify-start">
+          <div class="w-7 h-7 rounded border border-border bg-background overflow-hidden">
             <img
               src="<%= player_headshot_url(player_id) %>"
               alt="<%= player_name %>"
+              class="w-full h-full object-cover object-top bg-muted"
               loading="lazy"
               decoding="async"
               onerror="if (this.src !== '<%= fallback_headshot_data_uri %>') { this.src = '<%= fallback_headshot_data_uri %>'; }"
-            >
+            />
           </div>
         </div>
 
         <%# Row A: Name %>
-        <div class="playerrow-name-cell">
-          <span class="playerrow-name"><%= player_name %></span>
+        <div class="h-[24px] flex items-end min-w-0 pl-1 pr-2">
+          <span class="truncate font-medium text-[14px] group-hover:text-primary transition-colors">
+            <%= player_name %>
+          </span>
         </div>
 
         <%# Row B: Details %>
-        <div class="playerrow-meta-cell">
+        <div class="h-[16px] -mt-px flex items-start gap-2 min-w-0 pl-1 pr-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums">
           <% if player["age"] %>
             <span><%= player_age_display(player) %></span>
           <% end %>
-          <% if player["contract_type_code"] %>
-            <span class="playerrow-meta-badge"><%= player["contract_type_code"] %></span>
+          <% if player["contract_type_code"].present? %>
+            <span class="truncate"><%= player["contract_type_code"] %></span>
           <% end %>
           <% if player["is_two_way"] %>
-            <span class="playerrow-meta-badge playerrow-meta-badge--twoway">2W</span>
+            <span class="text-blue-600 dark:text-blue-400">2W</span>
           <% end %>
           <% if player["is_no_trade"] %>
-            <span class="playerrow-meta-badge playerrow-meta-badge--ntc">NTC</span>
+            <span class="text-red-500">NTC</span>
           <% end %>
         </div>
       </div>
     </div>
 
-    <%# Non-sticky columns (Contract Years + Total + Agent) %>
-    <div class="playerrow-scrollable">
-      <%# Salary year columns — each spans both rows %>
+    <%# Non-sticky columns (Years + Total + Agent) %>
+    <div class="min-w-0 flex">
       <% salary_years.each do |year| %>
         <% salary = player_salary(player, year) %>
         <% cell_classes = salary_cell_classes(player, year) %>
         <% tooltip = salary_cell_tooltip(player, year) %>
-        <% pct_cap = format_pct_cap(player, year) %>
+        <% pct = format_pct_cap_with_blocks(player, year) %>
         <% is_empty = salary.nil? %>
-        <% is_two_way_zero = player["is_two_way"] && salary.to_f == 0 %>
+        <% show_two_way_badge = player["is_two_way"] && salary.present? && salary.to_f == 0 %>
+        <% is_trade_restricted_cell = current_season?(year) && (player["is_trade_consent_required_now"] || player["is_trade_restricted_now"] || poison_pill_now?(player, year)) %>
 
         <div
-          class="playerrow-year-cell <%= cell_classes %>"
-          <% if tooltip %> title="<%= tooltip %>"<% end %>
+          class="w-24 shrink-0 <%= (show_two_way_badge || is_empty) ? 'grid place-items-center h-[40px]' : 'flex flex-col' %> <%= cell_classes %>"
+          <% if tooltip.present? %>title="<%= tooltip %>"<% end %>
         >
-          <% if is_two_way_zero %>
-            <div class="playerrow-twoway-badge">Two-Way</div>
+          <% if show_two_way_badge %>
+            <span class="inline-flex items-center justify-center text-[10px] px-1.5 py-0.5 rounded font-medium <%= is_trade_restricted_cell ? 'bg-red-200 dark:bg-red-900/50 text-red-700 dark:text-red-300' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300' %>">
+              Two-Way
+            </span>
           <% elsif is_empty %>
-            <div class="playerrow-salary playerrow-salary--empty">—</div>
+            <span class="grid place-items-center w-full">
+              <span class="inline-block font-mono tabular-nums text-center text-gray-400/50" style="width: 6ch">—</span>
+            </span>
           <% else %>
-            <div class="playerrow-salary-row">
-              <span class="playerrow-salary"><%= format_salary(salary) %></span>
+            <%# Salary row (A) %>
+            <div class="h-[24px] flex items-end justify-center text-sm">
+              <span class="grid place-items-center w-full">
+                <span class="inline-block font-mono tabular-nums text-right" style="width: 6ch"><%= format_salary(salary) %></span>
+              </span>
             </div>
-            <div class="playerrow-pctcap-row">
+
+            <%# Under-salary row (B): MINIMUM or pct-cap + blocks %>
+            <div class="h-[16px] -mt-px flex items-start justify-center">
               <% if player["is_min_contract"] %>
-                <span class="playerrow-pctcap">MINIMUM</span>
-              <% elsif pct_cap %>
-                <span class="playerrow-pctcap"><%= pct_cap %></span>
+                <span class="text-[10px] leading-none tabular-nums whitespace-nowrap text-muted-foreground/80">MINIMUM</span>
+              <% elsif pct %>
+                <span class="text-[10px] leading-none tabular-nums whitespace-nowrap text-muted-foreground/80">
+                  <%= pct[:label] %>
+                  <% if pct[:blocks].present? %>
+                    <span class="ml-0.5 opacity-70"><%= pct[:blocks] %></span>
+                  <% end %>
+                </span>
               <% end %>
             </div>
           <% end %>
@@ -97,36 +118,46 @@
 
       <%# Total salary column %>
       <% total = player["total_salary_from_2025"] %>
-      <div class="playerrow-total-cell" title="<%= player["contract_type_lookup_value"] %>">
-        <div class="playerrow-salary-row">
-          <span class="playerrow-salary playerrow-salary--total"><%= format_salary(total) %></span>
+      <div class="w-24 shrink-0 flex flex-col" title="<%= player["contract_type_lookup_value"] %>">
+        <div class="h-[24px] flex items-end justify-center text-sm">
+          <span class="grid place-items-center w-full">
+            <span class="inline-block font-mono tabular-nums text-right font-semibold" style="width: 7ch"><%= format_salary(total) %></span>
+          </span>
         </div>
-        <div class="playerrow-pctcap-row">
-          <% if player["contract_type_code"] %>
-            <span class="playerrow-contract-type"><%= player["contract_type_code"] %></span>
+        <div class="h-[16px] -mt-px flex items-start justify-center">
+          <% if player["contract_type_code"].present? %>
+            <span class="text-[10px] leading-none tabular-nums whitespace-nowrap text-gray-400 dark:text-gray-500"><%= player["contract_type_code"] %></span>
           <% else %>
-            <span class="playerrow-contract-type playerrow-contract-type--empty">—</span>
+            <span class="text-[10px] leading-none tabular-nums whitespace-nowrap text-gray-400/50 dark:text-gray-500/50">—</span>
           <% end %>
         </div>
       </div>
 
       <%# Agent + Agency column %>
-      <div class="playerrow-agent-cell">
-        <div class="playerrow-agent-row">
-          <% if player["agent_name"] && player["agent_id"] %>
+      <div class="w-40 shrink-0 flex flex-col pr-4">
+        <%# Row A: Agent name %>
+        <div class="h-[24px] flex items-end justify-start min-w-0">
+          <% if player["agent_name"].present? && player["agent_id"].present? %>
             <button
               type="button"
-              class="playerrow-agent-link"
-              data-on:click.stop="@get('<%= tools_salary_book_sidebar_agent_path(id: player["agent_id"]) %>')"
+              class="text-xs truncate mb-px text-gray-400 dark:text-gray-500 hover:text-muted-foreground hover:underline
+                     focus:outline-none focus-visible:underline focus-visible:text-muted-foreground transition-colors"
+              data-on:click="evt.stopPropagation(); @get('<%= tools_salary_book_sidebar_agent_path(id: player["agent_id"]) %>')"
             ><%= player["agent_name"] %></button>
-          <% elsif player["agent_name"] %>
-            <span class="playerrow-agent-link--plain"><%= player["agent_name"] %></span>
+          <% elsif player["agent_name"].present? %>
+            <span class="text-xs truncate mb-px text-gray-400 dark:text-gray-500"><%= player["agent_name"] %></span>
           <% else %>
-            <span class="playerrow-agent-link--empty">—</span>
+            <span class="text-xs text-muted-foreground/50">—</span>
           <% end %>
         </div>
-        <div class="playerrow-agency-row">
-          <%# Agency name would go here if available %>
+
+        <%# Row B: Agency name %>
+        <div class="h-[16px] -mt-px flex items-start justify-start gap-1.5 leading-none text-[10px] tabular-nums min-w-0">
+          <% if player["agency_name"].present? %>
+            <span class="text-gray-400 dark:text-gray-500 truncate"><%= player["agency_name"] %></span>
+          <% else %>
+            <span class="text-gray-400/50 dark:text-gray-500/50">—</span>
+          <% end %>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html class="light">
+<html lang="en" class="h-full light">
   <head>
     <title><%= content_for(:title) || "Salary Book" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -25,44 +25,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-    <%# Tailwind CDN %>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'system-ui', 'sans-serif'],
-              mono: ['Geist Mono', 'Fira Mono', 'ui-monospace', 'monospace'],
-            },
-            colors: {
-              border: 'var(--border)',
-              background: 'var(--background)',
-              foreground: 'var(--foreground)',
-              muted: {
-                DEFAULT: 'var(--muted)',
-                foreground: 'var(--muted-foreground)',
-              },
-              primary: {
-                DEFAULT: 'var(--primary)',
-                foreground: 'var(--primary-foreground)',
-              },
-              destructive: {
-                DEFAULT: 'var(--destructive)',
-                foreground: 'var(--destructive-foreground)',
-              },
-            },
-          }
-        }
-      }
-    </script>
+    <%# Tailwind (compiled via tailwindcss-rails into app/assets/builds/tailwind.css) %>
+    <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
 
-    <%# Includes stylesheet files in app/assets/stylesheets (Propshaft) %>
-    <%= stylesheet_link_tag "application" %>
+    <%# JavaScript via importmap %>
+    <%= javascript_importmap_tags %>
 
     <%# Datastar %>
     <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.7/bundles/datastar.js"></script>
+
+    <%# Page-specific scripts (loaded via content_for :head_scripts) %>
+    <%= yield :head_scripts %>
   </head>
 
   <body class="h-full">

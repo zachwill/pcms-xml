@@ -1,51 +1,72 @@
-<%#
-  Cap Holds Section — List of cap holds for a team
-
-  Shows:
-  - Player name or hold type
-  - Cap amount by year
-  - Type badge (Bird, Early Bird, 1st Round, etc.)
-
-  Locals:
-  - cap_holds: Array of cap hold rows
-  - salary_years: Array of years to display (defaults to SALARY_YEARS)
-%>
+<%# CapHoldsSection — Tailwind port of the React prototype %>
 
 <% cap_holds ||= [] %>
 <% salary_years ||= SalaryBookHelper::SALARY_YEARS %>
 <% return if cap_holds.empty? %>
 
-<div class="subsection-rows">
-  <% cap_holds.each do |row| %>
-    <% title = row["player_name"].presence || row["amount_type_lk"] || "Cap Hold" %>
-    <% subtitle = row["player_name"].present? && row["amount_type_lk"].present? ? row["amount_type_lk"] : nil %>
-
-    <div class="subsection-row">
-      <%# Sticky label column %>
-      <div class="subsection-row-label">
-        <div class="subsection-row-label-grid">
+<div>
+  <%# Section header %>
+  <div class="bg-muted/10 dark:bg-muted/5 border-b border-border/50">
+    <div class="h-8 flex items-center text-xs">
+      <div
+        class="w-52 shrink-0 pl-4 sticky left-0 z-[2] bg-muted/10 dark:bg-muted/5 relative
+               after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/30"
+      >
+        <div class="grid grid-cols-[40px_1fr] items-center h-full">
           <div></div>
-          <div class="subsection-row-label-text">
-            <div class="subsection-row-title"><%= title %></div>
-            <% if subtitle %>
-              <div class="subsection-row-subtitle"><%= subtitle %></div>
-            <% end %>
+          <div class="pl-1 flex items-center gap-2 min-w-0">
+            <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Cap Holds</span>
+            <span class="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-muted text-muted-foreground text-[9px] font-medium">
+              <%= cap_holds.length %>
+            </span>
           </div>
         </div>
       </div>
 
-      <%# Year columns %>
-      <% salary_years.each do |year| %>
-        <% amt = cap_hold_amount(row, year) %>
-        <% is_empty = amt.nil? || amt.to_f == 0 %>
-        <div class="subsection-year-cell <%= 'subsection-year-cell--empty' if is_empty %>">
-          <%= is_empty ? "—" : format_compact_currency(amt) %>
-        </div>
+      <% salary_years.each do |_year| %>
+        <div class="w-24 shrink-0"></div>
       <% end %>
 
-      <%# Spacers for Total + Agent columns %>
-      <div class="subsection-spacer"></div>
-      <div class="subsection-spacer-wide"></div>
+      <div class="w-24 shrink-0"></div>
+      <div class="w-40 pr-4 shrink-0"></div>
+    </div>
+  </div>
+
+  <% cap_holds.each do |row| %>
+    <% title = row["player_name"].presence || row["amount_type_lk"].presence || "Cap Hold" %>
+    <% subtitle = row["amount_type_lk"].present? && row["player_name"].present? ? row["amount_type_lk"] : nil %>
+
+    <div class="border-b border-border/50 hover:bg-muted/30 dark:hover:bg-muted/15 transition-colors">
+      <div class="h-8 flex items-center text-xs">
+        <%# Sticky label column %>
+        <div
+          class="w-52 shrink-0 pl-4 sticky left-0 z-[1] bg-background relative
+                 after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/30
+                 hover:bg-muted/30 dark:hover:bg-muted/15"
+        >
+          <div class="grid grid-cols-[40px_1fr] items-center h-full">
+            <div></div>
+            <div class="pl-1 min-w-0">
+              <div class="truncate font-medium text-[12px]"><%= title %></div>
+              <% if subtitle %>
+                <div class="truncate text-[10px] text-muted-foreground"><%= subtitle %></div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <%# Year columns %>
+        <% salary_years.each do |year| %>
+          <% amt = cap_hold_amount(row, year) %>
+          <% is_empty = amt.nil? || amt.to_f == 0 %>
+          <div class="w-24 shrink-0 font-mono tabular-nums text-center <%= is_empty ? 'text-gray-400/50' : '' %>">
+            <%= is_empty ? "—" : format_compact_currency(amt) %>
+          </div>
+        <% end %>
+
+        <div class="w-24 shrink-0"></div>
+        <div class="w-40 pr-4 shrink-0"></div>
+      </div>
     </div>
   <% end %>
 </div>

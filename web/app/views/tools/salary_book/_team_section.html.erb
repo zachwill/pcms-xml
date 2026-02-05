@@ -1,15 +1,10 @@
 <%#
-  TeamSection — Wrapper for one team's salary book
+  TeamSection — Tailwind port of the React prototype (TeamSection + SalaryTable)
 
-  Contains:
-  - Team Header (sticky) with logo, name, conference, and KPI cards
-  - Table Header (sticky, attached to team header)
-  - Player Rows (double-height)
-  - Cap Holds Section (toggle-controlled)
-  - Exceptions Section (toggle-controlled)
-  - Draft Assets Section (toggle-controlled)
-  - Dead Money Section (toggle-controlled)
-  - Totals Footer
+  Layout:
+  - Vertical sticky header group (TeamHeader + horizontally-scrollable TableHeader)
+  - Horizontally-scrollable body (Player rows + supplementary sections + totals)
+  - Sticky left "player" column
 %>
 
 <% salary_years ||= SalaryBookHelper::SALARY_YEARS %>
@@ -26,8 +21,8 @@
 <% team_id = team_meta["team_id"] %>
 <% logo_url = team_logo_url(team_id) %>
 
-<%# Current year summary for KPI cards %>
-<% current_summary = team_summaries[year] || team_summaries[2025] || {} %>
+<%# Current-year summary for KPI cards %>
+<% current_summary = team_summaries[year] || team_summaries[salary_years.first] || {} %>
 <% roster_count = current_summary["roster_row_count"] %>
 <% two_way_count = current_summary["two_way_row_count"] %>
 <% cap_total = current_summary["cap_total"] %>
@@ -36,208 +31,197 @@
 <% room_a1 = current_summary["room_under_first_apron"] %>
 <% room_a2 = current_summary["room_under_second_apron"] %>
 
-<section id="teamsection-<%= team_code %>" class="teamsection" data-teamcode="<%= team_code %>">
-  <%# Sticky header group (Team header + Table header) %>
-  <div class="teamsection-sticky-header">
-    <div data-header-content>
-      <%# Team header with KPIs %>
-      <header class="teamsection-header teamsection-header--kpi">
-        <%# Left section: Logo + Team name + Conference %>
-        <div class="teamsection-header-left">
-          <%# Team logo %>
-          <div class="teamsection-logo">
-            <% if logo_url %>
-              <img
-                src="<%= logo_url %>"
-                alt="<%= team_name %> logo"
-                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-              />
-              <span class="teamsection-logo-fallback" style="display: none;">
-                <%= team_code %>
-              </span>
-            <% else %>
-              <span class="teamsection-logo-fallback">
-                <%= team_code %>
-              </span>
-            <% end %>
+<%
+  # Column math (must match Tailwind widths)
+  # w-52 = 208px, w-24 = 96px, w-40 = 160px
+  sticky_left_px = 208
+  col_px = 96
+  agent_px = 160
+  min_table_width_px = sticky_left_px + ((salary_years.length + 1) * col_px) + agent_px
+%>
+
+<section
+  id="<%= team_code %>"
+  data-teamcode="<%= team_code %>"
+  class="border-b border-border snap-start"
+  style="content-visibility: auto; contain-intrinsic-size: 1200px 600px;"
+>
+  <div class="relative" data-salarytable>
+    <%# Sticky header group (vertical sticky) %>
+    <div
+      class="sticky top-0 z-30 bg-background will-change-transform
+             shadow-[0_1px_3px_0_rgb(0_0_0/0.1),0_1px_2px_-1px_rgb(0_0_0/0.1)]"
+    >
+      <%# Content wrapper so scroll-spy can fade text/KPIs without fading the background %>
+      <div data-header-content>
+        <%# TeamHeader (does not horizontally scroll) %>
+        <div class="h-14 flex items-center border-b border-border bg-muted">
+          <%# Left section: Logo + Team name + Conference (fixed width) %>
+          <div class="w-52 shrink-0 pl-4 flex items-center gap-3">
+            <div class="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-background border border-border overflow-hidden">
+              <% if logo_url %>
+                <img
+                  src="<%= logo_url %>"
+                  alt="<%= team_name %> logo"
+                  class="w-full h-full object-contain"
+                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                />
+                <span class="hidden text-[10px] font-mono font-bold uppercase tracking-tight text-muted-foreground"><%= team_code %></span>
+              <% else %>
+                <span class="text-[10px] font-mono font-bold uppercase tracking-tight text-muted-foreground"><%= team_code %></span>
+              <% end %>
+            </div>
+
+            <div class="grid grid-rows-[24px_16px] min-w-0">
+              <div class="h-[24px] flex items-end min-w-0">
+                <button
+                  type="button"
+                  class="font-semibold leading-tight text-left text-[14px] block w-full truncate hover:text-primary transition-colors
+                         focus:outline-none focus-visible:underline focus-visible:text-primary"
+                  data-on:click="$activeteam = '<%= team_code %>'; @get('<%= tools_salary_book_sidebar_team_path(team: team_code, year: year) %>')"
+                ><%= team_name %></button>
+              </div>
+              <div class="h-[16px] -mt-px flex items-start min-w-0">
+                <span class="text-[10px] leading-none tabular-nums text-muted-foreground/80 truncate"><%= conference %> Conference</span>
+              </div>
+            </div>
           </div>
 
-          <%# Team name + Conference %>
-          <div class="teamsection-header-info">
-            <a
-              href="#teamsection-<%= team_code %>"
-              class="teamsection-name"
-              data-on:click="$activeteam = '<%= team_code %>'; @get('<%= tools_salary_book_sidebar_team_path(team: team_code, year: year) %>')"
-            ><%= team_name %></a>
-            <span class="teamsection-conference"><%= conference %></span>
+          <%# KPI cards row (aligned with year + total columns) %>
+          <div class="flex items-center">
+            <div class="w-24 shrink-0 flex justify-center">
+              <% if roster_count %>
+                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Roster", value: roster_count.to_s, title: "Number of roster players" } %>
+              <% end %>
+            </div>
+
+            <div class="w-24 shrink-0 flex justify-center">
+              <% if two_way_count %>
+                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Two-Way", value: two_way_count.to_s, title: "Number of two-way contracts" } %>
+              <% end %>
+            </div>
+
+            <div class="w-24 shrink-0 flex justify-center">
+              <% if cap_total %>
+                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Total", value: format_compact_currency(cap_total), title: "Current year total salary" } %>
+              <% end %>
+            </div>
+
+            <div class="w-24 shrink-0 flex justify-center">
+              <% if cap_space %>
+                <% variant = cap_space.to_f > 0 ? "positive" : "default" %>
+                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Cap Space", value: format_room_amount(cap_space), title: "Cap space", variant: } %>
+              <% end %>
+            </div>
+
+            <div class="w-24 shrink-0 flex justify-center" data-show="$displaytaxaprons">
+              <% if room_tax %>
+                <% variant = room_tax.to_f < 0 ? "negative" : "default" %>
+                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Tax Room", value: format_room_amount(room_tax), title: "Room under luxury tax", variant: } %>
+              <% end %>
+            </div>
+
+            <div class="w-24 shrink-0 flex justify-center" data-show="$displaytaxaprons">
+              <% if room_a1 %>
+                <% variant = room_a1.to_f < 0 ? "negative" : "default" %>
+                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Apron 1", value: format_room_amount(room_a1), title: "Room under first apron", variant: } %>
+              <% end %>
+            </div>
+
+            <div class="w-24 shrink-0 flex justify-center" data-show="$displaytaxaprons">
+              <% if room_a2 %>
+                <% variant = room_a2.to_f < 0 ? "negative" : "default" %>
+                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Apron 2", value: format_room_amount(room_a2), title: "Room under second apron", variant: } %>
+              <% end %>
+            </div>
+
+            <%# Agent column spacer %>
+            <div class="w-40 shrink-0 pr-4"></div>
           </div>
         </div>
 
-        <%# KPI Cards %>
-        <div class="teamsection-header-kpis">
-          <%# Roster %>
-          <div class="teamsection-kpi-slot">
-            <% if roster_count %>
-              <div class="teamsection-kpi-card" title="Roster count">
-                <span class="teamsection-kpi-label">Roster</span>
-                <span class="teamsection-kpi-value"><%= roster_count %></span>
-              </div>
-            <% end %>
+        <%# TableHeader (horizontally scrollable; synced with body) %>
+        <div
+          data-salarytable-header-scroll
+          class="overflow-x-auto overscroll-x-contain
+                 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        >
+          <div class="min-w-max" style="min-width: <%= min_table_width_px %>px;">
+            <%= render partial: "tools/salary_book/table_header", locals: { salary_years: salary_years } %>
           </div>
-
-          <%# Two-Way %>
-          <div class="teamsection-kpi-slot">
-            <% if two_way_count %>
-              <div class="teamsection-kpi-card" title="Two-way contracts">
-                <span class="teamsection-kpi-label">Two-Way</span>
-                <span class="teamsection-kpi-value"><%= two_way_count %></span>
-              </div>
-            <% end %>
-          </div>
-
-          <%# Total Salary %>
-          <div class="teamsection-kpi-slot">
-            <% if cap_total %>
-              <div class="teamsection-kpi-card" title="Current year total salary">
-                <span class="teamsection-kpi-label">Total</span>
-                <span class="teamsection-kpi-value"><%= format_compact_currency(cap_total) %></span>
-              </div>
-            <% end %>
-          </div>
-
-          <%# Cap Space %>
-          <div class="teamsection-kpi-slot">
-            <% if cap_space %>
-              <% cs_variant = cap_space.to_f >= 0 ? "positive" : "negative" %>
-              <div class="teamsection-kpi-card teamsection-kpi-card--<%= cs_variant %>" title="Cap space">
-                <span class="teamsection-kpi-label">Cap Space</span>
-                <span class="teamsection-kpi-value teamsection-kpi-value--<%= cs_variant %>">
-                  <%= format_room_amount(cap_space) %>
-                </span>
-              </div>
-            <% end %>
-          </div>
-
-          <%# Tax Room %>
-          <div class="teamsection-kpi-slot">
-            <% if room_tax %>
-              <% tax_variant = room_tax.to_f >= 0 ? "default" : "negative" %>
-              <div class="teamsection-kpi-card teamsection-kpi-card--<%= tax_variant %>" title="Room under luxury tax">
-                <span class="teamsection-kpi-label">Tax Room</span>
-                <span class="teamsection-kpi-value teamsection-kpi-value--<%= tax_variant %>">
-                  <%= format_room_amount(room_tax) %>
-                </span>
-              </div>
-            <% end %>
-          </div>
-
-          <%# Apron 1 %>
-          <div class="teamsection-kpi-slot">
-            <% if room_a1 %>
-              <% a1_variant = room_a1.to_f >= 0 ? "default" : "negative" %>
-              <div class="teamsection-kpi-card teamsection-kpi-card--<%= a1_variant %>" title="Room under first apron">
-                <span class="teamsection-kpi-label">Apron 1</span>
-                <span class="teamsection-kpi-value teamsection-kpi-value--<%= a1_variant %>">
-                  <%= format_room_amount(room_a1) %>
-                </span>
-              </div>
-            <% end %>
-          </div>
-
-          <%# Apron 2 %>
-          <div class="teamsection-kpi-slot">
-            <% if room_a2 %>
-              <% a2_variant = room_a2.to_f >= 0 ? "default" : "negative" %>
-              <div class="teamsection-kpi-card teamsection-kpi-card--<%= a2_variant %>" title="Room under second apron">
-                <span class="teamsection-kpi-label">Apron 2</span>
-                <span class="teamsection-kpi-value teamsection-kpi-value--<%= a2_variant %>">
-                  <%= format_room_amount(room_a2) %>
-                </span>
-              </div>
-            <% end %>
-          </div>
-
-          <%# Agent column spacer %>
-          <div class="teamsection-kpi-spacer"></div>
         </div>
-      </header>
+      </div>
+    </div>
 
-      <%# Table header %>
-      <%= render partial: "tools/salary_book/table_header", locals: { salary_years: salary_years } %>
+    <%# Shadow overlay for sticky column edge (appears when horizontally scrolled) %>
+    <div
+      data-salarytable-sticky-shadow
+      class="absolute top-0 bottom-0 pointer-events-none z-40 transition-opacity duration-150 opacity-0"
+      style="left: <%= sticky_left_px %>px; width: 10px; background: linear-gradient(to right, color-mix(in srgb, var(--border) 35%, transparent), transparent);"
+      aria-hidden="true"
+    ></div>
+
+    <%# Content sentinel for IntersectionObserver scroll-spy.
+        Placed AFTER the sticky header, so it scrolls with the content.
+        When this crosses the threshold line (exits adjusted viewport going UP),
+        this team's header has become sticky → team is active. %>
+    <div data-team-content-sentinel data-teamcode="<%= team_code %>" aria-hidden="true" class="h-px"></div>
+
+    <%# Body horizontal scroller %>
+    <div
+      data-salarytable-body-scroll
+      class="overflow-x-auto overscroll-x-contain relative
+             [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+    >
+      <div class="min-w-max" style="min-width: <%= min_table_width_px %>px;">
+        <%# Player rows %>
+        <div class="[&>*:first-child]:mt-1">
+          <% players.each do |player| %>
+            <%= render partial: "tools/salary_book/player_row", locals: { player: player, salary_years: salary_years } %>
+          <% end %>
+        </div>
+
+        <% if players.empty? %>
+          <div class="h-24 flex items-center justify-center text-muted-foreground text-sm">No players</div>
+        <% end %>
+
+        <%# Supplementary rows (Display filters) %>
+
+        <div data-show="$displaycapholds">
+          <% if cap_holds.any? %>
+            <%= render partial: "tools/salary_book/cap_holds_section", locals: { cap_holds: cap_holds, salary_years: salary_years } %>
+          <% else %>
+            <%= render partial: "tools/salary_book/placeholder_section_row", locals: { label: "Cap Holds", salary_years: salary_years } %>
+          <% end %>
+        </div>
+
+        <div data-show="$displayexceptions">
+          <% if exceptions.any? %>
+            <%= render partial: "tools/salary_book/exceptions_section", locals: { exceptions: exceptions } %>
+          <% else %>
+            <%= render partial: "tools/salary_book/placeholder_section_row", locals: { label: "Exceptions", salary_years: salary_years } %>
+          <% end %>
+        </div>
+
+        <div data-show="$displaydeadmoney">
+          <% if dead_money.any? %>
+            <%= render partial: "tools/salary_book/dead_money_section", locals: { dead_money: dead_money, salary_years: salary_years } %>
+          <% else %>
+            <%= render partial: "tools/salary_book/placeholder_section_row", locals: { label: "Dead Money", salary_years: salary_years } %>
+          <% end %>
+        </div>
+
+        <div data-show="$displaydraftpicks">
+          <% if picks.any? %>
+            <%= render partial: "tools/salary_book/draft_assets_section", locals: { picks: picks, salary_years: salary_years } %>
+          <% else %>
+            <%= render partial: "tools/salary_book/placeholder_section_row", locals: { label: "Draft Assets", salary_years: salary_years } %>
+          <% end %>
+        </div>
+
+        <%# Totals footer %>
+        <%= render partial: "tools/salary_book/totals_footer", locals: { team_summaries: team_summaries, salary_years: salary_years } %>
+      </div>
     </div>
   </div>
-
-  <%# Table body %>
-  <div class="teamsection-body">
-    <% if players.empty? %>
-      <div class="teamsection-empty">No players found for <%= team_code %>.</div>
-    <% else %>
-      <% players.each do |player| %>
-        <%= render partial: "tools/salary_book/player_row", locals: { player: player, salary_years: salary_years } %>
-      <% end %>
-    <% end %>
-
-    <%# Cap Holds Section (toggle-controlled via $displaycapholds signal) %>
-    <div class="teamsection-subsection teamsection-subsection--capholds" data-show="$displaycapholds">
-      <div class="teamsection-subsection-header">
-        <span class="teamsection-subsection-label">Cap Holds</span>
-        <% if cap_holds.any? %>
-          <span class="teamsection-subsection-count"><%= cap_holds.length %></span>
-        <% end %>
-      </div>
-      <% if cap_holds.any? %>
-        <%= render partial: "tools/salary_book/cap_holds_section", locals: { cap_holds: cap_holds, salary_years: salary_years } %>
-      <% else %>
-        <div class="teamsection-subsection-empty">No cap holds</div>
-      <% end %>
-    </div>
-
-    <%# Exceptions Section (toggle-controlled via $displayexceptions signal) %>
-    <div class="teamsection-subsection teamsection-subsection--exceptions" data-show="$displayexceptions">
-      <div class="teamsection-subsection-header">
-        <span class="teamsection-subsection-label">Exceptions</span>
-        <% if exceptions.any? %>
-          <span class="teamsection-subsection-count"><%= exceptions.length %></span>
-        <% end %>
-      </div>
-      <% if exceptions.any? %>
-        <%= render partial: "tools/salary_book/exceptions_section", locals: { exceptions: exceptions, salary_years: salary_years } %>
-      <% else %>
-        <div class="teamsection-subsection-empty">No active exceptions</div>
-      <% end %>
-    </div>
-
-    <%# Draft Picks Section (toggle-controlled via $displaydraftpicks signal) %>
-    <div class="teamsection-subsection teamsection-subsection--draftpicks" data-show="$displaydraftpicks">
-      <div class="teamsection-subsection-header">
-        <span class="teamsection-subsection-label">Draft Assets</span>
-        <% if picks.any? %>
-          <span class="teamsection-subsection-count"><%= picks.length %></span>
-        <% end %>
-      </div>
-      <% if picks.any? %>
-        <%= render partial: "tools/salary_book/draft_assets_section", locals: { picks: picks, salary_years: salary_years } %>
-      <% else %>
-        <div class="teamsection-subsection-empty">No draft assets</div>
-      <% end %>
-    </div>
-
-    <%# Dead Money Section (toggle-controlled via $displaydeadmoney signal) %>
-    <div class="teamsection-subsection teamsection-subsection--deadmoney" data-show="$displaydeadmoney">
-      <div class="teamsection-subsection-header">
-        <span class="teamsection-subsection-label">Dead Money</span>
-        <% if dead_money.any? %>
-          <span class="teamsection-subsection-count"><%= dead_money.length %></span>
-        <% end %>
-      </div>
-      <% if dead_money.any? %>
-        <%= render partial: "tools/salary_book/dead_money_section", locals: { dead_money: dead_money, salary_years: salary_years } %>
-      <% else %>
-        <div class="teamsection-subsection-empty">No dead money</div>
-      <% end %>
-    </div>
-  </div>
-
-  <%# Totals Footer %>
-  <%= render partial: "tools/salary_book/totals_footer", locals: { team_summaries: team_summaries, salary_years: salary_years } %>
 </section>

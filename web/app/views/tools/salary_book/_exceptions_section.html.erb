@@ -1,55 +1,65 @@
-<%#
-  Exceptions Section — Trade exceptions and salary exceptions
-
-  Shows exceptions as compact KPI cards, sorted by amount.
-  TPEs show the player name; others show the exception type.
-%>
+<%# ExceptionsSection — Tailwind port of the React prototype %>
 
 <% exceptions ||= [] %>
 <% return if exceptions.empty? %>
 
-<%
-  # Sort by primary amount descending
-  sorted = exceptions.sort_by { |e| -(exception_primary_amount(e) || 0) }
-%>
+<% sorted = exceptions.sort_by { |e| -(exception_primary_amount(e) || 0) } %>
 
-<div class="subsection-exceptions-row">
-  <%# Sticky label column %>
-  <div class="subsection-row-label">
-    <div class="subsection-row-label-grid">
-      <div class="subsection-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-          <path d="M5 3v4"/>
-          <path d="M19 17v4"/>
-          <path d="M3 5h4"/>
-          <path d="M17 19h4"/>
-        </svg>
-      </div>
-      <div class="subsection-label-content">
-        <span class="subsection-label-text">Exceptions</span>
-        <span class="subsection-count-badge"><%= exceptions.length %></span>
-      </div>
-    </div>
-  </div>
+<div class="border-b border-border/50 bg-muted">
+  <div class="h-14 flex items-center text-xs">
+    <%# Sticky label column %>
+    <div
+      class="w-52 shrink-0 pl-4 sticky left-0 z-[2] relative bg-muted
+             after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/30"
+    >
+      <div class="grid grid-cols-[40px_1fr] items-center h-full">
+        <div class="flex items-center justify-start">
+          <div class="w-7 h-7 rounded border border-border bg-background flex items-center justify-center text-muted-foreground">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+              <path d="M5 3v4"/>
+              <path d="M19 17v4"/>
+              <path d="M3 5h4"/>
+              <path d="M17 19h4"/>
+            </svg>
+          </div>
+        </div>
 
-  <%# Exception cards %>
-  <div class="subsection-kpi-cards">
-    <% sorted.each do |row| %>
-      <% label = exception_label(row) %>
-      <% amount = exception_primary_amount(row) %>
-      <% title = exception_title(row) %>
-      <% is_dpe = disabled_player_exception?(row) %>
-
-      <div class="subsection-kpi-card <%= 'subsection-kpi-card--dpe' if is_dpe %>" title="<%= title %>">
-        <div class="subsection-kpi-label <%= 'subsection-kpi-label--dpe' if is_dpe %>"><%= label %></div>
-        <div class="subsection-kpi-value <%= 'subsection-kpi-value--dpe' if is_dpe %>">
-          <%= amount ? format_compact_currency(amount) : "—" %>
+        <div class="pl-1 flex items-center gap-2 min-w-0">
+          <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Exceptions</span>
+          <span class="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-muted text-muted-foreground text-[9px] font-medium">
+            <%= exceptions.length %>
+          </span>
         </div>
       </div>
-    <% end %>
+    </div>
 
-    <%# Spacer for Total + Agent columns %>
-    <div class="subsection-spacer-wide"></div>
+    <%# Exception KPI cards %>
+    <div class="flex items-center">
+      <% sorted.each do |row| %>
+        <% label = exception_label(row) %>
+        <% amount = exception_primary_amount(row) %>
+        <% title = exception_title(row) %>
+        <% is_dpe = disabled_player_exception?(row) %>
+
+        <% card_class = is_dpe ? 'bg-red-200/80 dark:bg-red-800/60 border border-red-400/50' : '' %>
+        <% label_class = is_dpe ? 'text-red-700 dark:text-red-200' : '' %>
+        <% value_class = is_dpe ? 'text-red-800 dark:text-red-100' : '' %>
+
+        <div class="w-24 shrink-0 flex justify-center">
+          <%= render partial: "tools/salary_book/kpi_cell", locals: {
+            label:,
+            value: amount ? format_compact_currency(amount) : "—",
+            title:,
+            variant: amount ? "default" : "muted",
+            class_name: card_class,
+            label_class_name: "w-full truncate #{label_class}",
+            value_class_name: "truncate #{value_class}"
+          } %>
+        </div>
+      <% end %>
+
+      <div class="w-40 pr-4 shrink-0"></div>
+    </div>
   </div>
 </div>

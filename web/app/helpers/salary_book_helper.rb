@@ -11,31 +11,26 @@ module SalaryBookHelper
   end
 
   # Format salary as compact string (e.g., $25.3M, $4.8M, $500K)
+  # Also supports signed values (e.g., -$87.7M) for "room" metrics.
   def format_salary(amount)
     return "—" if amount.nil?
 
     amount = amount.to_f
     return "$0K" if amount == 0
 
-    millions = amount / 1_000_000
-    return "$#{format("%.1f", millions)}M" if millions >= 1
+    sign = amount < 0 ? "-" : ""
+    abs = amount.abs
 
-    thousands = amount / 1_000
-    "$#{thousands.round}K"
+    millions = abs / 1_000_000
+    return "#{sign}$#{format("%.1f", millions)}M" if millions >= 1
+
+    thousands = abs / 1_000
+    "#{sign}$#{thousands.round}K"
   end
 
-  # Format salary even more compactly for KPI cells (e.g., 25.3M, 4.8M, 500K)
+  # Compact currency formatter (prototype parity; keeps the "$" prefix).
   def format_compact_currency(amount)
-    return "—" if amount.nil?
-
-    amount = amount.to_f
-    return "—" if amount == 0
-
-    millions = amount / 1_000_000
-    return "#{format("%.1f", millions)}M" if millions >= 1
-
-    thousands = amount / 1_000
-    "#{thousands.round}K"
+    format_salary(amount)
   end
 
   # Get salary for a specific year
@@ -43,9 +38,30 @@ module SalaryBookHelper
     player["cap_#{year}"]
   end
 
+  # Normalize option values coming from `pcms.salary_book_warehouse`.
+  #
+  # Observed values:
+  # - "NONE" / "" / nil
+  # - "TEAM" (team option)
+  # - "PLYR" (player option)
+  # - "PLYTF" (early termination option)
+  def normalize_contract_option(value)
+    return nil if value.nil?
+
+    v = value.to_s.strip.upcase
+    return nil if v.blank? || v == "NONE"
+
+    return "TO" if v == "TEAM" || v == "TO"
+    return "PO" if v == "PLYR" || v == "PO"
+    return "ETO" if v == "PLYTF" || v == "ETO"
+
+    # Unknown value: hide rather than rendering arbitrary text.
+    nil
+  end
+
   # Get option for a specific year (PO, TO, ETO, or nil)
   def player_option(player, year)
-    player["option_#{year}"]
+    normalize_contract_option(player["option_#{year}"])
   end
 
   # Get guarantee type for a specific year
@@ -64,6 +80,73 @@ module SalaryBookHelper
   # Determine if year is the current season
   def current_season?(year)
     year == SALARY_YEARS.first
+  end
+
+  # Years of service (YOS) helpers
+  def years_of_service_for_year(player, year)
+    base = player["years_of_service"]
+    return nil if base.nil?
+
+    base.to_i + (year.to_i - SALARY_YEARS.first)
+  end
+
+  def max_pct_for_years_of_service(yos)
+    return nil if yos.nil?
+
+    y = yos.to_i
+    return 0.25 if y <= 6
+    return 0.30 if y <= 9
+
+    0.35
+  end
+
+  # Returns true/false/nil (nil = unknown) for whether a trade bonus has room to apply.
+  #
+  # If a player's salary is already at/over their max-salary threshold, the trade kicker
+  # effectively can't increase their outgoing salary.
+  def trade_bonus_has_room?(player, year)
+    return nil unless player["is_trade_bonus"]
+
+    pct_cap_raw = player["pct_cap_#{year}"]
+    pct_cap = pct_cap_raw&.to_f
+    return nil if pct_cap.nil? || pct_cap <= 0
+
+    salary_raw = player_salary(player, year)
+    salary = salary_raw&.to_f
+    return nil if salary.nil? || salary <= 0
+
+    yos_this_year = years_of_service_for_year(player, year)
+    return nil if yos_this_year.nil?
+
+    yos_max_pct = max_pct_for_years_of_service(yos_this_year)
+    return nil if yos_max_pct.nil?
+
+    # Derive implied cap for this year from salary + pct_cap.
+    cap_this_year = salary / pct_cap
+    return nil unless cap_this_year.finite? && cap_this_year > 0
+
+    # 105% fallback (uses prior year's salary if available in the horizon)
+    prior_salary = player_salary(player, year.to_i - 1)
+    fallback_pct = if prior_salary.present?
+      (1.05 * prior_salary.to_f) / cap_this_year
+    end
+
+    max_allowed_pct = [yos_max_pct, (fallback_pct || 0)].max
+
+    pct_cap < max_allowed_pct
+  end
+
+  # Poison Pill only meaningfully applies in the current season and only for 2–3 YOS players.
+  # (Warehouse flag can be historically true even when it's no longer relevant.)
+  def poison_pill_now?(player, year)
+    return false unless current_season?(year)
+    return false unless player["is_poison_pill"]
+
+    yos = years_of_service_for_year(player, year)
+    return false if yos.nil?
+
+    y = yos.to_i
+    y == 2 || y == 3
   end
 
   # Get CSS classes for a salary cell based on guarantee/option/trade status
@@ -100,10 +183,18 @@ module SalaryBookHelper
       end
     end
 
-    # Trade bonus styling (if no option override)
+    # Trade bonus styling
     if player["is_trade_bonus"] && bg_class.blank?
-      bg_class = "bg-orange-100/60 dark:bg-orange-900/30"
-      text_class = "text-orange-700 dark:text-orange-300"
+      has_room = trade_bonus_has_room?(player, year)
+
+      if has_room == false
+        # Trade bonus exists, but salary is already at/over max threshold → show orange text only.
+        text_class = "text-orange-700 dark:text-orange-300"
+      else
+        # Unknown or has room → show orange background.
+        bg_class = "bg-orange-100/60 dark:bg-orange-900/30"
+        text_class = "text-orange-700 dark:text-orange-300"
+      end
     end
 
     # No-Trade Clause
@@ -114,7 +205,7 @@ module SalaryBookHelper
 
     # Current-season trade restrictions (override all other coloring)
     if is_current
-      if player["is_trade_consent_required_now"] || player["is_trade_restricted_now"] || player["is_poison_pill"]
+      if player["is_trade_consent_required_now"] || player["is_trade_restricted_now"] || poison_pill_now?(player, year)
         bg_class = "bg-red-100/60 dark:bg-red-900/30"
         text_class = "text-red-700 dark:text-red-300"
       end
@@ -125,6 +216,8 @@ module SalaryBookHelper
 
   # Build tooltip text for salary cell
   def salary_cell_tooltip(player, year)
+    return nil if player_salary(player, year).nil?
+
     tooltips = []
 
     guarantee = player_guarantee_type(player, year)
@@ -170,21 +263,57 @@ module SalaryBookHelper
     if is_current
       tooltips << "Player Consent Required" if player["is_trade_consent_required_now"]
       tooltips << "Trade Restricted" if player["is_trade_restricted_now"]
-      tooltips << "Poison Pill" if player["is_poison_pill"]
+      tooltips << "Poison Pill" if poison_pill_now?(player, year)
     end
 
     tooltips.join("\n").presence
   end
 
-  # Format percent of cap with optional blocks for percentile
-  def format_pct_cap(player, year)
+  # -------------------------------------------------------------------------
+  # Pct-cap display (prototype parity)
+  # -------------------------------------------------------------------------
+
+  # Convert a percentile (0..1) into a 0..4 bucket (for a 4-block display).
+  def pct_cap_percentile_bucket(percentile)
+    return 0 if percentile.nil?
+
+    p = percentile.to_f
+    return 0 if p < 0
+    return 4 if p >= 1
+
+    (p * 5).floor.clamp(0, 4)
+  end
+
+  def pct_cap_blocks(percentile)
+    return "" if percentile.nil?
+
+    filled = "▪︎"
+    empty = "▫︎"
+    bucket = pct_cap_percentile_bucket(percentile)
+
+    (filled * bucket) + (empty * (4 - bucket))
+  end
+
+  # Returns a hash: { label: "30%", blocks: "▪︎▪︎▫︎▫︎" }
+  def format_pct_cap_with_blocks(player, year)
     return nil if player["is_min_contract"]
 
     pct = player["pct_cap_#{year}"]
     return nil if pct.nil? || pct.to_f <= 0
 
-    pct_value = (pct.to_f * 100).round(1)
-    "#{pct_value}%"
+    pct_value = (pct.to_f * 100).round
+    label = pct_value < 10 ? "\u00A0#{pct_value}%" : "#{pct_value}%"
+
+    percentile = player["pct_cap_percentile_#{year}"]
+    blocks = pct_cap_blocks(percentile)
+
+    { label:, blocks: }
+  end
+
+  # Back-compat: return label-only string.
+  def format_pct_cap(player, year)
+    formatted = format_pct_cap_with_blocks(player, year)
+    formatted ? formatted[:label] : nil
   end
 
   # Calculate total salary across years

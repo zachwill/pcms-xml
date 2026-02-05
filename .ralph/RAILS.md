@@ -22,6 +22,21 @@ Tool URL: `/tools/salary-book`
 - Patch stable regions by ID: `#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`, `#teamsection-<TEAM>`
 - Response types: `text/html` (default), `application/json` (signal-only), `text/event-stream` (SSE)
 
+**Tailwind conventions** (utility-first in ERB):
+- We use `tailwindcss-rails` (compiled), NOT the CDN
+- Heavily lean toward utility classes in `.html.erb` partials (avoid custom CSS classes unless needed for Datastar `data-class`, animations, etc.)
+- Standard column widths:
+  - `w-52` — sticky label column (player name, subsection labels)
+  - `w-24` — year cells, total column
+  - `w-40` — agent column
+- Sticky columns: use `sticky left-0 z-[N]` + `after:` pseudo-element for right border
+- Row hover: use `group` on parent + `group-hover:` on children
+- Dark mode: include `dark:` variants for backgrounds, text, borders
+- Player row height: `h-[40px]` (two 24px + 16px sub-rows)
+- Subsection row height: `h-8`
+- Font sizes: `text-[14px]` names, `text-[12px]` subsection titles, `text-[10px]` metadata/badges, `text-xs` general small text
+- Monospace numbers: `font-mono tabular-nums`
+
 **Hard rules**:
 - Do NOT re-implement cap/trade/CBA math in Ruby - use `pcms.*` warehouses + `fn_*`
 - Keep tool endpoints under `/tools/salary-book/*`
@@ -29,33 +44,37 @@ Tool URL: `/tools/salary-book`
 
 ---
 
+## Tailwind port status
+
+Tailwind port is complete (prototype-style utilities in ERB).
+
+- Tailwind is compiled via `tailwindcss-rails` into `web/app/assets/builds/tailwind.css`.
+- The layout loads **only** `stylesheet_link_tag "tailwind"`.
+- Global tokens + the small amount of selector-driven CSS live in `web/app/assets/tailwind/application.css`.
+- Legacy `web/app/assets/stylesheets/application.css` has been removed.
+
+Salary Book partials ported:
+- [x] `show.html.erb` (shell + command bar + tiny JS runtime)
+- [x] `_team_section.html.erb`
+- [x] `_table_header.html.erb`
+- [x] `_player_row.html.erb`
+- [x] `_cap_holds_section.html.erb`
+- [x] `_exceptions_section.html.erb`
+- [x] `_dead_money_section.html.erb`
+- [x] `_draft_assets_section.html.erb`
+- [x] `_totals_footer.html.erb`
+- [x] `_sidebar_team.html.erb`
+- [x] `_sidebar_player.html.erb`
+- [x] `_sidebar_agent.html.erb`
+- [x] `_sidebar_pick.html.erb`
+- [x] `_kpi_cell.html.erb`
+- [x] `_placeholder_section_row.html.erb`
+
+---
+
 ## Backlog
 
-- [ ] Filter Toggles parity (Financials + Contracts) (client-only lenses)
-  - Add new flatcase signals (defaults match `web/specs/01-salary-book.md`):
-    - Financials:
-      - `displaytaxaprons` (**true**)
-      - `displaycashvscap` (false)
-      - `displayluxurytax` (false)
-    - Contracts:
-      - `displayoptions` (**true**)
-      - `displayincentives` (**true**)
-      - `displaytwoway` (**true**)
-  - UI: add **Financials** + **Contracts** filter groups in the command bar
-    - Use checkboxes bound via `data-bind`
-    - On change: call `window.__salaryBookPreserveContext?.()` (same as Display group)
-  - Wire v1 behavior (no server calls):
-    - `displaytaxaprons`: hide/show tax+apron surfaces via `data-show`:
-      - Team section header KPI cards: Tax Room, Apron 1, Apron 2
-      - Sidebar team context: Tax Status badge + Room Under Tax/Aprons rows
-      - Totals footer: Tax Status row
-    - `displaytwoway`: hide/show two-way players in the main table (client-side)
-      - Prefer `data-show` on the player row root so row height collapses cleanly
-    - `displayoptions`: start by gating option *badges/tooltips* (avoid per-cell `data-class` unless needed)
-      - At minimum: hide option badges in the Player overlay Year-by-Year section
-    - `displayincentives`: start by gating incentive *badges/tooltips*
-      - At minimum: hide likely/unlikely bonus rows in the Player overlay Year-by-Year section
-    - `displaycashvscap` / `displayluxurytax`: ok to ship as UI-only (no-op) until we render those rows/cards
+- [ ] Visual QA pass vs prototype (scroll spy + overlay layering + table scroll sync)
 
 ---
 
@@ -72,6 +91,28 @@ NOTE: BrickLink-style **entity pages** now have their own backlog + agent:
 ---
 
 ## Done
+
+- [x] Extract inline Salary Book JS into `app/javascript/tools/salary_book.js`
+  - Set up importmap-rails (config/importmap.rb)
+  - Created `app/javascript/application.js` (entry point)
+  - Created `app/javascript/tools/salary_book.js` (scroll-spy + scroll-sync)
+  - Layout now uses `javascript_importmap_tags` + `yield :head_scripts`
+  - View uses `content_for :head_scripts` to import the module per-page
+
+- [x] Filter Toggles parity (Financials + Contracts)
+  - Added signals: `displaytaxaprons`, `displaycashvscap`, `displayluxurytax`, `displayoptions`, `displayincentives`, `displaytwoway`
+  - UI: Financials + Contracts filter groups in command bar
+  - Wired `data-show="$displaytaxaprons"` on Tax/Apron KPIs (team header + totals footer)
+  - Wired `data-show="$displaytwoway"` on two-way player rows
+
+- [x] Tailwind migration: switched from CDN to `tailwindcss-rails` (compiled)
+  - Layout now uses `stylesheet_link_tag "tailwind"`
+  - Config in `tailwind.config.js` (not inline script)
+
+- [x] Port core partials to Tailwind utilities
+  - `_table_header.html.erb`, `_player_row.html.erb`
+  - `_cap_holds_section.html.erb`, `_dead_money_section.html.erb`, `_exceptions_section.html.erb`
+  - `show.html.erb` (commandbar, viewport, filters)
 
 - [x] Add Pick overlay endpoint (v1 scaffold + wire click)
   - Route: `GET /tools/salary-book/sidebar/pick?team=:code&year=:year&round=:round` → patches `#rightpanel-overlay`
@@ -90,7 +131,7 @@ NOTE: BrickLink-style **entity pages** now have their own backlog + agent:
   - Updated controller SQL pivots (cap_holds, exceptions, dead_money) to include 2030.
 
 - [x] Team section parity: Team Header KPIs + Totals Footer
-  - Bulk fetch `pcms.team_salary_warehouse` across the displayed years (don’t recompute totals in Ruby).
+  - Bulk fetch `pcms.team_salary_warehouse` across the displayed years (don't recompute totals in Ruby).
   - `GET /tools/salary-book/teams/:teamcode/section` renders the full team section (header + players + sub-sections + totals footer).
 
 - [x] Expand team sidebar context (`#rightpanel-base`) to match spec
@@ -101,9 +142,7 @@ NOTE: BrickLink-style **entity pages** now have their own backlog + agent:
   - Contract breakdown by year, guarantee structure, options, trade kicker / restrictions
   - Back behaves correctly (returns to current viewport team)
 
-- [x] Tailwind CDN + config in layout
-- [x] Relax CSP for Tailwind CDN + Datastar
-- [x] CSS variables + design tokens in `application.css`
+- [x] CSS variables + design tokens in `web/app/assets/tailwind/application.css`
 - [x] Tool route: `GET /tools/salary-book`
 - [x] Port the real Salary Book table layout (double-row players, years 2025-2030)
 - [x] Implement iOS Contacts sticky headers (CSS)

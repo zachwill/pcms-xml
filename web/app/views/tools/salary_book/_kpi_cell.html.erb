@@ -1,0 +1,61 @@
+<%#
+  KpiCell — Tailwind port of the React prototype component
+
+  Locals:
+  - label: optional string
+  - value: optional string/HTML
+  - title: optional string (tooltip)
+  - variant: "default" | "positive" | "negative" | "muted"
+  - dark: boolean (totals footer)
+  - class_name: extra classes for the outer box
+  - label_class_name: extra classes for the label
+  - value_class_name: extra classes for the value
+%>
+
+<% label = local_assigns.fetch(:label, nil) %>
+<% value = local_assigns.fetch(:value, nil) %>
+<% title = local_assigns.fetch(:title, nil) %>
+<% variant = local_assigns.fetch(:variant, "default") %>
+<% dark = local_assigns.fetch(:dark, false) %>
+<% class_name = local_assigns.fetch(:class_name, "") %>
+<% label_class_name = local_assigns.fetch(:label_class_name, "") %>
+<% value_class_name = local_assigns.fetch(:value_class_name, "") %>
+
+<%
+  value_color = {
+    "default" => "text-foreground",
+    "positive" => "text-green-600 dark:text-green-400",
+    "negative" => "text-red-500",
+    "muted" => "text-muted-foreground/60"
+  }[variant] || "text-foreground"
+
+  dark_value_color = {
+    "default" => "text-zinc-100",
+    "positive" => "text-green-400",
+    "negative" => "text-red-400",
+    "muted" => "text-zinc-500"
+  }[variant] || "text-zinc-100"
+
+  has_label = label.present?
+
+  # Determine if class_name overrides background (contains 'bg-')
+  has_custom_bg = class_name.to_s.include?("bg-")
+  default_bg = has_custom_bg ? "" : (dark ? "bg-zinc-700 dark:bg-zinc-600" : "bg-zinc-200/80 dark:bg-zinc-700/80")
+%>
+
+<div
+  class="w-20 h-10 rounded flex flex-col items-center justify-center text-center px-1 <%= default_bg %> <%= class_name %>"
+  <% if title.present? %>title="<%= title %>"<% end %>
+>
+  <% if has_label %>
+    <span class="text-[9px] uppercase tracking-wide font-medium leading-none <%= dark ? 'text-zinc-400' : 'text-muted-foreground' %> <%= label_class_name %>">
+      <%= label %>
+    </span>
+  <% end %>
+
+  <% if value != nil %>
+    <span class="text-xs tabular-nums font-semibold leading-tight <%= has_label ? 'mt-0.5' : '' %> <%= dark ? dark_value_color : value_color %> <%= value_class_name %>">
+      <%= value %>
+    </span>
+  <% end %>
+</div>

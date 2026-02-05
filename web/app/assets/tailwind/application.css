@@ -1,0 +1,107 @@
+@config "../../../tailwind.config.js";
+@import "tailwindcss";
+
+/*
+  Salary Book UI base styles
+
+  Goal: match the React prototype (prototypes/salary-book-react) and keep the Rails
+  app Tailwind-first.
+*/
+
+@layer base {
+  /* Light mode (default) — Vercel-inspired */
+  :root {
+    --background: #ffffff;
+    --foreground: #171717;
+    --muted: #f0f0f0;
+    --muted-foreground: #737373;
+    --border: #e5e5e5;
+    --primary: #171717;
+    --primary-foreground: #ffffff;
+    --destructive: #dc2626;
+    --destructive-foreground: #ffffff;
+  }
+
+  /* Dark mode */
+  .dark {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --muted: #262626;
+    --muted-foreground: #a3a3a3;
+    --border: #262626;
+    --primary: #ededed;
+    --primary-foreground: #0a0a0a;
+    --destructive: #dc2626;
+    --destructive-foreground: #ffffff;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    margin: 0;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain; /* Prevent pull-to-refresh / bounce */
+  }
+
+  code {
+    @apply font-mono;
+    font-size: 0.95em;
+  }
+}
+
+@layer utilities {
+  /* iOS momentum scrolling for scroll containers */
+  .scroll-touch {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Backdrop blur helper */
+  .backdrop-blur-nav {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  /* Hide scrollbar */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Team section fading (scroll-spy) */
+[data-header-content] {
+  @apply opacity-100 transition-opacity duration-200;
+}
+[data-faded] [data-header-content] {
+  opacity: 0.35;
+}
+
+/*
+  Right panel overlay behavior
+
+  NOTE: Datastar patches `#rightpanel-overlay` by id, so keep the positioning and
+  show/hide behavior id-driven.
+*/
+#rightpanel-overlay {
+  @apply absolute inset-0 overflow-y-auto overflow-x-hidden bg-background z-10 overscroll-y-contain;
+  -webkit-overflow-scrolling: touch;
+
+  /* Hidden by default (sidebar_clear returns an empty div). */
+  @apply opacity-0 pointer-events-none;
+  transition: opacity 150ms ease-out;
+}
+
+#rightpanel-overlay:not(:empty) {
+  @apply opacity-100 pointer-events-auto;
+}
+
+#rightpanel:has(#rightpanel-overlay:not(:empty)) #rightpanel-base-layer {
+  @apply opacity-20 grayscale pointer-events-none;
+}

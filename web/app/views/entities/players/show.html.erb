@@ -1,32 +1,38 @@
 <% full_name = [@player&.fetch("first_name", nil), @player&.fetch("last_name", nil)].compact.join(" ") %>
 
-<main class="entity-page">
-  <header class="entity-header">
-    <div class="entity-title">
-      <h1><%= full_name.presence || "Player" %></h1>
-      <div class="entity-meta">
-        <span class="entity-meta-item">player_id: <code><%= @player_id %></code></span>
-        <span class="entity-meta-item">slug: <code><%= @player_slug %></code></span>
+<main class="max-w-4xl mx-auto px-4 py-6 space-y-6">
+  <header class="flex items-start justify-between gap-6 border-b border-border pb-4">
+    <div class="min-w-0">
+      <h1 class="text-2xl font-semibold truncate"><%= full_name.presence || "Player" %></h1>
+      <div class="mt-2 text-sm text-muted-foreground flex gap-4 flex-wrap">
+        <span>player_id: <code><%= @player_id %></code></span>
+        <span>slug: <code><%= @player_slug %></code></span>
       </div>
     </div>
 
-    <nav class="entity-actions">
-      <a href="/tools/salary-book">Open Salary Book</a>
+    <nav class="shrink-0">
+      <a
+        href="/tools/salary-book"
+        class="text-sm text-muted-foreground hover:text-foreground hover:underline"
+      >Open Salary Book</a>
     </nav>
   </header>
 
-  <section class="entity-section">
-    <h2>Known slugs</h2>
-    <ul>
+  <section class="space-y-3">
+    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Known slugs</h2>
+
+    <ul class="list-disc pl-5 space-y-1 text-sm">
       <% Slug.where(entity_type: "player", entity_id: @player_id).order(canonical: :desc, created_at: :asc).each do |s| %>
         <li>
-          <a href="/players/<%= s.slug %>">/players/<%= s.slug %></a>
-          <% if s.canonical? %><strong>(canonical)</strong><% end %>
+          <a href="/players/<%= s.slug %>" class="hover:underline">/players/<%= s.slug %></a>
+          <% if s.canonical? %>
+            <span class="ml-1 text-xs font-medium text-foreground">(canonical)</span>
+          <% end %>
         </li>
       <% end %>
     </ul>
 
-    <p class="entity-note">
+    <p class="text-sm text-muted-foreground">
       Short slugs (e.g. <code>/players/lebron</code>) can be promoted over time by adding an alias slug and marking it canonical.
     </p>
   </section>

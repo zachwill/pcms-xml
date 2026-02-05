@@ -7,6 +7,7 @@ import { loop, work, generate, supervisor } from "./core";
  * Goal:
  * - Recreate the Bun + React prototype in prototypes/salary-book-react/
  *   as a Rails + Datastar tool in web/.
+ * - Use Tailwind utility classes directly in .html.erb partials (no custom CSS classes).
  *
  * Canonical tool URL:
  * - /tools/salary-book
@@ -48,6 +49,8 @@ SUPERVISOR CHECKLIST:
 - Are Datastar signals flatcase? DOM refs underscore-prefixed?
 - Is custom JS minimal? (Scroll spy is probably the only real need)
 - Are the completed items actually done, or do they need follow-up?
+- Are partials using Tailwind utility classes (not custom CSS classes)?
+- Do new partials follow the column width conventions (w-52, w-24, w-40)?
 
 IF BACKLOG NEEDS ADJUSTMENT:
 - Reorder tasks if dependencies are wrong
@@ -84,6 +87,14 @@ KEY REFERENCES:
 - web/specs/01-salary-book.md — interaction + layout spec
 - reference/datastar/AGENTS.md — Datastar conventions (READ THIS)
 - prototypes/salary-book-react/ — markup/UX reference
+
+TAILWIND CONVENTIONS (from ${TASK_FILE}):
+- Heavily prefer utility classes in .html.erb (avoid custom CSS unless needed for data-class, animations, etc.)
+- Column widths: w-52 (sticky label), w-24 (year/total), w-40 (agent)
+- Sticky columns: sticky left-0 z-[N] + after: pseudo for right border
+- Row hover: group on parent + group-hover: on children
+- Include dark: variants for backgrounds, text, borders
+- Monospace numbers: font-mono tabular-nums
 
 EXECUTION:
 1) Read relevant existing files in web/ first

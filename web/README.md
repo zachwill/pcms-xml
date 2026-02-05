@@ -39,7 +39,9 @@ psql "$POSTGRES_URL" -c "CREATE SCHEMA IF NOT EXISTS web"
 # psql "$POSTGRES_URL" -c "CREATE SCHEMA IF NOT EXISTS web_dev"
 
 bin/rails db:migrate
-bin/rails server
+
+# Starts Rails + Tailwind watcher (recommended)
+bin/dev
 ```
 
 Notes:

@@ -1,7 +1,11 @@
 <% initial_team = @initial_team.to_s %>
 
+<%# Build team_id lookup for back button logos %>
+<% team_id_map = @team_meta_by_code.transform_values { |meta| meta["team_id"] }.to_json %>
+
 <div
   id="salarybook"
+  class="h-screen w-screen flex flex-col overflow-hidden bg-background"
   data-signals="{
     activeteam: '<%= initial_team %>',
     sidebarview: 'teamview',
@@ -12,419 +16,259 @@
     displaycapholds: false,
     displayexceptions: true,
     displaydraftpicks: true,
-    displaydeadmoney: false
+    displaydeadmoney: false,
+    displaytaxaprons: true,
+    displaycashvscap: false,
+    displayluxurytax: false,
+    displayoptions: true,
+    displayincentives: true,
+    displaytwoway: true
   }"
-  data-on:salarybook-activeteam="if ($activeteam !== evt.detail.team) { $activeteam = evt.detail.team; @get('<%= tools_salary_book_sidebar_team_path(team: '__TEAM__', year: @salary_year) %>'.replace('__TEAM__', $activeteam)) }"
+  data-on:salarybook-activeteam="if ($activeteam !== evt.detail.team) { $activeteam = evt.detail.team; @get('<%= tools_salary_book_sidebar_team_path(team: '__TEAM__', year: @salary_year) %>'.replace('__TEAM__', evt.detail.team)) }"
 >
   <div id="flash"></div>
 
-  <header id="commandbar">
-    <div class="commandbar-inner">
-      <div class="commandbar-title">Salary Book</div>
-
-      <nav class="commandbar-nav">
-        <a href="/tools/salary-book">Tool</a>
-        <a href="/players/2544">Player (id fallback)</a>
-      </nav>
-    </div>
-
+  <%# Command bar (prototype height: 130px) %>
+  <header
+    id="commandbar"
+    class="shrink-0 h-[130px] border-b border-border bg-background flex items-start px-4 pt-3 gap-4"
+  >
     <% if @teams_by_conference["Eastern"].any? || @teams_by_conference["Western"].any? %>
-      <div class="commandbar-inner commandbar-inner--teams">
-        <div class="team-selector-grid" role="navigation" aria-label="Teams">
-          <% %w[Eastern Western].each do |conf| %>
-            <div class="team-conf-block">
-              <div class="team-conf-label"><%= conf %></div>
-              <div class="team-conf-grid">
-                <% @teams_by_conference[conf].each do |team| %>
-                  <a
-                    href="#teamsection-<%= team[:code] %>"
-                    class="team-pill"
-                    data-on:click.prevent="$activeteam = '<%= team[:code] %>'; window.__salaryBookScrollToTeam?.('<%= team[:code] %>', 'smooth'); @get('<%= tools_salary_book_sidebar_team_path(team: team[:code], year: @salary_year) %>')"
-                    data-class="{ 'team-pill--active': $activeteam === '<%= team[:code] %>' }"
-                    title="<%= team[:name] %>"
-                  ><%= team[:code] %></a>
-                <% end %>
-              </div>
+      <%# Team Selector Grid %>
+      <div class="flex gap-4" role="navigation" aria-label="Teams">
+        <% %w[Eastern Western].each do |conf| %>
+          <div class="space-y-1">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70"><%= conf %></div>
+            <div class="grid grid-cols-5 gap-1">
+              <% @teams_by_conference[conf].each do |team| %>
+                <a
+                  href="#<%= team[:code] %>"
+                  class="relative h-7 px-2 rounded text-xs font-medium transition-all duration-150 border outline-none inline-flex items-center justify-center no-underline hover:no-underline"
+                  data-on:click.prevent="$activeteam = '<%= team[:code] %>'; window.__salaryBookScrollToTeam?.('<%= team[:code] %>', 'smooth'); @get('<%= tools_salary_book_sidebar_team_path(team: team[:code], year: @salary_year) %>')"
+                  data-class="{
+                    'bg-primary text-primary-foreground border-primary shadow-sm': $activeteam === '<%= team[:code] %>',
+                    'bg-muted/50 text-foreground border-border hover:bg-muted hover:border-foreground/20': $activeteam !== '<%= team[:code] %>'
+                  }"
+                  title="<%= team[:name] %>"
+                ><%= team[:code] %></a>
+              <% end %>
             </div>
-          <% end %>
+          </div>
+        <% end %>
+      </div>
+
+      <%# Divider %>
+      <div class="h-20 w-px bg-border self-center"></div>
+
+      <%# Filter Toggles (client-only lenses) %>
+      <div class="flex items-start gap-4" role="group" aria-label="Filters">
+        <div class="min-w-[4.5rem] space-y-1">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Display</div>
+          <div class="space-y-1">
+            <div class="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                id="filter-capholds"
+                class="size-3.5 accent-primary"
+                data-bind="displaycapholds"
+                data-on:change="window.__salaryBookPreserveContext?.()"
+              />
+              <label for="filter-capholds" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Cap Holds</label>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                id="filter-exceptions"
+                class="size-3.5 accent-primary"
+                data-bind="displayexceptions"
+                data-on:change="window.__salaryBookPreserveContext?.()"
+              />
+              <label for="filter-exceptions" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Exceptions</label>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                id="filter-draftpicks"
+                class="size-3.5 accent-primary"
+                data-bind="displaydraftpicks"
+                data-on:change="window.__salaryBookPreserveContext?.()"
+              />
+              <label for="filter-draftpicks" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Draft Picks</label>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                id="filter-deadmoney"
+                class="size-3.5 accent-primary"
+                data-bind="displaydeadmoney"
+                data-on:change="window.__salaryBookPreserveContext?.()"
+              />
+              <label for="filter-deadmoney" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Dead Money</label>
+            </div>
+          </div>
         </div>
 
-        <%# Vertical divider %>
-        <div class="commandbar-divider"></div>
+        <div class="min-w-[6.5rem] space-y-1">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Financials</div>
+          <div class="space-y-1">
+            <div class="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                id="filter-taxaprons"
+                class="size-3.5 accent-primary"
+                data-bind="displaytaxaprons"
+                data-on:change="window.__salaryBookPreserveContext?.()"
+              />
+              <label for="filter-taxaprons" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Tax/Aprons</label>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                id="filter-cashvscap"
+                class="size-3.5 accent-primary"
+                data-bind="displaycashvscap"
+                data-on:change="window.__salaryBookPreserveContext?.()"
+              />
+              <label for="filter-cashvscap" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Cash vs Cap</label>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                id="filter-luxurytax"
+                class="size-3.5 accent-primary"
+                data-bind="displayluxurytax"
+                data-on:change="window.__salaryBookPreserveContext?.()"
+              />
+              <label for="filter-luxurytax" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Luxury Tax</label>
+            </div>
+          </div>
+        </div>
 
-        <%# Filter Toggles (client-only lenses) %>
-        <div class="filter-toggles" role="group" aria-label="Display filters">
-          <div class="filter-group">
-            <div class="filter-group-label">Display</div>
-            <div class="filter-group-items">
-              <label class="filter-checkbox" for="filter-capholds">
-                <input
-                  type="checkbox"
-                  id="filter-capholds"
-                  data-bind="displaycapholds"
-                  data-on:change="window.__salaryBookPreserveContext?.()"
-                />
-                <span class="filter-checkbox-label">Cap Holds</span>
-              </label>
-              <label class="filter-checkbox" for="filter-exceptions">
-                <input
-                  type="checkbox"
-                  id="filter-exceptions"
-                  data-bind="displayexceptions"
-                  data-on:change="window.__salaryBookPreserveContext?.()"
-                />
-                <span class="filter-checkbox-label">Exceptions</span>
-              </label>
-              <label class="filter-checkbox" for="filter-draftpicks">
-                <input
-                  type="checkbox"
-                  id="filter-draftpicks"
-                  data-bind="displaydraftpicks"
-                  data-on:change="window.__salaryBookPreserveContext?.()"
-                />
-                <span class="filter-checkbox-label">Draft Picks</span>
-              </label>
-              <label class="filter-checkbox" for="filter-deadmoney">
-                <input
-                  type="checkbox"
-                  id="filter-deadmoney"
-                  data-bind="displaydeadmoney"
-                  data-on:change="window.__salaryBookPreserveContext?.()"
-                />
-                <span class="filter-checkbox-label">Dead Money</span>
-              </label>
+        <div class="min-w-[6.5rem] space-y-1">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Contracts</div>
+          <div class="space-y-1">
+            <div class="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                id="filter-options"
+                class="size-3.5 accent-primary"
+                data-bind="displayoptions"
+                data-on:change="window.__salaryBookPreserveContext?.()"
+              />
+              <label for="filter-options" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Options</label>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                id="filter-incentives"
+                class="size-3.5 accent-primary"
+                data-bind="displayincentives"
+                data-on:change="window.__salaryBookPreserveContext?.()"
+              />
+              <label for="filter-incentives" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Incentives</label>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                id="filter-twoway"
+                class="size-3.5 accent-primary"
+                data-bind="displaytwoway"
+                data-on:change="window.__salaryBookPreserveContext?.()"
+              />
+              <label for="filter-twoway" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Two-Way</label>
             </div>
           </div>
         </div>
       </div>
+    <% else %>
+      <div class="text-sm text-muted-foreground">No teams.</div>
     <% end %>
   </header>
 
-  <div id="viewport">
-    <main id="maincanvas">
+  <div id="viewport" class="flex flex-1 overflow-hidden relative">
+    <%# Main canvas %>
+    <main
+      id="maincanvas"
+      class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-background relative overscroll-y-contain scroll-touch isolate snap-y snap-proximity"
+    >
       <% if @boot_error %>
-        <div class="placeholder">
-          <div class="placeholder-title">Warehouse not available</div>
-          <div class="placeholder-body">
-            <p>Booted Rails, but querying <code>pcms.*</code> failed:</p>
-            <pre><%= @boot_error %></pre>
+        <div class="p-6">
+          <div class="text-sm font-medium text-destructive">Warehouse not available</div>
+          <div class="mt-2 text-xs text-muted-foreground">
+            Booted Rails, but querying <code>pcms.*</code> failed:
           </div>
+          <pre class="mt-3 p-3 rounded-lg bg-muted/30 border border-border/50 text-xs overflow-auto"><%= @boot_error %></pre>
         </div>
       <% elsif @team_codes.empty? %>
-        <div class="placeholder">
-          <div class="placeholder-title">No teams found</div>
-          <div class="placeholder-body">
-            <p>No rows returned from <code>pcms.team_salary_warehouse</code> for <code><%= @salary_year %></code>.</p>
-          </div>
+        <div class="flex items-center justify-center h-96 text-muted-foreground">
+          No rows returned from <code>pcms.team_salary_warehouse</code> for <code><%= @salary_year %></code>.
         </div>
       <% else %>
-        <% @team_codes.each do |team_code| %>
-          <%= render partial: "tools/salary_book/team_section", locals: {
-            team_code: team_code,
-            players: (@players_by_team[team_code] || []),
-            cap_holds: (@cap_holds_by_team[team_code] || []),
-            exceptions: (@exceptions_by_team[team_code] || []),
-            dead_money: (@dead_money_by_team[team_code] || []),
-            picks: (@picks_by_team[team_code] || []),
-            team_summaries: (@team_summaries[team_code] || {}),
-            team_meta: (@team_meta_by_code[team_code] || {}),
-            year: @salary_year,
-            salary_years: @salary_years
-          } %>
-        <% end %>
+        <div class="min-h-full">
+          <div class="space-y-0">
+            <% @team_codes.each do |team_code| %>
+              <%= render partial: "tools/salary_book/team_section", locals: {
+                team_code: team_code,
+                players: (@players_by_team[team_code] || []),
+                cap_holds: (@cap_holds_by_team[team_code] || []),
+                exceptions: (@exceptions_by_team[team_code] || []),
+                dead_money: (@dead_money_by_team[team_code] || []),
+                picks: (@picks_by_team[team_code] || []),
+                team_summaries: (@team_summaries[team_code] || {}),
+                team_meta: (@team_meta_by_code[team_code] || {}),
+                year: @salary_year,
+                salary_years: @salary_years
+              } %>
+            <% end %>
+
+            <%# Small scroll spacer so the last team header can still reach sticky position %>
+            <div aria-hidden class="h-8"></div>
+          </div>
+        </div>
       <% end %>
     </main>
 
-    <aside id="rightpanel">
-      <% if @initial_team %>
-        <%= render partial: "tools/salary_book/sidebar_team", locals: {
-          team_code: @initial_team,
-          summary: @initial_team_summary,
-          team_meta: @initial_team_meta,
-          summaries_by_year: @initial_team_summaries_by_year,
-          year: @salary_year
-        } %>
-      <% else %>
-        <div id="rightpanel-base" class="panel">
-          <header class="panel-header">
-            <div class="panel-title">Right panel</div>
-          </header>
-          <div class="panel-body">
-            <div class="panel-muted">Select a team.</div>
+    <%# Right panel %>
+    <aside
+      id="rightpanel"
+      class="w-[30%] min-w-[320px] max-w-[480px] border-l border-border bg-background overflow-hidden relative"
+    >
+      <div
+        id="rightpanel-base-layer"
+        class="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-y-contain scroll-touch pt-2 px-4 pb-4 transition-opacity duration-300"
+      >
+        <% if @initial_team %>
+          <%= render partial: "tools/salary_book/sidebar_team", locals: {
+            team_code: @initial_team,
+            summary: @initial_team_summary,
+            team_meta: @initial_team_meta,
+            summaries_by_year: @initial_team_summaries_by_year,
+            year: @salary_year
+          } %>
+        <% else %>
+          <div class="flex flex-col items-center justify-center py-12 text-center">
+            <div class="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+              <svg class="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div class="text-sm text-muted-foreground">Scroll to view team details</div>
           </div>
-        </div>
-      <% end %>
+        <% end %>
+      </div>
 
+      <%# Overlay container (patched by Datastar) %>
       <div id="rightpanel-overlay"></div>
-
-      <section class="panel sse-panel">
-        <header class="panel-header">
-          <div class="panel-title">SSE demo</div>
-          <div class="panel-actions">
-            <button
-              type="button"
-              class="panel-button"
-              data-on:click="@get('<%= tools_salary_book_sse_demo_path %>', { openWhenHidden: true })"
-            >Run</button>
-          </div>
-        </header>
-
-        <div class="panel-body">
-          <div class="panel-muted">
-            status: <code data-text="$ssestatus"></code>
-            ticks: <code data-text="$sseticks"></code>
-          </div>
-
-          <div id="sse-log" class="sse-log"></div>
-        </div>
-      </section>
-
-      <section class="panel debug-panel">
-        <header class="panel-header">
-          <div class="panel-title">Signals (debug)</div>
-        </header>
-        <div class="panel-body">
-          <pre class="signals-json" data-json-signals></pre>
-        </div>
-      </section>
     </aside>
   </div>
 </div>
 
-<script type="module">
-  /**
-   * Salary Book scroll spy (v1)
-   *
-   * Improvements over v0:
-   * - Programmatic scroll lock: clicking a team in the command bar sets the
-   *   active team immediately and locks the spy until scroll settles near
-   *   the target (prevents flicker during smooth scroll).
-   * - Active team aligns with the sticky header threshold (top of #maincanvas).
-   * - Exposes a global function for programmatic navigation.
-   * - Emits bubbling `salarybook-activeteam` CustomEvent for Datastar integration.
-   */
-  (() => {
-    const main = document.getElementById("maincanvas");
-    if (!main) return;
-
-    // ---------------------------------------------------------------------------
-    // State
-    // ---------------------------------------------------------------------------
-    let raf = null;
-    let lastActiveTeam = null;
-
-    // Programmatic scroll lock: when set, the spy ignores scroll events until
-    // we reach (or get close to) the target position.
-    let forcedActiveTeam = null;
-    let forcedTargetTop = null;
-
-    // Debounce timer for detecting scroll end
-    let scrollEndTimer = null;
-    const SCROLL_END_DELAY = 120; // ms
-
-    // ---------------------------------------------------------------------------
-    // Position cache (avoid layout thrashing during scroll)
-    // ---------------------------------------------------------------------------
-    let cachedSections = []; // Array of { code, top }
-
-    const rebuildCache = () => {
-      const sections = Array.from(main.querySelectorAll("section[data-teamcode]"));
-      cachedSections = sections.map(el => ({
-        code: el.dataset.teamcode,
-        top: el.offsetTop
-      }));
-    };
-
-    // Rebuild cache on initial load, resize, and DOM mutations
-    rebuildCache();
-    window.addEventListener("resize", () => requestAnimationFrame(rebuildCache), { passive: true });
-
-    // MutationObserver for dynamically added/removed team sections
-    const observer = new MutationObserver(() => requestAnimationFrame(rebuildCache));
-    observer.observe(main, { childList: true, subtree: false });
-
-    // ---------------------------------------------------------------------------
-    // Scroll spy calculation
-    // ---------------------------------------------------------------------------
-    const calculateActiveTeam = () => {
-      if (!cachedSections.length) return null;
-
-      // Threshold: scroll position + small offset for natural feel
-      // (switch a bit before the header exactly reaches sticky position)
-      const scrollTop = main.scrollTop;
-      const threshold = scrollTop + 2; // 2px tolerance
-
-      // Find the last section whose top is <= threshold
-      let active = cachedSections[0];
-      for (const section of cachedSections) {
-        if (section.top <= threshold) {
-          active = section;
-        } else {
-          break;
-        }
-      }
-
-      return active?.code ?? null;
-    };
-
-    const dispatchActiveTeam = (team) => {
-      if (team && team !== lastActiveTeam) {
-        lastActiveTeam = team;
-        main.dispatchEvent(new CustomEvent("salarybook-activeteam", {
-          detail: { team },
-          bubbles: true
-        }));
-      }
-    };
-
-    // ---------------------------------------------------------------------------
-    // Scroll handler
-    // ---------------------------------------------------------------------------
-    const handleScrollFrame = () => {
-      raf = null;
-
-      // If we have a forced active team (programmatic navigation in progress),
-      // check if we've reached the target position.
-      if (forcedActiveTeam !== null) {
-        const currentTop = main.scrollTop;
-        const tolerance = 3;
-
-        // If we're close to the target, clear the lock
-        if (forcedTargetTop !== null && Math.abs(currentTop - forcedTargetTop) <= tolerance) {
-          forcedActiveTeam = null;
-          forcedTargetTop = null;
-        } else {
-          // Still scrolling toward target — keep the forced team active
-          dispatchActiveTeam(forcedActiveTeam);
-          return;
-        }
-      }
-
-      // Normal scroll spy
-      const team = calculateActiveTeam();
-      dispatchActiveTeam(team);
-    };
-
-    const handleScroll = () => {
-      // Clear existing scroll-end timer
-      if (scrollEndTimer) {
-        clearTimeout(scrollEndTimer);
-        scrollEndTimer = null;
-      }
-
-      // Schedule calculation via RAF (one per frame)
-      if (!raf) {
-        raf = requestAnimationFrame(handleScrollFrame);
-      }
-
-      // Detect scroll end for unlocking forced state
-      scrollEndTimer = setTimeout(() => {
-        scrollEndTimer = null;
-        // On scroll end, clear forced state if still set
-        if (forcedActiveTeam !== null) {
-          forcedActiveTeam = null;
-          forcedTargetTop = null;
-          // Dispatch current position
-          if (!raf) {
-            raf = requestAnimationFrame(handleScrollFrame);
-          }
-        }
-      }, SCROLL_END_DELAY);
-    };
-
-    main.addEventListener("scroll", handleScroll, { passive: true });
-
-    // ---------------------------------------------------------------------------
-    // Programmatic navigation API
-    // ---------------------------------------------------------------------------
-    /**
-     * Scroll to a team section programmatically.
-     * Sets activeTeam immediately to prevent flicker during smooth scroll.
-     *
-     * @param {string} teamCode - Team code to scroll to
-     * @param {ScrollBehavior} behavior - 'smooth' or 'instant'
-     */
-    const scrollToTeam = (teamCode, behavior = "smooth") => {
-      // Rebuild cache to ensure we have current positions
-      rebuildCache();
-
-      const section = cachedSections.find(s => s.code === teamCode);
-      if (!section) return;
-
-      // Set forced active team immediately (prevents flicker)
-      forcedActiveTeam = teamCode;
-      forcedTargetTop = section.top;
-
-      // Dispatch immediately so UI updates before scroll starts
-      dispatchActiveTeam(teamCode);
-
-      // Perform the scroll
-      const maxScroll = main.scrollHeight - main.clientHeight;
-      main.scrollTo({
-        top: Math.max(0, Math.min(section.top, maxScroll)),
-        behavior
-      });
-    };
-
-    // Expose globally for use in Datastar expressions
-    window.__salaryBookScrollToTeam = scrollToTeam;
-
-    // Expose rebuildCache for external callers
-    window.__salaryBookRebuildCache = rebuildCache;
-
-    /**
-     * Preserve context after layout changes (e.g., filter toggles).
-     *
-     * When sections are shown/hidden, their offsetTop values change. This function:
-     * 1. Waits a frame for Datastar to apply display changes
-     * 2. Rebuilds the scroll-spy cache with new offsets
-     * 3. Snaps back to the current active team with instant scroll
-     *
-     * This prevents the user from "jumping teams" when toggling filters.
-     */
-    const preserveContext = () => {
-      // Wait for next frame so Datastar has applied display changes
-      requestAnimationFrame(() => {
-        // Rebuild cache with new section positions
-        rebuildCache();
-
-        // Find the current active team and snap back to it
-        if (lastActiveTeam) {
-          const section = cachedSections.find(s => s.code === lastActiveTeam);
-          if (section) {
-            // Use instant scroll (no animation) to preserve context seamlessly
-            const maxScroll = main.scrollHeight - main.clientHeight;
-            main.scrollTo({
-              top: Math.max(0, Math.min(section.top, maxScroll)),
-              behavior: "instant"
-            });
-
-            // Lock to this team briefly to prevent any flicker
-            forcedActiveTeam = lastActiveTeam;
-            forcedTargetTop = section.top;
-
-            // Clear lock after a short delay (scroll is instant, so this is just safety)
-            setTimeout(() => {
-              if (forcedActiveTeam === lastActiveTeam) {
-                forcedActiveTeam = null;
-                forcedTargetTop = null;
-              }
-            }, 50);
-          }
-        }
-      });
-    };
-
-    window.__salaryBookPreserveContext = preserveContext;
-
-    // ---------------------------------------------------------------------------
-    // Initial dispatch
-    // ---------------------------------------------------------------------------
-    // Run once on load (useful if URL has a hash or restored scroll position)
-    requestAnimationFrame(() => {
-      rebuildCache();
-      const team = calculateActiveTeam();
-      dispatchActiveTeam(team);
-    });
-  })();
-</script>
+<% content_for :head_scripts do %>
+  <script type="module">
+    import "tools/salary_book";
+  </script>
+  <script>
+    // Team ID map for back button logos
+    window.__salaryBookTeamIds = <%= raw team_id_map %>;
+  </script>
+<% end %>

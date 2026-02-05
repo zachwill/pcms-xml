@@ -27,6 +27,22 @@ The previous Bun + React Salary Book prototype lives here:
 
 Use it as a markup/interaction reference (scroll spy, scroll sync, overlay transitions), but treat it as **read-only prototype code**.
 
+## Ruby version (important)
+
+This Rails app is pinned via `web/.ruby-version` (Ruby 3.4.x).
+
+In some environments (including agent shells), `ruby` may resolve to macOS system Ruby (`/usr/bin/ruby`, often 2.6). That will break Bundler/Rails and can cause `bin/dev` to try installing gems into the system Ruby.
+
+Before running Rails commands, ensure Ruby 3.4 is first in `PATH`:
+
+```bash
+cd web
+# Homebrew Ruby 3.4 (include gem bin dir so `foreman`/`bin/dev` works)
+export PATH="/opt/homebrew/opt/ruby@3.4/bin:/opt/homebrew/lib/ruby/gems/3.4.0/bin:$PATH"
+
+ruby -v  # should be 3.4.x
+```
+
 ---
 
 ## Start here (reading order)
@@ -98,6 +114,69 @@ Default response type preference:
 1) `text/html` (stable IDs + morph)
 2) `application/json` (signal-only patches)
 3) `text/event-stream` (only when streaming/progress/live feeds are required)
+
+---
+
+## Tailwind conventions (utility-first in ERB)
+
+We use **`tailwindcss-rails`** (compiled CSS), not the CDN.
+
+**Strong preference**: Write utility classes directly in `.html.erb` partials. Avoid custom CSS classes unless there's a good reason (e.g., Datastar `data-class` toggling, complex animations, or truly reusable components).
+
+### Standard column widths (Salary Book table)
+
+| Element | Width | Class |
+|---------|-------|-------|
+| Sticky label column | 208px | `w-52` |
+| Year cells | 96px | `w-24` |
+| Total column | 96px | `w-24` |
+| Agent column | 160px | `w-40` |
+
+### Patterns
+
+- **Sticky columns**: `sticky left-0 z-[N]` + `after:` pseudo-element for right border
+  ```erb
+  class="w-52 shrink-0 pl-4 sticky left-0 z-[2] bg-background relative
+         after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/30"
+  ```
+
+- **Row hover**: Use `group` on parent + `group-hover:` on children
+  ```erb
+  <div class="group hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10">
+    <div class="group-hover:text-primary">...</div>
+  </div>
+  ```
+
+- **Dark mode**: Always include `dark:` variants for backgrounds, text, borders
+
+- **Monospace numbers**: `font-mono tabular-nums`
+
+### Row heights
+
+| Row type | Height | Notes |
+|----------|--------|-------|
+| Player row | 40px | Two sub-rows: 24px (name/salary) + 16px (metadata) |
+| Subsection row | 32px | `h-8` |
+| Header row | 32px | `h-8` |
+
+### Font sizes
+
+| Element | Size |
+|---------|------|
+| Player names | `text-[14px]` |
+| Subsection titles | `text-[12px]` |
+| Metadata/badges | `text-[10px]` |
+| General small text | `text-xs` |
+
+### What stays in CSS
+
+Keep in `app/assets/tailwind/application.css` (Tailwind entrypoint):
+- CSS custom properties (design tokens): `--background`, `--foreground`, `--border`, etc.
+- Truly global resets or base styles
+- ID/selector-driven rules required for Datastar patching (ex: `#rightpanel-overlay`, `:has()` fades)
+- Complex animations that can't be expressed in utilities
+
+Avoid `app/assets/stylesheets/application.css` (legacy). The layout does not load it anymore.
 
 ---
 

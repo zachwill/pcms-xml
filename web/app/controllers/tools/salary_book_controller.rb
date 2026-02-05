@@ -30,9 +30,11 @@ module Tools
         @team_codes.first
       end
 
-      @initial_team_summary = @initial_team ? fetch_team_summary(@initial_team, @salary_year) : nil
       @initial_team_meta = @initial_team ? (@team_meta_by_code[@initial_team] || {}) : {}
       @initial_team_summaries_by_year = @initial_team ? (@team_summaries[@initial_team] || {}) : {}
+      @initial_team_summary = if @initial_team
+        @initial_team_summaries_by_year[@salary_year] || @initial_team_summaries_by_year[SALARY_YEARS.first]
+      end
     rescue ActiveRecord::StatementInvalid => e
       # Useful when a dev DB hasn't been hydrated with the pcms.* schema yet.
       @boot_error = e.message
@@ -90,14 +92,14 @@ module Tools
       team_code = normalize_team_code(params[:team])
       year = salary_year_param
 
-      # Current year summary
-      summary = fetch_team_summary(team_code, year)
+      # Multi-year summaries for projections bar chart
+      summaries_by_year = fetch_all_team_summaries([team_code])[team_code] || {}
+
+      # Current year summary (includes computed cap_space + apron aliases)
+      summary = summaries_by_year[year] || {}
 
       # Team metadata (name, conference, logo)
       team_meta = fetch_team_meta(team_code)
-
-      # Multi-year summaries for projections bar chart
-      summaries_by_year = fetch_all_team_summaries([team_code])[team_code] || {}
 
       render partial: "tools/salary_book/sidebar_team", locals: {
         team_code:,
@@ -220,7 +222,7 @@ module Tools
 
       in_list = team_codes.map { |c| conn.quote(c) }.join(",")
 
-      rows = conn.exec_query(player_columns_sql("team_code IN (#{in_list})")).to_a
+      rows = conn.exec_query(player_columns_sql("sbw.team_code IN (#{in_list})")).to_a
 
       rows.group_by { |r| r["team_code"] }
     end
@@ -228,44 +230,50 @@ module Tools
     def fetch_team_players(team_code)
       team_sql = conn.quote(team_code)
 
-      conn.exec_query(player_columns_sql("team_code = #{team_sql}")).to_a
+      conn.exec_query(player_columns_sql("sbw.team_code = #{team_sql}")).to_a
     end
 
     def player_columns_sql(where_clause)
       <<~SQL
         SELECT
-          player_id,
-          player_name,
-          team_code,
-          age,
-          agent_name,
-          agent_id,
-          cap_2025, cap_2026, cap_2027, cap_2028, cap_2029, cap_2030,
-          pct_cap_2025, pct_cap_2026, pct_cap_2027, pct_cap_2028, pct_cap_2029, pct_cap_2030,
-          total_salary_from_2025,
-          option_2025, option_2026, option_2027, option_2028, option_2029, option_2030,
-          is_two_way,
-          is_no_trade,
-          is_trade_bonus,
-          trade_bonus_percent,
-          trade_kicker_display,
-          is_trade_consent_required_now,
-          is_trade_restricted_now,
-          is_poison_pill,
-          is_min_contract,
-          is_fully_guaranteed_2025, is_fully_guaranteed_2026, is_fully_guaranteed_2027,
-          is_fully_guaranteed_2028, is_fully_guaranteed_2029, is_fully_guaranteed_2030,
-          is_partially_guaranteed_2025, is_partially_guaranteed_2026, is_partially_guaranteed_2027,
-          is_partially_guaranteed_2028, is_partially_guaranteed_2029, is_partially_guaranteed_2030,
-          is_non_guaranteed_2025, is_non_guaranteed_2026, is_non_guaranteed_2027,
-          is_non_guaranteed_2028, is_non_guaranteed_2029, is_non_guaranteed_2030,
-          pct_cap_percentile_2025, pct_cap_percentile_2026, pct_cap_percentile_2027,
-          pct_cap_percentile_2028, pct_cap_percentile_2029, pct_cap_percentile_2030,
-          contract_type_code,
-          contract_type_lookup_value
-        FROM pcms.salary_book_warehouse
+          sbw.player_id,
+          sbw.player_name,
+          sbw.team_code,
+          sbw.age,
+          p.years_of_service,
+          sbw.agent_name,
+          sbw.agent_id,
+          a.agency_name,
+          sbw.cap_2025, sbw.cap_2026, sbw.cap_2027, sbw.cap_2028, sbw.cap_2029, sbw.cap_2030,
+          sbw.pct_cap_2025, sbw.pct_cap_2026, sbw.pct_cap_2027, sbw.pct_cap_2028, sbw.pct_cap_2029, sbw.pct_cap_2030,
+          sbw.total_salary_from_2025,
+          sbw.option_2025, sbw.option_2026, sbw.option_2027, sbw.option_2028, sbw.option_2029, sbw.option_2030,
+          sbw.is_two_way,
+          sbw.is_no_trade,
+          sbw.is_trade_bonus,
+          sbw.trade_bonus_percent,
+          sbw.trade_kicker_display,
+          sbw.is_trade_consent_required_now,
+          sbw.is_trade_restricted_now,
+          sbw.is_poison_pill,
+          sbw.is_min_contract,
+          sbw.is_fully_guaranteed_2025, sbw.is_fully_guaranteed_2026, sbw.is_fully_guaranteed_2027,
+          sbw.is_fully_guaranteed_2028, sbw.is_fully_guaranteed_2029, sbw.is_fully_guaranteed_2030,
+          sbw.is_partially_guaranteed_2025, sbw.is_partially_guaranteed_2026, sbw.is_partially_guaranteed_2027,
+          sbw.is_partially_guaranteed_2028, sbw.is_partially_guaranteed_2029, sbw.is_partially_guaranteed_2030,
+          sbw.is_non_guaranteed_2025, sbw.is_non_guaranteed_2026, sbw.is_non_guaranteed_2027,
+          sbw.is_non_guaranteed_2028, sbw.is_non_guaranteed_2029, sbw.is_non_guaranteed_2030,
+          sbw.pct_cap_percentile_2025, sbw.pct_cap_percentile_2026, sbw.pct_cap_percentile_2027,
+          sbw.pct_cap_percentile_2028, sbw.pct_cap_percentile_2029, sbw.pct_cap_percentile_2030,
+          sbw.contract_type_code,
+          sbw.contract_type_lookup_value
+        FROM pcms.salary_book_warehouse sbw
+        LEFT JOIN pcms.people p
+          ON p.person_id = sbw.player_id
+        LEFT JOIN pcms.agents a
+          ON a.agent_id = sbw.agent_id
         WHERE #{where_clause}
-        ORDER BY team_code, total_salary_from_2025 DESC NULLS LAST, player_name
+        ORDER BY sbw.team_code, sbw.cap_2025 DESC NULLS LAST, sbw.total_salary_from_2025 DESC NULLS LAST, sbw.player_name
       SQL
     end
 
@@ -517,6 +525,7 @@ module Tools
           team_code,
           salary_year,
           cap_total,
+          cap_total_hold,
           tax_total,
           apron_total,
           roster_row_count,
@@ -525,7 +534,7 @@ module Tools
           tax_level_amount,
           tax_apron_amount,
           tax_apron2_amount,
-          (COALESCE(salary_cap_amount, 0) - COALESCE(cap_total, 0))::bigint AS cap_space,
+          (COALESCE(salary_cap_amount, 0) - COALESCE(cap_total_hold, 0))::bigint AS cap_space,
           room_under_tax,
           room_under_apron1 AS room_under_first_apron,
           room_under_apron2 AS room_under_second_apron,

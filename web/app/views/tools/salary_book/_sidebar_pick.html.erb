@@ -1,177 +1,150 @@
 <%#
-  Pick Overlay — Draft pick detail view
+  Pick overlay (RightPanel entity) — Tailwind-ish port of the React prototype (PickDetail)
 
-  Sections:
-  1. Header (back button, year/round label)
-  2. Pick summary (destination team, type, status)
-  3. Description (raw text from PCMS)
-  4. Protections/conditions (if any endnote explanation)
-
-  Locals:
-  - picks: Array of pick asset rows (same team/year/round, multiple slots possible)
-  - team_code: Team code that owns/controls the pick
-  - team_meta: Team metadata (name, logo)
-  - year: Draft year
-  - round: Draft round (1 or 2)
+  NOTE: Root id must remain stable for Datastar morphing.
 %>
 
 <% salary_years = SalaryBookHelper::SALARY_YEARS %>
-<% compact = ->(v) { format_salary(v) } %>
 
-<%# Round label %>
-<% round_label = round == 1 ? "1st Round" : "2nd Round" %>
-<% year_label = format_year_label(year) %>
+<% round_label = round == 1 ? "1st" : "2nd" %>
 
-<%# Get team info %>
 <% team_name = team_meta["team_name"] || team_code %>
 <% team_id = team_meta["team_id"] %>
 
-<%# Primary pick (first in list) %>
 <% primary = picks.first %>
 <% asset_type = primary["asset_type"] %>
 <% is_own = primary["origin_team_code"].blank? || primary["origin_team_code"] == team_code %>
 <% is_swap = picks.any? { |p| p["is_swap"] } %>
 <% is_conditional = picks.any? { |p| p["is_conditional"] } %>
 
-<%# Origin team(s) %>
 <%
   origin_codes = picks.map { |p| p["origin_team_code"] }.compact.uniq.reject { |c| c == team_code }
 
-  # Parse PostgreSQL array strings like "{BKN,DET}" into Ruby arrays
   parse_pg_array = ->(val) {
     return [] if val.nil? || val == "{}"
     return val if val.is_a?(Array)
-    val.to_s.gsub(/[{}"]/, "").split(",").map(&:strip).reject(&:blank?)
+    val.to_s.gsub(/[{}\"]/, "").split(",").map(&:strip).reject(&:blank?)
   }
 
   via_codes = picks.flat_map { |p| parse_pg_array.call(p["via_team_codes"]) }.compact.uniq
-%>
 
-<%# Collect unique descriptions %>
-<%
   descriptions = picks.map { |p| p["description"] }.compact.uniq.reject(&:blank?)
   explanations = picks.map { |p| p["endnote_explanation"] }.compact.uniq.reject(&:blank?)
 %>
 
-<div id="rightpanel-overlay" class="sidebar-pick">
-  <%# Back button + Header %>
-  <header class="sidebar-pick-header">
-    <div class="sidebar-pick-back">
-      <button
-        type="button"
-        class="panel-button"
-        data-on:click="@get('<%= tools_salary_book_sidebar_clear_path %>')"
-      >← Back</button>
-    </div>
-  </header>
+<%
+  asset_badge = if is_own
+    { label: "Own Pick", klass: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" }
+  elsif asset_type == "TO"
+    { label: "Traded Away", klass: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400" }
+  else
+    { label: "Acquired", klass: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" }
+  end
+%>
 
-  <div class="sidebar-pick-body">
-    <%# Pick Identity (year/round badge + team logo) %>
-    <div class="sidebar-pick-identity">
-      <div class="sidebar-pick-badge">
-        <span class="sidebar-pick-badge-year"><%= year %></span>
-        <span class="sidebar-pick-badge-round"><%= round_label %></span>
+<div id="rightpanel-overlay" class="h-full">
+  <%# Sticky header %>
+  <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
+    <%= render partial: "tools/salary_book/sidebar_back_button" %>
+  </div>
+
+  <div class="px-4 pb-4 pt-4 space-y-6">
+    <%# Pick header (prototype style) %>
+    <div class="flex items-start gap-4">
+      <div
+        class="w-16 h-16 rounded-xl flex flex-col items-center justify-center font-bold"
+        style="<%= round == 1 ? 'background: linear-gradient(to bottom right, rgb(251 191 36), rgb(217 119 6)); color: rgb(69 26 3);' : 'background: linear-gradient(to bottom right, rgb(148 163 184), rgb(71 85 105)); color: rgb(2 6 23);' %>"
+      >
+        <span class="text-2xl tabular-nums"><%= round %></span>
+        <span class="text-[10px] uppercase tracking-wide opacity-80"><%= round_label %></span>
       </div>
-      <div class="sidebar-pick-team">
-        <% if team_id %>
-          <img
-            class="sidebar-pick-team-logo"
-            src="<%= team_logo_url(team_id) %>"
-            alt="<%= team_name %>"
-            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-          />
-          <span class="sidebar-pick-team-fallback" style="display: none;"><%= team_code %></span>
-        <% else %>
-          <span class="sidebar-pick-team-fallback"><%= team_code %></span>
+
+      <div class="flex-1 space-y-1">
+        <h2 class="text-xl font-semibold text-foreground"><%= year %> Draft Pick</h2>
+        <div class="text-sm text-muted-foreground">Round <%= round %> • <%= team_name %></div>
+
+        <% if is_swap %>
+          <div class="flex items-center gap-1.5 mt-2">
+            <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+              Pick Swap
+            </span>
+          </div>
         <% end %>
-        <span class="sidebar-pick-team-name"><%= team_name %></span>
       </div>
     </div>
 
-    <%# Status Badges %>
-    <div class="sidebar-pick-status">
-      <% if is_own %>
-        <span class="sidebar-badge sidebar-badge--green">Own Pick</span>
-      <% elsif asset_type == "TO" %>
-        <span class="sidebar-badge sidebar-badge--red">Owed Out</span>
-      <% else %>
-        <span class="sidebar-badge sidebar-badge--blue">Acquired</span>
-      <% end %>
-
-      <% if is_swap %>
-        <span class="sidebar-badge sidebar-badge--purple">Swap Rights</span>
-      <% end %>
+    <%# Status badges %>
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-xs text-muted-foreground">Status:</span>
+      <span class="inline-flex px-2 py-1 rounded text-xs font-medium <%= asset_badge[:klass] %>"><%= asset_badge[:label] %></span>
 
       <% if is_conditional %>
-        <span class="sidebar-badge sidebar-badge--orange">Conditional</span>
+        <span class="inline-flex px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Conditional</span>
       <% end %>
     </div>
 
-    <%# Provenance Section %>
+    <%# Provenance %>
     <% if origin_codes.any? || via_codes.any? %>
-      <div class="sidebar-section">
-        <div class="sidebar-section-label">Provenance</div>
-        <div class="sidebar-pick-provenance">
+      <div class="space-y-2">
+        <div class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Provenance</div>
+        <div class="p-3 rounded-lg bg-muted/30 border border-border/50 space-y-2">
           <% if origin_codes.any? %>
-            <div class="sidebar-stat-row">
-              <span class="sidebar-stat-label"><%= asset_type == "TO" ? "Owed To" : "From" %></span>
-              <span class="sidebar-stat-value"><%= origin_codes.join(", ") %></span>
+            <div class="flex justify-between items-baseline">
+              <span class="text-sm text-muted-foreground"><%= asset_type == 'TO' ? 'Owed To' : 'From' %></span>
+              <span class="text-sm font-medium"><%= origin_codes.join(", ") %></span>
             </div>
           <% end %>
           <% if via_codes.any? %>
-            <div class="sidebar-stat-row">
-              <span class="sidebar-stat-label">Via</span>
-              <span class="sidebar-stat-value"><%= via_codes.join(" → ") %></span>
+            <div class="flex justify-between items-baseline">
+              <span class="text-sm text-muted-foreground">Via</span>
+              <span class="text-sm font-medium"><%= via_codes.join(" → ") %></span>
             </div>
           <% end %>
         </div>
       </div>
     <% end %>
 
-    <%# Description Section (raw PCMS text) %>
+    <%# Description %>
     <% if descriptions.any? %>
-      <div class="sidebar-section">
-        <div class="sidebar-section-label">PCMS Summary</div>
-        <div class="sidebar-pick-descriptions">
+      <div class="space-y-2">
+        <div class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pick Details</div>
+        <div class="p-3 rounded-lg bg-muted/30 border border-border/50 space-y-2">
           <% descriptions.each do |desc| %>
-            <div class="sidebar-pick-description"><%= desc %></div>
+            <p class="text-sm text-foreground"><%= desc %></p>
           <% end %>
         </div>
       </div>
     <% end %>
 
-    <%# Protections / Conditions (endnote explanations) %>
+    <%# Protections / conditions %>
     <% if explanations.any? %>
-      <div class="sidebar-section">
-        <div class="sidebar-section-label">Protections</div>
-        <div class="sidebar-pick-explanations">
+      <div class="space-y-2">
+        <div class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Protections</div>
+        <div class="p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 space-y-2">
           <% explanations.each do |explanation| %>
-            <div class="sidebar-pick-explanation"><%= explanation %></div>
+            <p class="text-sm font-medium text-amber-800 dark:text-amber-400"><%= explanation %></p>
           <% end %>
         </div>
       </div>
     <% end %>
 
-    <%# All pick asset rows (debug/detail view) %>
+    <%# Asset rows (debug) %>
     <% if picks.size > 1 %>
-      <div class="sidebar-section">
-        <div class="sidebar-section-label">Asset Rows (<%= picks.size %>)</div>
-        <div class="sidebar-pick-rows">
-          <% picks.each_with_index do |pick, idx| %>
-            <div class="sidebar-pick-row-item">
-              <span class="sidebar-pick-row-slot">Slot <%= pick["asset_slot"] %>.<%= pick["sub_asset_slot"] %></span>
-              <span class="sidebar-pick-row-type"><%= pick["asset_type"] %></span>
-              <% if pick["origin_team_code"].present? && pick["origin_team_code"] != team_code %>
-                <span class="sidebar-pick-row-origin"><%= pick["origin_team_code"] %></span>
-              <% end %>
+      <div class="space-y-2">
+        <div class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Asset Rows (<%= picks.size %>)</div>
+        <div class="p-3 rounded-lg bg-muted/30 border border-border/50 space-y-1">
+          <% picks.each do |pick| %>
+            <div class="flex items-baseline justify-between text-sm">
+              <span class="text-muted-foreground">Slot <%= pick["asset_slot"] %>.<%= pick["sub_asset_slot"] %></span>
+              <span class="font-mono tabular-nums"><%= pick["asset_type"] %></span>
             </div>
           <% end %>
         </div>
       </div>
     <% end %>
 
-    <%# Metadata footer %>
-    <div class="sidebar-meta">
+    <%# Metadata %>
+    <div class="pt-4 border-t border-border text-xs text-muted-foreground">
       refreshed_at: <code><%= primary["refreshed_at"] || "—" %></code>
     </div>
   </div>

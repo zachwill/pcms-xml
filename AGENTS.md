@@ -47,6 +47,10 @@ This root `AGENTS.md` is intentionally a **directory map** — most detailed con
 
 - Prefer `uv run` for Python scripts.
 - Most local runners default to **dry-run** (no DB writes) unless you pass `--write`.
+- Rails app (`web/`) Ruby is pinned by `web/.ruby-version` (Ruby 3.4.x).
+  - On macOS, `/usr/bin/ruby` is often Ruby 2.6 — make sure Ruby 3.4 is first in `PATH` before running `bundle`, `bin/rails`, or `bin/dev`.
+  - Homebrew example (includes gem bin dir so `foreman` works):
+    - `export PATH="/opt/homebrew/opt/ruby@3.4/bin:/opt/homebrew/lib/ruby/gems/3.4.0/bin:$PATH"`
 - Database connection: `POSTGRES_URL`
 - Common API keys:
   - `NBA_API_KEY` (official NBA API)
