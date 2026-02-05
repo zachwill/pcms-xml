@@ -3,9 +3,14 @@
 
   Pick pills appear under the corresponding year column.
   Each pill is clickable to open Pick overlay (future).
+
+  Locals:
+  - picks: Array of draft pick rows
+  - salary_years: Array of years to display (defaults to SALARY_YEARS)
 %>
 
 <% picks ||= [] %>
+<% salary_years ||= SalaryBookHelper::SALARY_YEARS %>
 <% return if picks.empty? %>
 
 <%
@@ -35,7 +40,7 @@
 
   <%# Year columns with pick pills %>
   <div class="subsection-draft-years">
-    <% SALARY_YEARS.each do |year| %>
+    <% salary_years.each do |year| %>
       <% year_picks = (picks_by_year[year] || []).sort_by { |p| [p["round"].to_i, p["origin_team_code"].to_s] } %>
 
       <div class="subsection-draft-year-col">

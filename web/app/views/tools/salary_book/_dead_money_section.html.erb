@@ -4,10 +4,15 @@
   Shows:
   - Player name
   - Waive date (subtitle)
-  - Cap charges by year (2025-2029)
+  - Cap charges by year
+
+  Locals:
+  - dead_money: Array of dead money rows
+  - salary_years: Array of years to display (defaults to SALARY_YEARS)
 %>
 
 <% dead_money ||= [] %>
+<% salary_years ||= SalaryBookHelper::SALARY_YEARS %>
 <% return if dead_money.empty? %>
 
 <div class="subsection-rows">
@@ -30,7 +35,7 @@
       </div>
 
       <%# Year columns %>
-      <% SALARY_YEARS.each do |year| %>
+      <% salary_years.each do |year| %>
         <% amt = dead_money_amount(row, year) %>
         <% is_empty = amt.nil? || amt.to_f == 0 %>
         <div class="subsection-year-cell <%= 'subsection-year-cell--empty' if is_empty %>">

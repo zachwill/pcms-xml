@@ -3,11 +3,16 @@
 
   Shows:
   - Player name or hold type
-  - Cap amount by year (2025-2029)
+  - Cap amount by year
   - Type badge (Bird, Early Bird, 1st Round, etc.)
+
+  Locals:
+  - cap_holds: Array of cap hold rows
+  - salary_years: Array of years to display (defaults to SALARY_YEARS)
 %>
 
 <% cap_holds ||= [] %>
+<% salary_years ||= SalaryBookHelper::SALARY_YEARS %>
 <% return if cap_holds.empty? %>
 
 <div class="subsection-rows">
@@ -30,7 +35,7 @@
       </div>
 
       <%# Year columns %>
-      <% SALARY_YEARS.each do |year| %>
+      <% salary_years.each do |year| %>
         <% amt = cap_hold_amount(row, year) %>
         <% is_empty = amt.nil? || amt.to_f == 0 %>
         <div class="subsection-year-cell <%= 'subsection-year-cell--empty' if is_empty %>">

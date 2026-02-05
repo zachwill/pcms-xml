@@ -5,9 +5,11 @@
 
   Locals:
   - team_summaries: Hash { year => summary_row }
+  - salary_years: Array of years to display (defaults to SALARY_YEARS)
   - show_tax_aprons: boolean (default: true)
 %>
 
+<% salary_years ||= SalaryBookHelper::SALARY_YEARS %>
 <% show_tax_aprons = local_assigns.fetch(:show_tax_aprons, true) %>
 
 <div class="totals-footer">

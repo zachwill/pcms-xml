@@ -186,7 +186,7 @@
         <% end %>
       </div>
       <% if cap_holds.any? %>
-        <%= render partial: "tools/salary_book/cap_holds_section", locals: { cap_holds: cap_holds } %>
+        <%= render partial: "tools/salary_book/cap_holds_section", locals: { cap_holds: cap_holds, salary_years: salary_years } %>
       <% else %>
         <div class="teamsection-subsection-empty">No cap holds</div>
       <% end %>
@@ -201,7 +201,7 @@
         <% end %>
       </div>
       <% if exceptions.any? %>
-        <%= render partial: "tools/salary_book/exceptions_section", locals: { exceptions: exceptions } %>
+        <%= render partial: "tools/salary_book/exceptions_section", locals: { exceptions: exceptions, salary_years: salary_years } %>
       <% else %>
         <div class="teamsection-subsection-empty">No active exceptions</div>
       <% end %>
@@ -216,7 +216,7 @@
         <% end %>
       </div>
       <% if picks.any? %>
-        <%= render partial: "tools/salary_book/draft_assets_section", locals: { picks: picks } %>
+        <%= render partial: "tools/salary_book/draft_assets_section", locals: { picks: picks, salary_years: salary_years } %>
       <% else %>
         <div class="teamsection-subsection-empty">No draft assets</div>
       <% end %>
@@ -231,7 +231,7 @@
         <% end %>
       </div>
       <% if dead_money.any? %>
-        <%= render partial: "tools/salary_book/dead_money_section", locals: { dead_money: dead_money } %>
+        <%= render partial: "tools/salary_book/dead_money_section", locals: { dead_money: dead_money, salary_years: salary_years } %>
       <% else %>
         <div class="teamsection-subsection-empty">No dead money</div>
       <% end %>
@@ -239,5 +239,5 @@
   </div>
 
   <%# Totals Footer %>
-  <%= render partial: "tools/salary_book/totals_footer", locals: { team_summaries: team_summaries } %>
+  <%= render partial: "tools/salary_book/totals_footer", locals: { team_summaries: team_summaries, salary_years: salary_years } %>
 </section>
