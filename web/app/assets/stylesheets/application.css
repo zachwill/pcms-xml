@@ -164,7 +164,7 @@ html.smooth-scroll {
   transform: translateY(-100%);
 }
 [data-popup][data-sheet="bottom"][data-ending-style] {
-  transform: translateY(100%
+  transform: translateY(100%);
 }
 
 /* ------------------------------

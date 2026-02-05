@@ -60,6 +60,8 @@ This root `AGENTS.md` is intentionally a **directory map** — most detailed con
 psql "$POSTGRES_URL" -v ON_ERROR_STOP=1 -f queries/sql/run_all.sql
 ```
 
+If you don't have access to `psql`, use the `psql.ts` tool instead.
+
 ---
 
 ## Scratch data (`shared/`)
