@@ -198,7 +198,7 @@
               <button
                 type="button"
                 class="sidebar-agent-link"
-                data-on:click="console.log('Agent overlay:', <%= agent_id %>)"
+                data-on:click="@get('<%= tools_salary_book_sidebar_agent_path(id: agent_id) %>')"
               ><%= agent_name %></button>
             <% else %>
               <span class="sidebar-stat-value"><%= agent_name %></span>

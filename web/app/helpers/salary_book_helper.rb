@@ -435,4 +435,19 @@ module SalaryBookHelper
       "" # neutral
     end
   end
+
+  # -------------------------------------------------------------------------
+  # Agent helpers
+  # -------------------------------------------------------------------------
+
+  # Get initials from agent name (e.g., "Rich Paul" → "RP")
+  def agent_initials(name)
+    return "??" unless name.present?
+
+    name.split(/\s+/)
+        .map { |word| word[0] }
+        .join
+        .upcase
+        .slice(0, 2)
+  end
 end

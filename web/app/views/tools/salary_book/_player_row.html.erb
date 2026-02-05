@@ -113,12 +113,14 @@
       <%# Agent + Agency column %>
       <div class="playerrow-agent-cell">
         <div class="playerrow-agent-row">
-          <% if player["agent_name"] %>
+          <% if player["agent_name"] && player["agent_id"] %>
             <button
               type="button"
               class="playerrow-agent-link"
-              data-on:click.stop="@get('<%= tools_salary_book_sidebar_player_path(id: player_id) %>')"
+              data-on:click.stop="@get('<%= tools_salary_book_sidebar_agent_path(id: player["agent_id"]) %>')"
             ><%= player["agent_name"] %></button>
+          <% elsif player["agent_name"] %>
+            <span class="playerrow-agent-link--plain"><%= player["agent_name"] %></span>
           <% else %>
             <span class="playerrow-agent-link--empty">—</span>
           <% end %>

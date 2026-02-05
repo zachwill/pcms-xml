@@ -1,0 +1,166 @@
+<%#
+  Agent Overlay — Entity detail view for a selected agent
+
+  Sections:
+  1. Agent header (initials avatar, name, agency)
+  2. Client roster (clickable player list with salary summaries)
+%>
+
+<% salary_years = SalaryBookHelper::SALARY_YEARS %>
+
+<%# Formatting helpers %>
+<% compact = ->(v) { format_salary(v) } %>
+
+<%# Extract agent info %>
+<% agent_id = agent["agent_id"] %>
+<% agent_name = agent["name"] %>
+<% agency_name = agent["agency_name"] %>
+
+<%# Build initials from agent name %>
+<%
+  initials = agent_name
+    .to_s
+    .split(" ")
+    .map { |n| n[0] }
+    .join("")
+    .upcase
+    .slice(0, 2)
+%>
+
+<%# Calculate totals %>
+<%
+  client_count = clients.size
+  total_book = clients.sum { |c| c["cap_2025"].to_f }
+%>
+
+<div id="rightpanel-overlay" class="sidebar-agent">
+  <%# Back button + Header %>
+  <header class="sidebar-agent-header">
+    <div class="sidebar-agent-back">
+      <button
+        type="button"
+        class="panel-button"
+        data-on:click="@get('<%= tools_salary_book_sidebar_clear_path %>')"
+      >← Back</button>
+    </div>
+    <a class="panel-link" href="/agents/<%= agent_id %>">Open agent page</a>
+  </header>
+
+  <div class="sidebar-agent-body">
+    <%# Agent Info (avatar + name + agency) %>
+    <div class="sidebar-agent-info">
+      <div class="sidebar-agent-avatar">
+        <span class="sidebar-agent-initials"><%= initials %></span>
+      </div>
+      <div class="sidebar-agent-details">
+        <h2 class="sidebar-agent-name"><%= agent_name %></h2>
+        <% if agency_name.present? %>
+          <div class="sidebar-agent-agency"><%= agency_name %></div>
+        <% end %>
+        <div class="sidebar-agent-meta">
+          <%= client_count %> NBA client<%= client_count != 1 ? "s" : "" %>
+        </div>
+      </div>
+    </div>
+
+    <%# Client Roster Section %>
+    <div class="sidebar-section">
+      <div class="sidebar-section-header">
+        <span class="sidebar-section-label">Client Roster</span>
+        <span class="sidebar-section-stat">
+          Book: <span class="sidebar-book-value"><%= compact.call(total_book) %></span>
+        </span>
+      </div>
+
+      <% if clients.empty? %>
+        <div class="sidebar-empty-card">No NBA clients found</div>
+      <% else %>
+        <div class="sidebar-client-list">
+          <% clients.each do |client| %>
+            <%
+              player_id = client["player_id"]
+              player_name = client["player_name"]
+              team_code = client["team_code"] || "—"
+              team_id = client["team_id"]
+              team_name = client["team_name"] || team_code
+              age = client["age"]
+              yos = client["years_of_service"]
+              is_two_way = client["is_two_way"]
+
+              current_salary = client["cap_2025"].to_f
+              total_value = salary_years.sum { |y| client["cap_#{y}"].to_f }
+
+              # Build detail line: AGE YRS · YOS
+              meta_parts = []
+              meta_parts << "#{format('%.1f', age.to_f)} YRS" if age.present?
+              if yos.present?
+                yos_num = yos.to_i
+                meta_parts << (yos_num <= 0 ? "Rookie" : "#{yos_num} YOS")
+              end
+              detail_line = meta_parts.any? ? meta_parts.join(" · ") : team_name
+            %>
+
+            <button
+              type="button"
+              class="sidebar-client-row"
+              data-on:click="@get('<%= tools_salary_book_sidebar_player_path(id: player_id) %>')"
+            >
+              <%# Team logo + Player headshot %>
+              <div class="sidebar-client-avatars">
+                <div class="sidebar-client-team-logo">
+                  <% if team_id %>
+                    <img
+                      src="<%= team_logo_url(team_id) %>"
+                      alt="<%= team_name %>"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    />
+                    <span class="sidebar-client-team-fallback" style="display: none;"><%= team_code %></span>
+                  <% else %>
+                    <span class="sidebar-client-team-fallback"><%= team_code %></span>
+                  <% end %>
+                </div>
+                <div class="sidebar-client-headshot">
+                  <img
+                    src="<%= player_headshot_url(player_id) %>"
+                    alt="<%= player_name %>"
+                    loading="lazy"
+                    decoding="async"
+                    onerror="if (this.src !== '<%= fallback_headshot_data_uri %>') { this.src = '<%= fallback_headshot_data_uri %>'; }"
+                  />
+                </div>
+              </div>
+
+              <%# Player info %>
+              <div class="sidebar-client-info">
+                <div class="sidebar-client-name"><%= player_name %></div>
+                <div class="sidebar-client-meta"><%= detail_line %></div>
+              </div>
+
+              <%# Salary info %>
+              <div class="sidebar-client-salary">
+                <% if is_two_way %>
+                  <div class="sidebar-twoway-badge">Two-Way</div>
+                <% elsif current_salary > 0 %>
+                  <div class="sidebar-client-current"><%= compact.call(current_salary) %></div>
+                  <div class="sidebar-client-total"><%= compact.call(total_value) %> total</div>
+                <% else %>
+                  <div class="sidebar-client-nosalary">No salary</div>
+                <% end %>
+              </div>
+
+              <%# Chevron %>
+              <svg class="sidebar-client-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+
+    <%# Metadata footer %>
+    <div class="sidebar-meta">
+      agent_id: <code><%= agent_id %></code>
+    </div>
+  </div>
+</div>
