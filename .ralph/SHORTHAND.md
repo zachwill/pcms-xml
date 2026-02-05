@@ -188,7 +188,7 @@ As of this refresh: **243 rows** remain with `primary_todo_reason='missing_short
 
 Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` where `primary_todo_reason='missing_shorthand'` and `draft_year >= 2026`.
 
-- [ ] Endnote 293 (5 rows) - UTA→CHA MF [UTA, PHX] 2030 2nd
+- [x] Endnote 293 (5 rows) - UTA→CHA MF [UTA, LAC] 2030 2nd
 - [ ] Endnote 248 (5 rows) - PHI→WAS HOU 2026 1st (via PHI)
 - [ ] Endnote 230 (5 rows) - UTA→PHX LF [UTA 2027, 2028, 2029] 1st
 - [ ] Endnote 202 (5 rows) - NOP→ATL LF [NOP, CLE] 2028 2nd
@@ -285,3 +285,4 @@ When you complete a cluster, add a bullet here with:
 - Endnote 123 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; endnote fully covered by the Endnote 319/307 OKC 2026 2nd pool curation.
 - Endnote 70 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; endnote fully covered by the Endnote 319/307 OKC 2026 2nd pool curation.
 - Endnote 46 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; endnote fully covered by the Endnote 319 OKC→WAS chain curation.
+- Endnote 293 — UTA→CHA MF [UTA, LAC] 2030 2nd (Sexton-Nurkic trade, 6/29/2025). CHA receives the MF of UTA's own 2030 2nd and the LAC 2030 2nd (which flows to UTA via endnote 232 Eubanks trade). Shorthands: `MF [UTA, LAC]` for CHA's MAY_HAVE rows, `UTA`/`LAC` for origin picks, direction-aware `To CHA: LAC` for LAC outgoing.
