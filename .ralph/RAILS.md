@@ -31,17 +31,8 @@ Tool URL: `/tools/salary-book`
 
 ## Backlog
 
-- [ ] Render team sub-sections in the main canvas (toggle-controlled)
-  - [ ] Cap Holds (`pcms.cap_holds_warehouse`)
-  - [ ] Exceptions (`pcms.exceptions_warehouse`)
-  - [ ] Dead Money (`pcms.dead_money_warehouse`)
-  - [ ] Draft Assets row + pick pills (start with `pcms.draft_assets_warehouse`; fall back to `pcms.draft_pick_summary_assets` if needed)
-  - Notes:
-    - Prefer **bulk fetch per warehouse** (all `team_code` in one query) and `group_by { |r| r["team_code"] }` to avoid N+1.
-    - Prototype SQL reference: `prototypes/salary-book-react/src/api/routes/salary-book.ts` (`/cap-holds`, `/exceptions`, `/dead-money`, `/picks`).
-
 - [ ] Filter toggle UX: preserve context after layout changes
-  - When toggles hide/show sections, rebuild scroll-spy cache and snap back to current `$activeteam` (instant scroll) so the user doesn’t “jump teams”.
+  - When toggles hide/show sections, rebuild scroll-spy cache and snap back to current `$activeteam` (instant scroll) so the user doesn't "jump teams".
   - (Implementation idea) expose `window.__salaryBookRebuildCache()` from the scroll-spy script and call it from `data-on:change` on filter inputs.
 
 - [ ] Add per-team Totals Footer
@@ -95,3 +86,9 @@ Tool URL: `/tools/salary-book`
 - [x] Port the Team Selector Grid to the command bar
 - [x] Add Filter Toggles UI (Display group; client-only lenses)
 - [x] Player rows are real links enhanced to patch overlay
+- [x] Render team sub-sections in the main canvas (toggle-controlled)
+  - Cap Holds (`pcms.cap_holds_warehouse`)
+  - Exceptions (`pcms.exceptions_warehouse`)
+  - Dead Money (`pcms.dead_money_warehouse`)
+  - Draft Assets row + pick pills (`pcms.draft_pick_summary_assets`)
+  - Bulk fetch per warehouse to avoid N+1

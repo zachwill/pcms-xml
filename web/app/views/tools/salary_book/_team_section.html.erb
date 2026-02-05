@@ -7,12 +7,16 @@
   - Player Rows (double-height)
   - Cap Holds Section (toggle-controlled)
   - Exceptions Section (toggle-controlled)
+  - Draft Assets Section (toggle-controlled)
   - Dead Money Section (toggle-controlled)
-  - Draft Assets Row (toggle-controlled)
-  - Totals Footer
+  - Totals Footer (TODO)
 %>
 
 <% salary_years ||= (2025..2030).to_a %>
+<% cap_holds ||= [] %>
+<% exceptions ||= [] %>
+<% dead_money ||= [] %>
+<% picks ||= [] %>
 
 <section id="teamsection-<%= team_code %>" class="teamsection" data-teamcode="<%= team_code %>">
   <%# Sticky header group (Team header + Table header) %>
@@ -55,40 +59,60 @@
     <div class="teamsection-subsection teamsection-subsection--capholds" data-show="$displaycapholds">
       <div class="teamsection-subsection-header">
         <span class="teamsection-subsection-label">Cap Holds</span>
+        <% if cap_holds.any? %>
+          <span class="teamsection-subsection-count"><%= cap_holds.length %></span>
+        <% end %>
       </div>
-      <div class="teamsection-subsection-placeholder">
-        <span class="teamsection-placeholder-text">Cap holds data will be rendered here</span>
-      </div>
+      <% if cap_holds.any? %>
+        <%= render partial: "tools/salary_book/cap_holds_section", locals: { cap_holds: cap_holds } %>
+      <% else %>
+        <div class="teamsection-subsection-empty">No cap holds</div>
+      <% end %>
     </div>
 
     <%# Exceptions Section (toggle-controlled via $displayexceptions signal) %>
     <div class="teamsection-subsection teamsection-subsection--exceptions" data-show="$displayexceptions">
       <div class="teamsection-subsection-header">
         <span class="teamsection-subsection-label">Exceptions</span>
+        <% if exceptions.any? %>
+          <span class="teamsection-subsection-count"><%= exceptions.length %></span>
+        <% end %>
       </div>
-      <div class="teamsection-subsection-placeholder">
-        <span class="teamsection-placeholder-text">Trade exceptions data will be rendered here</span>
-      </div>
+      <% if exceptions.any? %>
+        <%= render partial: "tools/salary_book/exceptions_section", locals: { exceptions: exceptions } %>
+      <% else %>
+        <div class="teamsection-subsection-empty">No active exceptions</div>
+      <% end %>
     </div>
 
     <%# Draft Picks Section (toggle-controlled via $displaydraftpicks signal) %>
     <div class="teamsection-subsection teamsection-subsection--draftpicks" data-show="$displaydraftpicks">
       <div class="teamsection-subsection-header">
         <span class="teamsection-subsection-label">Draft Assets</span>
+        <% if picks.any? %>
+          <span class="teamsection-subsection-count"><%= picks.length %></span>
+        <% end %>
       </div>
-      <div class="teamsection-subsection-placeholder">
-        <span class="teamsection-placeholder-text">Draft picks will be rendered here</span>
-      </div>
+      <% if picks.any? %>
+        <%= render partial: "tools/salary_book/draft_assets_section", locals: { picks: picks } %>
+      <% else %>
+        <div class="teamsection-subsection-empty">No draft assets</div>
+      <% end %>
     </div>
 
     <%# Dead Money Section (toggle-controlled via $displaydeadmoney signal) %>
     <div class="teamsection-subsection teamsection-subsection--deadmoney" data-show="$displaydeadmoney">
       <div class="teamsection-subsection-header">
         <span class="teamsection-subsection-label">Dead Money</span>
+        <% if dead_money.any? %>
+          <span class="teamsection-subsection-count"><%= dead_money.length %></span>
+        <% end %>
       </div>
-      <div class="teamsection-subsection-placeholder">
-        <span class="teamsection-placeholder-text">Dead money data will be rendered here</span>
-      </div>
+      <% if dead_money.any? %>
+        <%= render partial: "tools/salary_book/dead_money_section", locals: { dead_money: dead_money } %>
+      <% else %>
+        <div class="teamsection-subsection-empty">No dead money</div>
+      <% end %>
     </div>
   </div>
 </section>

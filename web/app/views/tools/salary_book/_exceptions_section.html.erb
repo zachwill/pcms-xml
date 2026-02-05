@@ -1,0 +1,55 @@
+<%#
+  Exceptions Section — Trade exceptions and salary exceptions
+
+  Shows exceptions as compact KPI cards, sorted by amount.
+  TPEs show the player name; others show the exception type.
+%>
+
+<% exceptions ||= [] %>
+<% return if exceptions.empty? %>
+
+<%
+  # Sort by primary amount descending
+  sorted = exceptions.sort_by { |e| -(exception_primary_amount(e) || 0) }
+%>
+
+<div class="subsection-exceptions-row">
+  <%# Sticky label column %>
+  <div class="subsection-row-label">
+    <div class="subsection-row-label-grid">
+      <div class="subsection-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+          <path d="M5 3v4"/>
+          <path d="M19 17v4"/>
+          <path d="M3 5h4"/>
+          <path d="M17 19h4"/>
+        </svg>
+      </div>
+      <div class="subsection-label-content">
+        <span class="subsection-label-text">Exceptions</span>
+        <span class="subsection-count-badge"><%= exceptions.length %></span>
+      </div>
+    </div>
+  </div>
+
+  <%# Exception cards %>
+  <div class="subsection-kpi-cards">
+    <% sorted.each do |row| %>
+      <% label = exception_label(row) %>
+      <% amount = exception_primary_amount(row) %>
+      <% title = exception_title(row) %>
+      <% is_dpe = disabled_player_exception?(row) %>
+
+      <div class="subsection-kpi-card <%= 'subsection-kpi-card--dpe' if is_dpe %>" title="<%= title %>">
+        <div class="subsection-kpi-label <%= 'subsection-kpi-label--dpe' if is_dpe %>"><%= label %></div>
+        <div class="subsection-kpi-value <%= 'subsection-kpi-value--dpe' if is_dpe %>">
+          <%= amount ? format_compact_currency(amount) : "—" %>
+        </div>
+      </div>
+    <% end %>
+
+    <%# Spacer for Total + Agent columns %>
+    <div class="subsection-spacer-wide"></div>
+  </div>
+</div>

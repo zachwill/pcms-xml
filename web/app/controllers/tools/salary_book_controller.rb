@@ -12,6 +12,12 @@ module Tools
       @teams_by_conference = fetch_teams_by_conference
       @players_by_team = fetch_players_by_team(@team_codes)
 
+      # Bulk fetch sub-section data (avoids N+1)
+      @cap_holds_by_team = fetch_cap_holds_by_team(@team_codes)
+      @exceptions_by_team = fetch_exceptions_by_team(@team_codes)
+      @dead_money_by_team = fetch_dead_money_by_team(@team_codes)
+      @picks_by_team = fetch_picks_by_team(@team_codes)
+
       requested = params[:team]
       @initial_team = if requested.present? && valid_team_code?(requested)
         requested.to_s.strip.upcase
@@ -28,6 +34,10 @@ module Tools
       @team_codes = []
       @teams_by_conference = { "Eastern" => [], "Western" => [] }
       @players_by_team = {}
+      @cap_holds_by_team = {}
+      @exceptions_by_team = {}
+      @dead_money_by_team = {}
+      @picks_by_team = {}
       @initial_team = nil
       @initial_team_summary = nil
     end
@@ -226,6 +236,134 @@ module Tools
           LIMIT 1
         SQL
       ).first
+    end
+
+    # -------------------------------------------------------------------------
+    # Bulk fetch sub-section data (avoids N+1 per team)
+    # -------------------------------------------------------------------------
+
+    def fetch_cap_holds_by_team(team_codes)
+      return {} if team_codes.empty?
+
+      in_list = team_codes.map { |c| conn.quote(c) }.join(",")
+
+      rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          non_contract_amount_id AS id,
+          team_code,
+          player_id,
+          player_name,
+          amount_type_lk,
+          MAX(cap_amount) FILTER (WHERE salary_year = 2025)::numeric AS cap_2025,
+          MAX(cap_amount) FILTER (WHERE salary_year = 2026)::numeric AS cap_2026,
+          MAX(cap_amount) FILTER (WHERE salary_year = 2027)::numeric AS cap_2027,
+          MAX(cap_amount) FILTER (WHERE salary_year = 2028)::numeric AS cap_2028,
+          MAX(cap_amount) FILTER (WHERE salary_year = 2029)::numeric AS cap_2029
+        FROM pcms.cap_holds_warehouse
+        WHERE team_code IN (#{in_list})
+          AND salary_year BETWEEN 2025 AND 2029
+        GROUP BY non_contract_amount_id, team_code, player_id, player_name, amount_type_lk
+        ORDER BY team_code, cap_2025 DESC NULLS LAST, player_name ASC NULLS LAST
+      SQL
+
+      rows.group_by { |r| r["team_code"] }
+    end
+
+    def fetch_exceptions_by_team(team_codes)
+      return {} if team_codes.empty?
+
+      in_list = team_codes.map { |c| conn.quote(c) }.join(",")
+
+      rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          team_exception_id AS id,
+          team_code,
+          exception_type_lk,
+          exception_type_name,
+          trade_exception_player_id,
+          trade_exception_player_name,
+          expiration_date,
+          is_expired,
+          MAX(remaining_amount) FILTER (WHERE salary_year = 2025)::numeric AS remaining_2025,
+          MAX(remaining_amount) FILTER (WHERE salary_year = 2026)::numeric AS remaining_2026,
+          MAX(remaining_amount) FILTER (WHERE salary_year = 2027)::numeric AS remaining_2027,
+          MAX(remaining_amount) FILTER (WHERE salary_year = 2028)::numeric AS remaining_2028,
+          MAX(remaining_amount) FILTER (WHERE salary_year = 2029)::numeric AS remaining_2029
+        FROM pcms.exceptions_warehouse
+        WHERE team_code IN (#{in_list})
+          AND salary_year BETWEEN 2025 AND 2029
+          AND COALESCE(is_expired, false) = false
+        GROUP BY
+          team_exception_id,
+          team_code,
+          exception_type_lk,
+          exception_type_name,
+          trade_exception_player_id,
+          trade_exception_player_name,
+          expiration_date,
+          is_expired
+        ORDER BY team_code, remaining_2025 DESC NULLS LAST, exception_type_name ASC NULLS LAST
+      SQL
+
+      rows.group_by { |r| r["team_code"] }
+    end
+
+    def fetch_dead_money_by_team(team_codes)
+      return {} if team_codes.empty?
+
+      in_list = team_codes.map { |c| conn.quote(c) }.join(",")
+
+      rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          transaction_waiver_amount_id AS id,
+          team_code,
+          player_id,
+          player_name,
+          waive_date,
+          MAX(cap_value) FILTER (WHERE salary_year = 2025)::numeric AS cap_2025,
+          MAX(cap_value) FILTER (WHERE salary_year = 2026)::numeric AS cap_2026,
+          MAX(cap_value) FILTER (WHERE salary_year = 2027)::numeric AS cap_2027,
+          MAX(cap_value) FILTER (WHERE salary_year = 2028)::numeric AS cap_2028,
+          MAX(cap_value) FILTER (WHERE salary_year = 2029)::numeric AS cap_2029
+        FROM pcms.dead_money_warehouse
+        WHERE team_code IN (#{in_list})
+          AND salary_year BETWEEN 2025 AND 2029
+        GROUP BY transaction_waiver_amount_id, team_code, player_id, player_name, waive_date
+        ORDER BY team_code, cap_2025 DESC NULLS LAST, player_name ASC NULLS LAST
+      SQL
+
+      rows.group_by { |r| r["team_code"] }
+    end
+
+    def fetch_picks_by_team(team_codes)
+      return {} if team_codes.empty?
+
+      in_list = team_codes.map { |c| conn.quote(c) }.join(",")
+
+      rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          team_code,
+          draft_year AS year,
+          draft_round AS round,
+          asset_slot,
+          sub_asset_slot,
+          asset_type,
+          is_conditional,
+          is_swap,
+          counterparty_team_code AS origin_team_code,
+          raw_part AS description
+        FROM pcms.draft_pick_summary_assets
+        WHERE team_code IN (#{in_list})
+          AND draft_year BETWEEN 2025 AND 2030
+        ORDER BY team_code, draft_year, draft_round, asset_slot, sub_asset_slot
+      SQL
+
+      # Generate unique ID for each pick
+      rows.each_with_index do |row, idx|
+        row["id"] = "#{row['team_code']}-#{row['year']}-#{row['round']}-#{row['asset_slot']}-#{row['sub_asset_slot']}"
+      end
+
+      rows.group_by { |r| r["team_code"] }
     end
   end
 end

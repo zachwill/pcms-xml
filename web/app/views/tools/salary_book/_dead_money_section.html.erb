@@ -1,0 +1,46 @@
+<%#
+  Dead Money Section — Waived player cap charges
+
+  Shows:
+  - Player name
+  - Waive date (subtitle)
+  - Cap charges by year (2025-2029)
+%>
+
+<% dead_money ||= [] %>
+<% return if dead_money.empty? %>
+
+<div class="subsection-rows">
+  <% dead_money.each do |row| %>
+    <% title = row["player_name"].presence || "Dead Money" %>
+    <% subtitle = row["waive_date"].present? ? "Waived #{format_date_short(row['waive_date'])}" : nil %>
+
+    <div class="subsection-row">
+      <%# Sticky label column %>
+      <div class="subsection-row-label">
+        <div class="subsection-row-label-grid">
+          <div></div>
+          <div class="subsection-row-label-text">
+            <div class="subsection-row-title"><%= title %></div>
+            <% if subtitle %>
+              <div class="subsection-row-subtitle"><%= subtitle %></div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <%# Year columns %>
+      <% SUBSECTION_YEARS.each do |year| %>
+        <% amt = dead_money_amount(row, year) %>
+        <% is_empty = amt.nil? || amt.to_f == 0 %>
+        <div class="subsection-year-cell <%= 'subsection-year-cell--empty' if is_empty %>">
+          <%= is_empty ? "—" : format_compact_currency(amt) %>
+        </div>
+      <% end %>
+
+      <%# Spacers for Total + Agent columns %>
+      <div class="subsection-spacer"></div>
+      <div class="subsection-spacer-wide"></div>
+    </div>
+  <% end %>
+</div>

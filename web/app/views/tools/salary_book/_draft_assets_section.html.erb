@@ -1,0 +1,71 @@
+<%#
+  Draft Assets Section — Draft picks organized by year
+
+  Pick pills appear under the corresponding year column.
+  Each pill is clickable to open Pick overlay (future).
+%>
+
+<% picks ||= [] %>
+<% return if picks.empty? %>
+
+<%
+  # Group picks by year
+  picks_by_year = picks.group_by { |p| p["year"].to_i }
+%>
+
+<div class="subsection-draft-row">
+  <%# Sticky label column %>
+  <div class="subsection-row-label">
+    <div class="subsection-row-label-grid">
+      <div class="subsection-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
+          <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
+          <path d="M10 9H8"/>
+          <path d="M16 13H8"/>
+          <path d="M16 17H8"/>
+        </svg>
+      </div>
+      <div class="subsection-label-content">
+        <span class="subsection-label-text">Draft Assets</span>
+        <span class="subsection-count-badge"><%= picks.length %></span>
+      </div>
+    </div>
+  </div>
+
+  <%# Year columns with pick pills %>
+  <div class="subsection-draft-years">
+    <% SUBSECTION_YEARS.each do |year| %>
+      <% year_picks = (picks_by_year[year] || []).sort_by { |p| [p["round"].to_i, p["origin_team_code"].to_s] } %>
+
+      <div class="subsection-draft-year-col">
+        <% if year_picks.any? %>
+          <% year_picks.each do |pick| %>
+            <% label = pick_label(pick) %>
+            <% value = pick_value(pick) %>
+            <% title = pick_title(pick) %>
+            <% classes = pick_card_classes(pick) %>
+
+            <button
+              type="button"
+              class="subsection-pick-pill <%= classes[:bg] %>"
+              title="<%= title %>"
+              data-on:click.stop="console.log('Pick clicked:', '<%= pick['id'] %>')"
+            >
+              <span class="subsection-pick-label"><%= label %></span>
+              <span class="subsection-pick-value"><%= value %></span>
+            </button>
+          <% end %>
+        <% else %>
+          <span class="subsection-pick-empty">—</span>
+        <% end %>
+      </div>
+    <% end %>
+
+    <%# Spacer for Total column %>
+    <div class="subsection-spacer"></div>
+
+    <%# Spacer for Agent column %>
+    <div class="subsection-spacer-wide"></div>
+  </div>
+</div>

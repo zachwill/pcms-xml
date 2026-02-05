@@ -115,7 +115,16 @@
         </div>
       <% else %>
         <% @team_codes.each do |team_code| %>
-          <%= render partial: "tools/salary_book/team_section", locals: { team_code:, players: (@players_by_team[team_code] || []), year: @salary_year, salary_years: @salary_years } %>
+          <%= render partial: "tools/salary_book/team_section", locals: {
+            team_code: team_code,
+            players: (@players_by_team[team_code] || []),
+            cap_holds: (@cap_holds_by_team[team_code] || []),
+            exceptions: (@exceptions_by_team[team_code] || []),
+            dead_money: (@dead_money_by_team[team_code] || []),
+            picks: (@picks_by_team[team_code] || []),
+            year: @salary_year,
+            salary_years: @salary_years
+          } %>
         <% end %>
       <% end %>
     </main>

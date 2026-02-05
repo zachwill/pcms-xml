@@ -1,5 +1,6 @@
 module SalaryBookHelper
   SALARY_YEARS = (2025..2030).to_a.freeze
+  SUBSECTION_YEARS = (2025..2029).to_a.freeze  # Sub-sections only show 5 years
 
   # Format year as "YY-YY" label (e.g., 2025 → "25-26")
   def format_year_label(year)
@@ -20,6 +21,20 @@ module SalaryBookHelper
 
     thousands = amount / 1_000
     "$#{thousands.round}K"
+  end
+
+  # Format salary even more compactly for KPI cells (e.g., 25.3M, 4.8M, 500K)
+  def format_compact_currency(amount)
+    return "—" if amount.nil?
+
+    amount = amount.to_f
+    return "—" if amount == 0
+
+    millions = amount / 1_000_000
+    return "#{format("%.1f", millions)}M" if millions >= 1
+
+    thousands = amount / 1_000
+    "#{thousands.round}K"
   end
 
   # Get salary for a specific year
@@ -199,5 +214,156 @@ module SalaryBookHelper
       "NBA" \
       "</text>" \
       "</svg>"
+  end
+
+  # -------------------------------------------------------------------------
+  # Exception helpers
+  # -------------------------------------------------------------------------
+
+  EXCEPTION_LABEL_MAP = {
+    "BIEXC" => "Bi-Annual",
+    "BAE" => "Bi-Annual",
+    "MLE" => "MLE",
+    "TAXMLE" => "Tax MLE",
+    "ROOMMLE" => "Room MLE",
+    "RMEXC" => "Room MLE",
+    "NTMLE" => "MLE",
+    "NTMDL" => "MLE",
+    "CNTMD" => "C-MLE"
+  }.freeze
+
+  def exception_label(row)
+    # Use player last name if it's a trade exception
+    player_name = row["trade_exception_player_name"]
+    if player_name.present?
+      last_name = extract_last_name(player_name)
+      return last_name if last_name.present?
+    end
+
+    raw_type = row["exception_type_lk"] || row["exception_type_name"]
+    return "Exception" unless raw_type
+
+    normalized = raw_type.gsub(/[\s\-_]/, "").upcase
+    EXCEPTION_LABEL_MAP[normalized] || raw_type
+  end
+
+  def exception_primary_amount(row)
+    SUBSECTION_YEARS.each do |year|
+      amt = row["remaining_#{year}"]
+      return amt.to_f if amt.present? && amt.to_f > 0
+    end
+    nil
+  end
+
+  def exception_title(row)
+    parts = []
+    if disabled_player_exception?(row)
+      parts << "DPE"
+      parts << row["trade_exception_player_name"] if row["trade_exception_player_name"].present?
+    else
+      parts << (row["exception_type_name"] || row["exception_type_lk"] || "Exception")
+    end
+
+    if row["expiration_date"].present?
+      formatted = format_date_short(row["expiration_date"])
+      parts << "Expires #{formatted}" if formatted
+    end
+
+    parts.join(" • ")
+  end
+
+  def disabled_player_exception?(row)
+    raw = row["exception_type_lk"] || row["exception_type_name"] || ""
+    normalized = raw.gsub(/[\s\-_]/, "").upcase
+    normalized.include?("DPE") || normalized.include?("DLEXC") || normalized.include?("DISABLEDPLAYER")
+  end
+
+  # -------------------------------------------------------------------------
+  # Draft pick helpers
+  # -------------------------------------------------------------------------
+
+  def pick_round_label(round)
+    round == 1 ? "FRP" : "SRP"
+  end
+
+  def pick_status(pick)
+    desc = pick["description"]&.downcase || ""
+
+    return "Frozen" if desc.include?("frozen")
+    return "Swap" if pick["is_swap"]
+    return "Conditional" if pick["is_conditional"] || desc.include?("conditional")
+
+    pick_round_label(pick["round"])
+  end
+
+  def pick_label(pick)
+    status = pick_status(pick)
+    if status == "FRP" || status == "SRP"
+      "#{(pick['year'].to_i + 1) % 100} #{status}"
+    else
+      status
+    end
+  end
+
+  def pick_value(pick)
+    return "To #{pick['origin_team_code']}" if pick["asset_type"] == "TO"
+    return "Own" if pick["origin_team_code"] == pick["team_code"] || pick["origin_team_code"].blank?
+
+    pick["origin_team_code"]
+  end
+
+  def pick_title(pick)
+    round_label = pick["round"] == 1 ? "1st Round" : "2nd Round"
+    parts = ["#{pick['year']} #{round_label} pick"]
+    parts << "from #{pick['origin_team_code']}" if pick["origin_team_code"].present?
+    parts << "(Swap)" if pick["is_swap"]
+    parts.join(" ")
+  end
+
+  def pick_card_classes(pick)
+    desc = pick["description"]&.downcase || ""
+
+    if desc.include?("frozen")
+      { bg: "subsection-pick--frozen", round: nil }
+    elsif pick["round"] == 1
+      { bg: "subsection-pick--frp", round: 1 }
+    else
+      { bg: "subsection-pick--srp", round: 2 }
+    end
+  end
+
+  # -------------------------------------------------------------------------
+  # Shared helpers
+  # -------------------------------------------------------------------------
+
+  def extract_last_name(name)
+    return nil unless name.present?
+
+    trimmed = name.strip
+    return nil if trimmed.empty?
+
+    if trimmed.include?(",")
+      trimmed.split(",").first&.strip
+    else
+      parts = trimmed.split(/\s+/).reject(&:empty?)
+      parts.last
+    end
+  end
+
+  def format_date_short(value)
+    return nil unless value.present?
+
+    parsed = value.is_a?(Date) ? value : Date.parse(value.to_s)
+    parsed.strftime("%b %d, %Y")
+  rescue ArgumentError
+    value.to_s
+  end
+
+  def cap_hold_amount(row, year)
+    row["cap_#{year}"]
+  end
+
+  def dead_money_amount(row, year)
+    row["cap_#{year}"]
   end
 end

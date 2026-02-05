@@ -1237,3 +1237,352 @@ a:hover {
 .text-red-700 { color: #b91c1c; }
 .dark .text-red-700,
 .text-red-300 { color: #fca5a5; }
+
+/* ------------------------------
+   Team Sub-sections (Cap Holds, Exceptions, Dead Money, Draft Assets)
+   ------------------------------ */
+
+/* Subsection header improvements */
+.teamsection-subsection-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.teamsection-subsection-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+
+.teamsection-subsection-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.teamsection-subsection-empty {
+  padding: 10px 16px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+/* Subsection rows (Cap Holds, Dead Money) */
+.subsection-rows {
+  /* Container for multiple rows */
+}
+
+.subsection-row {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
+  transition: background-color 75ms;
+}
+
+.subsection-row:hover {
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+}
+
+.subsection-row:last-child {
+  border-bottom: none;
+}
+
+.subsection-row-label {
+  width: var(--salarytable-sticky-width);
+  flex-shrink: 0;
+  padding-left: 16px;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--muted) 40%, var(--background));
+}
+
+.subsection-row:hover .subsection-row-label {
+  background: color-mix(in srgb, var(--muted) 60%, var(--background));
+}
+
+.subsection-row-label::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--border) 30%, transparent);
+}
+
+.subsection-row-label-grid {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  align-items: center;
+  height: 100%;
+}
+
+.subsection-row-label-text {
+  padding-left: 4px;
+  min-width: 0;
+}
+
+.subsection-row-title {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subsection-row-subtitle {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subsection-year-cell {
+  width: var(--salarytable-year-width);
+  flex-shrink: 0;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.subsection-year-cell--empty {
+  color: color-mix(in srgb, var(--muted-foreground) 40%, transparent);
+}
+
+.subsection-spacer {
+  width: var(--salarytable-total-width);
+  flex-shrink: 0;
+}
+
+.subsection-spacer-wide {
+  width: var(--salarytable-agent-width);
+  flex-shrink: 0;
+  padding-right: 16px;
+}
+
+/* Exceptions Section (KPI card layout) */
+.subsection-exceptions-row {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 8px 0;
+}
+
+.subsection-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--muted-foreground);
+}
+
+.subsection-label-content {
+  padding-left: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subsection-label-text {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+
+.subsection-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.subsection-kpi-cards {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subsection-kpi-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  min-width: 60px;
+  cursor: default;
+}
+
+.subsection-kpi-card--dpe {
+  background: color-mix(in srgb, #fee2e2 80%, var(--background));
+  border-color: color-mix(in srgb, #f87171 50%, transparent);
+}
+
+.dark .subsection-kpi-card--dpe {
+  background: color-mix(in srgb, #7f1d1d 60%, var(--background));
+  border-color: color-mix(in srgb, #dc2626 50%, transparent);
+}
+
+.subsection-kpi-label {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+}
+
+.subsection-kpi-label--dpe {
+  color: #b91c1c;
+}
+
+.dark .subsection-kpi-label--dpe {
+  color: #fca5a5;
+}
+
+.subsection-kpi-value {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.subsection-kpi-value--dpe {
+  color: #991b1b;
+}
+
+.dark .subsection-kpi-value--dpe {
+  color: #fecaca;
+}
+
+/* Draft Assets Section */
+.subsection-draft-row {
+  display: flex;
+  align-items: flex-start;
+  min-height: 48px;
+  padding: 8px 0;
+}
+
+.subsection-draft-years {
+  display: flex;
+  align-items: flex-start;
+}
+
+.subsection-draft-year-col {
+  width: var(--salarytable-year-width);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.subsection-pick-pill {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  min-width: 54px;
+  transition: transform 75ms, box-shadow 75ms;
+}
+
+.subsection-pick-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.1);
+}
+
+.subsection-pick-pill:focus {
+  outline: none;
+}
+
+.subsection-pick-pill:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+/* First Round Pick (gold) */
+.subsection-pick--frp {
+  background: color-mix(in srgb, #fde68a 80%, var(--background));
+  border: 1px solid color-mix(in srgb, #f59e0b 50%, transparent);
+}
+
+.dark .subsection-pick--frp {
+  background: color-mix(in srgb, #92400e 70%, var(--background));
+  border: 1px solid color-mix(in srgb, #d97706 50%, transparent);
+}
+
+/* Second Round Pick (gray) */
+.subsection-pick--srp {
+  background: color-mix(in srgb, #e5e7eb 80%, var(--background));
+  border: 1px solid var(--border);
+}
+
+.dark .subsection-pick--srp {
+  background: color-mix(in srgb, #374151 70%, var(--background));
+  border: 1px solid var(--border);
+}
+
+/* Frozen Pick (dark blue) */
+.subsection-pick--frozen {
+  background: #1e293b;
+  border: 1px solid color-mix(in srgb, #3b82f6 40%, transparent);
+}
+
+.subsection-pick--frozen .subsection-pick-label,
+.subsection-pick--frozen .subsection-pick-value {
+  color: #bfdbfe;
+}
+
+.subsection-pick-label {
+  font-size: 9px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.subsection-pick-value {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.subsection-pick-empty {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--muted-foreground) 40%, transparent);
+}
