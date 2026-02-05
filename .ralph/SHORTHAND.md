@@ -182,6 +182,34 @@ Guideline: one checkbox = one endnote cluster.
 
 - [x] (bootstrap) Create SHORTHAND backlog file + agent wiring
 
+### Top clusters (generated 2026-02-05)
+
+- [ ] Endnote 125 (6 rows) — DET→WAS MF [BKN, NYK] 2027 2nd
+- [ ] Endnote 64 (6 rows) — NYK→DET MF [NYK, WAS] 2026 2nd
+- [ ] Endnote 52 (6 rows) — OKC→NYK WAS future conditional 1st
+- [ ] Endnote 50 (6 rows) — BOS↔SAS 2028 1st swap
+- [ ] Endnote 45 (6 rows) — NOP→POR 2027 2nd
+- [ ] Endnote 27 (6 rows) — HOU→OKC WAS 1st (via HOU)
+- [ ] Endnote 16 (6 rows) — PHI→OKC PHI conditional 1st
+- [ ] Endnote 15 (6 rows) — WAS→HOU WAS 1st (conditional)
+- [ ] Endnote 321 (5 rows) — BOS→UTA MF [BOS, NOP] 2031 2nd
+- [ ] Endnote 320 (5 rows) — BOS→UTA MF [BOS, NOP] 2027 2nd
+- [ ] Endnote 319 (5 rows) — SAS→WAS LF [DAL, SAS, TOR] 2027 2nd
+- [ ] Endnote 316 (5 rows) — DET→SAC LF [DET, NYK, WAS] 2029 2nd
+- [ ] Endnote 310 (5 rows) — PHX→MIN MF [HOU, PHX] 2032 2nd
+- [ ] Endnote 307 (5 rows) — HOU→PHX 2nd MF [DAL, HOU, UTA] 2027 2nd
+- [ ] Endnote 295 (5 rows) — PHX→CHA CLE/MIN/UTA 2029 1st (via PHX)
+- [ ] Endnote 293 (5 rows) — UTA→CHA MF [UTA, PHX] 2030 2nd
+- [ ] Endnote 291 (5 rows) — ORL→BOS MF [ORL, POR] 2027 2nd
+- [ ] Endnote 248 (5 rows) — PHI→WAS HOU 2026 1st (via PHI)
+- [ ] Endnote 244 (5 rows) — BOS→HOU LF [NOP, CLE] 2027 2nd
+- [ ] Endnote 231 (5 rows) — UTA→PHX (3-pick conditional logic)
+- [ ] Endnote 230 (5 rows) — UTA→PHX LF [UTA 2027, 2028, 2029] 1st
+- [ ] Endnote 202 (5 rows) — NOP→ATL LF [NOP, CLE] 2028 2nd
+- [ ] Endnote 190 (5 rows) — NYK→POR LF [IND, MIL, DEN] 2029 2nd
+- [ ] Endnote 176 (5 rows) — POR→BOS LF [POR, UTA] 2027 2nd
+- [ ] Endnote 157 (5 rows) — DET→WAS LF [NYK, WAS] 2026 2nd
+
 ---
 
 ## Done (append-only)
