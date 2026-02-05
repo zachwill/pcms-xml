@@ -189,7 +189,7 @@ Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` where `primary_todo_reaso
 - [x] Endnote 320 (5 rows) - BOS→UTA MF [BOS, ORL] 2027 2nd
 - [x] Endnote 319 (5 rows) - SAS→WAS LF [DAL, SAS, TOR] 2027 2nd
 - [x] Endnote 316 (5 rows) - DET→SAC LF [DET, NYK, WAS] 2029 2nd
-- [ ] Endnote 310 (5 rows) - PHX→MIN MF [HOU, PHX] 2032 2nd
+- [x] Endnote 310 (5 rows) - PHX→MIN MF [HOU, PHX] 2032 2nd
 - [ ] Endnote 307 (5 rows) - HOU→PHX 2nd MF [DAL, HOU, UTA] 2027 2nd
 - [ ] Endnote 295 (5 rows) - PHX→CHA CLE/MIN/UTA 2029 1st (via PHX)
 - [ ] Endnote 293 (5 rows) - UTA→CHA MF [UTA, PHX] 2030 2nd
@@ -251,3 +251,4 @@ When you complete a cluster, add a bullet here with:
 - Endnote 320 — BOS→UTA Luis/Niang trade (8/6/2025). UTA receives MF [BOS, ORL] 2027 2nd. BOS pick originally went to ORL (endnote 23), then ORL/BOS pool via endnote 291. Shorthands: `MF [BOS, ORL]` for UTA's MAY_HAVE rows, `BOS`/`ORL` for origin picks.
 - Endnote 319 — SAS→WAS Olynyk/Branham trade (7/9/2025). WAS receives LF [DAL, OKC, PHI] 2026 2nd (via SAS→MIA→OKC chain). OKC holds 3-pick pool (own, DAL via endnote 14, PHI via endnote 21): MF stays with OKC, 2nd MF to PHX (endnote 307 via HOU/endnote 70), LF to WAS. Shorthands: `OKC`/`DAL`/`PHI` for origin rows, direction-aware `To WAS: DAL`/`To WAS: PHI` for outgoing.
 - Endnote 316 — DET→SAC Schröder trade (7/7/2025). SAC receives LF [DET, MIL, NYK] 2029 2nd; DET retains the other two. MIL pick flows via BKN→DET (endnotes 80/115), NYK pick flows via endnote 165. Shorthands: `DET`/`MIL`/`NYK` for origin rows, direction-aware `To SAC: MIL`/`To SAC: NYK` for outgoing.
+- Endnote 310 — PHX→MIN Durant trade (7/6/2025). MIN receives MF [HOU, PHX] 2032 2nd. HOU pick flows via PHX (endnote 308). Shorthands: `MF [HOU, PHX]` for MIN's MAY_HAVE rows, `PHX`/`HOU` for origin picks, direction-aware `To MIN: HOU` for outgoing.
