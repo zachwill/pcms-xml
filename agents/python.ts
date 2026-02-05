@@ -78,7 +78,7 @@ We're consolidating 10 TypeScript scripts into ~5-6 Python scripts:
 | contracts.py | contracts.inline_script.ts | pcms.contracts, pcms.contract_versions, pcms.contract_bonuses, pcms.salaries, pcms.payment_schedules, pcms.contract_protections |
 | transactions.py | transactions_*.ts + team_exceptions.ts | pcms.trades, pcms.trade_teams, pcms.trade_team_details, pcms.trade_groups, pcms.transactions, pcms.ledger_entries, pcms.transaction_waiver_amounts, pcms.team_exceptions, pcms.team_exception_usage |
 | league.py | league_config.ts + draft.ts | pcms.league_system_values, pcms.rookie_scale_amounts, pcms.non_contract_amounts, pcms.league_salary_scales, pcms.league_salary_cap_projections, pcms.league_tax_rates, pcms.apron_constraints, pcms.draft_picks, pcms.draft_pick_summaries |
-| teams.py | team_financials.ts + two-way.ts | pcms.team_budget_snapshots, pcms.team_tax_summary_snapshots, pcms.tax_team_status, pcms.waiver_priority, pcms.waiver_priority_ranks, pcms.team_transactions, pcms.two_way_daily_statuses, pcms.two_way_contract_utility, pcms.two_way_game_utility, pcms.team_two_way_capacity |
+| teams.py | team_financials.ts + two-way.ts | pcms.team_budget_snapshots, pcms.team_tax_summary_snapshots, pcms.tax_team_status, pcms.waiver_priority, pcms.waiver_priority_ranks, pcms.team_transactions, pcms.two_way_daily_statuses, pcms.two_way_game_utility, pcms.team_two_way_capacity |
 | finalize.py | finalize_lineage.inline_script.ts | (aggregates results) |
 
 ## Actions

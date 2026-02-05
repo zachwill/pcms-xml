@@ -303,7 +303,7 @@ These tables store raw PCMS imports. For UI tools, prefer warehouse tables.
 | `pcms.waiver_priority` | Waiver priority |
 | `pcms.waiver_priority_ranks` | Waiver priority rankings |
 | `pcms.two_way_daily_statuses` | Two-way day tracking |
-| `pcms.two_way_contract_utility` | Two-way utility calcs |
+| `pcms.two_way_utility_warehouse` | Two-way utility (tool-facing warehouse) |
 | `pcms.two_way_game_utility` | Two-way game utility |
 | `pcms.ledger_entries` | Cap ledger entries |
 | `pcms.payment_schedules` | Payment schedule records |

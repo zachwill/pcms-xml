@@ -58,7 +58,7 @@ The lineage step produces these files in `shared/pcms/nba_pcms_full_extract/`:
 | `team_exceptions.json` | `pcms.team_exceptions`, `team_exception_usage` |
 | `team_budgets.json` | `pcms.team_budget_snapshots`, `tax_team_status` |
 | `two_way.json` | `pcms.two_way_daily_statuses` |
-| `two_way_utility.json` | `pcms.two_way_contract_utility`, `two_way_game_utility` |
+| `two_way_utility.json` | `pcms.two_way_game_utility`, `pcms.team_two_way_capacity` |
 | `lookups.json` | `pcms.lookups`, `pcms.teams` |
 | `yearly_system_values.json` | `pcms.league_system_values` |
 | `cap_projections.json` | `pcms.league_salary_cap_projections` |

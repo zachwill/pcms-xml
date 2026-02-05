@@ -9,7 +9,7 @@ Consolidates:
 - Team budgets, tax summaries, tax team status
 - Waiver priority & ranks
 - Team transactions
-- Two-way daily statuses, contract utility, game utility, team capacity
+- Two-way daily statuses, game utility, team capacity
 
 Upserts into:
 - pcms.team_budget_snapshots (TRUNCATE + INSERT due to nullable composite key)
@@ -19,7 +19,6 @@ Upserts into:
 - pcms.waiver_priority_ranks
 - pcms.team_transactions
 - pcms.two_way_daily_statuses
-- pcms.two_way_contract_utility
 - pcms.two_way_game_utility
 - pcms.team_two_way_capacity
 """
@@ -503,57 +502,6 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
         daily_statuses = list(daily_status_seen.values())
 
         # ─────────────────────────────────────────────────────────────────────
-        # two_way_contract_utility (from two_way.json -> two_way_seasons)
-        # ─────────────────────────────────────────────────────────────────────
-        seasons_container = two_way.get("two_way_seasons") or {}
-        seasons = as_list(
-            seasons_container.get("two-way-season") or
-            seasons_container.get("two_way_season") or
-            (seasons_container if isinstance(seasons_container, list) else [])
-        )
-
-        contract_utility_seen = {}
-
-        for season in seasons:
-            players_container = season.get("two-way-players") or season.get("two_way_players") or {}
-            players = as_list(
-                players_container.get("two-way-player") or
-                players_container.get("two_way_player") or
-                (players_container if isinstance(players_container, list) else [])
-            )
-            for p in players:
-                contracts_container = p.get("two-way-contracts") or p.get("two_way_contracts") or {}
-                contracts = as_list(
-                    contracts_container.get("two-way-contract") or
-                    contracts_container.get("two_way_contract") or
-                    (contracts_container if isinstance(contracts_container, list) else [])
-                )
-                for c in contracts:
-                    contract_id = to_int(c.get("contract_id"))
-                    player_id = to_int(c.get("player_id") or p.get("player_id"))
-                    if contract_id is None or player_id is None:
-                        continue
-
-                    contract_team_id = to_int(c.get("contract_team_id"))
-                    signing_team_id = to_int(c.get("signing_team_id"))
-
-                    contract_utility_seen[contract_id] = {
-                        "contract_id": contract_id,
-                        "player_id": player_id,
-                        "contract_team_id": contract_team_id,
-                        "contract_team_code": team_code_map.get(contract_team_id) if contract_team_id else None,
-                        "signing_team_id": signing_team_id,
-                        "signing_team_code": team_code_map.get(signing_team_id) if signing_team_id else None,
-                        "is_active_two_way_contract": to_bool(c.get("is_active_two_way_contract")),
-                        "games_on_active_list": to_int(c.get("number_of_games_on_active_list")),
-                        "active_list_games_limit": to_int(c.get("active_list_games_limit")),
-                        "remaining_active_list_games": to_int(c.get("remaining_active_list_games")),
-                        "ingested_at": ingested_at,
-                    }
-
-        contract_utilities = list(contract_utility_seen.values())
-
-        # ─────────────────────────────────────────────────────────────────────
         # two_way_game_utility (from two_way_utility.json -> active_list_by_team)
         # ─────────────────────────────────────────────────────────────────────
         active_list_container = two_way_utility.get("active_list_by_team") or {}
@@ -626,7 +574,7 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
         print(f"Prepared: budget_snapshots={len(budget_snapshots)}, tax_summaries={len(tax_summaries)}")
         print(f"Prepared: waiver_priority={len(waiver_priorities)}, waiver_ranks={len(waiver_ranks)}")
         print(f"Prepared: tax_team_status={len(tax_team_statuses)}, team_transactions={len(team_txs)}")
-        print(f"Prepared: daily_statuses={len(daily_statuses)}, contract_utilities={len(contract_utilities)}")
+        print(f"Prepared: daily_statuses={len(daily_statuses)}")
         print(f"Prepared: game_utilities={len(game_utilities)}, capacities={len(capacities)}")
 
         if not dry_run:
@@ -660,10 +608,6 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
                 count = upsert(conn, "pcms.two_way_daily_statuses", daily_statuses, ["player_id", "status_date"])
                 tables.append({"table": "pcms.two_way_daily_statuses", "attempted": count, "success": True})
 
-                # two_way_contract_utility
-                count = upsert(conn, "pcms.two_way_contract_utility", contract_utilities, ["contract_id"])
-                tables.append({"table": "pcms.two_way_contract_utility", "attempted": count, "success": True})
-
                 # two_way_game_utility
                 count = upsert(conn, "pcms.two_way_game_utility", game_utilities, ["game_id", "player_id"])
                 tables.append({"table": "pcms.two_way_game_utility", "attempted": count, "success": True})
@@ -683,7 +627,6 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
                 {"table": "pcms.waiver_priority_ranks", "attempted": len(waiver_ranks), "success": True},
                 {"table": "pcms.team_transactions", "attempted": len(team_txs), "success": True},
                 {"table": "pcms.two_way_daily_statuses", "attempted": len(daily_statuses), "success": True},
-                {"table": "pcms.two_way_contract_utility", "attempted": len(contract_utilities), "success": True},
                 {"table": "pcms.two_way_game_utility", "attempted": len(game_utilities), "success": True},
                 {"table": "pcms.team_two_way_capacity", "attempted": len(capacities), "success": True},
             ]

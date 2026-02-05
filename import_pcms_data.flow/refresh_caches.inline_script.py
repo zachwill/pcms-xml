@@ -13,6 +13,7 @@ Caches refreshed:
 - pcms.dead_money_warehouse
 - pcms.cap_holds_warehouse
 - pcms.draft_pick_summary_assets
+- pcms.two_way_utility_warehouse
 
 Notes:
 - These refresh functions use TRUNCATE/INSERT.
@@ -64,6 +65,9 @@ def main(dry_run: bool = False):
 
             cur.execute("SELECT pcms.refresh_draft_pick_summary_assets();")
             refreshed.append("pcms.refresh_draft_pick_summary_assets")
+
+            cur.execute("SELECT pcms.refresh_two_way_utility_warehouse();")
+            refreshed.append("pcms.refresh_two_way_utility_warehouse")
 
         conn.commit()
 
