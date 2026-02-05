@@ -28,7 +28,7 @@
                   <a
                     href="#teamsection-<%= team[:code] %>"
                     class="team-pill"
-                    data-on:click.prevent="$activeteam = '<%= team[:code] %>'; (() => { const el = document.getElementById('teamsection-<%= team[:code] %>'); const main = document.getElementById('maincanvas'); if (el && main) main.scrollTo({ top: el.offsetTop, behavior: 'smooth' }); })(); @get('<%= tools_salary_book_sidebar_team_path(team: team[:code], year: @salary_year) %>')"
+                    data-on:click.prevent="$activeteam = '<%= team[:code] %>'; window.__salaryBookScrollToTeam?.('<%= team[:code] %>', 'smooth'); @get('<%= tools_salary_book_sidebar_team_path(team: team[:code], year: @salary_year) %>')"
                     data-class="{ 'team-pill--active': $activeteam === '<%= team[:code] %>' }"
                     title="<%= team[:name] %>"
                   ><%= team[:code] %></a>
@@ -116,43 +116,191 @@
 </div>
 
 <script type="module">
-  // Minimal Salary Book scroll spy (v0): map main-canvas scroll position to
-  // `salarybook-activeteam` events.
-  //
-  // This is intentionally tiny and replaceable; the "real" runtime will also
-  // handle sticky headers + horizontal scroll sync.
+  /**
+   * Salary Book scroll spy (v1)
+   *
+   * Improvements over v0:
+   * - Programmatic scroll lock: clicking a team in the command bar sets the
+   *   active team immediately and locks the spy until scroll settles near
+   *   the target (prevents flicker during smooth scroll).
+   * - Active team aligns with the sticky header threshold (top of #maincanvas).
+   * - Exposes a global function for programmatic navigation.
+   * - Emits bubbling `salarybook-activeteam` CustomEvent for Datastar integration.
+   */
   (() => {
     const main = document.getElementById("maincanvas");
     if (!main) return;
 
+    // ---------------------------------------------------------------------------
+    // State
+    // ---------------------------------------------------------------------------
     let raf = null;
+    let lastActiveTeam = null;
 
-    const dispatchActiveTeam = () => {
-      raf = null;
+    // Programmatic scroll lock: when set, the spy ignores scroll events until
+    // we reach (or get close to) the target position.
+    let forcedActiveTeam = null;
+    let forcedTargetTop = null;
 
+    // Debounce timer for detecting scroll end
+    let scrollEndTimer = null;
+    const SCROLL_END_DELAY = 120; // ms
+
+    // ---------------------------------------------------------------------------
+    // Position cache (avoid layout thrashing during scroll)
+    // ---------------------------------------------------------------------------
+    let cachedSections = []; // Array of { code, top }
+
+    const rebuildCache = () => {
       const sections = Array.from(main.querySelectorAll("section[data-teamcode]"));
-      if (!sections.length) return;
-
-      const y = main.scrollTop + 20;
-      let active = sections[0];
-
-      for (const s of sections) {
-        if (s.offsetTop <= y) active = s;
-        else break;
-      }
-
-      const team = active?.dataset?.teamcode;
-      if (!team) return;
-
-      main.dispatchEvent(new CustomEvent("salarybook-activeteam", { detail: { team }, bubbles: true }));
+      cachedSections = sections.map(el => ({
+        code: el.dataset.teamcode,
+        top: el.offsetTop
+      }));
     };
 
-    main.addEventListener("scroll", () => {
-      if (raf) return;
-      raf = requestAnimationFrame(dispatchActiveTeam);
-    });
+    // Rebuild cache on initial load, resize, and DOM mutations
+    rebuildCache();
+    window.addEventListener("resize", () => requestAnimationFrame(rebuildCache), { passive: true });
 
-    // Run once on load (useful if URL has a hash or you restore scroll position).
-    dispatchActiveTeam();
+    // MutationObserver for dynamically added/removed team sections
+    const observer = new MutationObserver(() => requestAnimationFrame(rebuildCache));
+    observer.observe(main, { childList: true, subtree: false });
+
+    // ---------------------------------------------------------------------------
+    // Scroll spy calculation
+    // ---------------------------------------------------------------------------
+    const calculateActiveTeam = () => {
+      if (!cachedSections.length) return null;
+
+      // Threshold: scroll position + small offset for natural feel
+      // (switch a bit before the header exactly reaches sticky position)
+      const scrollTop = main.scrollTop;
+      const threshold = scrollTop + 2; // 2px tolerance
+
+      // Find the last section whose top is <= threshold
+      let active = cachedSections[0];
+      for (const section of cachedSections) {
+        if (section.top <= threshold) {
+          active = section;
+        } else {
+          break;
+        }
+      }
+
+      return active?.code ?? null;
+    };
+
+    const dispatchActiveTeam = (team) => {
+      if (team && team !== lastActiveTeam) {
+        lastActiveTeam = team;
+        main.dispatchEvent(new CustomEvent("salarybook-activeteam", {
+          detail: { team },
+          bubbles: true
+        }));
+      }
+    };
+
+    // ---------------------------------------------------------------------------
+    // Scroll handler
+    // ---------------------------------------------------------------------------
+    const handleScrollFrame = () => {
+      raf = null;
+
+      // If we have a forced active team (programmatic navigation in progress),
+      // check if we've reached the target position.
+      if (forcedActiveTeam !== null) {
+        const currentTop = main.scrollTop;
+        const tolerance = 3;
+
+        // If we're close to the target, clear the lock
+        if (forcedTargetTop !== null && Math.abs(currentTop - forcedTargetTop) <= tolerance) {
+          forcedActiveTeam = null;
+          forcedTargetTop = null;
+        } else {
+          // Still scrolling toward target — keep the forced team active
+          dispatchActiveTeam(forcedActiveTeam);
+          return;
+        }
+      }
+
+      // Normal scroll spy
+      const team = calculateActiveTeam();
+      dispatchActiveTeam(team);
+    };
+
+    const handleScroll = () => {
+      // Clear existing scroll-end timer
+      if (scrollEndTimer) {
+        clearTimeout(scrollEndTimer);
+        scrollEndTimer = null;
+      }
+
+      // Schedule calculation via RAF (one per frame)
+      if (!raf) {
+        raf = requestAnimationFrame(handleScrollFrame);
+      }
+
+      // Detect scroll end for unlocking forced state
+      scrollEndTimer = setTimeout(() => {
+        scrollEndTimer = null;
+        // On scroll end, clear forced state if still set
+        if (forcedActiveTeam !== null) {
+          forcedActiveTeam = null;
+          forcedTargetTop = null;
+          // Dispatch current position
+          if (!raf) {
+            raf = requestAnimationFrame(handleScrollFrame);
+          }
+        }
+      }, SCROLL_END_DELAY);
+    };
+
+    main.addEventListener("scroll", handleScroll, { passive: true });
+
+    // ---------------------------------------------------------------------------
+    // Programmatic navigation API
+    // ---------------------------------------------------------------------------
+    /**
+     * Scroll to a team section programmatically.
+     * Sets activeTeam immediately to prevent flicker during smooth scroll.
+     *
+     * @param {string} teamCode - Team code to scroll to
+     * @param {ScrollBehavior} behavior - 'smooth' or 'instant'
+     */
+    const scrollToTeam = (teamCode, behavior = "smooth") => {
+      // Rebuild cache to ensure we have current positions
+      rebuildCache();
+
+      const section = cachedSections.find(s => s.code === teamCode);
+      if (!section) return;
+
+      // Set forced active team immediately (prevents flicker)
+      forcedActiveTeam = teamCode;
+      forcedTargetTop = section.top;
+
+      // Dispatch immediately so UI updates before scroll starts
+      dispatchActiveTeam(teamCode);
+
+      // Perform the scroll
+      const maxScroll = main.scrollHeight - main.clientHeight;
+      main.scrollTo({
+        top: Math.max(0, Math.min(section.top, maxScroll)),
+        behavior
+      });
+    };
+
+    // Expose globally for use in Datastar expressions
+    window.__salaryBookScrollToTeam = scrollToTeam;
+
+    // ---------------------------------------------------------------------------
+    // Initial dispatch
+    // ---------------------------------------------------------------------------
+    // Run once on load (useful if URL has a hash or restored scroll position)
+    requestAnimationFrame(() => {
+      rebuildCache();
+      const team = calculateActiveTeam();
+      dispatchActiveTeam(team);
+    });
   })();
 </script>

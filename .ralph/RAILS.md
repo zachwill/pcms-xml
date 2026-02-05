@@ -1,4 +1,4 @@
-# Rails + Datastar Salary Book — Backlog
+# Rails + Datastar Salary Book - Backlog
 
 Goal: port the Bun + React prototype (`prototypes/salary-book-react/`) to Rails + Datastar (`web/`).
 
@@ -11,10 +11,10 @@ Tool URL: `/tools/salary-book`
 **Mindset**: Internal tool for ~50 users. Ship fast, refactor later.
 
 **Reference docs** (read before coding):
-- `web/AGENTS.md` — Rails app conventions
-- `web/specs/01-salary-book.md` — interaction + layout spec
-- `reference/datastar/` — Datastar conventions (start with `AGENTS.md`)
-- `prototypes/salary-book-react/` — markup/UX reference
+- `web/AGENTS.md` - Rails app conventions
+- `web/specs/01-salary-book.md` - interaction + layout spec
+- `reference/datastar/` - Datastar conventions (start with `AGENTS.md`)
+- `prototypes/salary-book-react/` - markup/UX reference
 
 **Datastar conventions**:
 - Signals are flatcase: `activeteam`, `overlaytype`, `displaycapholds`
@@ -23,7 +23,7 @@ Tool URL: `/tools/salary-book`
 - Response types: `text/html` (default), `application/json` (signal-only), `text/event-stream` (SSE)
 
 **Hard rules**:
-- Do NOT re-implement cap/trade/CBA math in Ruby — use `pcms.*` warehouses + `fn_*`
+- Do NOT re-implement cap/trade/CBA math in Ruby - use `pcms.*` warehouses + `fn_*`
 - Keep tool endpoints under `/tools/salary-book/*`
 - Custom JS only when Datastar + CSS can't do it
 
@@ -38,11 +38,11 @@ Tool URL: `/tools/salary-book`
   - Click scrolls `#maincanvas` to `#teamsection-<CODE>` (prefer smooth)
   - Data source: `pcms.teams` has `conference_name` (see `migrations/009_nba_team_metadata.sql`)
 
-- [ ] Upgrade scroll spy (v1)
-  - Keep custom JS tiny (this is still the only “real” JS need)
+- [x] Upgrade scroll spy (v1)
+  - Keep custom JS tiny (this is still the only "real" JS need)
   - Continue emitting a `salarybook-activeteam` CustomEvent → Datastar updates `$activeteam`
-  - Make “active team” align with the sticky header threshold (top of `#maincanvas`)
-  - Add a small programmatic-scroll lock so clicking a team doesn’t flicker
+  - Make "active team" align with the sticky header threshold (top of `#maincanvas`)
+  - Add a small programmatic-scroll lock so clicking a team doesn't flicker
   - (Optional later) expose `sectionprogress` + `scrollstate` as signals for animations
 
 - [ ] Add Filter Toggles UI (client-only lenses; no server round-trips)
@@ -59,11 +59,11 @@ Tool URL: `/tools/salary-book`
 - [ ] Add per-team Totals Footer
   - Total salary by year
   - Cap space / room under thresholds (as available)
-  - Prefer `pcms.team_salary_warehouse` (don’t recompute in Ruby)
+  - Prefer `pcms.team_salary_warehouse` (don't recompute in Ruby)
 
 - [ ] Expand team sidebar context (`#rightpanel-base`) to match spec
   - KPI cards: room under tax, first apron, second apron, roster count
-  - Add lightweight tabs (Cap Outlook / Team Stats) — Team Stats can be placeholder
+  - Add lightweight tabs (Cap Outlook / Team Stats) - Team Stats can be placeholder
 
 - [ ] Expand Player overlay (`#rightpanel-overlay`) to match spec
   - Contract breakdown by year, guarantee structure, options, trade kicker info
@@ -84,7 +84,7 @@ Tool URL: `/tools/salary-book`
 - [ ] Add team entity pages (`/teams/:slug`) and link from Salary Book headers
 - [ ] Add agent entity pages and link from overlays
 - [ ] Fragment caching for team sections keyed by `warehouse.refreshed_at`
-- [ ] SSE — only if streaming/progress adds real product value
+- [ ] SSE - only if streaming/progress adds real product value
 - [ ] Remove/guard debug-only panels (signals + SSE demo) before shipping
 
 ---
@@ -95,7 +95,7 @@ Tool URL: `/tools/salary-book`
 - [x] Relax CSP for Tailwind CDN + Datastar
 - [x] CSS variables + design tokens in `application.css`
 - [x] Tool route: `GET /tools/salary-book`
-- [x] Port the real Salary Book table layout (double-row players, years 2025–2030)
+- [x] Port the real Salary Book table layout (double-row players, years 2025-2030)
 - [x] Implement iOS Contacts sticky headers (CSS)
 - [x] Fragment endpoints exist (team section, team sidebar, player overlay)
 - [x] Basic scroll spy → `$activeteam` → sidebar patch loop
