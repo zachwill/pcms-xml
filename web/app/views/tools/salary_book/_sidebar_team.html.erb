@@ -132,7 +132,7 @@
         <div class="sidebar-section-label">Salary Projection</div>
         <div class="sidebar-projections">
           <%
-            projection_years = (2025..2030).to_a
+            projection_years = SalaryBookHelper::SALARY_YEARS
             cap_totals = projection_years.map { |y| (summaries_by_year[y] || {})["cap_total"].to_f }
             max_val = [cap_totals.max || 1, 1].max
           %>

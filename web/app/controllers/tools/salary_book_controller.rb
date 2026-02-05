@@ -1,6 +1,7 @@
 module Tools
   class SalaryBookController < ApplicationController
     CURRENT_SALARY_YEAR = 2025
+    # Canonical year horizon for the salary book (keep in sync with SalaryBookHelper::SALARY_YEARS).
     SALARY_YEARS = (2025..2030).to_a.freeze
 
     # GET /tools/salary-book

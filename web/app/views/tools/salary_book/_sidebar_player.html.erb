@@ -8,7 +8,7 @@
   4. Trade restrictions (if any)
 %>
 
-<% SALARY_YEARS = (2025..2030).to_a.freeze %>
+<% salary_years = SalaryBookHelper::SALARY_YEARS %>
 
 <%# Formatting helpers %>
 <% money = ->(v) { v.nil? ? "—" : number_to_currency(v.to_i, precision: 0) } %>
@@ -25,7 +25,7 @@
 
 <%# Build year data for breakdown %>
 <%
-  years_data = SALARY_YEARS.map do |year|
+  years_data = salary_years.map do |year|
     salary = player["cap_#{year}"]
     option = player["option_#{year}"]
     guaranteed_amount = player["guaranteed_amount_#{year}"]

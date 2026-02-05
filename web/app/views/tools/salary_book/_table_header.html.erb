@@ -1,7 +1,7 @@
 <%# Table Header — Column labels for the salary table %>
 <%# One-row header designed to stick with TeamHeader (iOS Contacts pattern) %>
 
-<% salary_years ||= (2025..2030).to_a %>
+<% salary_years ||= SalaryBookHelper::SALARY_YEARS %>
 
 <div class="salarytable-header">
   <div class="salarytable-header-row">
