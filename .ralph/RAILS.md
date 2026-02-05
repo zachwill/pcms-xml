@@ -45,7 +45,7 @@ Tool URL: `/tools/salary-book`
   - Add a small programmatic-scroll lock so clicking a team doesn't flicker
   - (Optional later) expose `sectionprogress` + `scrollstate` as signals for animations
 
-- [ ] Add Filter Toggles UI (client-only lenses; no server round-trips)
+- [x] Add Filter Toggles UI (client-only lenses; no server round-trips)
   - Signals (flatcase): `displaycapholds`, `displayexceptions`, `displaydraftpicks`, `displaydeadmoney`
   - Defaults per spec: Cap Holds OFF, Exceptions ON, Draft Picks ON, Dead Money OFF
   - Use `data-bind` on inputs + `data-show` / `data-class` to hide/show sections

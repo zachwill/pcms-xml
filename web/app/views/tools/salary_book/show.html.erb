@@ -2,7 +2,18 @@
 
 <div
   id="salarybook"
-  data-signals="{ activeteam: '<%= initial_team %>', sidebarview: 'teamview', overlaytype: 'none', overlayid: '', ssestatus: 'idle', sseticks: 0 }"
+  data-signals="{
+    activeteam: '<%= initial_team %>',
+    sidebarview: 'teamview',
+    overlaytype: 'none',
+    overlayid: '',
+    ssestatus: 'idle',
+    sseticks: 0,
+    displaycapholds: false,
+    displayexceptions: true,
+    displaydraftpicks: true,
+    displaydeadmoney: false
+  }"
   data-on:salarybook-activeteam="if ($activeteam !== evt.detail.team) { $activeteam = evt.detail.team; @get('<%= tools_salary_book_sidebar_team_path(team: '__TEAM__', year: @salary_year) %>'.replace('__TEAM__', $activeteam)) }"
 >
   <div id="flash"></div>
@@ -36,6 +47,50 @@
               </div>
             </div>
           <% end %>
+        </div>
+
+        <%# Vertical divider %>
+        <div class="commandbar-divider"></div>
+
+        <%# Filter Toggles (client-only lenses) %>
+        <div class="filter-toggles" role="group" aria-label="Display filters">
+          <div class="filter-group">
+            <div class="filter-group-label">Display</div>
+            <div class="filter-group-items">
+              <label class="filter-checkbox" for="filter-capholds">
+                <input
+                  type="checkbox"
+                  id="filter-capholds"
+                  data-bind="displaycapholds"
+                />
+                <span class="filter-checkbox-label">Cap Holds</span>
+              </label>
+              <label class="filter-checkbox" for="filter-exceptions">
+                <input
+                  type="checkbox"
+                  id="filter-exceptions"
+                  data-bind="displayexceptions"
+                />
+                <span class="filter-checkbox-label">Exceptions</span>
+              </label>
+              <label class="filter-checkbox" for="filter-draftpicks">
+                <input
+                  type="checkbox"
+                  id="filter-draftpicks"
+                  data-bind="displaydraftpicks"
+                />
+                <span class="filter-checkbox-label">Draft Picks</span>
+              </label>
+              <label class="filter-checkbox" for="filter-deadmoney">
+                <input
+                  type="checkbox"
+                  id="filter-deadmoney"
+                  data-bind="displaydeadmoney"
+                />
+                <span class="filter-checkbox-label">Dead Money</span>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
     <% end %>

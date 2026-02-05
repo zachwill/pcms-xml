@@ -361,6 +361,106 @@ a:hover {
 }
 
 /* ------------------------------
+   Command Bar Divider + Filter Toggles
+   ------------------------------ */
+
+.commandbar-divider {
+  width: 1px;
+  height: 60px;
+  background: var(--border);
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.filter-toggles {
+  display: flex;
+  gap: 20px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 80px;
+}
+
+.filter-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-foreground);
+  opacity: 0.7;
+}
+
+.filter-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.filter-checkbox input[type="checkbox"] {
+  /* Custom checkbox styling */
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--background);
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  transition: background-color 100ms, border-color 100ms;
+}
+
+.filter-checkbox input[type="checkbox"]:hover {
+  border-color: var(--muted-foreground);
+}
+
+.filter-checkbox input[type="checkbox"]:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.filter-checkbox input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--primary-foreground);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.filter-checkbox input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.filter-checkbox-label {
+  font-size: 11px;
+  line-height: 1;
+  color: var(--foreground);
+  opacity: 0.8;
+  transition: opacity 100ms;
+}
+
+.filter-checkbox:hover .filter-checkbox-label {
+  opacity: 1;
+}
+
+/* ------------------------------
    Salary Book v0 widgets
    ------------------------------ */
 
@@ -682,6 +782,55 @@ a:hover {
 /* Table body container */
 .teamsection-body {
   /* Content flows normally under the sticky header */
+}
+
+/* Team subsections (Cap Holds, Exceptions, Draft Picks, Dead Money) */
+.teamsection-subsection {
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--muted) 40%, var(--background));
+}
+
+.teamsection-subsection-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.teamsection-subsection-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+
+.teamsection-subsection-placeholder {
+  padding: 12px 16px;
+}
+
+.teamsection-placeholder-text {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+/* Subsection type colors (subtle left border accent) */
+.teamsection-subsection--capholds {
+  border-left: 3px solid #f59e0b; /* amber-500 */
+}
+
+.teamsection-subsection--exceptions {
+  border-left: 3px solid #3b82f6; /* blue-500 */
+}
+
+.teamsection-subsection--draftpicks {
+  border-left: 3px solid #8b5cf6; /* violet-500 */
+}
+
+.teamsection-subsection--deadmoney {
+  border-left: 3px solid #ef4444; /* red-500 */
 }
 
 /* Table Header */
