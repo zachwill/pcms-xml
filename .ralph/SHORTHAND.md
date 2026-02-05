@@ -1,4 +1,4 @@
-# Draft Pick Shorthand — Curation Backlog (pcms)
+# Draft Pick Shorthand - Curation Backlog (pcms)
 
 This file is the **single source of truth** for the durable, curated NBA draft-pick shorthand we maintain in Postgres.
 
@@ -53,8 +53,8 @@ Work queue:
   - `LF [A, B, C]` (less favorable)
   - nesting allowed: `LF [A, MF [B, C]]`
   - ordinals allowed: `2nd MF [A, B, C]`, etc.
-- Don’t compress multiple picks into “2 MF …” shortcuts; keep each asset row granular.
-- For “outgoing” meaning:
+- Don't compress multiple picks into "2 MF …" shortcuts; keep each asset row granular.
+- For "outgoing" meaning:
   - **do not embed** `To XYZ:` in shorthand.
   - direction is rendered by `pcms.vw_draft_pick_assets.display_text`.
   - put narrative/explanations in `notes` if needed.
@@ -176,7 +176,7 @@ psql "$POSTGRES_URL" -v ON_ERROR_STOP=1 -f queries/sql/063_draft_pick_assets_dis
 
 ---
 
-## Backlog — missing_shorthand (draft_year >= 2026)
+## Backlog - missing_shorthand (draft_year >= 2026)
 
 Guideline: one checkbox = one endnote cluster.
 
@@ -184,31 +184,31 @@ Guideline: one checkbox = one endnote cluster.
 
 ### Top clusters (generated 2026-02-05)
 
-- [x] Endnote 125 (6 rows) — DET→WAS MF [BKN, DAL] 2027 2nd
-- [x] Endnote 64 (6 rows) — NYK→DET MF [NYK, MIN] 2026 2nd
-- [ ] Endnote 52 (6 rows) — OKC→NYK WAS future conditional 1st
-- [ ] Endnote 50 (6 rows) — BOS↔SAS 2028 1st swap
-- [ ] Endnote 45 (6 rows) — NOP→POR 2027 2nd
-- [ ] Endnote 27 (6 rows) — HOU→OKC WAS 1st (via HOU)
-- [ ] Endnote 16 (6 rows) — PHI→OKC PHI conditional 1st
-- [ ] Endnote 15 (6 rows) — WAS→HOU WAS 1st (conditional)
-- [ ] Endnote 321 (5 rows) — BOS→UTA MF [BOS, NOP] 2031 2nd
-- [ ] Endnote 320 (5 rows) — BOS→UTA MF [BOS, NOP] 2027 2nd
-- [ ] Endnote 319 (5 rows) — SAS→WAS LF [DAL, SAS, TOR] 2027 2nd
-- [ ] Endnote 316 (5 rows) — DET→SAC LF [DET, NYK, WAS] 2029 2nd
-- [ ] Endnote 310 (5 rows) — PHX→MIN MF [HOU, PHX] 2032 2nd
-- [ ] Endnote 307 (5 rows) — HOU→PHX 2nd MF [DAL, HOU, UTA] 2027 2nd
-- [ ] Endnote 295 (5 rows) — PHX→CHA CLE/MIN/UTA 2029 1st (via PHX)
-- [ ] Endnote 293 (5 rows) — UTA→CHA MF [UTA, PHX] 2030 2nd
-- [ ] Endnote 291 (5 rows) — ORL→BOS MF [ORL, POR] 2027 2nd
-- [ ] Endnote 248 (5 rows) — PHI→WAS HOU 2026 1st (via PHI)
-- [ ] Endnote 244 (5 rows) — BOS→HOU LF [NOP, CLE] 2027 2nd
-- [ ] Endnote 231 (5 rows) — UTA→PHX (3-pick conditional logic)
-- [ ] Endnote 230 (5 rows) — UTA→PHX LF [UTA 2027, 2028, 2029] 1st
-- [ ] Endnote 202 (5 rows) — NOP→ATL LF [NOP, CLE] 2028 2nd
-- [ ] Endnote 190 (5 rows) — NYK→POR LF [IND, MIL, DEN] 2029 2nd
-- [ ] Endnote 176 (5 rows) — POR→BOS LF [POR, UTA] 2027 2nd
-- [ ] Endnote 157 (5 rows) — DET→WAS LF [NYK, WAS] 2026 2nd
+- [x] Endnote 125 (6 rows) - DET→WAS MF [BKN, DAL] 2027 2nd
+- [x] Endnote 64 (6 rows) - NYK→DET MF [NYK, MIN] 2026 2nd
+- [x] Endnote 52 (6 rows) - OKC→NYK WAS future conditional 1st
+- [ ] Endnote 50 (6 rows) - BOS↔SAS 2028 1st swap
+- [ ] Endnote 45 (6 rows) - NOP→POR 2027 2nd
+- [ ] Endnote 27 (6 rows) - HOU→OKC WAS 1st (via HOU)
+- [ ] Endnote 16 (6 rows) - PHI→OKC PHI conditional 1st
+- [ ] Endnote 15 (6 rows) - WAS→HOU WAS 1st (conditional)
+- [ ] Endnote 321 (5 rows) - BOS→UTA MF [BOS, NOP] 2031 2nd
+- [ ] Endnote 320 (5 rows) - BOS→UTA MF [BOS, NOP] 2027 2nd
+- [ ] Endnote 319 (5 rows) - SAS→WAS LF [DAL, SAS, TOR] 2027 2nd
+- [ ] Endnote 316 (5 rows) - DET→SAC LF [DET, NYK, WAS] 2029 2nd
+- [ ] Endnote 310 (5 rows) - PHX→MIN MF [HOU, PHX] 2032 2nd
+- [ ] Endnote 307 (5 rows) - HOU→PHX 2nd MF [DAL, HOU, UTA] 2027 2nd
+- [ ] Endnote 295 (5 rows) - PHX→CHA CLE/MIN/UTA 2029 1st (via PHX)
+- [ ] Endnote 293 (5 rows) - UTA→CHA MF [UTA, PHX] 2030 2nd
+- [ ] Endnote 291 (5 rows) - ORL→BOS MF [ORL, POR] 2027 2nd
+- [ ] Endnote 248 (5 rows) - PHI→WAS HOU 2026 1st (via PHI)
+- [ ] Endnote 244 (5 rows) - BOS→HOU LF [NOP, CLE] 2027 2nd
+- [ ] Endnote 231 (5 rows) - UTA→PHX (3-pick conditional logic)
+- [ ] Endnote 230 (5 rows) - UTA→PHX LF [UTA 2027, 2028, 2029] 1st
+- [ ] Endnote 202 (5 rows) - NOP→ATL LF [NOP, CLE] 2028 2nd
+- [ ] Endnote 190 (5 rows) - NYK→POR LF [IND, MIL, DEN] 2029 2nd
+- [ ] Endnote 176 (5 rows) - POR→BOS LF [POR, UTA] 2027 2nd
+- [ ] Endnote 157 (5 rows) - DET→WAS LF [NYK, WAS] 2026 2nd
 
 ---
 
@@ -216,9 +216,10 @@ Guideline: one checkbox = one endnote cluster.
 
 When you complete a cluster, add a bullet here with:
 - endnote_id
-- 1–2 sentence description
+- 1-2 sentence description
 - key shorthand(s)
 - quick verification query link/snippet (optional)
 
-- Endnote 125 — DET→WAS conveys the MF of BKN/DAL 2027 2nds (via DET); DET retains the LF. Added shorthands: `MF [BKN, DAL]` (WAS) and `LF [BKN, DAL]` (DET), plus origin rows `BKN`/`DAL` for direction-aware outgoing display.
-- Endnote 64 — NYK conveys to DET the MF of NYK/MIN 2026 2nds (Burks/Noel, 7/11/2022). Added origin shorthands `NYK` and `MIN` (including the NYK “may have MIN” branch) so outgoing rows render direction-aware `To ...` display.
+- Endnote 125 - DET→WAS conveys the MF of BKN/DAL 2027 2nds (via DET); DET retains the LF. Added shorthands: `MF [BKN, DAL]` (WAS) and `LF [BKN, DAL]` (DET), plus origin rows `BKN`/`DAL` for direction-aware outgoing display.
+- Endnote 64 — NYK conveys to DET the MF of NYK/MIN 2026 2nds (Burks/Noel, 7/11/2022). Added origin shorthands `NYK` and `MIN` (including the NYK "may have MIN" branch) so outgoing rows render direction-aware `To ...` display.
+- Endnote 52 — OKC→NYK conveys WAS future conditional 1st (Dieng trade, 6/23/2022). Full chain: Endnotes 15→27→52 (Wall-Westbrook → Sengün → Dieng). NYK receives WAS 2026 1st if 9-30 (top-8 protected); if not conveyed, NYK instead receives WAS 2026+2027 2nds. Shorthands: `WAS (p. 1-8)` for the 1st, `WAS` for the fallback 2nds, `Own to NYK (p. 1-8)` / `Own to NYK` for WAS outgoing rows.
