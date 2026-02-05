@@ -37,11 +37,14 @@ Tool URL: `/tools/salary-book`
     - `pcms.draft_pick_summary_assets` rows for (team_code, draft_year, draft_round)
     - optional v1+: join `pcms.teams` for names/logos, and `pcms.endnotes` for protections text when present
   - View: new partial `_sidebar_pick.html.erb`
+    - Must render a single stable root: `<div id="rightpanel-overlay">…</div>`
+    - Back button should `@get('/tools/salary-book/sidebar/clear')`
     - Header (year/round + destination team)
     - Origin/destination + flags (swap/conditional) if available
     - Raw description (from summary assets) + basic protections section (if any)
   - Wiring:
     - Replace the `console.log` placeholder in `tools/salary_book/_draft_assets_section.html.erb`
+    - Use the pick row’s `team_code`, `year`, and `round` query params (route does not take the composite pick `id`)
 
 - [ ] Filter Toggles parity (Financials + Contracts) (client-only lenses)
   - Add new flatcase signals + UI checkboxes:
@@ -57,8 +60,10 @@ Tool URL: `/tools/salary-book`
 
 ## Later (after parity)
 
-- [ ] Add team entity pages (`/teams/:slug`) and link from Salary Book headers
-- [ ] Add agent entity pages and link from overlays
+NOTE: BrickLink-style **entity pages** now have their own backlog + agent:
+- Backlog: `.ralph/ENTITIES.md`
+- Agent loop: `bun agents/entities.ts`
+
 - [ ] Fragment caching for team sections keyed by `warehouse.refreshed_at`
 - [ ] SSE - only if streaming/progress adds real product value
 - [ ] Remove/guard debug-only panels (signals + SSE demo) before shipping
