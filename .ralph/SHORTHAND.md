@@ -182,32 +182,22 @@ Guideline: one checkbox = one endnote cluster.
 
 - [x] (bootstrap) Create SHORTHAND backlog file + agent wiring
 
-### Top clusters (refreshed 2026-02-05)
+### Top clusters (5-row clusters) (refreshed 2026-02-05)
+
+As of this refresh: **243 rows** remain with `primary_todo_reason='missing_shorthand'` for `draft_year >= 2026`.
 
 Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` where `primary_todo_reason='missing_shorthand'` and `draft_year >= 2026`.
 
-- [x] Endnote 320 (5 rows) - BOS→UTA MF [BOS, ORL] 2027 2nd
-- [x] Endnote 319 (5 rows) - SAS→WAS LF [DAL, SAS, TOR] 2027 2nd
-- [x] Endnote 316 (5 rows) - DET→SAC LF [DET, NYK, WAS] 2029 2nd
-- [x] Endnote 310 (5 rows) - PHX→MIN MF [HOU, PHX] 2032 2nd
-- [x] Endnote 307 (5 rows) - HOU→PHX 2nd MF [DAL, OKC, PHI] 2026 2nd
-- [x] Endnote 295 (5 rows) - PHX→CHA CLE/MIN/UTA 2029 1st (via PHX)
 - [ ] Endnote 293 (5 rows) - UTA→CHA MF [UTA, PHX] 2030 2nd
-- [ ] Endnote 291 (5 rows) - ORL→BOS MF [ORL, POR] 2027 2nd
 - [ ] Endnote 248 (5 rows) - PHI→WAS HOU 2026 1st (via PHI)
-- [ ] Endnote 231 (5 rows) - UTA→PHX (3-pick conditional logic)
 - [ ] Endnote 230 (5 rows) - UTA→PHX LF [UTA 2027, 2028, 2029] 1st
 - [ ] Endnote 202 (5 rows) - NOP→ATL LF [NOP, CLE] 2028 2nd
 - [ ] Endnote 190 (5 rows) - NYK→POR LF [IND, MIL, DEN] 2029 2nd
 - [ ] Endnote 156 (5 rows) - OKC→PHI LF [LAC, OKC] 2026 1st (Harden; feeds endnote 248)
 - [ ] Endnote 129 (5 rows) - IND→NYK LF [IND, WAS] 2029 2nd
 - [ ] Endnote 128 (5 rows) - IND→NYK LF [IND, PHX] 2028 2nd
-- [ ] Endnote 123 (5 rows) - MIA→SAS LF [DAL, OKC, PHI] 2026 2nd (Okpala dependency)
 - [ ] Endnote 101 (5 rows) - DEN→OKC "First Allowable Draft" 1st (DEN 2029/2030 1sts)
-- [ ] Endnote 70 (5 rows) - OKC→HOU "2nd most favorable" of OKC/DAL 2026 2nds (aka `2nd MF [OKC, DAL]`)
-- [ ] Endnote 63 (5 rows) - MIN→UTA MIN 2029 1st (conditional; see endnote text for protections)
 - [ ] Endnote 47 (5 rows) - UTA→SAS LF [HOU, IND] 2027 2nd
-- [ ] Endnote 46 (5 rows) - OKC→MIA LF [OKC, DAL] 2026 2nd
 - [ ] Endnote 30 (5 rows) - OKC→UTA LF [OKC, HOU] 2027 2nd
 - [ ] Endnote 19 (5 rows) - DET→OKC HOU 2027 2nd (via DET; depends on endnote 10)
 - [ ] Endnote 12 (5 rows) - IND→OKC IND 2027 2nd
@@ -216,16 +206,51 @@ Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` where `primary_todo_reaso
 
 #### Next up (4-row clusters)
 
-- [ ] Endnote 308 (4 rows) - HOU→PHX HOU 2032 2nd
-- [ ] Endnote 304 (4 rows) - HOU→ATL swap rights (ATL↔HOU 2031 2nds)
-- [ ] Endnote 283 (4 rows) - NOP→ATL "Resulting Pick" (swap/conditional chain)
+All entries below are currently tied at 4 rows; ordered by endnote_id desc.
 
-### Smaller clusters / follow-ups (refreshed 2026-02-05)
+- [ ] Endnote 304 (4 rows) - ATL/HOU 2031 2nd (swap rights)
+- [ ] Endnote 283 (4 rows) - ATL/MIL/NOP 2026 1st ("Resulting Pick" swap/conditional chain)
+- [ ] Endnote 256 (4 rows) - DET/GSW/MIN 2031 2nd
+- [ ] Endnote 241 (4 rows) - NOP/OKC/ORL 2031 2nd
+- [ ] Endnote 232 (4 rows) - CHA/LAC/UTA 2030 2nd
+- [ ] Endnote 212 (4 rows) - SAC/SAS 2031 1st
+- [ ] Endnote 211 (4 rows) - DET/GSW/MIN 2031 2nd
+- [ ] Endnote 193 (4 rows) - NOP/OKC/ORL 2031 2nd
+- [ ] Endnote 192 (4 rows) - NOP/ORL 2030 2nd
+- [ ] Endnote 163 (4 rows) - DAL/OKC 2028 1st
+- [ ] Endnote 159 (4 rows) - CHA/MIA 2027-2028 1st
+- [ ] Endnote 154 (4 rows) - LAC/PHI 2029 1st
+- [ ] Endnote 152 (4 rows) - LAC/OKC 2027 1st
+- [ ] Endnote 148 (4 rows) - MIL/POR 2030 1st
+- [ ] Endnote 116 (4 rows) - GSW/WAS 2030 (rounds 1+2)
+- [ ] Endnote 109 (4 rows) - IND/POR/WAS 2029 2nd
+- [ ] Endnote 107 (4 rows) - IND/NYK/PHX 2028 2nd
+- [ ] Endnote 99 (4 rows) - MIL/SAS/UTA 2026 2nd
+- [ ] Endnote 89 (4 rows) - NOP/POR/SAS 2026 2nd
+- [ ] Endnote 78 (4 rows) - MIL/SAS/UTA 2026 2nd
+- [ ] Endnote 77 (4 rows) - LAL/UTA 2027 (rounds 1+2)
+- [ ] Endnote 60 (4 rows) - NOP/POR 2026 2nd
+- [ ] Endnote 55 (4 rows) - MIN/SAS 2026 2nd
+- [ ] Endnote 51 (4 rows) - LAL/ORL/WAS 2028 2nd
+- [ ] Endnote 44 (4 rows) - NOP/POR 2026 2nd
+- [ ] Endnote 36 (4 rows) - MIN/SAS 2026 2nd
+- [ ] Endnote 33 (4 rows) - LAC/MEM/POR 2026 2nd
+- [ ] Endnote 26 (4 rows) - POR/SAS 2026 2nd
+- [ ] Endnote 17 (4 rows) - BKN/HOU 2027 1st
+- [ ] Endnote 9 (4 rows) - ATL/MIL/NOP 2026 1st
+- [ ] Endnote 8 (4 rows) - ATL/MIL/NOP 2027 1st
 
+### Smaller clusters / follow-ups (<=2 rows) (refreshed 2026-02-05)
+
+- [ ] Endnote 322 (2 rows) - BKN/MIA 2026 2nd
+- [ ] Endnote 317 (2 rows) - CHA/SAC 2026 2nd
+- [ ] Endnote 311 (2 rows) - GSW/MEM 2032 2nd
+- [ ] Endnote 197 (2 rows) - BOS/MIL outgoing rows to WAS in the POR 2029 1st pool chain (finish origin shorthands)
 - [ ] Endnote 244 (2 rows) - BOS→HOU LF [NOP, CLE] 2027 2nd
 - [ ] Endnote 194 (2 rows) - PHX→NYK BOS 2028 2nd (via PHX; overlaps endnote 50 swap chain)
 - [ ] Endnote 176 (2 rows) - POR→BOS LF [POR, UTA] 2027 2nd
 - [ ] Endnote 157 (2 rows) - DET→WAS LF [NYK, WAS] 2026 2nd
+- [ ] Endnote 63 (2 rows) - MIN→UTA MIN 2029 1st (conditional; see endnote text for protections)
 - [ ] Endnote 50 (1 row) - BOS 2028 2nd outgoing row: "Own or to SAS(50) or to NYK(194)" (likely shorthand `BOS`)
 
 ---
@@ -254,3 +279,9 @@ When you complete a cluster, add a bullet here with:
 - Endnote 310 — PHX→MIN Durant trade (7/6/2025). MIN receives MF [HOU, PHX] 2032 2nd. HOU pick flows via PHX (endnote 308). Shorthands: `MF [HOU, PHX]` for MIN's MAY_HAVE rows, `PHX`/`HOU` for origin picks, direction-aware `To MIN: HOU` for outgoing.
 - Endnote 307 — Already curated as part of endnote 319 (WAS receives LF). PHX receives 2nd MF [DAL, OKC, PHI] 2026 2nd via HOU (endnote 70). All 8 rows have shorthand: PHX MAY_HAVE rows get `2nd MF [DAL, OKC, PHI]`, OKC keeps MF (own pick + DAL/PHI via endnotes 14/21), origin rows show direction-aware outgoing to WAS.
 - Endnote 295 — PHX→CHA Micic-Williams trade (6/30/2025). CHA receives the 2029 1st that PHX is entitled to from UTA (per endnote 231): the LF of [CLE, MIN, UTA] 2029 1sts. Chain: CLE→UTA (endnote 68 Mitchell), MIN→UTA (endnote 63 Gobert, conditional), UTA→PHX (endnote 231), PHX→CHA (endnote 295). CHA MAY_HAVE rows already had `LF [CLE, MIN, UTA]`. Added origin shorthands: `CLE`/`MIN`/`UTA` for direction-aware outgoing (CLE shows `To CHA: CLE`).
+- Endnote 291 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; endnote fully covered by the Endnote 320 (BOS↔ORL pool → UTA) curation.
+- Endnote 231 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; endnote fully covered by the Endnote 295 (UTA→PHX → CHA) chain curation.
+- Endnote 308 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; endnote fully covered by the Endnote 310 (PHX→MIN) curation.
+- Endnote 123 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; endnote fully covered by the Endnote 319/307 OKC 2026 2nd pool curation.
+- Endnote 70 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; endnote fully covered by the Endnote 319/307 OKC 2026 2nd pool curation.
+- Endnote 46 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; endnote fully covered by the Endnote 319 OKC→WAS chain curation.
