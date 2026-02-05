@@ -48,7 +48,7 @@ Tool URL: `/tools/salary-book`
   - Add lightweight tabs (Cap Outlook / Team Stats) - Team Stats can be placeholder
   - Keep base panel patchable by stable ID (`#rightpanel-base`)
 
-- [ ] Expand Player overlay (`#rightpanel-overlay`) to match spec
+- [x] Expand Player overlay (`#rightpanel-overlay`) to match spec
   - Contract breakdown by year, guarantee structure, options, trade kicker info
   - Back already behaves correctly (returns to current viewport team)
 

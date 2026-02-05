@@ -1,71 +1,314 @@
+<%#
+  Player Overlay — Entity detail view for a selected player
+
+  Sections:
+  1. Player header (photo, name, team)
+  2. Contract summary (total value, years, type, agent)
+  3. Year-by-year breakdown (salary, guarantee, option per year)
+  4. Trade restrictions (if any)
+%>
+
+<% SALARY_YEARS = (2025..2030).to_a.freeze %>
+
+<%# Formatting helpers %>
 <% money = ->(v) { v.nil? ? "—" : number_to_currency(v.to_i, precision: 0) } %>
+<% compact = ->(v) { format_salary(v) } %>
 
-<div id="rightpanel-overlay" class="panel overlay">
-  <header class="panel-header">
-    <div class="panel-header-left">
-      <div class="panel-title"><%= player["player_name"] %></div>
-      <div class="panel-subtitle">
-        <span>team: <code><%= player["team_code"] || "—" %></code></span>
-        <span>player_id: <code><%= player["player_id"] %></code></span>
-      </div>
-    </div>
+<%# Extract player info %>
+<% player_id = player["player_id"] %>
+<% player_name = player["player_name"] %>
+<% team_code = player["team_code"] || "—" %>
+<% agent_name = player["agent_name"] %>
+<% agent_id = player["agent_id"] %>
+<% age = player["age"] %>
+<% is_two_way = player["is_two_way"] %>
 
-    <div class="panel-actions">
+<%# Build year data for breakdown %>
+<%
+  years_data = SALARY_YEARS.map do |year|
+    salary = player["cap_#{year}"]
+    option = player["option_#{year}"]
+    guaranteed_amount = player["guaranteed_amount_#{year}"]
+    is_full = player["is_fully_guaranteed_#{year}"]
+    is_partial = player["is_partially_guaranteed_#{year}"]
+    is_non = player["is_non_guaranteed_#{year}"]
+    likely_bonus = player["likely_bonus_#{year}"]
+    unlikely_bonus = player["unlikely_bonus_#{year}"]
+
+    guarantee_status = if is_full
+      "FULL"
+    elsif is_partial
+      "PARTIAL"
+    elsif is_non
+      "NONE"
+    else
+      nil
+    end
+
+    {
+      year: year,
+      salary: salary,
+      option: option,
+      guaranteed_amount: guaranteed_amount,
+      guarantee_status: guarantee_status,
+      likely_bonus: likely_bonus,
+      unlikely_bonus: unlikely_bonus
+    }
+  end
+
+  # Only show years with salary
+  active_years = years_data.select { |y| y[:salary].present? && y[:salary].to_f > 0 }
+
+  # Calculate totals
+  total_value = active_years.sum { |y| y[:salary].to_f }
+  contract_years = active_years.size
+%>
+
+<%# Trade restrictions %>
+<%
+  is_no_trade = player["is_no_trade"]
+  is_trade_bonus = player["is_trade_bonus"]
+  trade_bonus_percent = player["trade_bonus_percent"]
+  is_consent_required = player["is_trade_consent_required_now"]
+  is_preconsented = player["is_trade_preconsented"]
+  is_poison_pill = player["is_poison_pill"]
+
+  # Build trade kicker label
+  trade_kicker_label = if trade_bonus_percent.present? && trade_bonus_percent.to_f > 0
+    pct = trade_bonus_percent.to_f
+    pct_str = pct % 1 == 0 ? pct.to_i.to_s : pct.to_s
+    "#{pct_str}% Trade Kicker"
+  else
+    "Trade Kicker"
+  end
+
+  restrictions = [
+    { label: trade_kicker_label, active: is_trade_bonus, color: "orange" },
+    { label: "No-Trade Clause", active: is_no_trade, color: "red" },
+    { label: "Consent Required", active: is_consent_required, color: "red" },
+    { label: "Poison Pill", active: is_poison_pill, color: "red", italic: true },
+    { label: "Pre-consented", active: is_preconsented, color: "green" }
+  ]
+
+  active_restrictions = restrictions.select { |r| r[:active] }
+%>
+
+<%# Contract info %>
+<%
+  contract_type = player["contract_type_lookup_value"] || player["contract_type_code"]
+  signed_using = player["signed_method_lookup_value"]
+  exception_type = player["exception_type_lookup_value"]
+  min_contract = player["is_min_contract"] ? player["min_contract_lookup_value"] : nil
+%>
+
+<div id="rightpanel-overlay" class="sidebar-player">
+  <%# Back button + Header %>
+  <header class="sidebar-player-header">
+    <div class="sidebar-player-back">
       <button
         type="button"
         class="panel-button"
         data-on:click="@get('<%= tools_salary_book_sidebar_clear_path %>')"
-      >Back</button>
-
-      <a class="panel-link" href="/players/<%= player["player_id"] %>">Open player page</a>
+      >← Back</button>
     </div>
+    <a class="panel-link" href="/players/<%= player_id %>">Open player page</a>
   </header>
 
-  <div class="panel-body">
-    <dl class="kv">
-      <div class="kv-row">
-        <dt>Agent</dt>
-        <dd><%= player["agent_name"].presence || "—" %></dd>
+  <div class="sidebar-player-body">
+    <%# Player Info (photo + name + team) %>
+    <div class="sidebar-player-info">
+      <div class="sidebar-player-photo">
+        <img
+          src="<%= player_headshot_url(player_id) %>"
+          alt="<%= player_name %>"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+        />
+        <span class="sidebar-player-photo-fallback" style="display: none;">NBA</span>
       </div>
-      <div class="kv-row">
-        <dt>Age</dt>
-        <dd><%= player["age"] || "—" %></dd>
+      <div class="sidebar-player-details">
+        <h2 class="sidebar-player-name"><%= player_name %></h2>
+        <div class="sidebar-player-team"><%= team_code %></div>
+        <% if age %>
+          <div class="sidebar-player-meta"><%= format("%.1f", age.to_f) %> YRS</div>
+        <% end %>
       </div>
-      <div class="kv-row">
-        <dt>Cap 2025</dt>
-        <dd><%= money.call(player["cap_2025"]) %></dd>
-      </div>
-      <div class="kv-row">
-        <dt>Cap 2026</dt>
-        <dd><%= money.call(player["cap_2026"]) %></dd>
-      </div>
-      <div class="kv-row">
-        <dt>Total (2025+)</dt>
-        <dd><%= money.call(player["total_salary_from_2025"]) %></dd>
-      </div>
-      <div class="kv-row">
-        <dt>Option 2025</dt>
-        <dd><%= player["option_2025"].presence || "—" %></dd>
-      </div>
-      <div class="kv-row">
-        <dt>Option 2026</dt>
-        <dd><%= player["option_2026"].presence || "—" %></dd>
-      </div>
-      <div class="kv-row">
-        <dt>Two-way</dt>
-        <dd><%= player["is_two_way"] ? "yes" : "no" %></dd>
-      </div>
-      <div class="kv-row">
-        <dt>No-trade</dt>
-        <dd><%= player["is_no_trade"] ? "yes" : "no" %></dd>
-      </div>
-      <div class="kv-row">
-        <dt>Trade kicker</dt>
-        <dd><%= player["trade_kicker_display"].presence || "—" %></dd>
-      </div>
-    </dl>
+    </div>
 
-    <div class="panel-meta">
+    <%# Contract Summary Section %>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Contract</div>
+      <div class="sidebar-contract-card">
+        <%# Total Value %>
+        <div class="sidebar-stat-row">
+          <span class="sidebar-stat-label">Total Value</span>
+          <span class="sidebar-stat-value sidebar-stat-value--large"><%= compact.call(total_value) %></span>
+        </div>
+
+        <%# Years %>
+        <div class="sidebar-stat-row">
+          <span class="sidebar-stat-label">Years</span>
+          <span class="sidebar-stat-value"><%= contract_years %> yr<%= contract_years != 1 ? "s" : "" %></span>
+        </div>
+
+        <%# Contract Type %>
+        <% if contract_type.present? %>
+          <div class="sidebar-stat-row">
+            <span class="sidebar-stat-label">Type</span>
+            <span class="sidebar-stat-value"><%= contract_type %></span>
+          </div>
+        <% end %>
+
+        <%# Signed Via %>
+        <% if signed_using.present? %>
+          <div class="sidebar-stat-row">
+            <span class="sidebar-stat-label">Signed Via</span>
+            <span class="sidebar-stat-value"><%= signed_using %></span>
+          </div>
+        <% end %>
+
+        <%# Exception %>
+        <% if exception_type.present? %>
+          <div class="sidebar-stat-row">
+            <span class="sidebar-stat-label">Exception</span>
+            <span class="sidebar-stat-value"><%= exception_type %></span>
+          </div>
+        <% end %>
+
+        <%# Minimum %>
+        <% if min_contract.present? %>
+          <div class="sidebar-stat-row">
+            <span class="sidebar-stat-label">Minimum</span>
+            <span class="sidebar-stat-value"><%= min_contract %></span>
+          </div>
+        <% end %>
+
+        <%# Two-Way Badge %>
+        <% if is_two_way %>
+          <div class="sidebar-stat-row">
+            <span class="sidebar-stat-label">Contract</span>
+            <span class="sidebar-badge sidebar-badge--amber">Two-Way</span>
+          </div>
+        <% end %>
+
+        <%# Agent %>
+        <% if agent_name.present? %>
+          <div class="sidebar-stat-row">
+            <span class="sidebar-stat-label">Agent</span>
+            <% if agent_id.present? %>
+              <button
+                type="button"
+                class="sidebar-agent-link"
+                data-on:click="console.log('Agent overlay:', <%= agent_id %>)"
+              ><%= agent_name %></button>
+            <% else %>
+              <span class="sidebar-stat-value"><%= agent_name %></span>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <%# Year-by-Year Breakdown %>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Year-by-Year</div>
+      <% if active_years.empty? %>
+        <div class="sidebar-empty-card">No salary data available</div>
+      <% else %>
+        <div class="sidebar-year-list">
+          <% active_years.each do |year_data| %>
+            <%
+              year = year_data[:year]
+              salary = year_data[:salary]
+              option = year_data[:option]
+              guaranteed_amount = year_data[:guaranteed_amount]
+              guarantee_status = year_data[:guarantee_status]
+              likely_bonus = year_data[:likely_bonus]
+              unlikely_bonus = year_data[:unlikely_bonus]
+
+              is_current_season = (year == 2025)
+              show_option = option.present? && !is_current_season
+              show_guarantee = guarantee_status.present? || guaranteed_amount.present?
+              show_likely = likely_bonus.present? && likely_bonus.to_f != 0
+              show_unlikely = unlikely_bonus.present? && unlikely_bonus.to_f != 0
+
+              guarantee_label = case guarantee_status
+                when "FULL" then "Full"
+                when "PARTIAL" then "Partial"
+                when "NONE" then "None"
+                else nil
+              end
+
+              option_classes = case option
+                when "PO" then "sidebar-badge--blue"
+                when "TO" then "sidebar-badge--purple"
+                when "ETO" then "sidebar-badge--orange"
+                else ""
+              end
+
+              option_label = case option
+                when "PO" then "Player Option"
+                when "TO" then "Team Option"
+                when "ETO" then "ETO"
+                else option
+              end
+            %>
+            <div class="sidebar-year-row">
+              <div class="sidebar-year-main">
+                <div class="sidebar-year-left">
+                  <span class="sidebar-year-label"><%= format_year_label(year) %></span>
+                  <% if show_option %>
+                    <span class="sidebar-badge <%= option_classes %>"><%= option_label %></span>
+                  <% end %>
+                </div>
+                <span class="sidebar-year-salary"><%= compact.call(salary) %></span>
+              </div>
+              <% if show_guarantee %>
+                <div class="sidebar-year-detail">
+                  <span>Guarantee<%= guarantee_label ? ": #{guarantee_label}" : "" %></span>
+                  <span class="sidebar-year-detail-value"><%= compact.call(guaranteed_amount) %></span>
+                </div>
+              <% end %>
+              <% if show_likely %>
+                <div class="sidebar-year-detail">
+                  <span>Likely Bonus</span>
+                  <span class="sidebar-year-detail-value"><%= compact.call(likely_bonus) %></span>
+                </div>
+              <% end %>
+              <% if show_unlikely %>
+                <div class="sidebar-year-detail">
+                  <span>Unlikely Bonus</span>
+                  <span class="sidebar-year-detail-value"><%= compact.call(unlikely_bonus) %></span>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+
+    <%# Trade Restrictions %>
+    <% if active_restrictions.any? %>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Trade Restrictions</div>
+        <div class="sidebar-restrictions">
+          <% active_restrictions.each do |restriction| %>
+            <%
+              color_class = case restriction[:color]
+                when "red" then "sidebar-badge--red"
+                when "orange" then "sidebar-badge--orange"
+                when "green" then "sidebar-badge--green"
+                else ""
+              end
+              italic_class = restriction[:italic] ? "sidebar-badge--italic" : ""
+            %>
+            <span class="sidebar-badge <%= color_class %> <%= italic_class %>"><%= restriction[:label] %></span>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <%# Metadata footer %>
+    <div class="sidebar-meta">
       refreshed_at: <code><%= player["refreshed_at"] || "—" %></code>
     </div>
   </div>
