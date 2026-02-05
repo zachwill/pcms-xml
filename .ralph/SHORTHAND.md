@@ -184,7 +184,7 @@ Guideline: one checkbox = one endnote cluster.
 
 ### Top clusters (4-row clusters) (refreshed 2026-02-05)
 
-As of this refresh: **193 rows** remain with `primary_todo_reason='missing_shorthand'` for `draft_year >= 2026`.
+As of this refresh: **185 rows** remain with `primary_todo_reason='missing_shorthand'` for `draft_year >= 2026`.
 
 Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` where `primary_todo_reason='missing_shorthand'` and `draft_year >= 2026`.
 
@@ -192,9 +192,6 @@ Note: there are currently **no 5-row clusters**; the largest clusters are 4 rows
 
 All entries below are currently tied at 4 rows; ordered by endnote_id desc.
 
-- [x] Endnote 241 (4 rows) - NOP/OKC/ORL 2031 2nd
-- [x] Endnote 212 (4 rows) - SAC/SAS 2031 1st
-- [ ] Endnote 193 (4 rows) - NOP/OKC/ORL 2031 2nd
 - [ ] Endnote 192 (4 rows) - NOP/ORL 2030 2nd
 - [ ] Endnote 163 (4 rows) - DAL/OKC 2028 1st
 - [ ] Endnote 159 (4 rows) - CHA/MIA 2027-2028 1st
@@ -279,10 +276,11 @@ All entries below are currently tied at 2 rows; ordered by endnote_id desc.
 
 ### One-offs (1-row clusters)
 
-There are currently many 1-row endnote clusters (127 as of this refresh). Use the work-queue query to pull the next one when you're done with the 2-row clusters.
+There are currently many 1-row endnote clusters (128 as of this refresh). Use the work-queue query to pull the next one when you're done with the 2-row clusters.
 
 - [ ] Endnote 246 (1 row) - BOS 2031 2nd MAY_HAVE: `may have HOU(246)`
 - [ ] Endnote 211 (1 row) - MIN 2031 2nd MAY_HAVE: `May have GSW(211)`
+- [ ] Endnote 193 (1 row) - ORL 2031 2nd MAY_HAVE: `May have NOP(193)` (swap right conveyed from NOP)
 - [ ] Endnote 50 (1 row) - BOS 2028 2nd outgoing row: "Own or to SAS(50) or to NYK(194)" (likely shorthand `BOS`)
 - [ ] Endnote 9 (1 row) - MIL 2026 1st MAY_HAVE: `May have NOP(9)`
 
