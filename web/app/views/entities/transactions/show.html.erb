@@ -57,7 +57,7 @@
     } %>
 
     <div class="min-w-0 flex-1 space-y-6">
-      <section id="vitals" class="scroll-mt-24 space-y-3">
+      <section id="vitals" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div class="rounded-lg border border-border bg-background p-3">
@@ -85,7 +85,7 @@
         </div>
       </section>
 
-      <section id="constraints" class="scroll-mt-24 space-y-3">
+      <section id="constraints" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Constraint posture</h2>
         <div class="flex flex-wrap gap-2">
           <% chips = [] %>
@@ -104,7 +104,7 @@
         </div>
       </section>
 
-      <section id="parties" class="scroll-mt-24 space-y-3">
+      <section id="parties" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Parties</h2>
         <% if party_rows.empty? %>
           <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No team party rows for this transaction.</div>
@@ -148,7 +148,7 @@
         <% end %>
       </section>
 
-      <section id="trade-context" class="scroll-mt-24 space-y-3">
+      <section id="trade-context" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Trade context</h2>
         <% if tx["trade_id"].present? %>
           <div class="rounded-lg border border-border bg-background p-4 space-y-2">
@@ -198,7 +198,7 @@
         <% end %>
       </section>
 
-      <section id="ledger" class="scroll-mt-24 space-y-3">
+      <section id="ledger" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ledger impact</h2>
         <% if @ledger_entries.empty? %>
           <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No ledger rows for this transaction.</div>
@@ -240,7 +240,7 @@
         <% end %>
       </section>
 
-      <section id="artifacts" class="scroll-mt-24 space-y-3">
+      <section id="artifacts" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cap artifacts</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Exception usage · dead money · budget snapshots</summary>

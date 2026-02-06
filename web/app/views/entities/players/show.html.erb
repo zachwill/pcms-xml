@@ -57,7 +57,7 @@ end %>
     } %>
 
     <div class="min-w-0 flex-1 space-y-6">
-      <section id="vitals" class="scroll-mt-24 space-y-3">
+      <section id="vitals" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div class="rounded-lg border border-border bg-background p-3">
@@ -79,7 +79,7 @@ end %>
         </div>
       </section>
 
-      <section id="constraints" class="scroll-mt-24 space-y-3">
+      <section id="constraints" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Constraint posture</h2>
         <div class="flex flex-wrap gap-2">
           <% chips = [] %>
@@ -119,7 +119,7 @@ end %>
         </div>
       </section>
 
-      <section id="connections" class="scroll-mt-24 space-y-3">
+      <section id="connections" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connections</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           <% team_code = @salary_book_row&.fetch("team_code", nil) %>
@@ -166,7 +166,7 @@ end %>
         </div>
       </section>
 
-      <section id="contract" class="scroll-mt-24 space-y-3">
+      <section id="contract" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract horizon</h2>
 
         <% if @salary_book_row.present? %>
@@ -215,7 +215,7 @@ end %>
         <% end %>
       </section>
 
-      <section id="contract-history" class="scroll-mt-24 space-y-3">
+      <section id="contract-history" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract history</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Chronology + version rollup (<%= contract_chronology_rows.size %> contracts · <%= contract_version_rows.size %> versions)</summary>
@@ -317,7 +317,7 @@ end %>
         </details>
       </section>
 
-      <section id="guarantees" class="scroll-mt-24 space-y-3">
+      <section id="guarantees" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Guarantees + protections</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Guarantee matrix + protection detail</summary>
@@ -426,7 +426,7 @@ end %>
         </details>
       </section>
 
-      <section id="incentives" class="scroll-mt-24 space-y-3">
+      <section id="incentives" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Incentives</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Bonus rows (<%= bonus_rows.size %>)</summary>
@@ -477,7 +477,7 @@ end %>
         </details>
       </section>
 
-      <section id="ledger" class="scroll-mt-24 space-y-3">
+      <section id="ledger" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ledger timeline</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Recent entries (<%= ledger_entries.size %>)</summary>
@@ -536,7 +536,7 @@ end %>
         </details>
       </section>
 
-      <section id="team-history" class="scroll-mt-24 space-y-3">
+      <section id="team-history" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Team history</h2>
         <% if team_history_rows.empty? %>
           <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No team history found.</div>

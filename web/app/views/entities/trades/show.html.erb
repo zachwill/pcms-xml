@@ -42,7 +42,7 @@
     } %>
 
     <div class="min-w-0 flex-1 space-y-6">
-      <section id="vitals" class="scroll-mt-24 space-y-3">
+      <section id="vitals" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -77,7 +77,7 @@
         <% end %>
       </section>
 
-      <section id="leg-breakdown" class="scroll-mt-24 space-y-3">
+      <section id="leg-breakdown" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Leg breakdown</h2>
 
     <% if @trade_teams.empty? %>
@@ -123,7 +123,7 @@
     <% end %>
   </section>
 
-      <section id="trade-groups" class="scroll-mt-24 space-y-3">
+      <section id="trade-groups" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Trade-group legal structure</h2>
 
     <% if @trade_group_rows.empty? %>
@@ -252,7 +252,7 @@
     <% end %>
   </section>
 
-      <section id="player-items" class="scroll-mt-24 space-y-3">
+      <section id="player-items" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Player line items</h2>
 
     <% if @player_details.empty? %>
@@ -316,7 +316,7 @@
     <% end %>
   </section>
 
-      <section id="pick-cash" class="scroll-mt-24 space-y-3">
+      <section id="pick-cash" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pick + cash line items</h2>
 
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
@@ -388,7 +388,7 @@
   </section>
 
       <% if @draft_pick_trades.any? %>
-        <section id="pick-trades" class="scroll-mt-24 space-y-3">
+        <section id="pick-trades" class="scroll-mt-32 space-y-3">
           <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Draft pick trades rows</h2>
 
       <div class="overflow-x-auto rounded-lg border border-border">
@@ -425,7 +425,7 @@
     </section>
   <% end %>
 
-      <section id="transactions" class="scroll-mt-24 space-y-3">
+      <section id="transactions" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Transactions in this trade</h2>
 
     <% if @transactions.empty? %>
@@ -476,7 +476,7 @@
     <% end %>
   </section>
 
-      <section id="endnotes" class="scroll-mt-24 space-y-3">
+      <section id="endnotes" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Related endnotes</h2>
 
     <% if @endnotes.empty? %>

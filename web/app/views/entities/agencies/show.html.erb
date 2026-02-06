@@ -30,7 +30,7 @@
     } %>
 
     <div class="min-w-0 flex-1 space-y-6">
-      <section id="vitals" class="scroll-mt-24 space-y-3">
+      <section id="vitals" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
         <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
           <div class="rounded-lg border border-border bg-background p-3">
@@ -48,7 +48,7 @@
         </div>
       </section>
 
-      <section id="agent-roster" class="scroll-mt-24 space-y-3">
+      <section id="agent-roster" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Agent roster</h2>
         <% if @agents.empty? %>
           <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No agents found.</div>
@@ -90,7 +90,7 @@
         <% end %>
       </section>
 
-      <section id="team-distribution" class="scroll-mt-24 space-y-3">
+      <section id="team-distribution" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Team distribution</h2>
         <% if @team_distribution.empty? %>
           <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No team distribution data.</div>
@@ -129,7 +129,7 @@
         <% end %>
       </section>
 
-      <section id="historical" class="scroll-mt-24 space-y-3">
+      <section id="historical" class="scroll-mt-32 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Historical footprint</h2>
         <details class="rounded-lg border border-border bg-background p-3">
           <summary class="cursor-pointer text-sm font-medium">Season book + top clients</summary>
