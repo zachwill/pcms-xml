@@ -198,7 +198,7 @@ There are currently **no 2+ row clusters**; the entire queue is 1-row clusters. 
 Top of queue (ordered by `endnote_id desc`; each is a 1-row cluster):
 
 - [x] Endnote 323 (1 row) - Miami conveys to Brooklyn: → MIA 2032 2nd
-- [ ] Endnote 318 (1 row) - Denver conveys to Brooklyn: → DEN 2032 1st
+- [x] Endnote 318 (1 row) - Denver conveys to Brooklyn: → DEN 2032 1st
 - [ ] Endnote 315 (1 row) - LAC conveys to Utah: → LAC 2027 2nd
 - [ ] Endnote 312 (1 row) - Atlanta conveys to Minnesota: → CLE 2027 2nd (via endnote 270)
 - [ ] Endnote 306 (1 row) - Houston conveys to Brooklyn: → BOS 2030 2nd (via endnote 245)
@@ -365,3 +365,4 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 36 — SAS swap right for 2026 2nd: SAS can swap its own 2026 2nd for the less favorable of IND/MIA 2026 2nds (via endnote 1). Added `LF [IND, MIA]` shorthand to SAS MAY_HAVE rows; display_text now renders the pool cleanly.
 - Endnote 4 — HOU→OKC Westbrook/Paul trade fallback. Added `HOU` shorthand for the 2026 2nd round fallback rows (HOU OWN + OKC MAY_HAVE) when the top-4 protected 2026 1st does not convey.
 - Endnote 323 — Miami conveys its own 2032 2nd to Brooklyn (Highsmith trade). Added `MIA` shorthand for both BKN HAS and MIA TO rows; verified `To BKN: MIA` display_text.
+- Endnote 318 — Denver conveys its own 2032 1st to Brooklyn (Porter/Johnson trade). Added shorthand `DEN` for the DEN outgoing row so display_text renders `To BKN: DEN`.
