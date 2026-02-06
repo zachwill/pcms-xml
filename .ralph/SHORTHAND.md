@@ -198,7 +198,7 @@ There are currently **no 3+ row clusters**; the largest clusters are 2 rows.
 There are currently 2 2-row clusters; ordered by endnote_id desc.
 
 - [x] Endnote 36 (2 rows) - SAS swap right affecting IND/MIA/SAS 2026 2nd (feeds endnote 55)
-- [ ] Endnote 4 (2 rows) - HOU conveys to OKC: → HOU 2026 1st (conditional)
+- [x] Endnote 4 (2 rows) - HOU conveys to OKC: → HOU 2026 1st (conditional)
 
 ### One-offs / follow-ups (1-row clusters)
 
@@ -362,3 +362,4 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 50 (status update) — As of 2026-02-06, endnote 50 no longer appears in the `missing_shorthand` queue for `draft_year >= 2026` (BOS 2028 2nd outgoing row now filled).
 - Endnote 197 (status update) — As of 2026-02-06, endnote 197 no longer appears in the `missing_shorthand` queue for `draft_year >= 2026`.
 - Endnote 36 — SAS swap right for 2026 2nd: SAS can swap its own 2026 2nd for the less favorable of IND/MIA 2026 2nds (via endnote 1). Added `LF [IND, MIA]` shorthand to SAS MAY_HAVE rows; display_text now renders the pool cleanly.
+- Endnote 4 — HOU→OKC Westbrook/Paul trade fallback. Added `HOU` shorthand for the 2026 2nd round fallback rows (HOU OWN + OKC MAY_HAVE) when the top-4 protected 2026 1st does not convey.
