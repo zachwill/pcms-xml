@@ -192,7 +192,7 @@ Note: there are currently **no 5-row clusters**; the largest clusters are 4 rows
 
 All entries below are currently tied at 4 rows; ordered by endnote_id desc.
 
-- [ ] Endnote 116 (4 rows) - GSW/WAS 2030 (rounds 1+2)
+- [x] Endnote 116 (4 rows) - GSW/WAS 2030 (rounds 1+2)
 - [ ] Endnote 99 (4 rows) - MIL/SAS/UTA 2026 2nd
 - [ ] Endnote 89 (4 rows) - NOP/POR/SAS 2026 2nd
 - [ ] Endnote 78 (4 rows) - MIL/SAS/UTA 2026 2nd
@@ -339,3 +339,4 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 154 — LAC→PHI Harden trade (11/1/2023). PHI receives swap right: can swap their 2029 1st for LAC's 2029 1st, top-3 protected (extinguished if LAC pick is 1-3). Shorthands: `LAC`/`PHI` for OWN rows, `PHI` for LAC MAY_HAVE, `LAC (p. 1-3)` for PHI MAY_HAVE (swap right).
 - Endnote 152 — LAC→OKC swap right for 2027 1st (Harden trade, 11/1/2023). OKC has right to swap the "Result Pick" (OKC own or LF [OKC, DEN (p. 1-5)] per endnote 53) for LAC's 2027 1st. Shorthands: `LAC` for LAC OWN and OKC MAY_HAVE LAC rows, `OKC` for OKC OWN and LAC MAY_HAVE OKC rows.
 - Endnote 148 — MIL→POR swap right for 2030 1st (Lillard trade, 9/27/2023). POR has right to swap their 2030 1st for MIL's 2030 1st (auto-exercise if MIL pick more favorable). Shorthands: `MIL` for MIL OWN and POR MAY_HAVE MIL rows, `POR` for POR OWN and MIL MAY_HAVE POR rows.
+- Endnote 116 — GSW→WAS Paul/Poole trade (7/6/2023). WAS receives GSW 2030 1st (top-20 protected); if not conveyed, WAS receives GSW 2030 2nd unconditionally. Shorthands: `GSW (p. 1-20)` for 1st round rows, `GSW` for 2nd round fallback rows.
