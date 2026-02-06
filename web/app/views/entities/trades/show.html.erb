@@ -11,7 +11,7 @@
 <% transaction_count = @transactions.size %>
 
 <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
-  <%= render partial: "entities/shared/entity_header", locals: {
+  <%= render partial: "entities/shared/commandbar", locals: {
     title: "Trade ##{tr['trade_id']}",
     subtitle: [tr['trade_date'], tr['record_status_lk']].compact.join(' · '),
     breadcrumbs: [["Trades", "/trades"], ["##{tr['trade_id']}", nil]],

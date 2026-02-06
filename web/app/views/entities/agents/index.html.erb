@@ -11,7 +11,7 @@
   class="min-h-screen w-full bg-background"
   data-signals="{ entitykind: '<%= @directory_kind %>', activeonly: <%= @active_only ? 'true' : 'false' %> }"
 >
-  <%= render partial: "entities/shared/directory_commandbar", locals: {
+  <%= render partial: "entities/shared/commandbar", locals: {
     active_entity_scope: "agents",
     on_agents_toggle: sync_agents_expr,
     header_knobs: [

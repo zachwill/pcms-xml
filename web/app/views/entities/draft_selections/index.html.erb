@@ -5,7 +5,7 @@
 <% prefetch_canonical_slugs(entity_type: "player", entity_ids: @results.map { |r| r["player_id"] }) %>
 
 <div id="entity-directory" class="min-h-screen w-full bg-background">
-  <%= render partial: "entities/shared/directory_commandbar", locals: {
+  <%= render partial: "entities/shared/commandbar", locals: {
     active_entity_scope: "draft"
   } %>
 

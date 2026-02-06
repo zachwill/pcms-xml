@@ -15,7 +15,7 @@
 <% room_a2 = current_year_row["room_under_apron2"].to_f %>
 
 <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
-  <%= render partial: "entities/shared/entity_header", locals: {
+  <%= render partial: "entities/shared/commandbar", locals: {
     title: (team_name.presence || team_code.presence || "Team"),
     title_badge: team_code.presence,
     subtitle: [city, conference, division].compact.reject(&:blank?).join(" · "),

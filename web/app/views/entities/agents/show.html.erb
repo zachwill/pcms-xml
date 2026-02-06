@@ -7,7 +7,7 @@
 <% prefetch_canonical_slugs(entity_type: "player", entity_ids: @clients.map { |c| c["player_id"] }) %>
 
 <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
-  <%= render partial: "entities/shared/entity_header", locals: {
+  <%= render partial: "entities/shared/commandbar", locals: {
     title: (agent_name.presence || "Agent"),
     subtitle: ("agent_id: #{@agent_id} · slug: #{@agent_slug}" + (@agent["is_active"] == false ? " · inactive" : "")),
     breadcrumbs: [["Agents", "/agents"], [agent_name.presence || "Agent", nil]],

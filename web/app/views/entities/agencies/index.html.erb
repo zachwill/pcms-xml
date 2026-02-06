@@ -4,7 +4,7 @@
 <% prefetch_canonical_slugs(entity_type: "agency", entity_ids: @agencies.map { |a| a["agency_id"] }) %>
 
 <main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
-  <%= render partial: "entities/shared/entity_header", locals: {
+  <%= render partial: "entities/shared/commandbar", locals: {
     title: "Agencies",
     subtitle: "Agency directory (from pcms.agencies).",
     breadcrumbs: [["Agencies", nil]],

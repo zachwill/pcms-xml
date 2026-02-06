@@ -27,7 +27,7 @@
 %>
 
 <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
-  <%= render partial: "entities/shared/entity_header", locals: {
+  <%= render partial: "entities/shared/commandbar", locals: {
     title: "Transaction ##{tx['transaction_id']}",
     subtitle: [tx['transaction_date'], tx['transaction_type_lk'], tx['transaction_description_lk']].compact.join(' · '),
     breadcrumbs: [["Transactions", nil], ["##{tx['transaction_id']}", nil]],

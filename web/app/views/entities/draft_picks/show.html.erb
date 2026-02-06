@@ -50,7 +50,7 @@
 <% original_owner_team = @teams_by_code[original_owner_code] || {} %>
 
 <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
-  <%= render partial: "entities/shared/entity_header", locals: {
+  <%= render partial: "entities/shared/commandbar", locals: {
     title: "#{team_code} — #{year} Round #{round}",
     subtitle: ((@team.present? && @team["team_name"].present?) ? "#{@team['team_name']} · Source: pcms.vw_draft_pick_assets" : "Source: pcms.vw_draft_pick_assets"),
     breadcrumbs: [["Teams", "/teams"], [team_code, team_href(team_code: team_code)], ["#{year} R#{round} draft pick", nil]],

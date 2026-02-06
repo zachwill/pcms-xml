@@ -26,7 +26,7 @@
 end %>
 
 <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
-  <%= render partial: "entities/shared/entity_header", locals: {
+  <%= render partial: "entities/shared/commandbar", locals: {
     title: (full_name.presence || "Player"),
     subtitle: "player_id: #{@player_id} · slug: #{@player_slug}",
     breadcrumbs: [["Players", "/players"], [full_name.presence || "Player", nil]],

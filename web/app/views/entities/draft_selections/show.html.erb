@@ -6,7 +6,7 @@
 <% drafting_team_code = ds["drafting_team_code"].to_s %>
 
 <main class="max-w-6xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
-  <%= render partial: "entities/shared/entity_header", locals: {
+  <%= render partial: "entities/shared/commandbar", locals: {
     title: pick_label,
     subtitle: ((player_name.present? ? "#{player_name} · " : "") + "transaction_id: #{@draft_selection_id} · slug: #{@draft_selection_slug}" + (ds["transaction_date"].present? ? " · date: #{ds['transaction_date']}" : "")),
     breadcrumbs: [["Draft selections", "/draft-selections"], [pick_label, nil]],
