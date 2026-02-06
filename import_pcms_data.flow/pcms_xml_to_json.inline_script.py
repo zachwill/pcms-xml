@@ -270,8 +270,14 @@ def download_extract_and_parse(s3_key: str) -> dict:
     # Build work items
     work_items = []
     for xml_path in xml_files:
-        # Extract key: "nba_pcms_full_extract_player.xml" → "player"
-        key = xml_path.stem.replace("nba_pcms_full_extract_", "")
+        # Extract key: handle both full and incremental extracts
+        stem = xml_path.stem
+        for prefix in ("nba_pcms_full_extract_", "nba_pcms_incremental_extract_"):
+            if stem.startswith(prefix):
+                key = stem[len(prefix):]
+                break
+        else:
+            key = stem  # fallback
         work_items.append((xml_path, key))
     
     # Process in parallel using multiprocessing

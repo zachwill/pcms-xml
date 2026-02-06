@@ -535,4 +535,3 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
         "tables": tables,
         "errors": errors,
     }
-

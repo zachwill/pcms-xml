@@ -13,6 +13,7 @@ a row with lookup_type, lookup_code, description, and properties_json.
 Upserts into:
 - pcms.lookups
 """
+
 import os
 import json
 from pathlib import Path
@@ -23,6 +24,7 @@ import psycopg
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers (inline - no shared imports in Windmill)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def upsert(conn, table: str, rows: list[dict], conflict_keys: list[str]) -> int:
     """Upsert rows. Auto-generates ON CONFLICT DO UPDATE for non-key columns."""
@@ -62,20 +64,41 @@ def find_extract_dir(base: str = "./shared/pcms") -> Path:
 CODE_PATTERNS = ["_lk", "_id", "_code", "_cd"]
 
 # Fields to exclude from code inference
-EXCLUDE_CODE_FIELDS = {"record_status_lk", "league_lk", "apron_level_lk", "criteria_type_lk", "country_lk", "state_lk"}
+EXCLUDE_CODE_FIELDS = {
+    "record_status_lk",
+    "league_lk",
+    "apron_level_lk",
+    "criteria_type_lk",
+    "country_lk",
+    "state_lk",
+}
 
 # Fields to exclude from properties_json
 EXCLUDE_PROPERTY_FIELDS = {
-    "description", "short_description", "abbreviation", "name",
-    "agency_name", "team_name", "school_name",  # used for description
-    "team_code", "team_name_short",  # used for short_description
-    "active_flg", "seqno",
-    "create_date", "last_change_date", "record_change_date",
+    "description",
+    "short_description",
+    "abbreviation",
+    "name",
+    "agency_name",
+    "team_name",
+    "school_name",  # used for description
+    "team_code",
+    "team_name_short",  # used for short_description
+    "active_flg",
+    "seqno",
+    "create_date",
+    "last_change_date",
+    "record_change_date",
 }
 
 # Field mappings for description inference
 DESCRIPTION_FIELDS = ["description", "name", "agency_name", "team_name", "school_name"]
-SHORT_DESC_FIELDS = ["short_description", "abbreviation", "team_code", "team_name_short"]
+SHORT_DESC_FIELDS = [
+    "short_description",
+    "abbreviation",
+    "team_code",
+    "team_name_short",
+]
 
 
 def infer_code(record: dict, lookup_type: str) -> tuple[str | None, str | None]:
@@ -130,7 +153,9 @@ def transform_lookup(lookup_type: str, record: dict, ingested_at: str) -> dict |
     description, short_description = infer_description(record)
 
     # Build properties_json with remaining fields
-    exclude = EXCLUDE_PROPERTY_FIELDS | {code_key} if code_key else EXCLUDE_PROPERTY_FIELDS
+    exclude = (
+        EXCLUDE_PROPERTY_FIELDS | {code_key} if code_key else EXCLUDE_PROPERTY_FIELDS
+    )
     properties = {k: v for k, v in record.items() if k not in exclude}
 
     return {
@@ -151,6 +176,7 @@ def transform_lookup(lookup_type: str, record: dict, ingested_at: str) -> dict |
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
     started_at = datetime.now().isoformat()
@@ -187,12 +213,18 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
         if not dry_run:
             conn = psycopg.connect(os.environ["POSTGRES_URL"])
             try:
-                count = upsert(conn, "pcms.lookups", all_rows, ["lookup_type", "lookup_code"])
-                tables.append({"table": "pcms.lookups", "attempted": count, "success": True})
+                count = upsert(
+                    conn, "pcms.lookups", all_rows, ["lookup_type", "lookup_code"]
+                )
+                tables.append(
+                    {"table": "pcms.lookups", "attempted": count, "success": True}
+                )
             finally:
                 conn.close()
         else:
-            tables.append({"table": "pcms.lookups", "attempted": len(all_rows), "success": True})
+            tables.append(
+                {"table": "pcms.lookups", "attempted": len(all_rows), "success": True}
+            )
 
     except Exception as e:
         errors.append(str(e))
@@ -204,4 +236,3 @@ def main(dry_run: bool = False, extract_dir: str = "./shared/pcms"):
         "tables": tables,
         "errors": errors,
     }
-
