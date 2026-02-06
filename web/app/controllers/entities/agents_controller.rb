@@ -2,31 +2,19 @@ module Entities
   class AgentsController < ApplicationController
     # GET /agents
     def index
-      conn = ActiveRecord::Base.connection
-
-      q = params[:q].to_s.strip
-      if q.present?
-        q_sql = conn.quote("%#{q}%")
-        @agents = conn.exec_query(<<~SQL).to_a
-          SELECT agent_id, full_name, agency_id, agency_name, is_active
-          FROM pcms.agents
-          WHERE full_name ILIKE #{q_sql}
-             OR agency_name ILIKE #{q_sql}
-          ORDER BY full_name
-          LIMIT 200
-        SQL
-      else
-        @agents = conn.exec_query(<<~SQL).to_a
-          SELECT agent_id, full_name, agency_id, agency_name, is_active
-          FROM pcms.agents
-          ORDER BY full_name
-          LIMIT 50
-        SQL
-      end
-
-      @query = q
+      setup_directory_filters!
+      load_directory_rows!
 
       render :index
+    end
+
+    # GET /agents/pane
+    # Datastar patch target for the directory results pane.
+    def pane
+      setup_directory_filters!
+      load_directory_rows!
+
+      render partial: "entities/agents/directory_results"
     end
 
     # GET /agents/:slug
@@ -218,6 +206,44 @@ module Entities
       redirect_to agent_path(slug), status: :moved_permanently
     rescue ArgumentError
       raise ActiveRecord::RecordNotFound
+    end
+
+    private
+
+    def setup_directory_filters!
+      @directory_kind = params[:kind].to_s == "agencies" ? "agencies" : "agents"
+      @active_only = ActiveModel::Type::Boolean.new.cast(params[:active_only])
+      @query = params[:q].to_s.strip
+    end
+
+    def load_directory_rows!
+      conn = ActiveRecord::Base.connection
+      q_sql = @query.present? ? conn.quote("%#{@query}%") : nil
+      active_only_sql = @active_only ? "AND COALESCE(is_active, true) = true" : ""
+
+      if @directory_kind == "agencies"
+        query_sql = q_sql.present? ? "AND agency_name ILIKE #{q_sql}" : ""
+        @agencies = conn.exec_query(<<~SQL).to_a
+          SELECT agency_id, agency_name, is_active
+          FROM pcms.agencies
+          WHERE 1 = 1
+            #{active_only_sql}
+            #{query_sql}
+          ORDER BY agency_name
+        SQL
+        @agents = []
+      else
+        query_sql = q_sql.present? ? "AND (full_name ILIKE #{q_sql} OR agency_name ILIKE #{q_sql})" : ""
+        @agents = conn.exec_query(<<~SQL).to_a
+          SELECT agent_id, full_name, agency_id, agency_name, is_active
+          FROM pcms.agents
+          WHERE 1 = 1
+            #{active_only_sql}
+            #{query_sql}
+          ORDER BY full_name
+        SQL
+        @agencies = []
+      end
     end
   end
 end

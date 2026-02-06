@@ -44,6 +44,7 @@ Rails.application.routes.draw do
     # Agents
     # ---------------------------------------------------------------------
     get "agents", to: "agents#index"
+    get "agents/pane", to: "agents#pane"
     get "agents/:id", to: "agents#redirect", constraints: { id: /\d+/ }
     get "agents/:slug", to: "agents#show", as: :agent
 

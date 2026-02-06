@@ -1,31 +1,15 @@
 module Entities
   class AgenciesController < ApplicationController
     # GET /agencies
+    # Agencies now live under /agents with a radio knob for directory scope.
     def index
-      conn = ActiveRecord::Base.connection
+      query = {
+        kind: "agencies",
+        active_only: params[:active_only],
+        q: params[:q]
+      }.compact_blank
 
-      q = params[:q].to_s.strip
-      if q.present?
-        q_sql = conn.quote("%#{q}%")
-        @agencies = conn.exec_query(<<~SQL).to_a
-          SELECT agency_id, agency_name, is_active
-          FROM pcms.agencies
-          WHERE agency_name ILIKE #{q_sql}
-          ORDER BY agency_name
-          LIMIT 200
-        SQL
-      else
-        @agencies = conn.exec_query(<<~SQL).to_a
-          SELECT agency_id, agency_name, is_active
-          FROM pcms.agencies
-          ORDER BY agency_name
-          LIMIT 100
-        SQL
-      end
-
-      @query = q
-
-      render :index
+      redirect_to "/agents#{query_string(query)}", status: :moved_permanently
     end
 
     # GET /agencies/:slug
@@ -185,6 +169,14 @@ module Entities
       redirect_to agency_path(slug), status: :moved_permanently
     rescue ArgumentError
       raise ActiveRecord::RecordNotFound
+    end
+
+    private
+
+    def query_string(hash)
+      return "" if hash.blank?
+
+      "?#{hash.to_query}"
     end
   end
 end

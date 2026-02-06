@@ -1,81 +1,59 @@
 <% content_for :title, "Agents" %>
 
-<%# Avoid N+1 slug lookups in results table %>
-<% prefetch_canonical_slugs(entity_type: "agent", entity_ids: @agents.map { |a| a["agent_id"] }) %>
-<% prefetch_canonical_slugs(entity_type: "agency", entity_ids: @agents.map { |a| a["agency_id"] }) %>
+<% pane_get_expr = "@get('/agents/pane?kind=' + $entitykind + '&active_only=' + ($activeonly ? '1' : '0'))" %>
+<% active_scope = @directory_kind == "agencies" ? "agencies" : "agents" %>
 
-<main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+<main
+  class="max-w-5xl mx-auto px-4 py-6 space-y-6"
+  data-signals="{ entitykind: '<%= @directory_kind %>', activeonly: <%= @active_only ? 'true' : 'false' %> }"
+>
   <%= render partial: "entities/shared/entity_header", locals: {
-    title: "Agents",
-    subtitle: "Agent directory (from pcms.agents).",
+    title: "Representation",
+    subtitle: "Agent and agency directory (from pcms.agents + pcms.agencies).",
     breadcrumbs: [["Agents", nil]],
-    search_scope: "agents",
-    search_query: @query,
-    search_placeholder: "Search agents (name or agency)…"
+    active_entity_scope: active_scope,
+    search_enabled: false,
+    header_knobs: [
+      {
+        label: "Directory",
+        options: [
+          {
+            type: "radio",
+            name: "entity-kind",
+            id: "directory-kind-agents",
+            value: "agents",
+            label: "Agents",
+            checked: @directory_kind == "agents",
+            bind: "entitykind",
+            on_change: pane_get_expr
+          },
+          {
+            type: "radio",
+            name: "entity-kind",
+            id: "directory-kind-agencies",
+            value: "agencies",
+            label: "Agencies",
+            checked: @directory_kind == "agencies",
+            bind: "entitykind",
+            on_change: pane_get_expr
+          }
+        ]
+      },
+      {
+        label: "Filters",
+        options: [
+          {
+            type: "checkbox",
+            id: "directory-filter-active-only",
+            label: "Active only",
+            checked: @active_only,
+            bind: "activeonly",
+            on_change: pane_get_expr
+          }
+        ]
+      }
+    ]
   } %>
 
-  <% if @query.blank? %>
-    <p class="text-sm text-muted-foreground">
-      Showing a small sample. Search to narrow.
-    </p>
-  <% end %>
-
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Results</h2>
-
-    <% if @agents.empty? %>
-      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No agents found.</div>
-    <% else %>
-      <div class="overflow-x-auto rounded-lg border border-border">
-        <table class="entity-table min-w-full text-xs">
-          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-            <tr>
-              <th class="text-left px-3 py-2 font-medium">Agent</th>
-              <th class="text-left px-3 py-2 font-medium">Agency</th>
-              <th class="text-right px-3 py-2 font-medium">agent_id</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border">
-            <% @agents.each do |a| %>
-              <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                <td class="px-3 py-2">
-                  <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary">
-                      <a href="<%= agent_href(a['agent_id']) %>" class="font-medium truncate hover:underline"><%= a["full_name"] %></a>
-                    </div>
-                    <div class="entity-cell-secondary">
-                      <% if a["is_active"] == false %>
-                        <span class="entity-chip entity-chip--muted">inactive</span>
-                      <% else %>
-                        active
-                      <% end %>
-                    </div>
-                  </div>
-                </td>
-                <td class="px-3 py-2">
-                  <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary">
-                      <% if a["agency_id"].present? && a["agency_name"].present? %>
-                        <a href="<%= agency_href(a['agency_id']) %>" class="font-medium truncate hover:underline"><%= a["agency_name"] %></a>
-                      <% elsif a["agency_name"].present? %>
-                        <span class="font-medium truncate"><%= a["agency_name"] %></span>
-                      <% else %>
-                        <span class="text-muted-foreground">—</span>
-                      <% end %>
-                    </div>
-                    <div class="entity-cell-secondary">agency_id: <%= a["agency_id"] || "—" %></div>
-                  </div>
-                </td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground"><%= a["agent_id"] %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-
-      <p class="text-xs text-muted-foreground">
-        Links prefer canonical slugs when known; otherwise they use the numeric fallback (<code>/agents/:id</code>) which creates/promotes a canonical slug on demand.
-      </p>
-    <% end %>
-  </section>
+  <%= render partial: "entities/agents/directory_results" %>
 </main>

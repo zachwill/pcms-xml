@@ -1,0 +1,105 @@
+<% directory_kind = @directory_kind.to_s == "agencies" ? "agencies" : "agents" %>
+
+<% if directory_kind == "agents" %>
+  <% prefetch_canonical_slugs(entity_type: "agent", entity_ids: @agents.map { |a| a["agent_id"] }) %>
+  <% prefetch_canonical_slugs(entity_type: "agency", entity_ids: @agents.map { |a| a["agency_id"] }) %>
+<% else %>
+  <% prefetch_canonical_slugs(entity_type: "agency", entity_ids: @agencies.map { |a| a["agency_id"] }) %>
+<% end %>
+
+<section id="entity-directory-results" class="space-y-3">
+  <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Results</h2>
+
+  <% if directory_kind == "agents" %>
+    <% if @agents.empty? %>
+      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No agents found.</div>
+    <% else %>
+      <div class="overflow-x-auto rounded-lg border border-border">
+        <table class="entity-table min-w-full text-xs">
+          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+            <tr>
+              <th class="text-left px-3 py-2 font-medium">Agent</th>
+              <th class="text-left px-3 py-2 font-medium">Agency</th>
+              <th class="text-right px-3 py-2 font-medium">agent_id</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <% @agents.each do |a| %>
+              <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                <td class="px-3 py-2">
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary">
+                      <a href="<%= agent_href(a['agent_id']) %>" class="font-medium truncate hover:underline"><%= a["full_name"] %></a>
+                    </div>
+                    <div class="entity-cell-secondary">
+                      <% if a["is_active"] == false %>
+                        <span class="entity-chip entity-chip--muted">inactive</span>
+                      <% else %>
+                        active
+                      <% end %>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-3 py-2">
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary">
+                      <% if a["agency_id"].present? && a["agency_name"].present? %>
+                        <a href="<%= agency_href(a['agency_id']) %>" class="font-medium truncate hover:underline"><%= a["agency_name"] %></a>
+                      <% elsif a["agency_name"].present? %>
+                        <span class="font-medium truncate"><%= a["agency_name"] %></span>
+                      <% else %>
+                        <span class="text-muted-foreground">—</span>
+                      <% end %>
+                    </div>
+                    <div class="entity-cell-secondary">agency_id: <%= a["agency_id"] || "—" %></div>
+                  </div>
+                </td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground"><%= a["agent_id"] %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  <% else %>
+    <% if @agencies.empty? %>
+      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No agencies found.</div>
+    <% else %>
+      <div class="overflow-x-auto rounded-lg border border-border">
+        <table class="entity-table min-w-full text-xs">
+          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+            <tr>
+              <th class="text-left px-3 py-2 font-medium">Agency</th>
+              <th class="text-right px-3 py-2 font-medium">agency_id</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <% @agencies.each do |a| %>
+              <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                <td class="px-3 py-2">
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary">
+                      <a href="<%= agency_href(a['agency_id']) %>" class="font-medium truncate hover:underline"><%= a["agency_name"] %></a>
+                    </div>
+                    <div class="entity-cell-secondary">
+                      <% if a["is_active"] == false %>
+                        <span class="entity-chip entity-chip--muted">inactive</span>
+                      <% else %>
+                        active
+                      <% end %>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground"><%= a["agency_id"] %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  <% end %>
+
+  <p class="text-xs text-muted-foreground">
+    Links prefer canonical slugs when known; otherwise they use the numeric fallback and create/promote canonical slugs on demand.
+  </p>
+</section>
