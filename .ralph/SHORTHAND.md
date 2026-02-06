@@ -202,7 +202,7 @@ Top of queue (ordered by `endnote_id desc`; each is a 1-row cluster):
 - [x] Endnote 227 (1 row) - Phoenix conveys to Charlotte: → DEN 2031 2nd (via endnote 182)
 - [x] Endnote 225 (1 row) - LAL conveys to Brooklyn: → LAL 2031 2nd
 - [x] Endnote 224 (1 row) - LAL conveys to Brooklyn: → LAL 2030 2nd
-- [ ] Endnote 223 (1 row) - LAL conveys to Brooklyn: → LAL 2027 2nd (downstream of endnote 77)
+- [x] Endnote 223 (1 row) - LAL conveys to Brooklyn: → LAL 2027 2nd (downstream of endnote 77)
 - [ ] Endnote 222 (1 row) - Golden State conveys to Brooklyn: → GSW 2029 2nd
 - [ ] Endnote 221 (1 row) - Atlanta conveys to Brooklyn (via GSW): → ATL 2028 2nd
 - [ ] Endnote 220 (1 row) - Atlanta conveys to Brooklyn (via GSW): → ATL 2026 2nd
@@ -376,3 +376,4 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 228 — PHX conveys its own 2031 2nd to CHA. Added shorthand `PHX` for both PHX TO and CHA HAS rows; verified display_text `To CHA: PHX`.
 - Endnote 225 — LAL conveys its own 2031 2nd to BKN. Added shorthand `LAL` for the LAL outgoing row; verified display_text `To BKN: LAL`.
 - Endnote 224 — LAL conveys its own 2030 2nd to BKN. Added shorthand `LAL` for LAL TO + BKN HAS rows; verified display_text `To BKN: LAL`.
+- Endnote 223 — LAL conveys its 2027 2nd to BKN unless owed to UTA (endnote 77). Added shorthand `LAL` for BKN MAY_HAVE; verified display_text `To BKN: LAL` on the outgoing row.
