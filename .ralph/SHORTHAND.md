@@ -187,38 +187,31 @@ Guideline: one checkbox = one endnote cluster.
 
 ### Work queue snapshot (refreshed 2026-02-06, supervisor review)
 
-As of this refresh: **56 rows** remain with `primary_todo_reason='missing_shorthand'` for `draft_year >= 2026`.
+As of this refresh: **49 rows** remain with `primary_todo_reason='missing_shorthand'` for `draft_year >= 2026`.
 
 Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` (deduping `effective_endnote_ids` per row).
 
 Note: `effective_endnote_ids` sometimes contains duplicates (e.g. `{5,5,5,...}`), so we always use `select distinct unnest(...)` per row in the work-queue query to avoid overstating cluster sizes.
 
-There are currently **no 2+ row clusters**; the entire queue is 1-row clusters. There are **73 distinct endnote_ids** referenced by these 56 rows.
+There are currently **no 2+ row clusters**; the entire queue is 1-row clusters. There are **65 distinct endnote_ids** referenced by these 49 rows.
 
 Top of queue (ordered by `endnote_id desc`; each is a 1-row cluster):
 
-- [x] Endnote 229 (1 row) - Phoenix conveys to Utah: → PHX 2031 1st
-- [x] Endnote 228 (1 row) - Phoenix conveys to Charlotte: → PHX 2031 2nd
-- [x] Endnote 227 (1 row) - Phoenix conveys to Charlotte: → DEN 2031 2nd (via endnote 182)
-- [x] Endnote 225 (1 row) - LAL conveys to Brooklyn: → LAL 2031 2nd
-- [x] Endnote 224 (1 row) - LAL conveys to Brooklyn: → LAL 2030 2nd
-- [x] Endnote 223 (1 row) - LAL conveys to Brooklyn: → LAL 2027 2nd (downstream of endnote 77)
-- [x] Endnote 222 (1 row) - Golden State conveys to Brooklyn: → GSW 2029 2nd
-- [ ] Endnote 221 (1 row) - Atlanta conveys to Brooklyn (via GSW): → ATL 2028 2nd
-- [ ] Endnote 220 (1 row) - Atlanta conveys to Brooklyn (via GSW): → ATL 2026 2nd
-- [ ] Endnote 218 (1 row) - Sacramento conveys to San Antonio: → SAC 2031 2nd
-- [ ] Endnote 217 (1 row) - New York conveys to Charlotte: → NYK 2031 2nd
-- [ ] Endnote 215 (1 row) - Dallas conveys to Brooklyn (via MEM/BOS): → DAL 2030 2nd
-- [ ] Endnote 211 (1 row) - Golden State conveys to Minnesota: swap-right on MIN 2031 2nd (`May have GSW(211)`)
-- [ ] Endnote 207 (1 row) - New York conveys to Brooklyn: → NYK 2031 1st
-- [ ] Endnote 206 (1 row) - details omitted (use standard workflow queries)
-- [ ] Endnote 204 (1 row) - details omitted (use standard workflow queries)
-- [ ] Endnote 193 (1 row) - ORL 2031 2nd MAY_HAVE: `May have NOP(193)` (swap right conveyed from NOP)
+- [ ] Endnote 221 (1 row) - GSW conveys to BKN: → ATL 2028 2nd (via endnote 86)
+- [ ] Endnote 220 (1 row) - GSW conveys to BKN: → ATL 2026 2nd (via endnote 85)
+- [ ] Endnote 218 (1 row) - SAC conveys to SAS: → SAC 2031 2nd
+- [ ] Endnote 217 (1 row) - NYK conveys to CHA: → NYK 2031 2nd
+- [ ] Endnote 215 (1 row) - MEM conveys to BKN: → DAL 2030 2nd (via endnotes 161, 140)
+- [ ] Endnote 211 (1 row) - GSW conveys to MIN: swap-right on MIN 2031 2nd (row has `May have GSW(211)`)
+- [ ] Endnote 207 (1 row) - NYK conveys to BKN: → NYK 2031 1st
+- [ ] Endnote 206 (1 row) - NYK conveys to BKN: → NYK 2029 1st
+- [ ] Endnote 204 (1 row) - NYK conveys to BKN: → NYK 2027 1st
+- [ ] Endnote 193 (1 row) - NOP conveys to ORL: swap-right on ORL 2031 2nd (ORL row shows `May have NOP(193)`)
 
 Remaining 1-row clusters (ordered by `endnote_id desc`; details omitted — use the queries in “Standard workflow” to pull the affected asset rows + endnote explanations):
 
 ```text
-191, 189, 186, 182, 178, 174, 172, 171, 167, 162, 161, 155, 153, 151, 150, 141, 140, 137, 136, 135, 133, 126, 122, 120, 119, 118, 111, 105, 104, 100, 98, 95, 94, 92, 91, 90, 86, 85, 81, 79, 75, 72, 69, 67, 65, 61, 58, 57, 56, 54, 43, 40, 31, 24, 13, 9
+191, 189, 186, 178, 174, 172, 171, 167, 162, 161, 155, 153, 151, 150, 141, 140, 137, 136, 135, 133, 126, 122, 120, 119, 118, 111, 105, 104, 100, 98, 95, 94, 92, 91, 90, 86, 85, 81, 79, 75, 72, 69, 67, 65, 61, 58, 57, 56, 54, 43, 40, 31, 24, 13, 9
 ```
 
 May-have / "resulting pick" patterns to keep on the radar:
