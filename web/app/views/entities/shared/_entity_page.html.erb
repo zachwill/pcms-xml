@@ -14,7 +14,7 @@
   - commandbar_locals: locals hash passed through to entities/shared/_commandbar
 
   Usage:
-    <%= render partial: "entities/shared/entity_page", locals: { commandbar_locals: {...}, workspace: true } do %>
+    <%= render layout: "entities/shared/entity_page", locals: { commandbar_locals: {...}, workspace: true } do %>
       ...page content...
     <% end %>
 %>
@@ -31,10 +31,10 @@
   commandbar_locals = {} unless commandbar_locals.is_a?(Hash)
 %>
 
-<div id="<%= root_id %>" class="<%= root_class %>" <%= root_attrs.present? ? root_attrs.html_safe : "" %>>
+<div id="<%= root_id %>" class="<%= root_class %>" <%= root_attrs.present? ? root_attrs.html_safe : "" %>
   <%= render partial: "entities/shared/commandbar", locals: commandbar_locals %>
 
-  <main class="<%= main_class %>" <%= "data-entity-workspace" if workspace %>>
+  <main class="<%= main_class %>" <%= "data-entity-workspace" if workspace %>
     <%= yield %>
   </main>
 </div>

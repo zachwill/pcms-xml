@@ -14,7 +14,7 @@
 <% room_a1 = current_year_row["room_under_apron1"].to_f %>
 <% room_a2 = current_year_row["room_under_apron2"].to_f %>
 
-<%= render partial: "entities/shared/entity_page", locals: {
+<%= render layout: "entities/shared/entity_page", locals: {
   root_id: "entity-workspace",
   workspace: true,
   main_class: "max-w-7xl mx-auto px-4 pt-3 pb-10 space-y-6",

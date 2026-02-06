@@ -7,7 +7,7 @@
 
 <% root_attrs = "data-signals=\"{ draftview: '#{@view}', draftyear: '#{@year}', draftround: '#{@round || 'all'}', draftteam: '#{@team || ''}' }\"" %>
 
-<%= render partial: "entities/shared/entity_page", locals: {
+<%= render layout: "entities/shared/entity_page", locals: {
   root_id: "entity-directory",
   root_attrs: root_attrs,
   main_class: "max-w-5xl mx-auto px-4 pt-3 pb-10 space-y-6",
