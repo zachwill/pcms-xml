@@ -197,7 +197,7 @@ There are currently **no 2+ row clusters**; the entire queue is 1-row clusters. 
 
 Top of queue (ordered by `endnote_id desc`; each is a 1-row cluster):
 
-- [ ] Endnote 229 (1 row) - Phoenix conveys to Utah: → PHX 2031 1st
+- [x] Endnote 229 (1 row) - Phoenix conveys to Utah: → PHX 2031 1st
 - [ ] Endnote 228 (1 row) - Phoenix conveys to Charlotte: → PHX 2031 2nd
 - [ ] Endnote 227 (1 row) - Phoenix conveys to Charlotte: → DEN 2031 2nd (via endnote 182)
 - [ ] Endnote 225 (1 row) - LAL conveys to Brooklyn: → LAL 2031 2nd
@@ -371,3 +371,4 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 246 — HOU conveys its own 2031 2nd to BOS if it lands in picks 56-60 (top-25 2nd-round protected); obligation extinguished otherwise. Shorthands: `HOU (p. 56-60)` for BOS MAY_HAVE and `HOU` for HOU OWN (swap-aware with endnote 304).
 - Endnote 237 — SAS→SAC conveys MIN 2031 1st (via endnote 184). Added shorthand `MIN` for the MIN outgoing row; verified display_text `To SAC: MIN`.
 - Endnote 233 — LAL conveys its own 2029 1st to DAL. Added shorthand `LAL` for the LAL outgoing row; verified display_text `To DAL: LAL`.
+- Endnote 229 — PHX conveys its own 2031 1st to UTA. Added shorthand `PHX` for both PHX TO and UTA HAS rows; verified display_text `To UTA: PHX`.
