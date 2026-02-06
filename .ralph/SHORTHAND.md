@@ -193,7 +193,7 @@ Note: there are currently **no 5-row clusters**; the largest clusters are 4 rows
 All entries below are currently tied at 4 rows; ordered by endnote_id desc.
 
 - [x] Endnote 77 (4 rows) - LAL/UTA 2027 (rounds 1+2)
-- [ ] Endnote 55 (4 rows) - MIN/SAS 2026 2nd
+- [x] Endnote 55 (4 rows) - MIN/SAS 2026 2nd
 - [ ] Endnote 51 (4 rows) - LAL/ORL/WAS 2028 2nd
 - [ ] Endnote 36 (4 rows) - MIN/SAS 2026 2nd
 - [ ] Endnote 33 (4 rows) - LAC/MEM/POR 2026 2nd
@@ -340,3 +340,4 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 112 — No remaining `missing_shorthand` rows for `draft_year >= 2026` (DET→BOS conveys MF of MF [NYK, MIN] and MF [NOP, POR] 2026 2nds). Key shorthands: `MF [MF [NYK, MIN], MF [NOP, POR]]`.
 - Endnote 157 — No remaining `missing_shorthand` rows for `draft_year >= 2026` (DET→WAS conveys LF of MF [NYK, MIN] and MF [NOP, POR] 2026 2nds). Key shorthands: `LF [MF [NYK, MIN], MF [NOP, POR]]`.
 - Endnote 77 — LAL→UTA Beasley-Russell-Vanderbilt trade (2/9/2023). LAL conveys 2027 1st to UTA, top-4 protected; if not conveyed, UTA receives LAL 2027 2nd unconditionally. Shorthands: `LAL (p. 1-4)` for 1st round rows, `LAL` for 2nd round fallback rows. Direction-aware: `To BKN: LAL` for LAL outgoing 2nd round (downstream to BKN via endnote 223).
+- Endnote 55 — IND→MIN "Result Pick" 2026 2nd (Brown trade, 6/24/2022). MIN receives either `LF [IND, MIA]` or `SAS` own 2026 2nd, depending on whether SAS exercises swap per endnote 36 (McDermott trade). Shorthands: `IND`/`MIA`/`SAS` for MIN MAY_HAVE rows, `SAS` for SAS OWN row.
