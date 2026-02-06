@@ -44,11 +44,16 @@
     end
 } %>
 
-<main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+<% conditional_assets = @assets.select { |a| a["is_conditional"] } %>
+<% swap_assets = @assets.select { |a| a["is_swap"] } %>
+<% original_owner_code = @trade_chain_rows.map { |r| r["original_team_code"] }.find(&:present?) || team_code %>
+<% original_owner_team = @teams_by_code[original_owner_code] || {} %>
+
+<main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
   <%= render partial: "entities/shared/entity_header", locals: {
     title: "#{team_code} — #{year} Round #{round}",
     subtitle: ((@team.present? && @team["team_name"].present?) ? "#{@team['team_name']} · Source: pcms.vw_draft_pick_assets" : "Source: pcms.vw_draft_pick_assets"),
-    breadcrumbs: [["Teams", "/teams"], [team_code, team_href(team_code: team_code)], ["#{year} R#{round} draft picks", nil]],
+    breadcrumbs: [["Teams", "/teams"], [team_code, team_href(team_code: team_code)], ["#{year} R#{round} draft pick", nil]],
     search_scope: "players",
     search_query: "",
     search_placeholder: "Search players/teams/agents/agencies…",
@@ -57,155 +62,204 @@
     right_links: [["Draft selections", "/draft-selections"]]
   } %>
 
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Asset rows</h2>
+  <div class="lg:flex lg:gap-8">
+    <%= render partial: "entities/shared/local_nav", locals: {
+      sections: [
+        ["vitals", "Vitals"],
+        ["protections", "Protection details"],
+        ["trade-chain", "Trade chain"],
+        ["swap-rights", "Swap rights"]
+      ]
+    } %>
 
-    <% if @assets.empty? %>
-      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No asset rows found.</div>
-    <% else %>
-      <div class="overflow-x-auto rounded-lg border border-border">
-        <table class="entity-table min-w-full text-xs">
-          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-            <tr>
-              <th class="text-left px-3 py-2 font-medium">Slot</th>
-              <th class="text-left px-3 py-2 font-medium">Type</th>
-              <th class="text-left px-3 py-2 font-medium">Related teams</th>
-              <th class="text-left px-3 py-2 font-medium">Display</th>
-              <th class="text-left px-3 py-2 font-medium">Endnotes</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border">
-            <% @assets.each do |a| %>
-              <% slot = "#{a['asset_slot']}.#{a['sub_asset_slot']}" %>
-              <% counterparty = a["counterparty_team_code"].to_s.strip.upcase.presence %>
-              <% counterparty_codes = norm_codes.call(a["counterparty_team_codes"]) %>
-              <% via_codes = norm_codes.call(a["via_team_codes"]) %>
-              <% endnote_ids = norm_ints.call(a["effective_endnote_ids"]) %>
-              <% if endnote_ids.empty? && a["primary_endnote_id"].present? %>
-                <% endnote_ids = [a["primary_endnote_id"].to_i] %>
-              <% end %>
+    <div class="min-w-0 flex-1 space-y-6">
+      <section id="vitals" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="rounded-lg border border-border bg-background p-3">
+            <div class="text-xs text-muted-foreground">Year</div>
+            <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= year %></div>
+          </div>
+          <div class="rounded-lg border border-border bg-background p-3">
+            <div class="text-xs text-muted-foreground">Round</div>
+            <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= round %></div>
+          </div>
+          <div class="rounded-lg border border-border bg-background p-3">
+            <div class="text-xs text-muted-foreground">Current owner</div>
+            <div class="mt-1 text-sm font-medium">
+              <a href="<%= team_href(team_code: team_code, team_id: @team&.dig('team_id')) %>" class="hover:underline"><%= team_code %></a>
+            </div>
+          </div>
+          <div class="rounded-lg border border-border bg-background p-3">
+            <div class="text-xs text-muted-foreground">Original owner</div>
+            <div class="mt-1 text-sm font-medium">
+              <a href="<%= team_href(team_code: original_owner_code, team_id: original_owner_team['team_id']) %>" class="hover:underline"><%= original_owner_code %></a>
+            </div>
+          </div>
+        </div>
+      </section>
 
-              <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75 align-top">
-                <td class="px-3 py-2 font-mono tabular-nums text-muted-foreground"><%= slot %></td>
+      <section id="protections" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Protection details</h2>
 
-                <td class="px-3 py-2">
-                  <div class="font-mono text-xs"><%= a["asset_type"] %></div>
-                  <div class="mt-1 flex flex-wrap gap-1">
-                    <% if a["is_forfeited"] %>
-                      <span class="entity-chip entity-chip--muted">forfeited</span>
-                    <% end %>
-                    <% if a["is_swap"] %>
-                      <span class="entity-chip entity-chip--accent">swap</span>
-                    <% end %>
-                    <% if a["is_conditional"] %>
-                      <span class="entity-chip entity-chip--warning">conditional</span>
-                    <% end %>
-                    <% if a["needs_review"] %>
-                      <span class="entity-chip entity-chip--danger">needs review</span>
-                    <% end %>
-                  </div>
-                </td>
-
-                <td class="px-3 py-2 text-sm text-muted-foreground">
-                  <% if counterparty.present? %>
-                    <div>
-                      counterparty:
-                      <a href="<%= safe_team_href(team_code: counterparty, team_id: @teams_by_code.dig(counterparty, 'team_id')) %>" class="hover:underline"><%= counterparty %></a>
-                    </div>
-                  <% end %>
-
-                  <% if counterparty_codes.any? %>
-                    <div class="mt-1">
-                      codes:
-                      <%= counterparty_codes.map { |c| "<a href=\"#{safe_team_href(team_code: c, team_id: @teams_by_code.dig(c, 'team_id'))}\" class=\"hover:underline\">#{c}</a>" }.join(", ").html_safe %>
-                    </div>
-                  <% end %>
-
-                  <% if via_codes.any? %>
-                    <div class="mt-1">
-                      via:
-                      <%= via_codes.map { |c| "<a href=\"#{safe_team_href(team_code: c, team_id: @teams_by_code.dig(c, 'team_id'))}\" class=\"hover:underline\">#{c}</a>" }.join(" → ").html_safe %>
-                    </div>
-                  <% end %>
-                </td>
-
-                <td class="px-3 py-2">
-                  <div class="text-sm"><%= a["display_text"].presence || a["raw_part"] %></div>
-                  <% if a["raw_part"].present? && a["display_text"].present? && a["raw_part"] != a["display_text"] %>
-                    <div class="mt-1 text-xs text-muted-foreground"><%= a["raw_part"] %></div>
-                  <% end %>
-                </td>
-
-                <td class="px-3 py-2 text-xs text-muted-foreground">
-                  <% if endnote_ids.any? %>
-                    <div class="flex flex-wrap gap-1">
-                      <% endnote_ids.each do |eid| %>
-                        <a href="#endnote-<%= eid %>" class="entity-chip entity-chip--muted hover:bg-muted/70">#<%= eid %></a>
+        <% if @assets.empty? %>
+          <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No asset rows found.</div>
+        <% else %>
+          <div class="overflow-x-auto rounded-lg border border-border">
+            <table class="entity-table min-w-full text-xs">
+              <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+                <tr>
+                  <th class="text-left px-3 py-2 font-medium">Slot</th>
+                  <th class="text-left px-3 py-2 font-medium">Type</th>
+                  <th class="text-left px-3 py-2 font-medium">Display</th>
+                  <th class="text-left px-3 py-2 font-medium">Counterparty</th>
+                  <th class="text-left px-3 py-2 font-medium">Flags</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border">
+                <% @assets.each do |a| %>
+                  <% slot = "#{a['asset_slot']}.#{a['sub_asset_slot']}" %>
+                  <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75 align-top">
+                    <td class="px-3 py-2 font-mono tabular-nums"><%= slot %></td>
+                    <td class="px-3 py-2 font-mono"><%= a["asset_type"] %></td>
+                    <td class="px-3 py-2"><%= a["display_text"].presence || a["raw_part"] %></td>
+                    <td class="px-3 py-2 text-muted-foreground">
+                      <% cp = a["counterparty_team_code"].to_s.strip.upcase.presence %>
+                      <% if cp.present? %>
+                        <a href="<%= team_href(team_code: cp, team_id: @teams_by_code.dig(cp, 'team_id')) %>" class="hover:underline"><%= cp %></a>
+                      <% else %>
+                        —
                       <% end %>
-                    </div>
-                  <% else %>
-                    —
+                    </td>
+                    <td class="px-3 py-2 text-muted-foreground">
+                      <% flags = [] %>
+                      <% flags << "conditional" if a["is_conditional"] %>
+                      <% flags << "swap" if a["is_swap"] %>
+                      <% flags << "forfeited" if a["is_forfeited"] %>
+                      <% flags << "needs review" if a["needs_review"] %>
+                      <%= flags.any? ? flags.join(" · ") : "—" %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+
+        <% if conditional_assets.any? %>
+          <details class="rounded-lg border border-border bg-background p-3" open>
+            <summary class="cursor-pointer text-sm font-medium">Conditional notes (<%= conditional_assets.size %>)</summary>
+            <div class="mt-3 space-y-2">
+              <% conditional_assets.each do |a| %>
+                <article class="rounded border border-border/60 p-2 text-sm">
+                  <div class="font-medium"><%= a["display_text"].presence || a["raw_part"] %></div>
+                  <% if a["endnote_explanation"].present? %>
+                    <div class="text-xs text-muted-foreground mt-1"><%= a["endnote_explanation"] %></div>
                   <% end %>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="text-xs text-muted-foreground">
-        This page is intentionally link-rich and low-polish — it scaffolds pivots team ↔ pick ↔ counterparty ↔ endnote ↔ trade.
-      </div>
-    <% end %>
-  </section>
-
-  <section class="space-y-3" id="endnotes">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Referenced endnotes</h2>
-
-    <% if @endnotes.empty? %>
-      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No endnotes referenced by this group.</div>
-    <% else %>
-      <div class="space-y-2">
-        <% @endnotes.each do |n| %>
-          <article id="endnote-<%= n['endnote_id'] %>" class="rounded-lg border border-border bg-background p-3">
-            <div class="flex flex-wrap items-center gap-2 text-sm">
-              <span class="font-mono">#<%= n["endnote_id"] %></span>
-              <% if n["trade_id"].present? %>
-                <span class="text-muted-foreground">·</span>
-                <a href="<%= trade_href(n['trade_id']) %>" class="hover:underline">Trade #<%= n["trade_id"] %></a>
-              <% end %>
-              <% if n["trade_date"].present? %>
-                <span class="text-muted-foreground">· <%= n["trade_date"] %></span>
-              <% end %>
-              <% if n["status_lk"].present? %>
-                <span class="entity-chip entity-chip--muted"><%= n["status_lk"] %></span>
-              <% end %>
-              <% if n["is_swap"] %>
-                <span class="entity-chip entity-chip--accent">swap</span>
-              <% end %>
-              <% if n["is_conditional"] %>
-                <span class="entity-chip entity-chip--warning">conditional</span>
+                </article>
               <% end %>
             </div>
-
-            <div class="mt-2 text-sm whitespace-pre-line"><%= n["explanation"].presence || n["conveyance_text"].presence || "—" %></div>
-
-            <% if n["protections_text"].present? || n["contingency_text"].present? || n["exercise_text"].present? %>
-              <div class="mt-2 text-xs text-muted-foreground space-y-1">
-                <% if n["protections_text"].present? %>
-                  <div><span class="font-medium">Protections:</span> <%= n["protections_text"] %></div>
-                <% end %>
-                <% if n["contingency_text"].present? %>
-                  <div><span class="font-medium">Contingency:</span> <%= n["contingency_text"] %></div>
-                <% end %>
-                <% if n["exercise_text"].present? %>
-                  <div><span class="font-medium">Exercise:</span> <%= n["exercise_text"] %></div>
-                <% end %>
-              </div>
-            <% end %>
-          </article>
+          </details>
         <% end %>
-      </div>
-    <% end %>
-  </section>
+      </section>
+
+      <section id="trade-chain" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Trade chain</h2>
+        <% if @trade_chain_rows.empty? %>
+          <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No draft_pick_trades rows found for this team/year/round.</div>
+        <% else %>
+          <div class="overflow-x-auto rounded-lg border border-border">
+            <table class="entity-table min-w-full text-xs">
+              <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+                <tr>
+                  <th class="text-left px-3 py-2 font-medium">Trade</th>
+                  <th class="text-left px-3 py-2 font-medium">Date</th>
+                  <th class="text-left px-3 py-2 font-medium">From</th>
+                  <th class="text-left px-3 py-2 font-medium">To</th>
+                  <th class="text-left px-3 py-2 font-medium">Original</th>
+                  <th class="text-left px-3 py-2 font-medium">Flags</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border">
+                <% @trade_chain_rows.each do |row| %>
+                  <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                    <td class="px-3 py-2 font-mono tabular-nums">
+                      <% if row["trade_id"].present? %>
+                        <a href="<%= trade_href(row['trade_id']) %>" class="hover:underline">#<%= row["trade_id"] %></a>
+                      <% else %>
+                        —
+                      <% end %>
+                    </td>
+                    <td class="px-3 py-2 text-muted-foreground"><%= row["trade_date"] || "—" %></td>
+                    <td class="px-3 py-2 text-muted-foreground"><%= row["from_team_code"] || "—" %></td>
+                    <td class="px-3 py-2 text-muted-foreground"><%= row["to_team_code"] || "—" %></td>
+                    <td class="px-3 py-2 text-muted-foreground"><%= row["original_team_code"] || "—" %></td>
+                    <td class="px-3 py-2 text-muted-foreground">
+                      <% flags = [] %>
+                      <% flags << "swap" if row["is_swap"] %>
+                      <% flags << "future" if row["is_future"] %>
+                      <% flags << "conditional" if row["is_conditional"] %>
+                      <% flags << row["conditional_type_lk"] if row["conditional_type_lk"].present? %>
+                      <%= flags.any? ? flags.join(" · ") : "—" %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+      </section>
+
+      <section id="swap-rights" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Swap rights</h2>
+        <% if swap_assets.empty? %>
+          <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No swap rights rows for this pick context.</div>
+        <% else %>
+          <div class="space-y-2">
+            <% swap_assets.each do |a| %>
+              <% counterparty = a["counterparty_team_code"].to_s.strip.upcase.presence %>
+              <article class="rounded-lg border border-border bg-background p-3">
+                <div class="text-sm font-medium">
+                  <%= a["display_text"].presence || a["raw_part"] %>
+                </div>
+                <div class="mt-1 text-xs text-muted-foreground">
+                  <% if counterparty.present? %>
+                    Counterparty: <a href="<%= team_href(team_code: counterparty, team_id: @teams_by_code.dig(counterparty, 'team_id')) %>" class="hover:underline"><%= counterparty %></a>
+                  <% else %>
+                    Counterparty: —
+                  <% end %>
+                  <% via = norm_codes.call(a["via_team_codes"]) %>
+                  <% if via.any? %>
+                    · via <%= via.join(" → ") %>
+                  <% end %>
+                </div>
+              </article>
+            <% end %>
+          </div>
+        <% end %>
+
+        <% if @endnotes.any? %>
+          <details class="rounded-lg border border-border bg-background p-3" open>
+            <summary class="cursor-pointer text-sm font-medium">Referenced endnotes (<%= @endnotes.size %>)</summary>
+            <div class="mt-3 space-y-2">
+              <% @endnotes.each do |n| %>
+                <article id="endnote-<%= n['endnote_id'] %>" class="rounded border border-border/60 p-2">
+                  <div class="text-sm font-mono">#<%= n["endnote_id"] %></div>
+                  <div class="text-xs text-muted-foreground mt-1">
+                    <% if n["trade_id"].present? %>
+                      Trade <a href="<%= trade_href(n['trade_id']) %>" class="hover:underline">#<%= n["trade_id"] %></a>
+                    <% end %>
+                    <% if n["trade_date"].present? %>
+                      · <%= n["trade_date"] %>
+                    <% end %>
+                  </div>
+                  <div class="mt-2 text-sm whitespace-pre-line"><%= n["explanation"].presence || n["conveyance_text"].presence || "—" %></div>
+                </article>
+              <% end %>
+            </div>
+          </details>
+        <% end %>
+      </section>
+    </div>
+  </div>
 </main>

@@ -93,6 +93,56 @@ module Entities
       SQL
       raise ActiveRecord::RecordNotFound unless @draft_selection
 
+      player_sql = conn.quote(@draft_selection["player_id"])
+      @current_team = conn.exec_query(<<~SQL).first
+        SELECT
+          sbw.team_code,
+          t.team_id,
+          t.team_name
+        FROM pcms.salary_book_warehouse sbw
+        LEFT JOIN pcms.teams t
+          ON t.team_code = sbw.team_code
+         AND t.league_lk = 'NBA'
+        WHERE sbw.player_id = #{player_sql}
+        LIMIT 1
+      SQL
+
+      year_sql = conn.quote(@draft_selection["draft_year"])
+      round_sql = conn.quote(@draft_selection["draft_round"])
+      drafting_code_sql = conn.quote(@draft_selection["drafting_team_code"])
+
+      @pick_provenance_rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          dpt.id,
+          dpt.trade_id,
+          tr.trade_date,
+          dpt.draft_year,
+          dpt.draft_round,
+          dpt.from_team_id,
+          dpt.from_team_code,
+          dpt.to_team_id,
+          dpt.to_team_code,
+          dpt.original_team_id,
+          dpt.original_team_code,
+          dpt.is_swap,
+          dpt.is_future,
+          dpt.is_conditional,
+          dpt.conditional_type_lk,
+          dpt.is_draft_year_plus_two
+        FROM pcms.draft_pick_trades dpt
+        LEFT JOIN pcms.trades tr
+          ON tr.trade_id = dpt.trade_id
+        WHERE dpt.draft_year = #{year_sql}
+          AND dpt.draft_round = #{round_sql}
+          AND (
+            dpt.original_team_code = #{drafting_code_sql}
+            OR dpt.from_team_code = #{drafting_code_sql}
+            OR dpt.to_team_code = #{drafting_code_sql}
+          )
+        ORDER BY tr.trade_date NULLS LAST, dpt.id
+        LIMIT 120
+      SQL
+
       render :show
     end
 

@@ -5,10 +5,10 @@
 <% player_name = ds["player_name"].to_s %>
 <% drafting_team_code = ds["drafting_team_code"].to_s %>
 
-<main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+<main class="max-w-6xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
   <%= render partial: "entities/shared/entity_header", locals: {
     title: pick_label,
-    subtitle: ((player_name.present? ? "#{player_name} · " : "") + "transaction_id: #{@draft_selection_id} · slug: #{@draft_selection_slug}" + (ds["transaction_date"].present? ? " · date: #{ds['transaction_date']}" : "") + (ds["trade_id"].present? ? " · trade: ##{ds['trade_id']}" : "")),
+    subtitle: ((player_name.present? ? "#{player_name} · " : "") + "transaction_id: #{@draft_selection_id} · slug: #{@draft_selection_slug}" + (ds["transaction_date"].present? ? " · date: #{ds['transaction_date']}" : "")),
     breadcrumbs: [["Draft selections", "/draft-selections"], [pick_label, nil]],
     search_scope: "players",
     search_query: "",
@@ -17,56 +17,125 @@
     right_links: [["Find player", "/players"]]
   } %>
 
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connections</h2>
+  <div class="lg:flex lg:gap-8">
+    <%= render partial: "entities/shared/local_nav", locals: {
+      sections: [
+        ["vitals", "Vitals"],
+        ["connections", "Connections"],
+        ["provenance", "Pick provenance"]
+      ]
+    } %>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-      <div class="p-4 rounded-lg border border-border bg-background">
-        <div class="text-xs text-muted-foreground">Player</div>
-        <div class="mt-1">
-          <a href="<%= player_href(ds['player_id']) %>" class="font-medium hover:underline"><%= player_name.presence || ds['player_id'] %></a>
+    <div class="min-w-0 flex-1 space-y-6">
+      <section id="vitals" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="rounded-lg border border-border bg-background p-3">
+            <div class="text-xs text-muted-foreground">Draft year</div>
+            <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= ds["draft_year"] %></div>
+          </div>
+          <div class="rounded-lg border border-border bg-background p-3">
+            <div class="text-xs text-muted-foreground">Round</div>
+            <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= ds["draft_round"] %></div>
+          </div>
+          <div class="rounded-lg border border-border bg-background p-3">
+            <div class="text-xs text-muted-foreground">Pick number</div>
+            <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= ds["pick_number"] %></div>
+          </div>
+          <div class="rounded-lg border border-border bg-background p-3">
+            <div class="text-xs text-muted-foreground">Drafting team</div>
+            <div class="mt-1 text-sm font-medium"><%= drafting_team_code.presence || "—" %></div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div class="p-4 rounded-lg border border-border bg-background">
-        <div class="text-xs text-muted-foreground">Drafting team</div>
-        <% if ds["drafting_team_id"].present? %>
-          <div class="mt-1">
-            <a href="<%= team_href(team_code: drafting_team_code, team_id: ds['drafting_team_id']) %>" class="font-medium hover:underline"><%= drafting_team_code.presence || "—" %></a>
-            <% if ds["team_name"].present? %>
-              <div class="text-sm text-muted-foreground"><%= ds["team_name"] %></div>
+      <section id="connections" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connections</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="p-4 rounded-lg border border-border bg-background">
+            <div class="text-[10px] uppercase tracking-wide text-muted-foreground">Player</div>
+            <% if ds["player_id"].present? %>
+              <a href="<%= player_href(ds['player_id']) %>" class="mt-1 block font-medium hover:underline"><%= player_name.presence || ds['player_id'] %></a>
+            <% else %>
+              <div class="mt-1 text-sm text-muted-foreground italic">Unknown</div>
             <% end %>
           </div>
-        <% else %>
-          <div class="mt-1 text-sm text-muted-foreground italic">Unknown</div>
-        <% end %>
-      </div>
 
-      <div class="p-4 rounded-lg border border-border bg-background">
-        <div class="text-xs text-muted-foreground">Transaction</div>
-        <div class="mt-1">
-          <a href="<%= transaction_href(ds['transaction_id']) %>" class="font-medium hover:underline">TX #<%= ds["transaction_id"] %></a>
+          <div class="p-4 rounded-lg border border-border bg-background">
+            <div class="text-[10px] uppercase tracking-wide text-muted-foreground">Drafting team</div>
+            <% if ds["drafting_team_id"].present? %>
+              <a href="<%= team_href(team_code: drafting_team_code, team_id: ds['drafting_team_id']) %>" class="mt-1 block font-medium hover:underline"><%= drafting_team_code.presence || "—" %></a>
+              <div class="text-sm text-muted-foreground"><%= ds["team_name"].presence || "—" %></div>
+            <% else %>
+              <div class="mt-1 text-sm text-muted-foreground italic">Unknown</div>
+            <% end %>
+          </div>
+
+          <div class="p-4 rounded-lg border border-border bg-background">
+            <div class="text-[10px] uppercase tracking-wide text-muted-foreground">Current team</div>
+            <% if @current_team.present? && @current_team["team_code"].present? %>
+              <a href="<%= team_href(team_code: @current_team['team_code'], team_id: @current_team['team_id']) %>" class="mt-1 block font-medium hover:underline"><%= @current_team["team_code"] %></a>
+              <div class="text-sm text-muted-foreground"><%= @current_team["team_name"].presence || "—" %></div>
+            <% else %>
+              <div class="mt-1 text-sm text-muted-foreground italic">Unknown</div>
+            <% end %>
+          </div>
+        </div>
+      </section>
+
+      <section id="provenance" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pick provenance</h2>
+        <% if @pick_provenance_rows.empty? %>
+          <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No pre-draft trade chain rows found for this pick context.</div>
+        <% else %>
+          <div class="overflow-x-auto rounded-lg border border-border">
+            <table class="entity-table min-w-full text-xs">
+              <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+                <tr>
+                  <th class="text-left px-3 py-2 font-medium">Trade</th>
+                  <th class="text-left px-3 py-2 font-medium">Date</th>
+                  <th class="text-left px-3 py-2 font-medium">From</th>
+                  <th class="text-left px-3 py-2 font-medium">To</th>
+                  <th class="text-left px-3 py-2 font-medium">Flags</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border">
+                <% @pick_provenance_rows.each do |row| %>
+                  <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                    <td class="px-3 py-2 font-mono tabular-nums">
+                      <% if row["trade_id"].present? %>
+                        <a href="<%= trade_href(row['trade_id']) %>" class="hover:underline">#<%= row["trade_id"] %></a>
+                      <% else %>
+                        —
+                      <% end %>
+                    </td>
+                    <td class="px-3 py-2 text-muted-foreground"><%= row["trade_date"] || "—" %></td>
+                    <td class="px-3 py-2 text-muted-foreground"><%= row["from_team_code"] || "—" %></td>
+                    <td class="px-3 py-2 text-muted-foreground"><%= row["to_team_code"] || "—" %></td>
+                    <td class="px-3 py-2 text-muted-foreground">
+                      <% flags = [] %>
+                      <% flags << "swap" if row["is_swap"] %>
+                      <% flags << "future" if row["is_future"] %>
+                      <% flags << "conditional" if row["is_conditional"] %>
+                      <% flags << row["conditional_type_lk"] if row["conditional_type_lk"].present? %>
+                      <%= flags.any? ? flags.join(" · ") : "—" %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+
+        <div class="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+          Transaction: <a href="<%= transaction_href(ds['transaction_id']) %>" class="hover:underline">#<%= ds["transaction_id"] %></a>
           <% if ds["trade_id"].present? %>
-            <div class="mt-1 text-sm text-muted-foreground">
-              trade: <a href="<%= trade_href(ds['trade_id']) %>" class="hover:underline">#<%= ds["trade_id"] %></a>
-            </div>
+            · linked trade: <a href="<%= trade_href(ds['trade_id']) %>" class="hover:underline">#<%= ds["trade_id"] %></a>
           <% end %>
         </div>
-      </div>
+      </section>
     </div>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Raw fields</h2>
-
-    <div class="p-4 rounded-lg border border-border bg-background text-sm text-muted-foreground space-y-1">
-      <div>transaction_type: <code><%= ds["transaction_type_lk"] || "—" %></code></div>
-      <div>transaction_description: <code><%= ds["transaction_description_lk"] || "—" %></code></div>
-      <div>draft_amount: <code><%= ds["draft_amount"] || "—" %></code></div>
-      <div>drafting_team_id: <code><%= ds["drafting_team_id"] || "—" %></code></div>
-      <div>drafting_team_code: <code><%= drafting_team_code.presence || "—" %></code></div>
-    </div>
-  </section>
+  </div>
 
   <%= render partial: "entities/shared/known_slugs", locals: { entity_type: "draft_selection", entity_id: @draft_selection_id, path_prefix: "draft-selections" } %>
 </main>

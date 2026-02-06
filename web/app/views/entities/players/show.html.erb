@@ -1,741 +1,565 @@
 <% full_name = [@player&.fetch("first_name", nil), @player&.fetch("last_name", nil)].compact.join(" ") %>
-
 <% content_for :title, full_name.presence || "Player" %>
 
-<% yearly_book = (@salary_book_yearly_rows || []).index_by { |r| r["salary_year"].to_i } %>
-<% prefetch_canonical_slugs(entity_type: "team", entity_ids: [@salary_book_row&.fetch("team_id", nil)] + @contract_chronology_rows.map { |r| r["signing_team_id"] } + @contract_chronology_rows.map { |r| r["sign_and_trade_to_team_id"] } + @ledger_entries.map { |r| r["team_id"] } + (@team_history_rows || []).map { |r| r["team_id"] }) %>
+<% team_history_rows = Array(@team_history_rows) %>
+<% contract_chronology_rows = Array(@contract_chronology_rows) %>
+<% contract_version_rows = Array(@contract_version_rows) %>
+<% protection_rows = Array(@protection_rows) %>
+<% protection_condition_rows = Array(@protection_condition_rows) %>
+<% bonus_rows = Array(@bonus_rows) %>
+<% bonus_max_rows = Array(@bonus_max_rows) %>
+<% payment_schedule_rows = Array(@payment_schedule_rows) %>
+<% ledger_entries = Array(@ledger_entries) %>
 
-<main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+<% prefetch_canonical_slugs(entity_type: "team", entity_ids: [@salary_book_row&.fetch("team_id", nil)] + contract_chronology_rows.map { |r| r["signing_team_id"] } + contract_chronology_rows.map { |r| r["sign_and_trade_to_team_id"] } + ledger_entries.map { |r| r["team_id"] } + team_history_rows.map { |r| r["team_id"] }) %>
+
+<% horizon_years = (2025..2030).to_a %>
+<% cap_2025 = @salary_book_row&.fetch("cap_2025", nil) %>
+<% total_from_2025 = @salary_book_row&.fetch("total_salary_from_2025", nil) %>
+<% years_remaining = horizon_years.count { |y| (@salary_book_row&.fetch("cap_#{y}", nil).to_f > 0) } %>
+<% trade_status = @salary_book_row&.fetch("is_trade_restricted_now", nil) ? "Restricted" : "Available" %>
+
+<% option_chips = horizon_years.filter_map do |year|
+  option = normalize_contract_option(@salary_book_row&.fetch("option_#{year}", nil))
+  next if option.blank?
+  "#{option} #{year}"
+end %>
+
+<main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
   <%= render partial: "entities/shared/entity_header", locals: {
     title: (full_name.presence || "Player"),
     subtitle: "player_id: #{@player_id} · slug: #{@player_slug}",
     breadcrumbs: [["Players", "/players"], [full_name.presence || "Player", nil]],
     search_scope: "players",
-    salary_book_label: "Open Salary Book",
+    salary_book_href: (@salary_book_row&.fetch("team_code", nil).present? ? "/tools/salary-book?team=#{@salary_book_row['team_code']}##{@salary_book_row['team_code']}" : "/tools/salary-book"),
+    salary_book_label: "Open in Salary Book",
     right_links: [["Browse Teams", "/teams"]]
   } %>
 
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Identity + status</h2>
+  <div class="lg:flex lg:gap-8">
+    <%= render partial: "entities/shared/local_nav", locals: {
+      sections: [
+        ["vitals", "Vitals"],
+        ["constraints", "Constraint posture"],
+        ["connections", "Connections"],
+        ["contract", "Contract horizon"],
+        ["contract-history", "Contract history"],
+        ["guarantees", "Guarantees + protections"],
+        ["incentives", "Incentives"],
+        ["ledger", "Ledger timeline"],
+        ["team-history", "Team history"]
+      ]
+    } %>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-      <div class="p-4 rounded-lg border border-border bg-background">
-        <div class="text-xs text-muted-foreground">Bio</div>
-        <div class="mt-2 space-y-1 text-sm">
-          <div>Birth date: <span class="font-medium"><%= format_plain_date(@player["birth_date"]) %></span></div>
-          <div>Height / Weight: <span class="font-medium"><%= format_height_inches(@player["height"]) %></span> · <span class="font-medium"><%= format_weight_lbs(@player["weight"]) %></span></div>
-          <div>Years of service: <span class="font-medium"><%= @player["years_of_service"] || "—" %></span></div>
-          <div>Birth country: <span class="font-medium"><%= @player["birth_country_lk"] || "—" %></span></div>
+    <div class="min-w-0 flex-1 space-y-6">
+      <section id="vitals" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="rounded-lg border border-border bg-background p-3">
+            <div class="text-xs text-muted-foreground">Cap 2025</div>
+            <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= format_salary(cap_2025) %></div>
+          </div>
+          <div class="rounded-lg border border-border bg-background p-3">
+            <div class="text-xs text-muted-foreground">Total from 2025</div>
+            <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= format_salary(total_from_2025) %></div>
+          </div>
+          <div class="rounded-lg border border-border bg-background p-3">
+            <div class="text-xs text-muted-foreground">Years remaining</div>
+            <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= years_remaining %></div>
+          </div>
+          <div class="rounded-lg border border-border bg-background p-3">
+            <div class="text-xs text-muted-foreground">Trade status</div>
+            <div class="mt-1 text-lg font-semibold <%= @salary_book_row&.fetch('is_trade_restricted_now', nil) ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400' %>"><%= trade_status %></div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div class="p-4 rounded-lg border border-border bg-background">
-        <div class="text-xs text-muted-foreground">Roster + trade status</div>
-        <div class="mt-2 space-y-1 text-sm">
-          <div>Player status: <span class="font-medium"><%= @player["player_status_name"].presence || @player["player_status_lk"] || "—" %></span></div>
-          <div>Two-way: <span class="font-medium"><%= yes_no(@salary_book_row&.fetch("is_two_way", nil)) %></span></div>
-          <div>Trade restricted now: <span class="font-medium"><%= yes_no(@salary_book_row&.fetch("is_trade_restricted_now", nil)) %></span></div>
-          <div>Player consent required now: <span class="font-medium"><%= yes_no(@salary_book_row&.fetch("is_trade_consent_required_now", nil)) %></span></div>
-          <div>No-trade clause: <span class="font-medium"><%= yes_no(@salary_book_row&.fetch("is_no_trade", nil)) %></span></div>
-        </div>
-      </div>
-
-      <div class="p-4 rounded-lg border border-border bg-background">
-        <div class="text-xs text-muted-foreground">Contract context</div>
-        <div class="mt-2 space-y-1 text-sm">
-          <div>Type: <span class="font-medium"><%= @salary_book_row&.fetch("contract_type_lookup_value", nil) || "—" %></span></div>
-          <div>Signed via: <span class="font-medium"><%= @salary_book_row&.fetch("signed_method_lookup_value", nil) || "—" %></span></div>
-          <div>Exception: <span class="font-medium"><%= @salary_book_row&.fetch("exception_type_lookup_value", nil) || "—" %></span></div>
-          <div>Min-contract bucket: <span class="font-medium"><%= @salary_book_row&.fetch("min_contract_lookup_value", nil) || "—" %></span></div>
-          <div>Trade restriction: <span class="font-medium"><%= @salary_book_row&.fetch("trade_restriction_lookup_value", nil) || "—" %></span></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connections</h2>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-      <% team_code = @salary_book_row&.fetch("team_code", nil) %>
-      <% team_id = @salary_book_row&.fetch("team_id", nil) %>
-      <% team_name = @salary_book_row&.fetch("team_name", nil) %>
-
-      <div class="p-4 rounded-lg border border-border bg-background">
-        <div class="text-xs text-muted-foreground">Team (current)</div>
-        <% if team_code.present? %>
-          <div class="mt-1">
-            <a href="<%= team_href(team_code: team_code, team_id: team_id) %>" class="font-medium hover:underline"><%= team_code %></a>
-            <% if team_name.present? %>
-              <div class="text-sm text-muted-foreground truncate"><%= team_name %></div>
+      <section id="constraints" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Constraint posture</h2>
+        <div class="flex flex-wrap gap-2">
+          <% chips = [] %>
+          <% if @salary_book_row&.fetch("is_trade_restricted_now", nil) %>
+            <% label = "Trade restricted now" %>
+            <% if @salary_book_row["trade_restriction_end_date"].present? %>
+              <% label = "Trade restricted until #{format_plain_date(@salary_book_row['trade_restriction_end_date'])}" %>
             <% end %>
-          </div>
-          <div class="mt-2 text-xs text-muted-foreground">
-            <a href="/tools/salary-book?team=<%= team_code %>#<%= team_code %>" class="hover:underline">Open in Salary Book</a>
-          </div>
-        <% else %>
-          <div class="mt-1 text-sm text-muted-foreground italic">Unknown</div>
-        <% end %>
-      </div>
+            <% chips << [label, "entity-chip--danger"] %>
+          <% end %>
+          <% if @salary_book_row&.fetch("is_trade_consent_required_now", nil) %>
+            <% label = "Player consent required" %>
+            <% if @salary_book_row["player_consent_end_date"].present? %>
+              <% label = "Consent required until #{format_plain_date(@salary_book_row['player_consent_end_date'])}" %>
+            <% end %>
+            <% chips << [label, "entity-chip--warning"] %>
+          <% end %>
+          <% if @salary_book_row&.fetch("is_no_trade", nil) %>
+            <% chips << ["No-trade clause", "entity-chip--danger"] %>
+          <% end %>
+          <% if @salary_book_row&.fetch("is_trade_bonus", nil) %>
+            <% pct = @salary_book_row["trade_bonus_percent"].presence %>
+            <% chips << ["Trade kicker#{pct ? " #{pct.to_f.round}%" : ""}", "entity-chip--warning"] %>
+          <% end %>
+          <% if @salary_book_row&.fetch("is_poison_pill", nil) %>
+            <% chips << ["Poison pill", "entity-chip--warning"] %>
+          <% end %>
+          <% option_chips.each { |option_label| chips << [option_label, "entity-chip--accent"] } %>
 
-      <% agent_id = @salary_book_row&.fetch("agent_id", nil) %>
-      <% agent_name = @salary_book_row&.fetch("agent_name", nil) %>
-      <% agency_id = @salary_book_row&.fetch("agency_id", nil) %>
-      <% agency_name = @salary_book_row&.fetch("agency_name", nil) %>
-
-      <div class="p-4 rounded-lg border border-border bg-background">
-        <div class="text-xs text-muted-foreground">Agent</div>
-        <% if agent_id.present? && agent_name.present? %>
-          <div class="mt-1">
-            <a href="<%= agent_href(agent_id) %>" class="font-medium hover:underline"><%= agent_name %></a>
-          </div>
-        <% elsif agent_name.present? %>
-          <div class="mt-1 font-medium"><%= agent_name %></div>
-        <% else %>
-          <div class="mt-1 text-sm text-muted-foreground italic">Unknown</div>
-        <% end %>
-
-        <div class="mt-2 text-xs text-muted-foreground">Agency</div>
-        <% if agency_id.present? && agency_name.present? %>
-          <a href="<%= agency_href(agency_id) %>" class="text-sm hover:underline"><%= agency_name %></a>
-        <% elsif agency_name.present? %>
-          <div class="text-sm"><%= agency_name %></div>
-        <% else %>
-          <div class="text-sm text-muted-foreground italic">—</div>
-        <% end %>
-      </div>
-
-      <div class="p-4 rounded-lg border border-border bg-background">
-        <div class="text-xs text-muted-foreground">Draft selection</div>
-        <% if @draft_selection.present? %>
-          <% ds = @draft_selection %>
-          <div class="mt-1 font-medium">
-            <%= ds["draft_year"] %> — R<%= ds["draft_round"] %> P<%= ds["pick_number"] %>
-          </div>
-          <div class="mt-1 text-sm text-muted-foreground">
-            drafting_team: <%= ds["drafting_team_code"] || "—" %>
-          </div>
-          <div class="mt-2 text-xs text-muted-foreground">
-            <a href="<%= draft_selection_href(ds['transaction_id']) %>" class="hover:underline">Open draft page</a>
-          </div>
-        <% else %>
-          <div class="mt-1 text-sm text-muted-foreground italic">Unknown</div>
-        <% end %>
-      </div>
-    </div>
-
-    <div class="text-xs text-muted-foreground">
-      Cap 2025: <span class="font-mono tabular-nums"><%= format_salary(@salary_book_row&.fetch("cap_2025", nil)) %></span>
-      <% if @salary_book_row&.fetch("total_salary_from_2025", nil).present? %>
-        · Total from 2025: <span class="font-mono tabular-nums"><%= format_salary(@salary_book_row["total_salary_from_2025"]) %></span>
-      <% end %>
-    </div>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract snapshot (salary book horizon)</h2>
-
-    <% if @salary_book_row.present? %>
-      <% horizon_years = (2025..2030).to_a %>
-      <div class="overflow-x-auto rounded-lg border border-border">
-        <div class="flex min-w-max">
-          <% horizon_years.each do |year| %>
-            <% cap_amt = @salary_book_row["cap_#{year}"]&.to_f %>
-            <% option = normalize_contract_option(@salary_book_row["option_#{year}"]) %>
-            <% is_guaranteed = @salary_book_row["is_fully_guaranteed_#{year}"] %>
-            <% is_partial = @salary_book_row["is_partially_guaranteed_#{year}"] %>
-            <% is_non_gtd = @salary_book_row["is_non_guaranteed_#{year}"] %>
-            <% gtd_amount = @salary_book_row["guaranteed_amount_#{year}"]&.to_f %>
-            <%
-              bg_class = ""
-              if option.present? && year > 2025
-                case option
-                when "PO"
-                  bg_class = "bg-blue-50/80 dark:bg-blue-900/20"
-                when "TO"
-                  bg_class = "bg-purple-50/80 dark:bg-purple-900/20"
-                when "ETO"
-                  bg_class = "bg-orange-50/80 dark:bg-orange-900/20"
-                end
-              elsif is_non_gtd
-                bg_class = "bg-yellow-50/80 dark:bg-yellow-900/20"
-              elsif is_partial
-                bg_class = "bg-amber-50/60 dark:bg-amber-900/15"
-              end
-            %>
-            <div class="flex-1 min-w-24 p-3 text-center border-r border-border last:border-r-0 <%= bg_class %>">
-              <div class="text-[10px] text-muted-foreground uppercase tracking-wide font-medium"><%= format_year_label(year) %></div>
-              <% if cap_amt.present? && cap_amt > 0 %>
-                <div class="mt-1 text-base font-semibold font-mono tabular-nums"><%= format_salary(cap_amt) %></div>
-                <% if option.present? %>
-                  <div class="mt-1 inline-block px-1.5 py-0.5 rounded text-[10px] font-medium
-                    <%= case option
-                        when 'PO' then 'bg-blue-100 text-blue-700 dark:bg-blue-800/40 dark:text-blue-300'
-                        when 'TO' then 'bg-purple-100 text-purple-700 dark:bg-purple-800/40 dark:text-purple-300'
-                        when 'ETO' then 'bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300'
-                        else ''
-                        end %>
-                  "><%= option %></div>
-                <% elsif is_non_gtd %>
-                  <div class="mt-1 text-[10px] text-yellow-700 dark:text-yellow-400">Non-GTD</div>
-                <% elsif is_partial && gtd_amount.present? && gtd_amount > 0 %>
-                  <div class="mt-1 text-[10px] text-muted-foreground">GTD <%= format_salary(gtd_amount) %></div>
-                <% end %>
-              <% else %>
-                <div class="mt-1 text-sm text-muted-foreground/50">—</div>
-              <% end %>
-            </div>
+          <% if chips.empty? %>
+            <span class="entity-chip entity-chip--muted">No active restrictions</span>
+          <% else %>
+            <% chips.each do |label, klass| %>
+              <span class="entity-chip <%= klass %>"><%= label %></span>
+            <% end %>
           <% end %>
         </div>
-      </div>
+      </section>
 
-      <% total_salary = horizon_years.sum { |y| @salary_book_row["cap_#{y}"]&.to_f || 0 } %>
-      <div class="flex items-center gap-4 text-sm">
-        <div>
-          <span class="text-muted-foreground">Total:</span>
-          <span class="font-semibold font-mono tabular-nums"><%= format_salary(total_salary) %></span>
-        </div>
-        <% if @salary_book_row["is_two_way"] %>
-          <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-800/40 dark:text-emerald-300">Two-Way</span>
-        <% end %>
-        <% if @salary_book_row["is_min_contract"] %>
-          <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-300">Vet Min</span>
-        <% end %>
-        <% if @salary_book_row["is_trade_bonus"] %>
-          <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300">
-            Trade Kicker<%= @salary_book_row["trade_bonus_percent"].present? ? " #{@salary_book_row['trade_bonus_percent'].to_f.round}%" : "" %>
-          </span>
-        <% end %>
-        <% if @salary_book_row["is_no_trade"] %>
-          <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-800/40 dark:text-red-300">No-Trade</span>
-        <% end %>
-      </div>
-    <% else %>
-      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No contract data found.</div>
-    <% end %>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Team history</h2>
-
-    <% if (@team_history_rows || []).empty? %>
-      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No team history found.</div>
-    <% else %>
-      <div class="flex flex-wrap gap-2">
-        <% @team_history_rows.each_with_index do |row, idx| %>
-          <% is_current = (row["team_code"] == @salary_book_row&.fetch("team_code", nil)) %>
-          <div class="flex items-center gap-2 px-3 py-2 rounded-lg border <%= is_current ? 'border-primary/50 bg-primary/5' : 'border-border bg-background' %>">
-            <% if row["team_id"].present? %>
-              <img
-                src="<%= team_logo_url(row['team_id']) %>"
-                alt="<%= row['team_code'] %>"
-                class="w-6 h-6 object-contain"
-                onerror="this.style.display='none'"
-              />
+      <section id="connections" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connections</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <% team_code = @salary_book_row&.fetch("team_code", nil) %>
+          <% team_id = @salary_book_row&.fetch("team_id", nil) %>
+          <% team_name = @salary_book_row&.fetch("team_name", nil) %>
+          <div class="p-4 rounded-lg border border-border bg-background">
+            <div class="text-[10px] uppercase tracking-wide text-muted-foreground">Team</div>
+            <% if team_code.present? %>
+              <a href="<%= team_href(team_code: team_code, team_id: team_id) %>" class="mt-1 block font-medium hover:underline"><%= team_code %></a>
+              <div class="text-sm text-muted-foreground truncate"><%= team_name.presence || "—" %></div>
+            <% else %>
+              <div class="mt-1 text-sm text-muted-foreground italic">Unknown</div>
             <% end %>
-            <div>
-              <a href="<%= team_href(team_code: row['team_code'], team_id: row['team_id']) %>" class="font-medium hover:underline"><%= row["team_code"] %></a>
-              <% if is_current %>
-                <span class="ml-1 text-[10px] text-primary font-medium">(current)</span>
+          </div>
+
+          <% agent_id = @salary_book_row&.fetch("agent_id", nil) %>
+          <% agent_name = @salary_book_row&.fetch("agent_name", nil) %>
+          <% agency_id = @salary_book_row&.fetch("agency_id", nil) %>
+          <% agency_name = @salary_book_row&.fetch("agency_name", nil) %>
+          <div class="p-4 rounded-lg border border-border bg-background">
+            <div class="text-[10px] uppercase tracking-wide text-muted-foreground">Agent / agency</div>
+            <% if agent_id.present? && agent_name.present? %>
+              <a href="<%= agent_href(agent_id) %>" class="mt-1 block font-medium hover:underline"><%= agent_name %></a>
+            <% else %>
+              <div class="mt-1 text-sm text-muted-foreground italic"><%= agent_name.presence || "Unknown" %></div>
+            <% end %>
+            <% if agency_id.present? && agency_name.present? %>
+              <a href="<%= agency_href(agency_id) %>" class="text-sm text-muted-foreground hover:underline"><%= agency_name %></a>
+            <% else %>
+              <div class="text-sm text-muted-foreground"><%= agency_name.presence || "—" %></div>
+            <% end %>
+          </div>
+
+          <div class="p-4 rounded-lg border border-border bg-background">
+            <div class="text-[10px] uppercase tracking-wide text-muted-foreground">Draft selection</div>
+            <% if @draft_selection.present? %>
+              <div class="mt-1 font-medium"><%= @draft_selection["draft_year"] %> · R<%= @draft_selection["draft_round"] %> · P<%= @draft_selection["pick_number"] %></div>
+              <div class="text-sm text-muted-foreground">Drafting team: <%= @draft_selection["drafting_team_code"] || "—" %></div>
+              <a href="<%= draft_selection_href(@draft_selection['transaction_id']) %>" class="mt-1 inline-block text-xs text-muted-foreground hover:underline">Open selection</a>
+            <% else %>
+              <div class="mt-1 text-sm text-muted-foreground italic">Unknown</div>
+            <% end %>
+          </div>
+        </div>
+      </section>
+
+      <section id="contract" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract horizon</h2>
+
+        <% if @salary_book_row.present? %>
+          <div class="overflow-x-auto rounded-lg border border-border">
+            <div class="flex min-w-max">
+              <% horizon_years.each do |year| %>
+                <% cap_amt = @salary_book_row["cap_#{year}"]&.to_f %>
+                <% option = normalize_contract_option(@salary_book_row["option_#{year}"]) %>
+                <% is_partial = @salary_book_row["is_partially_guaranteed_#{year}"] %>
+                <% is_non_gtd = @salary_book_row["is_non_guaranteed_#{year}"] %>
+                <% gtd_amount = @salary_book_row["guaranteed_amount_#{year}"]&.to_f %>
+                <% bg_class = "" %>
+                <% if option.present? && year > 2025 %>
+                  <% bg_class = case option
+                    when "PO" then "bg-blue-50/80 dark:bg-blue-900/20"
+                    when "TO" then "bg-purple-50/80 dark:bg-purple-900/20"
+                    when "ETO" then "bg-orange-50/80 dark:bg-orange-900/20"
+                    else ""
+                  end %>
+                <% elsif is_non_gtd %>
+                  <% bg_class = "bg-yellow-50/80 dark:bg-yellow-900/20" %>
+                <% elsif is_partial %>
+                  <% bg_class = "bg-amber-50/60 dark:bg-amber-900/15" %>
+                <% end %>
+
+                <div class="min-w-24 flex-1 border-r border-border p-3 text-center last:border-r-0 <%= bg_class %>">
+                  <div class="text-[10px] text-muted-foreground uppercase tracking-wide font-medium"><%= format_year_label(year) %></div>
+                  <% if cap_amt.present? && cap_amt > 0 %>
+                    <div class="mt-1 text-base font-semibold font-mono tabular-nums"><%= format_salary(cap_amt) %></div>
+                    <% if option.present? %>
+                      <div class="mt-1 text-[10px] text-muted-foreground"><%= option %></div>
+                    <% elsif is_non_gtd %>
+                      <div class="mt-1 text-[10px] text-yellow-700 dark:text-yellow-400">Non-GTD</div>
+                    <% elsif is_partial && gtd_amount.present? && gtd_amount > 0 %>
+                      <div class="mt-1 text-[10px] text-muted-foreground">GTD <%= format_salary(gtd_amount) %></div>
+                    <% end %>
+                  <% else %>
+                    <div class="mt-1 text-sm text-muted-foreground/50">—</div>
+                  <% end %>
+                </div>
               <% end %>
-              <div class="text-[10px] text-muted-foreground">
-                <%= row["start_date"] ? row["start_date"].to_s.slice(0, 4) : "?" %>
-                <% if row["last_date"] && row["start_date"] != row["last_date"] %>
-                  → <%= row["last_date"].to_s.slice(0, 4) %>
+            </div>
+          </div>
+        <% else %>
+          <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No contract data found.</div>
+        <% end %>
+      </section>
+
+      <section id="contract-history" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract history</h2>
+        <details class="rounded-lg border border-border bg-background p-3" open>
+          <summary class="cursor-pointer text-sm font-medium">Chronology + version rollup (<%= contract_chronology_rows.size %> contracts · <%= contract_version_rows.size %> versions)</summary>
+          <div class="mt-3 space-y-3">
+            <% if contract_chronology_rows.empty? %>
+              <div class="p-3 rounded border border-border/60 text-sm text-muted-foreground italic">No contract chronology rows found.</div>
+            <% else %>
+              <div class="overflow-x-auto rounded-lg border border-border">
+                <table class="entity-table min-w-full text-xs">
+                  <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+                    <tr>
+                      <th class="text-left px-3 py-2 font-medium">Contract</th>
+                      <th class="text-left px-3 py-2 font-medium">Signing</th>
+                      <th class="text-left px-3 py-2 font-medium">Teams</th>
+                      <th class="text-left px-3 py-2 font-medium">Method / exception</th>
+                      <th class="text-left px-3 py-2 font-medium">Flags</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-border">
+                    <% contract_chronology_rows.each do |r| %>
+                      <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75 align-top">
+                        <td class="px-3 py-2">
+                          <div class="font-mono tabular-nums">#<%= r["contract_id"] %></div>
+                          <div class="text-muted-foreground">versions: <%= r["version_count"] || 0 %> · latest v<%= r["latest_version_number"] || "—" %></div>
+                        </td>
+                        <td class="px-3 py-2 text-muted-foreground">
+                          <div><%= format_plain_date(r["signing_date"]) %></div>
+                          <div>end: <%= format_plain_date(r["contract_end_date"]) %></div>
+                          <div>start year: <%= r["start_year"] || r["min_version_start_year"] || "—" %></div>
+                        </td>
+                        <td class="px-3 py-2 text-muted-foreground">
+                          <div>
+                            sign:
+                            <% if r["signing_team_id"].present? %>
+                              <a href="<%= safe_team_href(team_code: r['signing_team_code'] || r['team_code'], team_id: r['signing_team_id']) %>" class="hover:underline"><%= r["signing_team_code"] || r["team_code"] || r["signing_team_id"] %></a>
+                            <% else %>
+                              —
+                            <% end %>
+                          </div>
+                          <div>
+                            S&amp;T:
+                            <% if r["sign_and_trade_to_team_id"].present? %>
+                              <a href="<%= safe_team_href(team_code: r['sign_and_trade_to_team_code'], team_id: r['sign_and_trade_to_team_id']) %>" class="hover:underline"><%= r["sign_and_trade_to_team_code"] || r["sign_and_trade_to_team_id"] %></a>
+                            <% else %>
+                              —
+                            <% end %>
+                          </div>
+                        </td>
+                        <td class="px-3 py-2 text-muted-foreground">
+                          <div><%= r["signed_method_lk"].presence || "—" %><%= r["signed_method_label"].present? ? " — #{r['signed_method_label']}" : "" %></div>
+                          <div>exception: <%= r["exception_type_lk"].presence || "—" %></div>
+                        </td>
+                        <td class="px-3 py-2 text-muted-foreground">
+                          <% flags = [] %>
+                          <% flags << "S&T" if r["is_sign_and_trade"] %>
+                          <% flags << "status #{r['record_status_lk']}" if r["record_status_lk"].present? %>
+                          <%= flags.any? ? flags.join(" · ") : "—" %>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% end %>
+
+            <% if contract_version_rows.any? %>
+              <div class="overflow-x-auto rounded-lg border border-border">
+                <table class="entity-table min-w-full text-xs">
+                  <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+                    <tr>
+                      <th class="text-left px-3 py-2 font-medium">Contract / v</th>
+                      <th class="text-left px-3 py-2 font-medium">Start / len</th>
+                      <th class="text-left px-3 py-2 font-medium">Type</th>
+                      <th class="text-left px-3 py-2 font-medium">Flags</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-border">
+                    <% contract_version_rows.each do |r| %>
+                      <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75 align-top">
+                        <td class="px-3 py-2 font-mono tabular-nums">#<%= r["contract_id"] %> / v<%= r["version_number"] %></td>
+                        <td class="px-3 py-2 text-muted-foreground"><%= r["start_salary_year"] || "—" %> · <%= r["contract_length"] || "—" %>y</td>
+                        <td class="px-3 py-2 text-muted-foreground"><%= r["contract_type_lk"].presence || "—" %></td>
+                        <td class="px-3 py-2 text-muted-foreground">
+                          <% flags = [] %>
+                          <% flags << "Exhibit-10" if r["is_exhibit_10"] %>
+                          <% flags << "Poison" if r["is_poison_pill"] %>
+                          <% flags << "Trade bonus" if r["is_trade_bonus"] %>
+                          <% flags << "No-trade" if r["is_no_trade"] %>
+                          <% flags << "Protected" if r["is_protected_contract"] %>
+                          <%= flags.any? ? flags.join(" · ") : "—" %>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% end %>
+          </div>
+        </details>
+      </section>
+
+      <section id="guarantees" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Guarantees + protections</h2>
+        <details class="rounded-lg border border-border bg-background p-3" open>
+          <summary class="cursor-pointer text-sm font-medium">Guarantee matrix + protection detail</summary>
+          <div class="mt-3 space-y-3">
+            <div class="overflow-x-auto rounded-lg border border-border">
+              <table class="entity-table min-w-full text-xs">
+                <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+                  <tr>
+                    <th class="text-left px-3 py-2 font-medium">Year</th>
+                    <th class="text-right px-3 py-2 font-medium">Guaranteed amount</th>
+                    <th class="text-left px-3 py-2 font-medium">Guarantee type</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                  <% horizon_years.each do |year| %>
+                    <% guaranteed_amount = @salary_book_row&.fetch("guaranteed_amount_#{year}", nil) %>
+                    <% is_full = @salary_book_row&.fetch("is_fully_guaranteed_#{year}", nil) %>
+                    <% is_partial = @salary_book_row&.fetch("is_partially_guaranteed_#{year}", nil) %>
+                    <% is_non = @salary_book_row&.fetch("is_non_guaranteed_#{year}", nil) %>
+                    <% type = is_full ? "FULL" : (is_partial ? "PARTIAL" : (is_non ? "NON" : nil)) %>
+                    <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                      <td class="px-3 py-2 font-mono tabular-nums"><%= year %></td>
+                      <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(guaranteed_amount) %></td>
+                      <td class="px-3 py-2 text-muted-foreground"><%= type.presence || "—" %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+
+            <% if protection_rows.any? %>
+              <div class="overflow-x-auto rounded-lg border border-border">
+                <table class="entity-table min-w-full text-xs">
+                  <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+                    <tr>
+                      <th class="text-left px-3 py-2 font-medium">Year</th>
+                      <th class="text-right px-3 py-2 font-medium">Protection</th>
+                      <th class="text-right px-3 py-2 font-medium">Effective</th>
+                      <th class="text-left px-3 py-2 font-medium">Coverage</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-border">
+                    <% protection_rows.each do |r| %>
+                      <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                        <td class="px-3 py-2 font-mono tabular-nums"><%= r["salary_year"] %></td>
+                        <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["protection_amount"]) %></td>
+                        <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["effective_protection_amount"]) %></td>
+                        <td class="px-3 py-2 text-muted-foreground"><%= r["coverage_codes"].presence || "—" %></td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% end %>
+
+            <% if protection_condition_rows.any? %>
+              <div class="overflow-x-auto rounded-lg border border-border">
+                <table class="entity-table min-w-full text-xs">
+                  <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+                    <tr>
+                      <th class="text-left px-3 py-2 font-medium">Year</th>
+                      <th class="text-right px-3 py-2 font-medium">Amount</th>
+                      <th class="text-left px-3 py-2 font-medium">Earned</th>
+                      <th class="text-left px-3 py-2 font-medium">Clause</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-border">
+                    <% protection_condition_rows.each do |r| %>
+                      <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                        <td class="px-3 py-2 font-mono tabular-nums"><%= r["salary_year"] || "—" %></td>
+                        <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["amount"]) %></td>
+                        <td class="px-3 py-2 text-muted-foreground"><%= r["earned_type_lk"].presence || "—" %> · <%= format_plain_date(r["earned_date"]) %></td>
+                        <td class="px-3 py-2"><%= r["clause_name"].presence || r["criteria_description"].presence || "—" %></td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% end %>
+
+            <% if payment_schedule_rows.any? %>
+              <div class="overflow-x-auto rounded-lg border border-border">
+                <table class="entity-table min-w-full text-xs">
+                  <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+                    <tr>
+                      <th class="text-left px-3 py-2 font-medium">Year</th>
+                      <th class="text-right px-3 py-2 font-medium">Payment</th>
+                      <th class="text-left px-3 py-2 font-medium">Schedule</th>
+                      <th class="text-left px-3 py-2 font-medium">Window</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-border">
+                    <% payment_schedule_rows.each do |r| %>
+                      <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                        <td class="px-3 py-2 font-mono tabular-nums"><%= r["salary_year"] %></td>
+                        <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["payment_amount"]) %></td>
+                        <td class="px-3 py-2 text-muted-foreground"><%= [r["schedule_type_lk"], r["payment_type_lk"]].compact.reject(&:blank?).join(" · ").presence || "—" %></td>
+                        <td class="px-3 py-2 text-muted-foreground"><%= format_plain_date(r["first_payment_date"]) %> → <%= format_plain_date(r["last_payment_date"]) %></td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% end %>
+          </div>
+        </details>
+      </section>
+
+      <section id="incentives" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Incentives</h2>
+        <details class="rounded-lg border border-border bg-background p-3" open>
+          <summary class="cursor-pointer text-sm font-medium">Bonus rows (<%= bonus_rows.size %>)</summary>
+          <div class="mt-3 space-y-3">
+            <% if bonus_rows.empty? %>
+              <div class="text-sm text-muted-foreground italic">No bonus rows for this contract version.</div>
+            <% else %>
+              <div class="overflow-x-auto rounded-lg border border-border">
+                <table class="entity-table min-w-full text-xs">
+                  <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+                    <tr>
+                      <th class="text-left px-3 py-2 font-medium">Year</th>
+                      <th class="text-left px-3 py-2 font-medium">Type</th>
+                      <th class="text-right px-3 py-2 font-medium">Amount</th>
+                      <th class="text-left px-3 py-2 font-medium">Likelihood</th>
+                      <th class="text-left px-3 py-2 font-medium">Clause</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-border">
+                    <% bonus_rows.each do |r| %>
+                      <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                        <td class="px-3 py-2 font-mono tabular-nums"><%= r["salary_year"] %></td>
+                        <td class="px-3 py-2 text-muted-foreground"><%= r["bonus_type_lk"].presence || "—" %></td>
+                        <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["bonus_amount"]) %></td>
+                        <td class="px-3 py-2">
+                          <span class="entity-chip <%= r['is_likely'] ? 'entity-chip--success' : 'entity-chip--warning' %>"><%= r["is_likely"] ? "Likely" : "Unlikely" %></span>
+                        </td>
+                        <td class="px-3 py-2"><%= r["clause_name"].presence || r["criteria_description"].presence || "—" %></td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% end %>
+
+            <% if bonus_max_rows.any? %>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                <% bonus_max_rows.each do |r| %>
+                  <div class="rounded border border-border/60 p-2">
+                    <span class="font-mono tabular-nums"><%= r["salary_year"] %></span>
+                    · <span class="text-muted-foreground"><%= r["bonus_type_lk"] %></span>
+                    · <span class="font-mono tabular-nums"><%= format_salary(r["max_amount"]) %></span>
+                  </div>
                 <% end %>
               </div>
-            </div>
+            <% end %>
+          </div>
+        </details>
+      </section>
+
+      <section id="ledger" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ledger timeline</h2>
+        <details class="rounded-lg border border-border bg-background p-3" open>
+          <summary class="cursor-pointer text-sm font-medium">Recent entries (<%= ledger_entries.size %>)</summary>
+          <div class="mt-3">
+            <% if ledger_entries.empty? %>
+              <div class="text-sm text-muted-foreground italic">No ledger entries found.</div>
+            <% else %>
+              <div class="overflow-x-auto rounded-lg border border-border">
+                <table class="entity-table min-w-full text-xs">
+                  <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+                    <tr>
+                      <th class="text-left px-3 py-2 font-medium">Date</th>
+                      <th class="text-left px-3 py-2 font-medium">Team</th>
+                      <th class="text-left px-3 py-2 font-medium">Transaction</th>
+                      <th class="text-left px-3 py-2 font-medium">Type</th>
+                      <th class="text-right px-3 py-2 font-medium">Cap Δ</th>
+                      <th class="text-right px-3 py-2 font-medium">Tax Δ</th>
+                      <th class="text-right px-3 py-2 font-medium">Apron Δ</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-border">
+                    <% ledger_entries.first(30).each do |e| %>
+                      <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                        <td class="px-3 py-2 font-mono tabular-nums"><%= e["ledger_date"] || "—" %></td>
+                        <td class="px-3 py-2">
+                          <% if e["team_code"].present? %>
+                            <a href="<%= team_href(team_code: e['team_code'], team_id: e['team_id']) %>" class="hover:underline"><%= e["team_code"] %></a>
+                          <% else %>
+                            <span class="text-muted-foreground">—</span>
+                          <% end %>
+                        </td>
+                        <td class="px-3 py-2 font-mono tabular-nums">
+                          <% if e["transaction_id"].present? %>
+                            <a href="<%= transaction_href(e['transaction_id']) %>" class="hover:underline">#<%= e["transaction_id"] %></a>
+                            <% if e["trade_id"].present? %>
+                              · <a href="<%= trade_href(e['trade_id']) %>" class="hover:underline">T#<%= e["trade_id"] %></a>
+                            <% end %>
+                          <% else %>
+                            <span class="text-muted-foreground">—</span>
+                          <% end %>
+                        </td>
+                        <td class="px-3 py-2 text-muted-foreground"><%= [e["transaction_type_lk"], e["transaction_description_lk"]].compact.reject(&:blank?).join(" · ").presence || "—" %></td>
+                        <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(e["cap_change"]) %></td>
+                        <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(e["tax_change"]) %></td>
+                        <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(e["apron_change"]) %></td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+              <% if ledger_entries.size > 30 %>
+                <div class="mt-2 text-xs text-muted-foreground italic">Showing first 30 of <%= ledger_entries.size %> rows.</div>
+              <% end %>
+            <% end %>
+          </div>
+        </details>
+      </section>
+
+      <section id="team-history" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Team history</h2>
+        <% if team_history_rows.empty? %>
+          <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No team history found.</div>
+        <% else %>
+          <div class="flex flex-wrap gap-2">
+            <% team_history_rows.each do |row| %>
+              <% is_current = (row["team_code"] == @salary_book_row&.fetch("team_code", nil)) %>
+              <div class="flex items-center gap-2 px-3 py-2 rounded-lg border <%= is_current ? 'border-primary/50 bg-primary/5' : 'border-border bg-background' %>">
+                <% if row["team_id"].present? %>
+                  <img src="<%= team_logo_url(row['team_id']) %>" alt="<%= row['team_code'] %>" class="w-6 h-6 object-contain" onerror="this.style.display='none'" />
+                <% end %>
+                <div>
+                  <a href="<%= team_href(team_code: row['team_code'], team_id: row['team_id']) %>" class="font-medium hover:underline"><%= row["team_code"] %></a>
+                  <% if is_current %><span class="ml-1 text-[10px] text-primary font-medium">(current)</span><% end %>
+                  <div class="text-[10px] text-muted-foreground">
+                    <%= row["start_date"] ? row["start_date"].to_s.slice(0, 4) : "?" %>
+                    <% if row["last_date"] && row["start_date"] != row["last_date"] %>
+                      → <%= row["last_date"].to_s.slice(0, 4) %>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+            <% end %>
           </div>
         <% end %>
-      </div>
-      <div class="text-xs text-muted-foreground">
-        Based on <span class="font-mono"><%= (@team_history_rows || []).sum { |r| r["tx_count"].to_i } %></span> transactions
-        (<%= (@team_history_rows || []).flat_map { |r| r["tx_types"] || [] }.uniq.sort.join(", ") %>)
-      </div>
-    <% end %>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stats + metrics (placeholder)</h2>
-    <div class="p-4 rounded-lg bg-muted/30 border border-border/50">
-      <div class="text-sm text-muted-foreground">
-        <strong>Coming soon:</strong> NBA API stats, advanced metrics, and league percentiles.
-      </div>
-      <div class="mt-2 text-xs text-muted-foreground/70">
-        This module will show per-game stats, career totals, and comparative league percentiles once the NBA API data ingestion is complete.
-      </div>
+      </section>
     </div>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract chronology</h2>
-
-    <% if @contract_chronology_rows.empty? %>
-      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No contract rows found.</div>
-    <% else %>
-      <div class="overflow-x-auto rounded-lg border border-border">
-        <table class="entity-table min-w-full text-xs">
-          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-            <tr>
-              <th class="text-left px-3 py-2 font-medium">Contract</th>
-              <th class="text-left px-3 py-2 font-medium">Signing</th>
-              <th class="text-left px-3 py-2 font-medium">Teams</th>
-              <th class="text-left px-3 py-2 font-medium">Method / exception</th>
-              <th class="text-left px-3 py-2 font-medium">Flags + dates</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border">
-            <% @contract_chronology_rows.each do |r| %>
-              <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75 align-top">
-                <td class="px-3 py-2 text-xs">
-                  <div class="font-mono tabular-nums">#<%= r["contract_id"] %></div>
-                  <div class="text-muted-foreground">versions: <%= r["version_count"] || 0 %> · latest v<%= r["latest_version_number"] || "—" %></div>
-                </td>
-                <td class="px-3 py-2 text-xs">
-                  <div><%= format_plain_date(r["signing_date"]) %></div>
-                  <div class="text-muted-foreground">end: <%= format_plain_date(r["contract_end_date"]) %></div>
-                  <div class="text-muted-foreground">start year: <%= r["start_year"] || r["min_version_start_year"] || "—" %></div>
-                </td>
-                <td class="px-3 py-2 text-xs">
-                  <div>
-                    sign team:
-                    <% if r["signing_team_id"].present? %>
-                      <a href="<%= safe_team_href(team_code: r['signing_team_code'] || r['team_code'], team_id: r['signing_team_id']) %>" class="hover:underline"><%= r["signing_team_code"] || r["team_code"] || r["signing_team_id"] %></a>
-                    <% elsif r["team_code"].present? %>
-                      <a href="<%= team_href(team_code: r['team_code']) %>" class="hover:underline"><%= r["team_code"] %></a>
-                    <% else %>
-                      <span class="text-muted-foreground">—</span>
-                    <% end %>
-                  </div>
-                  <div class="text-muted-foreground">
-                    S&amp;T to:
-                    <% if r["sign_and_trade_to_team_id"].present? %>
-                      <a href="<%= safe_team_href(team_code: r['sign_and_trade_to_team_code'], team_id: r['sign_and_trade_to_team_id']) %>" class="hover:underline"><%= r["sign_and_trade_to_team_code"] || r["sign_and_trade_to_team_id"] %></a>
-                    <% else %>
-                      —
-                    <% end %>
-                  </div>
-                </td>
-                <td class="px-3 py-2 text-xs">
-                  <div>
-                    <% if r["signed_method_lk"].present? %>
-                      <span class="font-mono"><%= r["signed_method_lk"] %></span>
-                      <% if r["signed_method_label"].present? %>
-                        <span class="text-muted-foreground"> — <%= r["signed_method_label"] %></span>
-                      <% end %>
-                    <% else %>
-                      <span class="text-muted-foreground">—</span>
-                    <% end %>
-                  </div>
-                  <div class="text-muted-foreground">
-                    exception:
-                    <% if r["team_exception_id"].present? %>
-                      <span class="font-mono">#<%= r["team_exception_id"] %></span>
-                      <% if r["exception_type_lk"].present? %>
-                        · <span class="font-mono"><%= r["exception_type_lk"] %></span>
-                        <% if r["exception_type_label"].present? %>
-                          <span> — <%= r["exception_type_label"] %></span>
-                        <% end %>
-                      <% end %>
-                    <% else %>
-                      —
-                    <% end %>
-                  </div>
-                </td>
-                <td class="px-3 py-2 text-xs text-muted-foreground">
-                  <% flags = [] %>
-                  <% flags << "S&T" if r["is_sign_and_trade"] %>
-                  <% flags << "status: #{r['record_status_lk']}" if r["record_status_lk"].present? %>
-                  <div><%= flags.any? ? flags.join(" · ") : "—" %></div>
-                  <div>2W service limit: <span class="font-mono tabular-nums"><%= r["two_way_service_limit"].presence || "—" %></span></div>
-                  <div>convert date: <%= format_plain_date(r["convert_date"]) %></div>
-                  <% if r["sign_and_trade_date"].present? || r["sign_and_trade_id"].present? %>
-                    <div>S&amp;T meta: <%= format_plain_date(r["sign_and_trade_date"]) %><% if r["sign_and_trade_id"].present? %> · id <span class="font-mono"><%= r["sign_and_trade_id"] %></span><% end %></div>
-                  <% end %>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    <% end %>
-
-    <% if @contract_version_rows.any? %>
-      <details class="rounded-lg border border-border bg-background p-3">
-        <summary class="cursor-pointer text-sm font-medium">Version rollup (<%= @contract_version_rows.size %>)</summary>
-        <div class="mt-3 overflow-x-auto">
-          <table class="entity-table min-w-full text-xs">
-            <thead class="text-xs text-muted-foreground">
-              <tr>
-                <th class="text-left px-2 py-1">Contract / v</th>
-                <th class="text-left px-2 py-1">Start / len</th>
-                <th class="text-left px-2 py-1">Type</th>
-                <th class="text-left px-2 py-1">Extension</th>
-                <th class="text-left px-2 py-1">Flags</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-border">
-              <% @contract_version_rows.each do |r| %>
-                <tr>
-                  <td class="px-2 py-1 font-mono tabular-nums">#<%= r["contract_id"] %> / v<%= r["version_number"] %></td>
-                  <td class="px-2 py-1 text-xs text-muted-foreground"><%= r["start_salary_year"] || "—" %> · <%= r["contract_length"] || "—" %>y</td>
-                  <td class="px-2 py-1 text-xs">
-                    <% if r["contract_type_lk"].present? %>
-                      <span class="font-mono"><%= r["contract_type_lk"] %></span>
-                      <% if r["contract_type_label"].present? %>
-                        <span class="text-muted-foreground"> — <%= r["contract_type_label"] %></span>
-                      <% end %>
-                    <% else %>
-                      <span class="text-muted-foreground">—</span>
-                    <% end %>
-                  </td>
-                  <td class="px-2 py-1 text-xs text-muted-foreground">
-                    <% ext_flags = [] %>
-                    <% ext_flags << "rookie-ext" if r["is_rookie_scale_extension"] %>
-                    <% ext_flags << "veteran-ext" if r["is_veteran_extension"] %>
-                    <%= ext_flags.any? ? ext_flags.join(" · ") : "—" %>
-                  </td>
-                  <td class="px-2 py-1 text-xs text-muted-foreground">
-                    <% flags = [] %>
-                    <% flags << "Exhibit-10" if r["is_exhibit_10"] %>
-                    <% flags << "Poison pill" if r["is_poison_pill"] %>
-                    <% flags << "Trade bonus" if r["is_trade_bonus"] %>
-                    <% flags << "No-trade" if r["is_no_trade"] %>
-                    <% flags << "Protected" if r["is_protected_contract"] %>
-                    <% flags << "Full protection" if r["is_full_protection"] %>
-                    <%= flags.any? ? flags.join(" · ") : "—" %>
-                    <% if r["trade_bonus_percent"].present? %>
-                      <div>trade bonus pct: <span class="font-mono tabular-nums"><%= r["trade_bonus_percent"] %>%</span></div>
-                    <% end %>
-                    <% if r["poison_pill_amount"].present? %>
-                      <div>poison amount: <span class="font-mono tabular-nums"><%= format_salary(r["poison_pill_amount"]) %></span></div>
-                    <% end %>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      </details>
-    <% end %>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Guarantee matrix (salary book pivots)</h2>
-
-    <% guarantee_years = (2025..2030).to_a %>
-    <div class="overflow-x-auto rounded-lg border border-border">
-      <table class="entity-table min-w-full text-xs">
-        <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-          <tr>
-            <th class="text-left px-3 py-2 font-medium">Year</th>
-            <th class="text-right px-3 py-2 font-medium">Guaranteed amount</th>
-            <th class="text-left px-3 py-2 font-medium">Guarantee type</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-border">
-          <% guarantee_years.each do |year| %>
-            <% guaranteed_amount = @salary_book_row&.fetch("guaranteed_amount_#{year}", nil) %>
-            <% is_full = @salary_book_row&.fetch("is_fully_guaranteed_#{year}", nil) %>
-            <% is_partial = @salary_book_row&.fetch("is_partially_guaranteed_#{year}", nil) %>
-            <% is_non = @salary_book_row&.fetch("is_non_guaranteed_#{year}", nil) %>
-            <% guarantee_type = if is_full
-              "FULL"
-            elsif is_partial
-              "PARTIAL"
-            elsif is_non
-              "NON"
-            else
-              nil
-            end %>
-            <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-              <td class="px-3 py-2 font-mono tabular-nums"><%= year %></td>
-              <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(guaranteed_amount) %></td>
-              <td class="px-3 py-2 text-xs text-muted-foreground">
-                <% if guarantee_type.present? %>
-                  <span class="font-mono"><%= guarantee_type %></span>
-                  <% if is_full %>
-                    <span> — fully guaranteed</span>
-                  <% elsif is_partial %>
-                    <span> — partially guaranteed</span>
-                  <% elsif is_non %>
-                    <span> — non-guaranteed</span>
-                  <% end %>
-                <% else %>
-                  —
-                <% end %>
-              </td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Year-by-year contract (salary warehouse + salaries)</h2>
-
-    <% if @salary_rows.empty? && @salary_book_yearly_rows.empty? %>
-      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No salary rows found for this contract.</div>
-    <% else %>
-      <% rows = @salary_rows.presence || @salary_book_yearly_rows %>
-      <div class="overflow-x-auto rounded-lg border border-border">
-        <table class="entity-table min-w-full text-xs">
-          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-            <tr>
-              <th class="text-left px-3 py-2 font-medium">Year</th>
-              <th class="text-right px-3 py-2 font-medium">Cap</th>
-              <th class="text-right px-3 py-2 font-medium">Tax</th>
-              <th class="text-right px-3 py-2 font-medium">Apron</th>
-              <th class="text-right px-3 py-2 font-medium">Likely</th>
-              <th class="text-right px-3 py-2 font-medium">Unlikely</th>
-              <th class="text-left px-3 py-2 font-medium">Option</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border">
-            <% rows.each do |r| %>
-              <% y = r["salary_year"].to_i %>
-              <% book_row = yearly_book[y] || {} %>
-              <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                <td class="px-3 py-2 font-mono tabular-nums"><%= y %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["contract_cap_salary"] || book_row["cap_amount"]) %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["contract_tax_salary"] || book_row["tax_amount"]) %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["contract_tax_apron_salary"] || book_row["apron_amount"]) %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["likely_bonus"]) %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["unlikely_bonus"]) %></td>
-                <td class="px-3 py-2 text-xs text-muted-foreground">
-                  <% option_bits = [r["option_lk"], r["option_decision_lk"]].compact.reject(&:blank?) %>
-                  <%= option_bits.any? ? option_bits.join(" · ") : "—" %>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    <% end %>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Guarantees + protections</h2>
-
-    <% if @protection_rows.empty? %>
-      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No contract protection rows.</div>
-    <% else %>
-      <div class="overflow-x-auto rounded-lg border border-border">
-        <table class="entity-table min-w-full text-xs">
-          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-            <tr>
-              <th class="text-left px-3 py-2 font-medium">Year</th>
-              <th class="text-right px-3 py-2 font-medium">Protection</th>
-              <th class="text-right px-3 py-2 font-medium">Effective</th>
-              <th class="text-left px-3 py-2 font-medium">Coverage</th>
-              <th class="text-right px-3 py-2 font-medium">Rows</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border">
-            <% @protection_rows.each do |r| %>
-              <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                <td class="px-3 py-2 font-mono tabular-nums"><%= r["salary_year"] %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["protection_amount"]) %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["effective_protection_amount"]) %></td>
-                <td class="px-3 py-2 text-xs text-muted-foreground">
-                  <%= r["coverage_codes"].presence || "—" %>
-                  <% if r["has_conditional"] %>
-                    <span class="ml-1 entity-chip entity-chip--warning">conditional</span>
-                  <% end %>
-                </td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground"><%= r["row_count"] %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    <% end %>
-
-    <% if @protection_condition_rows.any? %>
-      <details class="rounded-lg border border-border bg-background p-3">
-        <summary class="cursor-pointer text-sm font-medium">Protection conditions (<%= @protection_condition_rows.size %>)</summary>
-        <div class="mt-3 overflow-x-auto">
-          <table class="entity-table min-w-full text-xs">
-            <thead class="text-xs text-muted-foreground">
-              <tr>
-                <th class="text-left px-2 py-1">Year</th>
-                <th class="text-right px-2 py-1">Amount</th>
-                <th class="text-left px-2 py-1">Earned type</th>
-                <th class="text-left px-2 py-1">Earned date</th>
-                <th class="text-left px-2 py-1">Clause</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-border">
-              <% @protection_condition_rows.each do |r| %>
-                <tr>
-                  <td class="px-2 py-1 font-mono tabular-nums"><%= r["salary_year"] || "—" %></td>
-                  <td class="px-2 py-1 text-right font-mono tabular-nums"><%= format_salary(r["amount"]) %></td>
-                  <td class="px-2 py-1 text-xs text-muted-foreground"><%= r["earned_type_lk"].presence || "—" %></td>
-                  <td class="px-2 py-1 text-xs text-muted-foreground"><%= format_plain_date(r["earned_date"]) %></td>
-                  <td class="px-2 py-1 text-xs"><%= r["clause_name"].presence || r["criteria_description"].presence || "—" %></td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      </details>
-    <% end %>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Incentives (contract bonuses)</h2>
-
-    <% if @bonus_rows.empty? %>
-      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No bonus rows for this contract version.</div>
-    <% else %>
-      <div class="overflow-x-auto rounded-lg border border-border">
-        <table class="entity-table min-w-full text-xs">
-          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-            <tr>
-              <th class="text-left px-3 py-2 font-medium">Year</th>
-              <th class="text-left px-3 py-2 font-medium">Type</th>
-              <th class="text-right px-3 py-2 font-medium">Amount</th>
-              <th class="text-left px-3 py-2 font-medium">Likely</th>
-              <th class="text-left px-3 py-2 font-medium">Clause</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border">
-            <% @bonus_rows.each do |r| %>
-              <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75 align-top">
-                <td class="px-3 py-2 font-mono tabular-nums"><%= r["salary_year"] %></td>
-                <td class="px-3 py-2 text-xs text-muted-foreground"><%= r["bonus_type_lk"].presence || "—" %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["bonus_amount"]) %></td>
-                <td class="px-3 py-2 text-xs">
-                  <% if r["is_likely"] %>
-                    <span class="entity-chip entity-chip--success">Likely</span>
-                  <% else %>
-                    <span class="entity-chip entity-chip--warning">Unlikely</span>
-                  <% end %>
-                </td>
-                <td class="px-3 py-2 text-xs">
-                  <%= r["clause_name"].presence || r["criteria_description"].presence || "—" %>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    <% end %>
-
-    <% if @bonus_max_rows.any? %>
-      <details class="rounded-lg border border-border bg-background p-3">
-        <summary class="cursor-pointer text-sm font-medium">Bonus maximums (<%= @bonus_max_rows.size %>)</summary>
-        <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-          <% @bonus_max_rows.each do |r| %>
-            <div class="rounded border border-border/60 p-2">
-              <span class="font-mono tabular-nums"><%= r["salary_year"] %></span>
-              · <span class="text-xs text-muted-foreground"><%= r["bonus_type_lk"] %></span>
-              · <span class="font-mono tabular-nums"><%= format_salary(r["max_amount"]) %></span>
-              <% if r["is_likely"] %>
-                <span class="ml-1 text-[10px] text-emerald-700 dark:text-emerald-400">likely</span>
-              <% end %>
-            </div>
-          <% end %>
-        </div>
-      </details>
-    <% end %>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Payment schedules</h2>
-
-    <% if @payment_schedule_rows.empty? %>
-      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No payment schedules found.</div>
-    <% else %>
-      <div class="overflow-x-auto rounded-lg border border-border">
-        <table class="entity-table min-w-full text-xs">
-          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-            <tr>
-              <th class="text-left px-3 py-2 font-medium">Year</th>
-              <th class="text-right px-3 py-2 font-medium">Payment amount</th>
-              <th class="text-left px-3 py-2 font-medium">Schedule</th>
-              <th class="text-left px-3 py-2 font-medium">Window</th>
-              <th class="text-right px-3 py-2 font-medium">Detail rows</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border">
-            <% @payment_schedule_rows.each do |r| %>
-              <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                <td class="px-3 py-2 font-mono tabular-nums"><%= r["salary_year"] %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["payment_amount"]) %></td>
-                <td class="px-3 py-2 text-xs text-muted-foreground">
-                  <%= [r["schedule_type_lk"], r["payment_type_lk"]].compact.reject(&:blank?).join(" · ").presence || "—" %>
-                  <% if r["is_default_schedule"] %>
-                    <span class="ml-1 entity-chip entity-chip--muted">default</span>
-                  <% end %>
-                </td>
-                <td class="px-3 py-2 text-xs text-muted-foreground">
-                  <%= format_plain_date(r["first_payment_date"]) %> → <%= format_plain_date(r["last_payment_date"]) %>
-                </td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground"><%= r["detail_count"] %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    <% end %>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ledger timeline (latest)</h2>
-
-    <% if @ledger_entries.empty? %>
-      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No ledger entries found.</div>
-    <% else %>
-      <div class="overflow-x-auto rounded-lg border border-border">
-        <table class="entity-table min-w-full text-xs">
-          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-            <tr>
-              <th class="text-left px-3 py-2 font-medium">Date</th>
-              <th class="text-left px-3 py-2 font-medium">Team</th>
-              <th class="text-left px-3 py-2 font-medium">Transaction</th>
-              <th class="text-left px-3 py-2 font-medium">Type</th>
-              <th class="text-right px-3 py-2 font-medium">Cap change</th>
-              <th class="text-right px-3 py-2 font-medium">Tax change</th>
-              <th class="text-right px-3 py-2 font-medium">Apron change</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border">
-            <% @ledger_entries.each do |e| %>
-              <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                <td class="px-3 py-2 font-mono tabular-nums text-xs"><%= e["ledger_date"] || "—" %></td>
-                <td class="px-3 py-2 text-xs">
-                  <% if e["team_code"].present? %>
-                    <a href="<%= team_href(team_code: e['team_code'], team_id: e['team_id']) %>" class="hover:underline"><%= e["team_code"] %></a>
-                  <% else %>
-                    <span class="text-muted-foreground">—</span>
-                  <% end %>
-                </td>
-                <td class="px-3 py-2 text-xs">
-                  <% if e["transaction_id"].present? %>
-                    <a href="<%= transaction_href(e['transaction_id']) %>" class="hover:underline font-mono tabular-nums">#<%= e["transaction_id"] %></a>
-                    <% if e["trade_id"].present? %>
-                      <span class="text-muted-foreground">·</span>
-                      <a href="<%= trade_href(e['trade_id']) %>" class="hover:underline font-mono tabular-nums">T#<%= e["trade_id"] %></a>
-                    <% end %>
-                  <% else %>
-                    <span class="text-muted-foreground">—</span>
-                  <% end %>
-                </td>
-                <td class="px-3 py-2 text-xs text-muted-foreground">
-                  <%= [e["transaction_type_lk"], e["transaction_description_lk"]].compact.reject(&:blank?).join(" · ").presence || "—" %>
-                </td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(e["cap_change"]) %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(e["tax_change"]) %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(e["apron_change"]) %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    <% end %>
-  </section>
+  </div>
 
   <%= render partial: "entities/shared/known_slugs", locals: { entity_type: "player", entity_id: @player_id, path_prefix: "players" } %>
 </main>
