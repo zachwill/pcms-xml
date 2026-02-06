@@ -25,21 +25,18 @@
   "#{option} #{year}"
 end %>
 
-<%= render layout: "entities/shared/entity_page", locals: {
-  root_id: "entity-workspace",
-  workspace: true,
-  main_class: "max-w-7xl mx-auto px-4 pt-3 pb-10 space-y-6",
-  commandbar_locals: {
+<div id="entity-directory" class="min-h-screen w-full bg-background">
+  <%= render partial: "entities/shared/commandbar", locals: {
     title: (full_name.presence || "Player"),
     subtitle: "player_id: #{@player_id} · slug: #{@player_slug}",
     breadcrumbs: [["Players", "/players"], [full_name.presence || "Player", nil]],
     search_scope: "players",
     salary_book_href: (@salary_book_row&.fetch("team_code", nil).present? ? "/tools/salary-book?team=#{@salary_book_row['team_code']}##{@salary_book_row['team_code']}" : "/tools/salary-book"),
     salary_book_label: "Open in Salary Book",
-    right_links: [["Browse Teams", "/teams"]],
-    container_class: "max-w-7xl mx-auto"
-  }
-} do %>
+    right_links: [["Browse Teams", "/teams"]]
+  } %>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
 
   <div class="lg:flex lg:gap-8">
     <%= render partial: "entities/shared/local_nav", locals: {
@@ -57,7 +54,7 @@ end %>
     } %>
 
     <div class="min-w-0 flex-1 space-y-6">
-      <section id="vitals" class="scroll-mt-32 space-y-3">
+      <section id="vitals" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div class="rounded-lg border border-border bg-background p-3">
@@ -79,7 +76,7 @@ end %>
         </div>
       </section>
 
-      <section id="constraints" class="scroll-mt-32 space-y-3">
+      <section id="constraints" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Constraint posture</h2>
         <div class="flex flex-wrap gap-2">
           <% chips = [] %>
@@ -119,7 +116,7 @@ end %>
         </div>
       </section>
 
-      <section id="connections" class="scroll-mt-32 space-y-3">
+      <section id="connections" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connections</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           <% team_code = @salary_book_row&.fetch("team_code", nil) %>
@@ -166,7 +163,7 @@ end %>
         </div>
       </section>
 
-      <section id="contract" class="scroll-mt-32 space-y-3">
+      <section id="contract" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract horizon</h2>
 
         <% if @salary_book_row.present? %>
@@ -215,7 +212,7 @@ end %>
         <% end %>
       </section>
 
-      <section id="contract-history" class="scroll-mt-32 space-y-3">
+      <section id="contract-history" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract history</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Chronology + version rollup (<%= contract_chronology_rows.size %> contracts · <%= contract_version_rows.size %> versions)</summary>
@@ -317,7 +314,7 @@ end %>
         </details>
       </section>
 
-      <section id="guarantees" class="scroll-mt-32 space-y-3">
+      <section id="guarantees" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Guarantees + protections</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Guarantee matrix + protection detail</summary>
@@ -426,7 +423,7 @@ end %>
         </details>
       </section>
 
-      <section id="incentives" class="scroll-mt-32 space-y-3">
+      <section id="incentives" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Incentives</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Bonus rows (<%= bonus_rows.size %>)</summary>
@@ -477,7 +474,7 @@ end %>
         </details>
       </section>
 
-      <section id="ledger" class="scroll-mt-32 space-y-3">
+      <section id="ledger" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ledger timeline</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Recent entries (<%= ledger_entries.size %>)</summary>
@@ -536,7 +533,7 @@ end %>
         </details>
       </section>
 
-      <section id="team-history" class="scroll-mt-32 space-y-3">
+      <section id="team-history" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Team history</h2>
         <% if team_history_rows.empty? %>
           <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No team history found.</div>
@@ -567,4 +564,5 @@ end %>
   </div>
 
   <%= render partial: "entities/shared/known_slugs", locals: { entity_type: "player", entity_id: @player_id, path_prefix: "players" } %>
-<% end %>
+  </main>
+</div>

@@ -5,20 +5,18 @@
 <% prefetch_canonical_slugs(entity_type: "agent", entity_ids: @agents.map { |a| a["agent_id"] } + @top_clients.map { |c| c["agent_id"] }) %>
 <% prefetch_canonical_slugs(entity_type: "player", entity_ids: @top_clients.map { |c| c["player_id"] }) %>
 
-<%= render layout: "entities/shared/entity_page", locals: {
-  root_id: "entity-workspace",
-  workspace: true,
-  main_class: "max-w-7xl mx-auto px-4 pt-3 pb-10 space-y-6",
-  commandbar_locals: {
+<div id="entity-directory" class="min-h-screen w-full bg-background">
+  <%= render partial: "entities/shared/commandbar", locals: {
     title: (agency_name.presence || "Agency"),
     subtitle: ("agency_id: #{@agency_id} · slug: #{@agency_slug}" + (@agency["is_active"] == false ? " · inactive" : "")),
     breadcrumbs: [["Agencies", "/agencies"], [agency_name.presence || "Agency", nil]],
     search_scope: "agencies",
     salary_book_label: "Open Salary Book",
-    right_links: [["Browse Agents", "/agents"]],
-    container_class: "max-w-7xl mx-auto"
-  }
-} do %>
+    right_links: [["Browse Agents", "/agents"]]
+  } %>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
+
   <div class="lg:flex lg:gap-8">
     <%= render partial: "entities/shared/local_nav", locals: {
       sections: [
@@ -30,7 +28,7 @@
     } %>
 
     <div class="min-w-0 flex-1 space-y-6">
-      <section id="vitals" class="scroll-mt-32 space-y-3">
+      <section id="vitals" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
         <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
           <div class="rounded-lg border border-border bg-background p-3">
@@ -48,7 +46,7 @@
         </div>
       </section>
 
-      <section id="agent-roster" class="scroll-mt-32 space-y-3">
+      <section id="agent-roster" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Agent roster</h2>
         <% if @agents.empty? %>
           <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No agents found.</div>
@@ -90,7 +88,7 @@
         <% end %>
       </section>
 
-      <section id="team-distribution" class="scroll-mt-32 space-y-3">
+      <section id="team-distribution" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Team distribution</h2>
         <% if @team_distribution.empty? %>
           <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No team distribution data.</div>
@@ -129,7 +127,7 @@
         <% end %>
       </section>
 
-      <section id="historical" class="scroll-mt-32 space-y-3">
+      <section id="historical" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Historical footprint</h2>
         <details class="rounded-lg border border-border bg-background p-3">
           <summary class="cursor-pointer text-sm font-medium">Season book + top clients</summary>
@@ -216,4 +214,5 @@
   </div>
 
   <%= render partial: "entities/shared/known_slugs", locals: { entity_type: "agency", entity_id: @agency_id, path_prefix: "agencies" } %>
-<% end %>
+  </main>
+</div>

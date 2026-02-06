@@ -1,5 +1,5 @@
 const DEFAULT_SCROLL_OFFSET = 120;
-const WORKSPACE_TOP_GAP = 12; // matches `pt-3` in entities/shared/_entity_page.html.erb
+const WORKSPACE_TOP_GAP = 12; // matches the `pt-3`/`py-6` era top content spacing under the commandbar
 
 function computeScrollOffset() {
   const bar = document.getElementById("commandbar");

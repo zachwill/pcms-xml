@@ -26,11 +26,8 @@
   end
 %>
 
-<%= render layout: "entities/shared/entity_page", locals: {
-  root_id: "entity-workspace",
-  workspace: true,
-  main_class: "max-w-7xl mx-auto px-4 pt-3 pb-10 space-y-6",
-  commandbar_locals: {
+<div id="entity-directory" class="min-h-screen w-full bg-background">
+  <%= render partial: "entities/shared/commandbar", locals: {
     title: "Transaction ##{tx['transaction_id']}",
     subtitle: [tx['transaction_date'], tx['transaction_type_lk'], tx['transaction_description_lk']].compact.join(' · '),
     breadcrumbs: [["Transactions", nil], ["##{tx['transaction_id']}", nil]],
@@ -39,10 +36,10 @@
     search_placeholder: "Search players/teams/agents/agencies…",
     salary_book_label: "Open Salary Book",
     right_links: [["Draft selections", "/draft-selections"]],
-    search_enabled: false,
-    container_class: "max-w-7xl mx-auto"
-  }
-} do %>
+    search_enabled: false
+  } %>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
 
   <div class="lg:flex lg:gap-8">
     <%= render partial: "entities/shared/local_nav", locals: {
@@ -57,7 +54,7 @@
     } %>
 
     <div class="min-w-0 flex-1 space-y-6">
-      <section id="vitals" class="scroll-mt-32 space-y-3">
+      <section id="vitals" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div class="rounded-lg border border-border bg-background p-3">
@@ -85,7 +82,7 @@
         </div>
       </section>
 
-      <section id="constraints" class="scroll-mt-32 space-y-3">
+      <section id="constraints" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Constraint posture</h2>
         <div class="flex flex-wrap gap-2">
           <% chips = [] %>
@@ -104,7 +101,7 @@
         </div>
       </section>
 
-      <section id="parties" class="scroll-mt-32 space-y-3">
+      <section id="parties" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Parties</h2>
         <% if party_rows.empty? %>
           <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No team party rows for this transaction.</div>
@@ -148,7 +145,7 @@
         <% end %>
       </section>
 
-      <section id="trade-context" class="scroll-mt-32 space-y-3">
+      <section id="trade-context" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Trade context</h2>
         <% if tx["trade_id"].present? %>
           <div class="rounded-lg border border-border bg-background p-4 space-y-2">
@@ -198,7 +195,7 @@
         <% end %>
       </section>
 
-      <section id="ledger" class="scroll-mt-32 space-y-3">
+      <section id="ledger" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ledger impact</h2>
         <% if @ledger_entries.empty? %>
           <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No ledger rows for this transaction.</div>
@@ -240,7 +237,7 @@
         <% end %>
       </section>
 
-      <section id="artifacts" class="scroll-mt-32 space-y-3">
+      <section id="artifacts" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cap artifacts</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Exception usage · dead money · budget snapshots</summary>
@@ -341,4 +338,5 @@
       </section>
     </div>
   </div>
-<% end %>
+  </main>
+</div>

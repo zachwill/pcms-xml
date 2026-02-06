@@ -49,11 +49,8 @@
 <% original_owner_code = @trade_chain_rows.map { |r| r["original_team_code"] }.find(&:present?) || team_code %>
 <% original_owner_team = @teams_by_code[original_owner_code] || {} %>
 
-<%= render layout: "entities/shared/entity_page", locals: {
-  root_id: "entity-workspace",
-  workspace: true,
-  main_class: "max-w-7xl mx-auto px-4 pt-3 pb-10 space-y-6",
-  commandbar_locals: {
+<div id="entity-directory" class="min-h-screen w-full bg-background">
+  <%= render partial: "entities/shared/commandbar", locals: {
     title: "#{team_code} — #{year} Round #{round}",
     subtitle: ((@team.present? && @team["team_name"].present?) ? "#{@team['team_name']} · Source: pcms.vw_draft_pick_assets" : "Source: pcms.vw_draft_pick_assets"),
     breadcrumbs: [["Teams", "/teams"], [team_code, team_href(team_code: team_code)], ["#{year} R#{round} draft pick", nil]],
@@ -62,10 +59,10 @@
     search_placeholder: "Search players/teams/agents/agencies…",
     salary_book_href: "/tools/salary-book?team=#{team_code}##{team_code}",
     salary_book_label: "Open in Salary Book",
-    right_links: [["Draft selections", "/draft-selections"]],
-    container_class: "max-w-7xl mx-auto"
-  }
-} do %>
+    right_links: [["Draft selections", "/draft-selections"]]
+  } %>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
 
   <div class="lg:flex lg:gap-8">
     <%= render partial: "entities/shared/local_nav", locals: {
@@ -78,7 +75,7 @@
     } %>
 
     <div class="min-w-0 flex-1 space-y-6">
-      <section id="vitals" class="scroll-mt-32 space-y-3">
+      <section id="vitals" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div class="rounded-lg border border-border bg-background p-3">
@@ -104,7 +101,7 @@
         </div>
       </section>
 
-      <section id="protections" class="scroll-mt-32 space-y-3">
+      <section id="protections" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Protection details</h2>
 
         <% if @assets.empty? %>
@@ -168,7 +165,7 @@
         <% end %>
       </section>
 
-      <section id="trade-chain" class="scroll-mt-32 space-y-3">
+      <section id="trade-chain" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Trade chain</h2>
         <% if @trade_chain_rows.empty? %>
           <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No draft_pick_trades rows found for this team/year/round.</div>
@@ -215,7 +212,7 @@
         <% end %>
       </section>
 
-      <section id="swap-rights" class="scroll-mt-32 space-y-3">
+      <section id="swap-rights" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Swap rights</h2>
         <% if swap_assets.empty? %>
           <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No swap rights rows for this pick context.</div>
@@ -267,4 +264,5 @@
       </section>
     </div>
   </div>
-<% end %>
+  </main>
+</div>

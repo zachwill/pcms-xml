@@ -7,13 +7,9 @@
 
 <% root_attrs = "data-signals=\"{ draftview: '#{@view}', draftyear: '#{@year}', draftround: '#{@round || 'all'}', draftteam: '#{@team || ''}' }\"" %>
 
-<%= render layout: "entities/shared/entity_page", locals: {
-  root_id: "entity-directory",
-  root_attrs: root_attrs,
-  main_class: "max-w-5xl mx-auto px-4 pt-3 pb-10 space-y-6",
-  commandbar_locals: {
+<div id="entity-directory" class="min-h-screen w-full bg-background" <%= root_attrs.present? ? root_attrs.html_safe : "" %>>
+  <%= render partial: "entities/shared/commandbar", locals: {
     active_entity_scope: "drafts",
-    container_class: "max-w-5xl mx-auto",
     header_knobs: [
       {
         label: "View",
@@ -76,7 +72,9 @@
         ]
       }
     ]
-  }
-} do %>
-  <%= render partial: "entities/drafts/results" %>
-<% end %>
+  } %>
+
+  <main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <%= render partial: "entities/drafts/results" %>
+  </main>
+</div>

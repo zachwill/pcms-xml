@@ -14,11 +14,8 @@
 <% room_a1 = current_year_row["room_under_apron1"].to_f %>
 <% room_a2 = current_year_row["room_under_apron2"].to_f %>
 
-<%= render layout: "entities/shared/entity_page", locals: {
-  root_id: "entity-workspace",
-  workspace: true,
-  main_class: "max-w-7xl mx-auto px-4 pt-3 pb-10 space-y-6",
-  commandbar_locals: {
+<div id="entity-directory" class="min-h-screen w-full bg-background">
+  <%= render partial: "entities/shared/commandbar", locals: {
     title: (team_name.presence || team_code.presence || "Team"),
     title_badge: team_code.presence,
     subtitle: [city, conference, division].compact.reject(&:blank?).join(" · "),
@@ -26,10 +23,10 @@
     search_scope: "teams",
     salary_book_href: (team_code.present? ? "/tools/salary-book?team=#{team_code}##{team_code}" : "/tools/salary-book"),
     salary_book_label: (team_code.present? ? "Open in Salary Book" : "Salary Book"),
-    right_links: [["Find a player", "/players"]],
-    container_class: "max-w-7xl mx-auto"
-  }
-} do %>
+    right_links: [["Find a player", "/players"]]
+  } %>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
 
   <div class="lg:flex lg:gap-8">
     <%= render partial: "entities/shared/local_nav", locals: {
@@ -46,14 +43,14 @@
     } %>
 
     <div class="min-w-0 flex-1 space-y-6">
-      <section id="vitals" class="scroll-mt-32">
+      <section id="vitals" class="scroll-mt-24">
         <%= render partial: "entities/teams/cap_vitals", locals: {
           team_salary_row: current_year_row,
           team_code: team_code
         } %>
       </section>
 
-      <section id="constraints" class="scroll-mt-32 space-y-3">
+      <section id="constraints" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Constraint posture</h2>
         <div class="flex flex-wrap gap-2">
           <% chips = [] %>
@@ -89,7 +86,7 @@
         </div>
       </section>
 
-      <section id="roster" class="scroll-mt-32">
+      <section id="roster" class="scroll-mt-24">
         <%= render partial: "entities/teams/roster_breakdown", locals: {
           roster: @roster,
           cap_holds: @cap_holds,
@@ -98,20 +95,20 @@
         } %>
       </section>
 
-      <section id="draft-assets" class="scroll-mt-32">
+      <section id="draft-assets" class="scroll-mt-24">
         <%= render partial: "entities/teams/draft_pick_provenance", locals: {
           draft_assets: @draft_assets,
           team_code: team_code
         } %>
       </section>
 
-      <section id="cap-horizon" class="scroll-mt-32">
+      <section id="cap-horizon" class="scroll-mt-24">
         <%= render partial: "entities/teams/cap_horizon_table", locals: {
           team_salary_rows: @team_salary_rows
         } %>
       </section>
 
-      <section id="apron-provenance" class="scroll-mt-32 space-y-3">
+      <section id="apron-provenance" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Apron provenance</h2>
         <details class="rounded-lg border border-border bg-background" open>
           <summary class="cursor-pointer px-4 py-3 text-sm font-medium hover:bg-muted/30">
@@ -172,7 +169,7 @@
         </details>
       </section>
 
-      <section id="two-way" class="scroll-mt-32 space-y-3">
+      <section id="two-way" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Two-way capacity</h2>
         <details class="rounded-lg border border-border bg-background" open>
           <summary class="cursor-pointer px-4 py-3 text-sm font-medium hover:bg-muted/30">
@@ -245,7 +242,7 @@
         </details>
       </section>
 
-      <section id="activity" class="scroll-mt-32 space-y-3">
+      <section id="activity" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Transaction activity</h2>
         <details class="rounded-lg border border-border bg-background" open>
           <summary class="cursor-pointer px-4 py-3 text-sm font-medium hover:bg-muted/30">
@@ -348,4 +345,5 @@
   </div>
 
   <%= render partial: "entities/shared/known_slugs", locals: { entity_type: "team", entity_id: @team_id, path_prefix: "teams" } %>
-<% end %>
+  </main>
+</div>
