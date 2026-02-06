@@ -187,7 +187,7 @@ Guideline: one checkbox = one endnote cluster.
 
 ### Top clusters (2-row clusters) (refreshed 2026-02-06)
 
-As of this refresh: **102 rows** remain with `primary_todo_reason='missing_shorthand'` for `draft_year >= 2026`.
+As of this refresh: **92 rows** remain with `primary_todo_reason='missing_shorthand'` for `draft_year >= 2026`.
 
 Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` (deduping `effective_endnote_ids` per row).
 
@@ -195,21 +195,14 @@ Note: `effective_endnote_ids` sometimes contains duplicates (e.g. `{5,5,5,...}`)
 
 There are currently **no 3+ row clusters**; the largest clusters are 2 rows.
 
-There are currently 9 2-row clusters; ordered by endnote_id desc.
+There are currently 2 2-row clusters; ordered by endnote_id desc.
 
-- [x] Endnote 197 (2 rows) - Portland conveys to Washington: → 2nd MF [POR, BOS, MIL] 2029 1sts (origin rows outstanding)
-- [x] Endnote 194 (2 rows) - Phoenix conveys to New York: → BOS 2028 2nd (via endnote 144)
-- [x] Endnote 144 (2 rows) - Orlando conveys to Phoenix: → BOS 2028 2nd (via endnote 48)
-- [x] Endnote 71 (2 rows) - LAL conveys to WAS: → LF [LAL, WAS] 2028 2nd (via endnote 32)
-- [x] Endnote 63 (2 rows) - MIN conveys to UTA: → MIN 2029 1st (conditional; see endnote text for protections)
-- [x] Endnote 49 (2 rows) - PHI conveys to BKN: → PHI "First Allowable Draft" 1st
-- [ ] Endnote 48 (2 rows) - BOS conveys to ORL: → BOS 2028 2nd
 - [ ] Endnote 36 (2 rows) - SAS swap right affecting IND/MIA/SAS 2026 2nd (feeds endnote 55)
 - [ ] Endnote 4 (2 rows) - HOU conveys to OKC: → HOU 2026 1st (conditional)
 
 ### One-offs / follow-ups (1-row clusters)
 
-There are currently many 1-row endnote clusters (**133** as of this refresh). Use the work-queue query to pull the next one when you're done with the 2-row clusters.
+There are currently many 1-row endnote clusters (**129** as of this refresh). Use the work-queue query to pull the next one when you're done with the 2-row clusters.
 
 A few notable one-offs to keep on the radar (ordered by endnote_id desc):
 
@@ -236,6 +229,7 @@ A few notable one-offs to keep on the radar (ordered by endnote_id desc):
 - [ ] Endnote 278 (1 row) - Orlando conveys to Memphis: → ORL 2030 1st
 - [ ] Endnote 276 (1 row) - Orlando conveys to Memphis: → ORL 2028 1st
 - [ ] Endnote 271 (1 row) - Cleveland conveys to Atlanta: → CLE 2029 2nd
+- [ ] Endnote 270 (1 row) - Cleveland conveys to Atlanta: → CLE 2027 2nd
 - [ ] Endnote 261 (1 row) - Toronto conveys to New Orleans: → TOR 2031 2nd
 - [ ] Endnote 259 (1 row) - Sacramento conveys to Memphis: → SAC 2028 2nd
 - [ ] Endnote 257 (1 row) - Miami conveys to Toronto: → LAL 2026 2nd (via endnote 121)
@@ -255,7 +249,6 @@ Older but structurally important / easy wins:
 - [ ] Endnote 246 (1 row) - BOS 2031 2nd MAY_HAVE: `may have HOU(246)`
 - [ ] Endnote 211 (1 row) - MIN 2031 2nd MAY_HAVE: `May have GSW(211)`
 - [ ] Endnote 193 (1 row) - ORL 2031 2nd MAY_HAVE: `May have NOP(193)` (swap right conveyed from NOP)
-- [ ] Endnote 50 (1 row) - BOS 2028 2nd outgoing row: "Own or to SAS(50) or to NYK(194)" (likely shorthand `BOS`)
 - [ ] Endnote 9 (1 row) - MIL 2026 1st MAY_HAVE: `May have NOP(9)`
 
 ---
@@ -365,3 +358,6 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 144 — ORL→PHX conveys BOS 2028 2nd (via endnote 48). Confirmed shorthands: BOS origin `BOS`, downstream recipient `BOS (p. 46-60)` reflecting the top-45 protection; verified display_text for BOS/NYK rows.
 - Endnote 63 — MIN→UTA Gobert trade. Updated MIN 2029 1st shorthands to `MIN (p. 1-5)` (including the downstream LF [CLE, MIN, UTA] pool) and added fallback MIN 2029 2nd shorthands `MIN` for the conditional conveyance.
 - Endnote 49 — PHI→BKN Harden/Simmons trade fallback. Added 2028 2nd round shorthands for the unprotected fallback: `PHI` (BKN MAY_HAVE) and `Own to BKN` (PHI outgoing) with endnote 16 dependency.
+- Endnote 48 — BOS→ORL BOS 2028 2nd (top-45 protected; conveys only if pick 46-60). Shorthands: `BOS` (origin) and `BOS (p. 46-60)` (recipient rows); chain feeds endnotes 144/194.
+- Endnote 50 (status update) — As of 2026-02-06, endnote 50 no longer appears in the `missing_shorthand` queue for `draft_year >= 2026` (BOS 2028 2nd outgoing row now filled).
+- Endnote 197 (status update) — As of 2026-02-06, endnote 197 no longer appears in the `missing_shorthand` queue for `draft_year >= 2026`.
