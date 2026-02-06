@@ -78,6 +78,30 @@
   .entity-cell-secondary {
     @apply h-[14px] -mt-px flex items-start text-[10px] text-muted-foreground/80 min-w-0;
   }
+
+  .entity-chip {
+    @apply inline-flex items-center rounded px-1.5 py-0.5 text-[10px] leading-none font-medium;
+  }
+
+  .entity-chip--muted {
+    @apply bg-muted text-muted-foreground;
+  }
+
+  .entity-chip--warning {
+    @apply bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400;
+  }
+
+  .entity-chip--danger {
+    @apply bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400;
+  }
+
+  .entity-chip--success {
+    @apply bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400;
+  }
+
+  .entity-chip--accent {
+    @apply bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400;
+  }
 }
 
 @layer utilities {

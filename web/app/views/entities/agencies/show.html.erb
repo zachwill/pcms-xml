@@ -98,10 +98,17 @@
             <% @agents.each do |a| %>
               <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
                 <td class="px-3 py-2">
-                  <a href="<%= agent_href(a['agent_id']) %>" class="font-medium hover:underline"><%= a["full_name"] %></a>
-                  <% if a["is_active"] == false %>
-                    <span class="ml-2 text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">inactive</span>
-                  <% end %>
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary">
+                      <a href="<%= agent_href(a['agent_id']) %>" class="font-medium truncate hover:underline"><%= a["full_name"] %></a>
+                    </div>
+                    <div class="entity-cell-secondary">
+                      agent_id: <%= a["agent_id"] %>
+                      <% if a["is_active"] == false %>
+                        <span class="ml-1 entity-chip entity-chip--muted">inactive</span>
+                      <% end %>
+                    </div>
+                  </div>
                 </td>
                 <td class="px-3 py-2 text-right font-mono tabular-nums"><%= a["client_count"] %></td>
                 <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(a["cap_2025_total"]) %></td>
@@ -134,10 +141,12 @@
               <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
                 <td class="px-3 py-2">
                   <% if r["team_code"].present? %>
-                    <a href="<%= team_href(team_code: r['team_code'], team_id: r['team_id']) %>" class="font-medium hover:underline"><%= r["team_code"] %></a>
-                    <% if r["team_name"].present? %>
-                      <div class="text-xs text-muted-foreground"><%= r["team_name"] %></div>
-                    <% end %>
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary">
+                        <a href="<%= team_href(team_code: r['team_code'], team_id: r['team_id']) %>" class="font-medium hover:underline"><%= r["team_code"] %></a>
+                      </div>
+                      <div class="entity-cell-secondary truncate"><%= r["team_name"].presence || "—" %></div>
+                    </div>
                   <% else %>
                     <span class="text-muted-foreground">—</span>
                   <% end %>
@@ -173,18 +182,33 @@
             <% @top_clients.each do |c| %>
               <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
                 <td class="px-3 py-2">
-                  <a href="<%= player_href(c['player_id']) %>" class="font-medium hover:underline"><%= c["player_name"] %></a>
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary">
+                      <a href="<%= player_href(c['player_id']) %>" class="font-medium truncate hover:underline"><%= c["player_name"] %></a>
+                    </div>
+                    <div class="entity-cell-secondary">player_id: <%= c["player_id"] %></div>
+                  </div>
                 </td>
                 <td class="px-3 py-2">
-                  <% if c["agent_id"].present? %>
-                    <a href="<%= agent_href(c['agent_id']) %>" class="hover:underline"><%= c["agent_name"] %></a>
-                  <% else %>
-                    <span class="text-muted-foreground"><%= c["agent_name"] || "—" %></span>
-                  <% end %>
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary">
+                      <% if c["agent_id"].present? %>
+                        <a href="<%= agent_href(c['agent_id']) %>" class="font-medium truncate hover:underline"><%= c["agent_name"] %></a>
+                      <% else %>
+                        <span class="text-muted-foreground truncate"><%= c["agent_name"] || "—" %></span>
+                      <% end %>
+                    </div>
+                    <div class="entity-cell-secondary">agent_id: <%= c["agent_id"] || "—" %></div>
+                  </div>
                 </td>
                 <td class="px-3 py-2">
                   <% if c["team_code"].present? %>
-                    <a href="<%= team_href(team_code: c['team_code'], team_id: c['team_id']) %>" class="hover:underline"><%= c["team_code"] %></a>
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary">
+                        <a href="<%= team_href(team_code: c['team_code'], team_id: c['team_id']) %>" class="font-medium hover:underline"><%= c["team_code"] %></a>
+                      </div>
+                      <div class="entity-cell-secondary">team_id: <%= c["team_id"] || "—" %></div>
+                    </div>
                   <% else %>
                     <span class="text-muted-foreground">—</span>
                   <% end %>

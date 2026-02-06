@@ -406,7 +406,7 @@
                 <td class="px-3 py-2 text-xs text-muted-foreground">
                   <%= r["coverage_codes"].presence || "—" %>
                   <% if r["has_conditional"] %>
-                    <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">conditional</span>
+                    <span class="ml-1 entity-chip entity-chip--warning">conditional</span>
                   <% end %>
                 </td>
                 <td class="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground"><%= r["row_count"] %></td>
@@ -473,9 +473,9 @@
                 <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["bonus_amount"]) %></td>
                 <td class="px-3 py-2 text-xs">
                   <% if r["is_likely"] %>
-                    <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">Likely</span>
+                    <span class="entity-chip entity-chip--success">Likely</span>
                   <% else %>
-                    <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Unlikely</span>
+                    <span class="entity-chip entity-chip--warning">Unlikely</span>
                   <% end %>
                 </td>
                 <td class="px-3 py-2 text-xs">
@@ -532,7 +532,7 @@
                 <td class="px-3 py-2 text-xs text-muted-foreground">
                   <%= [r["schedule_type_lk"], r["payment_type_lk"]].compact.reject(&:blank?).join(" · ").presence || "—" %>
                   <% if r["is_default_schedule"] %>
-                    <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">default</span>
+                    <span class="ml-1 entity-chip entity-chip--muted">default</span>
                   <% end %>
                 </td>
                 <td class="px-3 py-2 text-xs text-muted-foreground">

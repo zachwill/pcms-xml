@@ -92,16 +92,16 @@
                   <div class="font-mono text-xs"><%= a["asset_type"] %></div>
                   <div class="mt-1 flex flex-wrap gap-1">
                     <% if a["is_forfeited"] %>
-                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">forfeited</span>
+                      <span class="entity-chip entity-chip--muted">forfeited</span>
                     <% end %>
                     <% if a["is_swap"] %>
-                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">swap</span>
+                      <span class="entity-chip entity-chip--accent">swap</span>
                     <% end %>
                     <% if a["is_conditional"] %>
-                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">conditional</span>
+                      <span class="entity-chip entity-chip--warning">conditional</span>
                     <% end %>
                     <% if a["needs_review"] %>
-                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">needs review</span>
+                      <span class="entity-chip entity-chip--danger">needs review</span>
                     <% end %>
                   </div>
                 </td>
@@ -178,13 +178,13 @@
                 <span class="text-muted-foreground">· <%= n["trade_date"] %></span>
               <% end %>
               <% if n["status_lk"].present? %>
-                <span class="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground"><%= n["status_lk"] %></span>
+                <span class="entity-chip entity-chip--muted"><%= n["status_lk"] %></span>
               <% end %>
               <% if n["is_swap"] %>
-                <span class="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">swap</span>
+                <span class="entity-chip entity-chip--accent">swap</span>
               <% end %>
               <% if n["is_conditional"] %>
-                <span class="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">conditional</span>
+                <span class="entity-chip entity-chip--warning">conditional</span>
               <% end %>
             </div>
 
