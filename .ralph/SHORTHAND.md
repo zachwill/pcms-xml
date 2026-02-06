@@ -193,7 +193,7 @@ Note: there are currently **no 5-row clusters**; the largest clusters are 4 rows
 There are currently two 4-row clusters; ordered by endnote_id desc.
 
 - [x] Endnote 33 (4 rows) - LAC/MEM/POR 2026 2nd
-- [ ] Endnote 17 (4 rows) - BKN/HOU 2027 1st
+- [x] Endnote 17 (4 rows) - BKN/HOU 2027 1st
 
 #### Next up (3-row clusters)
 
@@ -337,3 +337,4 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 55 — IND→MIN "Result Pick" 2026 2nd (Brown trade, 6/24/2022). MIN receives either `LF [IND, MIA]` or `SAS` own 2026 2nd, depending on whether SAS exercises swap per endnote 36 (McDermott trade). Shorthands: `IND`/`MIA`/`SAS` for MIN MAY_HAVE rows, `SAS` for SAS OWN row.
 - Endnote 51 — LAL→ORL MF [LAL, WAS] 2028 2nd (Christie trade, 6/23/2022). WAS 2028 2nd flows to LAL via endnote 32 (Westbrook trade). LAL conveys MF to ORL (endnote 51); LF goes to WAS (endnote 71). Shorthands: `MF [LAL, WAS]` for ORL MAY_HAVE pool, `LAL`/`WAS` for origin rows. Direction-aware: `To WAS: LAL`, `To ORL: WAS`.
 - Endnote 33 — MEM→UTA→multiple destinations chain for MEM 2026 2nd (Aldama/Butler trade, 8/7/2021). MEM's own 2026 2nd flows to UTA (endnote 33), then splits: GSW (endnote 34) → POR (endnote 87, conditional), or ATL (endnote 130) → LAC (endnote 273). Shorthand: `MEM` for all 3 rows. Direction-aware: `To LAC: MEM` for MEM outgoing.
+- Endnote 17 — BKN/HOU 2027 1st swap (Harden trade, 1/16/2021). HOU has right to swap their 2027 1st for BKN's 2027 1st. Shorthands: `BKN` for BKN OWN and HOU MAY_HAVE BKN rows, `HOU` for HOU OWN and BKN MAY_HAVE HOU rows.
