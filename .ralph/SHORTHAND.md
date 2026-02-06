@@ -187,24 +187,16 @@ Guideline: one checkbox = one endnote cluster.
 
 ### Work queue snapshot (refreshed 2026-02-06)
 
-As of this refresh: **83 rows** remain with `primary_todo_reason='missing_shorthand'` for `draft_year >= 2026`.
+As of this refresh: **75 rows** remain with `primary_todo_reason='missing_shorthand'` for `draft_year >= 2026`.
 
 Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` (deduping `effective_endnote_ids` per row).
 
 Note: `effective_endnote_ids` sometimes contains duplicates (e.g. `{5,5,5,...}`), so we always use `select distinct unnest(...)` per row in the work-queue query to avoid overstating cluster sizes.
 
-There are currently **no 2+ row clusters**; the entire queue is 1-row clusters. There are **121 distinct endnote_ids** referenced by these 83 rows.
+There are currently **no 2+ row clusters**; the entire queue is 1-row clusters. There are **103 distinct endnote_ids** referenced by these 75 rows.
 
 Top of queue (ordered by `endnote_id desc`; each is a 1-row cluster):
 
-- [x] Endnote 302 (1 row) - Indiana conveys to Memphis: → POR 2029 2nd (via endnote 166)
-- [x] Endnote 301 (1 row) - Washington conveys to Houston: → SAC 2029 2nd (via endnote 243)
-- [x] Endnote 300 (1 row) - Washington conveys to Houston: → CHI 2026 2nd (via endnote 110)
-- [x] Endnote 298 (1 row) - Milwaukee conveys to Charlotte: → MIL 2032 2nd
-- [x] Endnote 297 (1 row) - Milwaukee conveys to Charlotte: → MIL 2031 2nd
-- [x] Endnote 296 (1 row) - Indiana conveys to San Antonio: → SAC 2030 2nd (via endnote 127)
-- [x] Endnote 292 (1 row) - Oklahoma City conveys to Washington: → HOU 2029 2nd (via endnote 132)
-- [x] Endnote 290 (1 row) - Orlando conveys to Boston: → MF [ORL, DET, MIL] 2026 2nds (via endnotes 25/5)
 - [ ] Endnote 289 (1 row) - Utah conveys to Washington: → UTA 2032 2nd
 - [ ] Endnote 286 (1 row) - Memphis conveys to Portland: → SAC 2028 2nd (via endnote 259)
 - [ ] Endnote 285 (1 row) - Memphis conveys to Portland: → ATL 2027 2nd (via endnote 160)
@@ -215,7 +207,6 @@ Top of queue (ordered by `endnote_id desc`; each is a 1-row cluster):
 - [ ] Endnote 278 (1 row) - Orlando conveys to Memphis: → ORL 2030 1st
 - [ ] Endnote 276 (1 row) - Orlando conveys to Memphis: → ORL 2028 1st
 - [ ] Endnote 271 (1 row) - Cleveland conveys to Atlanta: → CLE 2029 2nd
-- [ ] Endnote 270 (1 row) - Cleveland conveys to Atlanta: → CLE 2027 2nd
 - [ ] Endnote 261 (1 row) - Toronto conveys to New Orleans: → TOR 2031 2nd
 - [ ] Endnote 259 (1 row) - Sacramento conveys to Memphis: → SAC 2028 2nd
 - [ ] Endnote 257 (1 row) - Miami conveys to Toronto: → LAL 2026 2nd (via endnote 121)
@@ -225,8 +216,6 @@ Top of queue (ordered by `endnote_id desc`; each is a 1-row cluster):
 - [ ] Endnote 250 (1 row) - Washington conveys to Philadelphia: → GSW 2028 2nd (via endnote 198)
 - [ ] Endnote 247 (1 row) - Philadelphia conveys to Dallas: → PHI 2030 2nd
 - [ ] Endnote 246 (1 row) - Houston conveys to Boston: → HOU 2031 2nd
-- [ ] Endnote 245 (1 row) - Boston conveys to Houston: → BOS 2030 2nd
-- [ ] Endnote 243 (1 row) - Sacramento conveys to Washington: → SAC 2029 2nd
 - [ ] Endnote 237 (1 row) - San Antonio conveys to Sacramento: → MIN 2031 1st (via endnote 184)
 - [ ] Endnote 233 (1 row) - LAL conveys to Dallas: → LAL 2029 1st
 - [ ] Endnote 229 (1 row) - Phoenix conveys to Utah: → PHX 2031 1st
@@ -242,13 +231,11 @@ Top of queue (ordered by `endnote_id desc`; each is a 1-row cluster):
 - [ ] Endnote 217 (1 row) - New York conveys to Charlotte: → NYK 2031 2nd
 - [ ] Endnote 215 (1 row) - Dallas conveys to Brooklyn (via MEM/BOS): → DAL 2030 2nd
 
-Older but structurally important / easy wins:
+Remaining 1-row clusters (ordered by `endnote_id desc`; details omitted — use the queries in “Standard workflow” to pull the affected asset rows + endnote explanations):
 
-- [ ] Endnote 95 (1 row) - Portland conveys to Charlotte: → MF [POR, NOP] 2027 2nds (via endnote 45)
-- [ ] Endnote 203 (1 row) - Brooklyn conveys to New York: → LF [DET, MIL, ORL] 2026 2nds (via endnote 170)
-- [ ] Endnote 170 (1 row) - Phoenix conveys to Brooklyn: → LF [DET, MIL, ORL] 2026 2nds (via endnote 143)
-- [ ] Endnote 143 (1 row) - Orlando conveys to Phoenix: → LF [ORL, DET, MIL] 2026 2nds (via endnotes 25/5)
-- [ ] Endnote 5 (1 row) - Milwaukee conveys to Orlando: → MIL 2026 2nd
+```text
+211, 208, 207, 206, 204, 198, 193, 191, 189, 186, 184, 182, 178, 175, 174, 172, 171, 167, 162, 161, 160, 155, 153, 151, 150, 141, 140, 137, 136, 135, 133, 126, 122, 121, 120, 119, 118, 113, 111, 105, 104, 100, 98, 95, 94, 92, 91, 90, 88, 86, 85, 81, 79, 75, 72, 69, 67, 65, 61, 58, 57, 56, 54, 43, 40, 31, 24, 13, 9, 7
+```
 
 May-have / "resulting pick" patterns to keep on the radar:
 
