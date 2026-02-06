@@ -197,7 +197,7 @@ There are currently **no 3+ row clusters**; the largest clusters are 2 rows.
 
 There are currently 22 2-row clusters; ordered by endnote_id desc.
 
-- [ ] Endnote 322 (2 rows) - Brooklyn conveys to Miami: → Brooklyn's own 2026 2nd round pick
+- [x] Endnote 322 (2 rows) - Brooklyn conveys to Miami: → Brooklyn's own 2026 2nd round pick
 - [ ] Endnote 311 (2 rows) - Golden State conveys to Memphis: → Golden State's own 2032 2nd round pick
 - [ ] Endnote 288 (2 rows) - Utah conveys to Washington: → MF [IND, MIA] 2031 2nds (via endnote 258)
 - [ ] Endnote 262 (2 rows) - Toronto conveys to Indiana: → TOR 2026 2nd
@@ -335,3 +335,5 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 28 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; this endnote is fully covered by the Endnote 235/59/41 chain (CHA→NYK→ATL→SAS→SAC→DET flow). All 6 rows have shorthand: `CHA` for origin and MAY_HAVE rows, `CHA (p. 31-55)` for DET's protected 2nd round pick.
 - Endnote 25 — LAC→ORL conveys DET 2026 2nd (Preston trade, 7/29/2021). DET's own 2026 2nd flows DET→LAC(6)→ORL(25), then into the [DET, MIL, ORL] pool (BOS gets MF via 290, NYK gets LF via 203). Shorthand: `DET` for DET origin row. Direction-aware: `To BOS: DET`.
 - Endnote 6 — DET→LAC conveys DET 2026 2nd; shorthand: `DET` for the DET origin/outgoing row. This cluster is now fully covered by the Endnote 25 chain and no longer appears in the `missing_shorthand` work queue for `draft_year >= 2026`.
+
+- Endnote 322 — BKN→MIA Highsmith trade (8/15/2025). BKN conveys own 2026 2nd to MIA. Shorthand: `BKN` for both BKN OWN and MIA MAY_HAVE rows.
