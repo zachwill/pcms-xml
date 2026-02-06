@@ -1,6 +1,9 @@
 #!/usr/bin/env bun
 import { loop, work, generate, supervisor } from "./core";
 
+          // provider: "google-antigravity",
+          // model: "claude-opus-4-5-thinking",
+
 /**
  * shorthand.ts — Draft Pick Shorthand Curation Agent (Postgres)
  *
@@ -100,8 +103,8 @@ REPO HYGIENE (important):
   - Exit immediately
         `,
         {
-          provider: "google-antigravity",
-          model: "claude-opus-4-5-thinking",
+          provider: "openai-codex",
+          model: "gpt-5.2",
           thinking: "high",
           timeout: "12m",
         },

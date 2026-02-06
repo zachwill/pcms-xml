@@ -267,6 +267,112 @@ module Entities
         LIMIT 80
       SQL
 
+      @apron_provenance_rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          tts.salary_year,
+          tts.is_subject_to_apron,
+          tts.subject_to_apron_reason_lk,
+          COALESCE(reason_lk.short_description, reason_lk.description) AS subject_to_apron_reason_label,
+          tts.apron_level_lk,
+          tts.apron1_transaction_id,
+          tts.apron2_transaction_id,
+          COUNT(DISTINCT ac.constraint_code)::integer AS constraint_count,
+          STRING_AGG(
+            DISTINCT CASE
+              WHEN ac.constraint_code IS NULL THEN NULL
+              WHEN ac.description IS NULL OR ac.description = '' THEN ac.constraint_code
+              ELSE ac.constraint_code || ' — ' || ac.description
+            END,
+            E'\n'
+            ORDER BY CASE
+              WHEN ac.constraint_code IS NULL THEN NULL
+              WHEN ac.description IS NULL OR ac.description = '' THEN ac.constraint_code
+              ELSE ac.constraint_code || ' — ' || ac.description
+            END
+          ) AS constraint_lines
+        FROM pcms.team_tax_summary_snapshots tts
+        LEFT JOIN pcms.lookups reason_lk
+          ON reason_lk.lookup_type = 'lk_subject_to_apron_reasons'
+         AND reason_lk.lookup_code = tts.subject_to_apron_reason_lk
+        LEFT JOIN pcms.apron_constraints ac
+          ON ac.effective_salary_year = tts.salary_year
+         AND ac.apron_level_lk = tts.apron_level_lk
+        WHERE tts.team_id = #{id_sql}
+          AND tts.salary_year BETWEEN 2025 AND 2031
+        GROUP BY
+          tts.salary_year,
+          tts.is_subject_to_apron,
+          tts.subject_to_apron_reason_lk,
+          reason_lk.short_description,
+          reason_lk.description,
+          tts.apron_level_lk,
+          tts.apron1_transaction_id,
+          tts.apron2_transaction_id
+        ORDER BY tts.salary_year
+      SQL
+
+      @two_way_capacity_row = conn.exec_query(<<~SQL).first
+        SELECT
+          cap.team_id,
+          cap.team_code,
+          cap.current_contract_count,
+          cap.games_remaining,
+          cap.under_15_games_count,
+          cap.under_15_games_remaining,
+          GREATEST(15 - COALESCE(cap.current_contract_count, 0), 0) AS open_standard_slots,
+          CASE
+            WHEN COALESCE(cap.current_contract_count, 0) < 15 THEN cap.under_15_games_remaining
+            ELSE cap.games_remaining
+          END AS context_games_remaining,
+          cap.ingested_at
+        FROM pcms.team_two_way_capacity cap
+        WHERE cap.team_id = #{id_sql}
+           OR cap.team_code = #{code_sql}
+        ORDER BY
+          CASE WHEN cap.team_id = #{id_sql} THEN 0 ELSE 1 END,
+          cap.ingested_at DESC NULLS LAST
+        LIMIT 1
+      SQL
+
+      @two_way_watchlist_rows = conn.exec_query(<<~SQL).to_a
+        WITH latest AS (
+          SELECT DISTINCT ON (g.player_id)
+            g.player_id,
+            g.game_date_est,
+            g.games_on_active_list,
+            g.active_list_games_limit,
+            g.standard_nba_contracts_on_team,
+            g.display_first_name,
+            g.display_last_name,
+            g.roster_first_name,
+            g.roster_last_name
+          FROM pcms.two_way_game_utility g
+          WHERE g.team_code = #{code_sql}
+          ORDER BY g.player_id, g.game_date_est DESC, g.game_id DESC
+        )
+        SELECT
+          l.player_id,
+          COALESCE(
+            NULLIF(TRIM(CONCAT_WS(' ', p.display_first_name, p.display_last_name)), ''),
+            NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+            NULLIF(TRIM(CONCAT_WS(' ', l.display_first_name, l.display_last_name)), ''),
+            NULLIF(TRIM(CONCAT_WS(' ', l.roster_first_name, l.roster_last_name)), ''),
+            l.player_id::text
+          ) AS player_name,
+          l.game_date_est,
+          l.games_on_active_list,
+          l.active_list_games_limit,
+          CASE
+            WHEN l.active_list_games_limit IS NULL THEN NULL
+            ELSE GREATEST(l.active_list_games_limit - COALESCE(l.games_on_active_list, 0), 0)
+          END AS remaining_games,
+          l.standard_nba_contracts_on_team
+        FROM latest l
+        LEFT JOIN pcms.people p
+          ON p.person_id = l.player_id
+        ORDER BY remaining_games ASC NULLS LAST, l.games_on_active_list DESC NULLS LAST, player_name
+      SQL
+
       render :show
     end
 

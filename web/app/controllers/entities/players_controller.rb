@@ -154,7 +154,31 @@ module Entities
           sbw.trade_kicker_display,
           sbw.is_poison_pill,
           sbw.is_two_way,
-          sbw.is_min_contract
+          sbw.is_min_contract,
+          sbw.guaranteed_amount_2025,
+          sbw.guaranteed_amount_2026,
+          sbw.guaranteed_amount_2027,
+          sbw.guaranteed_amount_2028,
+          sbw.guaranteed_amount_2029,
+          sbw.guaranteed_amount_2030,
+          sbw.is_fully_guaranteed_2025,
+          sbw.is_fully_guaranteed_2026,
+          sbw.is_fully_guaranteed_2027,
+          sbw.is_fully_guaranteed_2028,
+          sbw.is_fully_guaranteed_2029,
+          sbw.is_fully_guaranteed_2030,
+          sbw.is_partially_guaranteed_2025,
+          sbw.is_partially_guaranteed_2026,
+          sbw.is_partially_guaranteed_2027,
+          sbw.is_partially_guaranteed_2028,
+          sbw.is_partially_guaranteed_2029,
+          sbw.is_partially_guaranteed_2030,
+          sbw.is_non_guaranteed_2025,
+          sbw.is_non_guaranteed_2026,
+          sbw.is_non_guaranteed_2027,
+          sbw.is_non_guaranteed_2028,
+          sbw.is_non_guaranteed_2029,
+          sbw.is_non_guaranteed_2030
         FROM pcms.salary_book_warehouse sbw
         LEFT JOIN pcms.teams t
           ON t.team_code = sbw.team_code
@@ -202,6 +226,110 @@ module Entities
         WHERE player_id = #{id_sql}
           AND salary_year BETWEEN 2025 AND 2030
         ORDER BY salary_year
+      SQL
+
+      @contract_chronology_rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          c.contract_id,
+          c.signing_date,
+          c.contract_end_date,
+          c.start_year,
+          c.record_status_lk,
+          c.signed_method_lk,
+          COALESCE(signed_lk.short_description, signed_lk.description) AS signed_method_label,
+          c.team_exception_id,
+          te.exception_type_lk,
+          COALESCE(exc_lk.short_description, exc_lk.description) AS exception_type_label,
+          c.is_sign_and_trade,
+          c.sign_and_trade_date,
+          c.sign_and_trade_id,
+          c.two_way_service_limit,
+          c.convert_date,
+          c.team_code,
+          c.signing_team_id,
+          signing_team.team_code AS signing_team_code,
+          signing_team.team_name AS signing_team_name,
+          c.sign_and_trade_to_team_id,
+          sat_team.team_code AS sign_and_trade_to_team_code,
+          sat_team.team_name AS sign_and_trade_to_team_name,
+          COUNT(cv.contract_version_id)::integer AS version_count,
+          MIN(cv.start_salary_year) AS min_version_start_year,
+          MAX(cv.version_number) AS latest_version_number
+        FROM pcms.contracts c
+        LEFT JOIN pcms.lookups signed_lk
+          ON signed_lk.lookup_type = 'lk_signed_methods'
+         AND signed_lk.lookup_code = c.signed_method_lk
+        LEFT JOIN pcms.team_exceptions te
+          ON te.team_exception_id = c.team_exception_id
+        LEFT JOIN pcms.lookups exc_lk
+          ON exc_lk.lookup_type = 'lk_exception_types'
+         AND exc_lk.lookup_code = te.exception_type_lk
+        LEFT JOIN pcms.teams signing_team
+          ON signing_team.team_id = c.signing_team_id
+        LEFT JOIN pcms.teams sat_team
+          ON sat_team.team_id = c.sign_and_trade_to_team_id
+        LEFT JOIN pcms.contract_versions cv
+          ON cv.contract_id = c.contract_id
+        WHERE c.player_id = #{id_sql}
+        GROUP BY
+          c.contract_id,
+          c.signing_date,
+          c.contract_end_date,
+          c.start_year,
+          c.record_status_lk,
+          c.signed_method_lk,
+          signed_lk.short_description,
+          signed_lk.description,
+          c.team_exception_id,
+          te.exception_type_lk,
+          exc_lk.short_description,
+          exc_lk.description,
+          c.is_sign_and_trade,
+          c.sign_and_trade_date,
+          c.sign_and_trade_id,
+          c.two_way_service_limit,
+          c.convert_date,
+          c.team_code,
+          c.signing_team_id,
+          signing_team.team_code,
+          signing_team.team_name,
+          c.sign_and_trade_to_team_id,
+          sat_team.team_code,
+          sat_team.team_name
+        ORDER BY c.signing_date DESC NULLS LAST, c.contract_id DESC
+      SQL
+
+      @contract_version_rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          cv.contract_id,
+          cv.version_number,
+          cv.version_date,
+          cv.start_salary_year,
+          cv.contract_length,
+          cv.contract_type_lk,
+          COALESCE(contract_type_lk.short_description, contract_type_lk.description) AS contract_type_label,
+          cv.record_status_lk,
+          cv.is_rookie_scale_extension,
+          cv.is_veteran_extension,
+          cv.is_exhibit_10,
+          cv.exhibit_10_bonus_amount,
+          cv.is_poison_pill,
+          cv.poison_pill_amount,
+          cv.is_trade_bonus,
+          cv.trade_bonus_percent,
+          cv.trade_bonus_amount,
+          cv.is_no_trade,
+          cv.is_protected_contract,
+          cv.is_full_protection
+        FROM pcms.contract_versions cv
+        JOIN pcms.contracts c
+          ON c.contract_id = cv.contract_id
+        LEFT JOIN pcms.lookups contract_type_lk
+          ON contract_type_lk.lookup_type = 'lk_contract_types'
+         AND contract_type_lk.lookup_code = cv.contract_type_lk
+        WHERE c.player_id = #{id_sql}
+        ORDER BY c.signing_date DESC NULLS LAST, cv.contract_id DESC, cv.version_number DESC
+        LIMIT 400
       SQL
 
       @salary_rows = []
