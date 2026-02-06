@@ -199,7 +199,7 @@ Top of queue (ordered by `endnote_id desc`; each is a 1-row cluster):
 
 - [x] Endnote 218 (1 row) - SAC conveys to SAS: → SAC 2031 2nd
 - [x] Endnote 217 (1 row) - NYK conveys to CHA: → NYK 2031 2nd
-- [ ] Endnote 215 (1 row) - MEM conveys to BKN: → DAL 2030 2nd (via endnotes 161, 140)
+- [x] Endnote 215 (1 row) - MEM conveys to BKN: → DAL 2030 2nd (via endnotes 161, 140)
 - [ ] Endnote 211 (1 row) - GSW conveys to MIN: swap-right on MIN 2031 2nd (row has `May have GSW(211)`)
 - [ ] Endnote 207 (1 row) - NYK conveys to BKN: → NYK 2031 1st
 - [ ] Endnote 206 (1 row) - NYK conveys to BKN: → NYK 2029 1st
@@ -375,3 +375,4 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 220 — GSW conveys ATL 2026 2nd to BKN (via endnote 85). Added shorthand `ATL` for ATL outgoing + BKN has rows; verified display_text `To BKN: ATL`.
 - Endnote 218 — SAC conveys its own 2031 2nd to SAS. Added shorthand `SAC` for the SAC outgoing row; verified display_text `To SAS: SAC`.
 - Endnote 217 — NYK conveys its own 2031 2nd to CHA. Added shorthand `NYK` for the NYK outgoing row; verified display_text `To CHA: NYK`.
+- Endnote 215 — MEM conveys DAL 2030 2nd to BKN via BOS/MEM chain (endnotes 140/161). Added shorthand `DAL` for DAL outgoing row; verified display_text `To BKN: DAL`.
