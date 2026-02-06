@@ -182,9 +182,9 @@ Guideline: one checkbox = one endnote cluster.
 
 - [x] (bootstrap) Create SHORTHAND backlog file + agent wiring
 
-### Top clusters (4-row clusters) (refreshed 2026-02-05)
+### Top clusters (4-row clusters) (refreshed 2026-02-06)
 
-As of this refresh: **161 rows** remain with `primary_todo_reason='missing_shorthand'` for `draft_year >= 2026`.
+As of this refresh: **150 rows** remain with `primary_todo_reason='missing_shorthand'` for `draft_year >= 2026`.
 
 Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` where `primary_todo_reason='missing_shorthand'` and `draft_year >= 2026`.
 
@@ -192,25 +192,17 @@ Note: there are currently **no 5-row clusters**; the largest clusters are 4 rows
 
 All entries below are currently tied at 4 rows; ordered by endnote_id desc.
 
-- [x] Endnote 116 (4 rows) - GSW/WAS 2030 (rounds 1+2)
-- [x] Endnote 99 (4 rows) - MIL/SAS/UTA 2026 2nd
-- [x] Endnote 89 (4 rows) - NOP/POR/SAS 2026 2nd
-- [ ] Endnote 78 (4 rows) - MIL/SAS/UTA 2026 2nd
 - [ ] Endnote 77 (4 rows) - LAL/UTA 2027 (rounds 1+2)
-- [ ] Endnote 60 (4 rows) - NOP/POR 2026 2nd
 - [ ] Endnote 55 (4 rows) - MIN/SAS 2026 2nd
 - [ ] Endnote 51 (4 rows) - LAL/ORL/WAS 2028 2nd
-- [ ] Endnote 44 (4 rows) - NOP/POR 2026 2nd
 - [ ] Endnote 36 (4 rows) - MIN/SAS 2026 2nd
 - [ ] Endnote 33 (4 rows) - LAC/MEM/POR 2026 2nd
-- [ ] Endnote 26 (4 rows) - POR/SAS 2026 2nd
 - [ ] Endnote 17 (4 rows) - BKN/HOU 2027 1st
 
 #### Next up (3-row clusters)
 
 All entries below are currently tied at 3 rows; ordered by endnote_id desc.
 
-- [ ] Endnote 266 (3 rows) - San Antonio conveys to Milwaukee: → Utah's own 2026 2nd round pick (via endnote 99)
 - [ ] Endnote 264 (3 rows) - Phoenix conveys to Charlotte: → The "Result Pick"
 - [ ] Endnote 235 (3 rows) - San Antonio conveys to Sacramento: → The future conditional first round draft pick (Charlotte’s own) that San Antonio is entitled to receive from Atlanta (per endnote 59)
 - [ ] Endnote 173 (3 rows) - Phoenix conveys to Memphis: → Right to swap MEM 2026 1st for the "Result Pick"
@@ -227,7 +219,7 @@ All entries below are currently tied at 3 rows; ordered by endnote_id desc.
 - [ ] Endnote 6 (3 rows) - DET conveys to LAC: → DET 2026 2nd
 - [ ] Endnote 5 (3 rows) - MIL conveys to ORL: → MIL 2026 2nd
 
-### Smaller clusters / follow-ups (2-row clusters) (refreshed 2026-02-05)
+### Smaller clusters / follow-ups (2-row clusters) (refreshed 2026-02-06)
 
 All entries below are currently tied at 2 rows; ordered by endnote_id desc.
 
@@ -251,13 +243,11 @@ All entries below are currently tied at 2 rows; ordered by endnote_id desc.
 - [ ] Endnote 194 (2 rows) - Phoenix conveys to New York: → BOS 2028 2nd (via endnote 144)
 - [ ] Endnote 176 (2 rows) - Portland conveys to Boston: → LF [POR, NOP] 2027 2nds (via endnote 45)
 - [ ] Endnote 170 (2 rows) - Phoenix conveys to Brooklyn: → LF [DET, MIL, ORL] 2026 2nds (via endnote 143)
-- [ ] Endnote 157 (2 rows) - Detroit conveys to Washington: → LF [NYK/MIN 2026 2nd, NOP/POR 2026 2nd] (via endnotes 64/60)
 - [ ] Endnote 149 (2 rows) - Boston conveys to Portland: → BOS 2029 1st
 - [ ] Endnote 147 (2 rows) - Milwaukee conveys to Portland: → MIL 2029 1st
 - [ ] Endnote 144 (2 rows) - Orlando conveys to Phoenix: → BOS 2028 2nd (via endnote 48)
 - [ ] Endnote 143 (2 rows) - Orlando conveys to Phoenix: → LF [ORL, DET, MIL] 2026 2nds (via endnotes 25/5)
 - [ ] Endnote 130 (2 rows) - Utah conveys to Atlanta: → MEM 2026 2nd (via endnote 33)
-- [ ] Endnote 112 (2 rows) - Detroit conveys to Boston: → MF [NYK/MIN 2026 2nd, NOP/POR 2026 2nd] (via endnotes 64/60)
 - [ ] Endnote 95 (2 rows) - Portland conveys to Charlotte: → MF [POR, NOP] 2027 2nds (via endnote 45)
 - [ ] Endnote 87 (2 rows) - GSW conveys to POR: → MEM 2026 2nd (conditional; via endnote 34)
 - [ ] Endnote 63 (2 rows) - MIN conveys to UTA: → MIN 2029 1st (conditional; see endnote text for protections)
@@ -298,7 +288,7 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 27 - Already covered by endnote 52 (Sengün trade, 7/30/2021). This was the middle step in the HOU→OKC→NYK chain for WAS 1st. All 6 rows already have shorthand from endnote 52 curation: `WAS (p. 1-8)` / `WAS` for NYK's MAY_HAVE, `Own to NYK (p. 1-8)` / `Own to NYK` for WAS outgoing.
 - Endnote 15 - No remaining `missing_shorthand` rows for `draft_year >= 2026` (this endnote is already covered by the Endnote 52 chain; Wall/Westbrook → Sengün → Dieng).
 - Endnote 197 — Cleanup: removed embedded "To WAS:" prefix from POR's shorthand (`2nd MF [POR, BOS, MIL]`) so direction stays with `vw_draft_pick_assets.display_text`.
-- Endnote 197 (follow-up) — As of 2026-02-05, `pcms.vw_draft_pick_shorthand_todo` still shows 2 `missing_shorthand` rows tied to endnote 197; keep this cluster in the active backlog until the origin rows are fully filled in.
+- Endnote 197 (follow-up) — As of 2026-02-06, `pcms.vw_draft_pick_shorthand_todo` still shows 2 `missing_shorthand` rows tied to endnote 197; keep this cluster in the active backlog until the origin rows are fully filled in.
 - Endnote 16 — PHI→OKC Horford trade (12/8/2020). PHI conveys conditional 1st (2026/2027 top-4 protected); fallback is PHI 2027 2nd unconditionally. Shorthands: `PHI (p. 1-4)` for 1st round rows, `PHI` for 2nd round fallback.
 - Endnote 321 — BOS→UTA Luis/Niang trade (8/6/2025). UTA receives MF [BOS, CLE] 2031 2nd. CLE pick flows via ATL (endnote 272) then BOS (endnote 313). Shorthands: `MF [BOS, CLE]` for UTA's primary MAY_HAVE, `BOS`/`CLE` for origin picks.
 - Endnote 320 — BOS→UTA Luis/Niang trade (8/6/2025). UTA receives MF [BOS, ORL] 2027 2nd. BOS pick originally went to ORL (endnote 23), then ORL/BOS pool via endnote 291. Shorthands: `MF [BOS, ORL]` for UTA's MAY_HAVE rows, `BOS`/`ORL` for origin picks.
@@ -327,7 +317,7 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 107 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; this endnote is fully covered by the Endnote 128 (IND→NYK) curation.
 - Endnotes 210 + 239 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; these are now covered by Endnote 101's DEN 2030 2nd fallback chain.
 - Endnotes 10 + 12 + 19 + 20 + 30 + 124 + 187 + 188 — No remaining `missing_shorthand` rows for `draft_year >= 2026` (covered by the Endnote 47 OKC 2027 2nd pool work); removed from active backlog.
-- Endnote 50 (follow-up) — As of 2026-02-05, `pcms.vw_draft_pick_shorthand_todo` still shows 1 `missing_shorthand` row tied to endnote 50 (BOS 2028 2nd outgoing row). Keep this endnote in the One-offs section until resolved.
+- Endnote 50 (follow-up) — As of 2026-02-06, `pcms.vw_draft_pick_shorthand_todo` still shows 1 `missing_shorthand` row tied to endnote 50 (BOS 2028 2nd outgoing row). Keep this endnote in the One-offs section until resolved.
 - Endnote 304 — HOU→ATL swap rights for 2031 2nd (massive trade, 7/6/2025). ATL has right to swap their 2031 2nd for HOU's, but only if HOU's pick is in picks 31-55. Shorthands: `ATL` for ATL OWN and HOU MAY_HAVE ATL rows, `HOU (p. 31-55)` for ATL MAY_HAVE HOU (reflects protection), `HOU` for HOU OWN.
 - Endnote 283 — NOP→ATL "Resulting Pick" (Newell-Queen trade, 6/25/2025). ATL receives MF [MIL, NOP] 2026 1st: NOP either keeps their own or swaps for MIL's via endnote 9 (Holiday trade), conveying the more favorable to ATL. Shorthands: `MIL`/`NOP` for ATL MAY_HAVE origin rows, `MIL`/`NOP` for MIL OWN and NOP TO outgoing. Direction-aware: `To ATL: NOP` for NOP outgoing.
 - Endnote 256 — GSW→DET "Resulting Pick" 2031 2nd (massive trade, 2/6/2025). DET receives either GSW's own 2031 2nd or MIN's 2031 2nd (if MIN exercises swap right via endnote 211). Shorthands: `GSW`/`MIN` for DET MAY_HAVE rows, `GSW` for GSW TO (outgoing), `MIN` for MIN OWN. Direction-aware: `To DET: GSW` for GSW outgoing.
@@ -342,3 +332,10 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 116 — GSW→WAS Paul/Poole trade (7/6/2023). WAS receives GSW 2030 1st (top-20 protected); if not conveyed, WAS receives GSW 2030 2nd unconditionally. Shorthands: `GSW (p. 1-20)` for 1st round rows, `GSW` for 2nd round fallback rows.
 - Endnote 99 — UTA→MIN→SAS→MIL chain for UTA 2026 2nd. UTA's own 2026 2nd flows via MIN (endnote 78 Russell trade) to SAS (endnote 99 Miller trade), then conditionally to MIL (endnote 266 Kuzma/Middleton). Shorthand: `UTA` for all 3 rows. Direction-aware: `To MIL: UTA` for UTA outgoing.
 - Endnote 89 — NOP→SAS LF [NOP, POR] 2026 2nd (Richardson-Graham trade, 2/9/2023). SAS receives the LF of NOP's own 2026 2nd and POR's 2026 2nd (which flows to NOP via endnote 26 Brown III trade). Shorthands: `LF [NOP, POR]` for SAS MAY_HAVE rows, `NOP`/`POR` for origin picks. Direction-aware: `To WAS: NOP` and `To WAS: POR` for outgoing.
+- Endnote 266 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; covered by the Endnote 99 chain (SAS→MIL conveys UTA 2026 2nd). Shorthand: `UTA`.
+- Endnote 78 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; covered by the Endnote 99 chain (UTA→MIN conveys UTA 2026 2nd). Shorthand: `UTA`.
+- Endnote 60 — No remaining `missing_shorthand` rows for `draft_year >= 2026` (POR→DET conveys MF [NOP, POR] 2026 2nd, via endnote 44). Key shorthands: `MF [MF [NYK, MIN], MF [NOP, POR]]` (upstream pool-of-pools), plus origin `NOP` / `POR`.
+- Endnote 44 — No remaining `missing_shorthand` rows for `draft_year >= 2026` (NOP→POR conveys MF [NOP, POR] 2026 2nd; includes POR 2026 2nd via endnote 26). Key shorthands: `NOP` / `POR`.
+- Endnote 26 — No remaining `missing_shorthand` rows for `draft_year >= 2026` (POR→NOP conveys POR 2026 2nd). Key shorthands: `POR` (origin) and downstream `LF [NOP, POR]`.
+- Endnote 112 — No remaining `missing_shorthand` rows for `draft_year >= 2026` (DET→BOS conveys MF of MF [NYK, MIN] and MF [NOP, POR] 2026 2nds). Key shorthands: `MF [MF [NYK, MIN], MF [NOP, POR]]`.
+- Endnote 157 — No remaining `missing_shorthand` rows for `draft_year >= 2026` (DET→WAS conveys LF of MF [NYK, MIN] and MF [NOP, POR] 2026 2nds). Key shorthands: `LF [MF [NYK, MIN], MF [NOP, POR]]`.
