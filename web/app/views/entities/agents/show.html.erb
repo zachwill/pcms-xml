@@ -6,7 +6,7 @@
 <%# Avoid N+1 slug lookups in client + distribution tables %>
 <% prefetch_canonical_slugs(entity_type: "player", entity_ids: @clients.map { |c| c["player_id"] }) %>
 
-<main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+<main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
   <%= render partial: "entities/shared/entity_header", locals: {
     title: (agent_name.presence || "Agent"),
     subtitle: ("agent_id: #{@agent_id} · slug: #{@agent_slug}" + (@agent["is_active"] == false ? " · inactive" : "")),
@@ -16,19 +16,33 @@
     right_links: [["Browse Agencies", "/agencies"]]
   } %>
 
-  <% if agency_name.present? %>
-    <div class="text-sm text-muted-foreground">
-      Agency:
-      <% if @agent["agency_id"].present? %>
-        <a href="<%= agency_href(@agent['agency_id']) %>" class="hover:underline"><%= agency_name %></a>
-      <% else %>
-        <span><%= agency_name %></span>
-      <% end %>
-    </div>
-  <% end %>
+  <div class="lg:flex lg:gap-8">
+    <%= render partial: "entities/shared/local_nav", locals: {
+      sections: [
+        ["vitals", "Vitals"],
+        ["connections", "Connections"],
+        ["team-distribution", "Team distribution"],
+        ["clients", "Client list"],
+        ["book-by-season", "Book by season"],
+        ["historical", "Historical footprint"]
+      ]
+    } %>
 
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Client book rollup</h2>
+    <div class="min-w-0 flex-1 space-y-6">
+      <section id="connections" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connections</h2>
+        <div class="rounded-lg border border-border bg-background p-4 text-sm text-muted-foreground">
+          Agency:
+          <% if @agent["agency_id"].present? && agency_name.present? %>
+            <a href="<%= agency_href(@agent['agency_id']) %>" class="font-medium hover:underline"><%= agency_name %></a>
+          <% else %>
+            <span><%= agency_name.presence || "Unknown" %></span>
+          <% end %>
+        </div>
+      </section>
+
+      <section id="vitals" class="scroll-mt-24 space-y-3">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div class="rounded-lg border border-border bg-background p-3">
@@ -56,8 +70,8 @@
     </div>
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Historical footprint (contracts + versions)</h2>
+  <section id="historical" class="scroll-mt-24 space-y-3">
+    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Historical footprint</h2>
 
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
       <div class="rounded-lg border border-border bg-background p-3">
@@ -113,7 +127,7 @@
     <% end %>
   </section>
 
-  <section class="space-y-3">
+  <section id="book-by-season" class="scroll-mt-24 space-y-3">
     <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Book by season</h2>
 
     <% if @book_by_year.empty? %>
@@ -146,7 +160,7 @@
     <% end %>
   </section>
 
-  <section class="space-y-3">
+  <section id="team-distribution" class="scroll-mt-24 space-y-3">
     <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Team distribution</h2>
 
     <% if @team_distribution.empty? %>
@@ -186,8 +200,8 @@
     <% end %>
   </section>
 
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Clients (salary book horizon)</h2>
+  <section id="clients" class="scroll-mt-24 space-y-3">
+    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Client list</h2>
 
     <% if @clients.empty? %>
       <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No clients found.</div>
@@ -243,5 +257,10 @@
     <% end %>
   </section>
 
+    </div>
+  </div>
+
   <%= render partial: "entities/shared/known_slugs", locals: { entity_type: "agent", entity_id: @agent_id, path_prefix: "agents" } %>
+    </div>
+  </div>
 </main>
