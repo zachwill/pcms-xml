@@ -187,7 +187,7 @@ Guideline: one checkbox = one endnote cluster.
 
 ### Top clusters (2-row clusters) (refreshed 2026-02-06)
 
-As of this refresh: **108 rows** remain with `primary_todo_reason='missing_shorthand'` for `draft_year >= 2026`.
+As of this refresh: **102 rows** remain with `primary_todo_reason='missing_shorthand'` for `draft_year >= 2026`.
 
 Ordered by rows in `pcms.vw_draft_pick_shorthand_todo` (deduping `effective_endnote_ids` per row).
 
@@ -195,12 +195,8 @@ Note: `effective_endnote_ids` sometimes contains duplicates (e.g. `{5,5,5,...}`)
 
 There are currently **no 3+ row clusters**; the largest clusters are 2 rows.
 
-There are currently 14 2-row clusters; ordered by endnote_id desc.
+There are currently 9 2-row clusters; ordered by endnote_id desc.
 
-- [x] Endnote 242 (2 rows) - Sacramento conveys to Washington: → DEN 2028 2nd (via endnote 238)
-- [x] Endnote 238 (2 rows) - San Antonio conveys to Sacramento: → DEN 2028 2nd (via endnote 42)
-- [x] Endnote 209 (2 rows) - Denver conveys to Charlotte: → DEN 2029 2nd
-- [x] Endnote 201 (2 rows) - Memphis conveys to Minnesota: → MEM 2030 2nd
 - [ ] Endnote 197 (2 rows) - Portland conveys to Washington: → 2nd MF [POR, BOS, MIL] 2029 1sts (origin rows outstanding)
 - [ ] Endnote 194 (2 rows) - Phoenix conveys to New York: → BOS 2028 2nd (via endnote 144)
 - [ ] Endnote 144 (2 rows) - Orlando conveys to Phoenix: → BOS 2028 2nd (via endnote 48)
@@ -208,13 +204,12 @@ There are currently 14 2-row clusters; ordered by endnote_id desc.
 - [ ] Endnote 63 (2 rows) - MIN conveys to UTA: → MIN 2029 1st (conditional; see endnote text for protections)
 - [ ] Endnote 49 (2 rows) - PHI conveys to BKN: → PHI "First Allowable Draft" 1st
 - [ ] Endnote 48 (2 rows) - BOS conveys to ORL: → BOS 2028 2nd
-- [ ] Endnote 42 (2 rows) - DEN conveys to SAS: → DEN 2028 2nd
 - [ ] Endnote 36 (2 rows) - SAS swap right affecting IND/MIA/SAS 2026 2nd (feeds endnote 55)
 - [ ] Endnote 4 (2 rows) - HOU conveys to OKC: → HOU 2026 1st (conditional)
 
 ### One-offs / follow-ups (1-row clusters)
 
-There are currently many 1-row endnote clusters (**134** as of this refresh). Use the work-queue query to pull the next one when you're done with the 2-row clusters.
+There are currently many 1-row endnote clusters (**133** as of this refresh). Use the work-queue query to pull the next one when you're done with the 2-row clusters.
 
 A few notable one-offs to keep on the radar (ordered by endnote_id desc):
 
@@ -238,6 +233,16 @@ A few notable one-offs to keep on the radar (ordered by endnote_id desc):
 - [ ] Endnote 282 (1 row) - PHX 2032 1st (frozen): raw_part `Own - Frozen(282)`
 - [ ] Endnote 281 (1 row) - MIN 2032 1st (frozen): raw_part `Own - Frozen(281)`
 - [ ] Endnote 280 (1 row) - BOS 2032 1st (frozen): raw_part `Own - Frozen(280)`
+- [ ] Endnote 278 (1 row) - Orlando conveys to Memphis: → ORL 2030 1st
+- [ ] Endnote 276 (1 row) - Orlando conveys to Memphis: → ORL 2028 1st
+- [ ] Endnote 271 (1 row) - Cleveland conveys to Atlanta: → CLE 2029 2nd
+- [ ] Endnote 261 (1 row) - Toronto conveys to New Orleans: → TOR 2031 2nd
+- [ ] Endnote 259 (1 row) - Sacramento conveys to Memphis: → SAC 2028 2nd
+- [ ] Endnote 257 (1 row) - Miami conveys to Toronto: → LAL 2026 2nd (via endnote 121)
+- [ ] Endnote 254 (1 row) - Philadelphia conveys to Detroit: → DAL 2031 2nd (via endnote 208)
+- [ ] Endnote 253 (1 row) - Philadelphia conveys to Detroit: → MIL 2027 2nd (via endnote 175)
+- [ ] Endnote 252 (1 row) - Washington conveys to Philadelphia: → WAS 2030 2nd
+- [ ] Endnote 250 (1 row) - Washington conveys to Philadelphia: → GSW 2028 2nd (via endnote 198)
 
 Older but structurally important / easy wins:
 
@@ -353,3 +358,4 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 209 — DEN→CHA conditional 2029 2nd (7/6/2024 multi-team trade). Added shorthands: `DEN` for CHA MAY_HAVE and DEN outgoing (`To CHA: DEN`). Dependency: endnote 53 (OKC fallback).
 - Endnote 209 (verification) — `select team_code, raw_part, shorthand, display_text from pcms.vw_draft_pick_assets where 209=any(effective_endnote_ids) and draft_year>=2026;` now yields CHA: `DEN` and DEN outgoing: `To CHA: DEN`.
 - Endnote 201 — MEM→MIN Moore Jr. multi-team trade (7/6/2024). MIN may receive MEM 2030 2nd, top-20 picks in the 2nd round protected (p. 31-50); if protected, obligation is extinguished. Shorthands: `Own to MIN (p. 31-50)` for MEM outgoing and `MEM (p. 31-50)` for MIN MAY_HAVE.
+- Endnote 42 — SAS receives DEN 2028 2nd (upstream of endnotes 238/242). This cluster is fully covered by the Endnote 238/242 shorthands (`DEN (p. 31-33)` / `Own to WAS (p. 31-33)`) and no longer appears in the `missing_shorthand` queue for `draft_year >= 2026`.
