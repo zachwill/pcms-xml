@@ -2,7 +2,7 @@
   Unified Salary Book-style command bar for all entity pages.
 
   locals (all optional):
-  - active_entity_scope: agents|draft|players|team
+  - active_entity_scope: agents|drafts|players|teams|trades|transactions
   - search_scope: legacy scope hint used for auto-mapping
   - breadcrumbs: legacy scope hint used for auto-mapping
   - title: legacy scope hint used for auto-mapping
@@ -23,9 +23,13 @@
   active_entity_scope = explicit_scope
   if active_entity_scope.blank?
     if first_crumb_label.include?("draft") || title_text.include?("draft")
-      active_entity_scope = "draft"
+      active_entity_scope = "drafts"
+    elsif first_crumb_label.include?("trade") || title_text.include?("trade")
+      active_entity_scope = "trades"
+    elsif first_crumb_label.include?("transaction") || title_text.include?("transaction")
+      active_entity_scope = "transactions"
     elsif search_scope == "teams"
-      active_entity_scope = "team"
+      active_entity_scope = "teams"
     elsif %w[agents agencies].include?(search_scope)
       active_entity_scope = "agents"
     else
@@ -33,7 +37,10 @@
     end
   end
 
+  # Normalize legacy scopes
   active_entity_scope = "agents" if active_entity_scope == "agencies"
+  active_entity_scope = "drafts" if active_entity_scope == "draft"
+  active_entity_scope = "teams" if active_entity_scope == "team"
 
   on_agents_toggle = local_assigns[:on_agents_toggle].to_s.strip.presence
   header_knobs = Array(local_assigns[:header_knobs])
@@ -42,11 +49,13 @@
 
   nav_links = [
     ["agents", "Agents", "/agents"],
-    ["draft", "Draft", "/draft-selections"],
+    ["drafts", "Drafts", "/drafts"],
     ["players", "Players", "/players"],
-    ["team", "Team", "/teams"]
+    ["teams", "Teams", "/teams"],
+    ["trades", "Trades", "/trades"],
+    ["transactions", "Txns", "/transactions"]
   ]
-  nav_slots = nav_links + Array.new(8)
+  nav_slots = nav_links + Array.new(6)
 %>
 
 <header
