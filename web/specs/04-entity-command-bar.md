@@ -31,6 +31,23 @@ Entity pages should follow the same pattern:
 
 ---
 
+## Entity Buttons (Left Side of Command Bar)
+
+Six top-level entity buttons appear on the left side of the command bar:
+
+| Button | Route | Contains |
+|--------|-------|----------|
+| **Agents** | `/agents` | Agents + Agencies (radio toggle) |
+| **Drafts** | `/drafts` | Draft Picks + Draft Selections (radio toggle) |
+| **Players** | `/players` | Players |
+| **Teams** | `/teams` | Teams |
+| **Trades** | `/trades` | Trades |
+| **Transactions** | `/transactions` | Transactions |
+
+These buttons are always visible and provide top-level navigation between entity workspaces.
+
+---
+
 ## Command Bar Anatomy
 
 ```
@@ -38,13 +55,13 @@ Entity pages should follow the same pattern:
 │ COMMAND BAR (sticky, ~100-130px)                                            │
 │                                                                             │
 │  ┌─────────────────────────┐  │  ┌─────────────────────────────────────┐   │
-│  │ ENTITY SELECTOR         │  │  │ FILTER KNOBS                        │   │
-│  │ (buttons or radios)     │  │  │ (checkboxes/radios by group)        │   │
+│  │ ENTITY BUTTONS          │  │  │ FILTER KNOBS                        │   │
+│  │ (top-level nav)         │  │  │ (checkboxes/radios by group)        │   │
 │  │                         │  │  │                                     │   │
-│  │ Examples:               │  │  │ Examples:                           │   │
-│  │ • Team grid (30 buttons)│  │  │ • [x] Active only                   │   │
-│  │ • [x] Agents / Agencies │  │  │ • [x] With clients                  │   │
-│  │ • A-Z letter buttons    │  │  │ • [ ] Show IDs                      │   │
+│  │ Agents Drafts Players   │  │  │ Examples:                           │   │
+│  │ Teams Trades Txns       │  │  │ • [x] Agents / [ ] Agencies         │   │
+│  │                         │  │  │ • [x] Active only                   │   │
+│  │                         │  │  │ • [ ] With clients                  │   │
 │  └─────────────────────────┘  │  └─────────────────────────────────────┘   │
 │                               │                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -158,27 +175,76 @@ Entity pages should follow the same pattern:
 
 ---
 
-### `/draft-picks` — Draft Picks Workspace
+### `/drafts` — Drafts Workspace
 
-**Route:** `/draft-picks`
+**Route:** `/drafts` (single route, replaces `/draft-picks` and `/draft-selections`)
+
+This workspace handles two related but distinct entity types:
+- **Draft Picks** — Future pick assets (tradeable rights to select)
+- **Draft Selections** — Historical records (who was actually drafted)
 
 **Command bar:**
 
 | Component | Type | Options |
 |-----------|------|---------|
+| Entity type | Radio | `[x] Picks` / `[ ] Selections` |
 | Year | Buttons | `2025` `2026` `2027` `2028` `2029` `2030` `2031` |
 | Round | Radio | `[x] All` / `[ ] 1st` / `[ ] 2nd` |
-| Owner | Buttons | Grid of 30 team codes (filter by current owner) |
+| Owner/Team | Buttons | Grid of 30 team codes (filter by owner for picks, drafting team for selections) |
 
 **Signals:**
 
 ```javascript
 {
+  entitytype: 'picks',  // 'picks' | 'selections'
   year: '2025',
   round: 'all',
-  owner: ''
+  team: ''
 }
 ```
+
+**Behavior:**
+
+- Toggling `Picks` ↔ `Selections` swaps the table via Datastar `@get`
+- For **Picks**: Shows future pick assets, team buttons filter by current owner
+- For **Selections**: Shows historical draft results, team buttons filter by drafting team
+- Year buttons work for both views
+
+**URL structure:**
+
+- `/drafts` — defaults to picks view, current year
+- `/drafts?view=selections` — selections view (bookmarkable)
+- `/drafts?view=selections&year=2024` — 2024 draft results
+- Individual show pages: `/draft-picks/:team/:year/:round`, `/draft-selections/:slug` (still separate)
+
+---
+
+### `/trades` — Trades Workspace
+
+**Route:** `/trades`
+
+**Command bar:**
+
+| Component | Type | Options |
+|-----------|------|---------|
+| Date range | Buttons | `Today` `This week` `This month` `This season` `All` |
+| Team | Buttons | Grid of 30 team codes (filter by team involved) |
+
+**Signals:**
+
+```javascript
+{
+  daterange: 'season',  // 'today' | 'week' | 'month' | 'season' | 'all'
+  team: ''
+}
+```
+
+**Behavior:**
+
+- Date range buttons filter to recent trades
+- Team buttons filter to trades involving that team
+- Shows trade summary (date, teams involved, headline assets)
+- Click through to `/trades/:id` for full details
 
 ---
 
@@ -191,8 +257,29 @@ Entity pages should follow the same pattern:
 | Component | Type | Options |
 |-----------|------|---------|
 | Date range | Buttons | `Today` `This week` `This month` `This season` `All` |
-| Type | Checkboxes | `[x] Trades` `[x] Signings` `[x] Waivers` `[ ] Other` |
+| Type | Checkboxes | `[x] Signings` `[x] Waivers` `[x] Extensions` `[ ] Other` |
 | Team | Buttons | Grid of 30 team codes (filter by team involved) |
+
+**Signals:**
+
+```javascript
+{
+  daterange: 'season',
+  signings: true,
+  waivers: true,
+  extensions: true,
+  other: false,
+  team: ''
+}
+```
+
+**Behavior:**
+
+- Similar to Trades but for non-trade transactions
+- Type checkboxes filter by transaction category
+- Click through to `/transactions/:id` for full details
+
+**Note:** Trades are excluded from this view (they have their own workspace). The "Type" checkboxes cover signings, waivers, extensions, options, etc.
 
 ---
 

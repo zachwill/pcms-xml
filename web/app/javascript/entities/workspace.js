@@ -1,4 +1,16 @@
-const SCROLL_OFFSET = 120;
+const DEFAULT_SCROLL_OFFSET = 120;
+const WORKSPACE_TOP_GAP = 12; // matches `pt-3` in entities/shared/_entity_page.html.erb
+
+function computeScrollOffset() {
+  const bar = document.getElementById("commandbar");
+  if (!bar) return DEFAULT_SCROLL_OFFSET;
+
+  const height = bar.getBoundingClientRect().height || bar.offsetHeight || 0;
+  if (!height) return DEFAULT_SCROLL_OFFSET;
+
+  // Ensure we never go *smaller* than the legacy value (helps during transitions / no-commandbar pages).
+  return Math.max(DEFAULT_SCROLL_OFFSET, Math.ceil(height + WORKSPACE_TOP_GAP));
+}
 
 function setActiveLink(links, activeId) {
   links.forEach((link) => {
@@ -42,12 +54,14 @@ function setupWorkspace(workspace) {
 
   if (sections.length === 0) return;
 
+  let scrollOffset = computeScrollOffset();
+
   const refreshActiveFromScroll = () => {
     let active = sections[0];
 
     for (const section of sections) {
       const top = section.element.getBoundingClientRect().top;
-      if (top - SCROLL_OFFSET <= 0) {
+      if (top - scrollOffset <= 0) {
         active = section;
       } else {
         break;
@@ -76,8 +90,14 @@ function setupWorkspace(workspace) {
     if (exists) setActiveLink(links, id);
   };
 
+  const onResize = () => {
+    scrollOffset = computeScrollOffset();
+    refreshActiveFromScroll();
+  };
+
   window.addEventListener("scroll", onScroll, { passive: true });
   window.addEventListener("hashchange", refreshActiveFromHash);
+  window.addEventListener("resize", onResize, { passive: true });
 
   refreshActiveFromHash();
   refreshActiveFromScroll();
