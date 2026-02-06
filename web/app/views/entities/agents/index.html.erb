@@ -1,18 +1,19 @@
 <% content_for :title, "Agents" %>
 
-<% pane_get_expr = "@get('/agents/pane?kind=' + $entitykind + '&active_only=' + ($activeonly ? '1' : '0'))" %>
-<% active_scope = @directory_kind == "agencies" ? "agencies" : "agents" %>
+<% query_suffix = @query.present? ? "&q=#{ERB::Util.url_encode(@query)}" : "" %>
+<% pane_get_expr = "@get('/agents/pane?kind=' + $entitykind + '&active_only=' + ($activeonly ? '1' : '0') + '#{query_suffix}')" %>
+<% update_url_expr = "window.history.replaceState({}, '', '/agents?kind=' + $entitykind + '&active_only=' + ($activeonly ? '1' : '0') + '#{query_suffix}')" %>
+<% refresh_expr = "#{pane_get_expr}; #{update_url_expr}" %>
+<% sync_agents_expr = "$entitykind = 'agents'; #{refresh_expr}" %>
 
-<main
-  class="max-w-5xl mx-auto px-4 py-6 space-y-6"
+<div
+  id="entity-directory"
+  class="min-h-screen w-full bg-background"
   data-signals="{ entitykind: '<%= @directory_kind %>', activeonly: <%= @active_only ? 'true' : 'false' %> }"
 >
-  <%= render partial: "entities/shared/entity_header", locals: {
-    title: "Representation",
-    subtitle: "Agent and agency directory (from pcms.agents + pcms.agencies).",
-    breadcrumbs: [["Agents", nil]],
-    active_entity_scope: active_scope,
-    search_enabled: false,
+  <%= render partial: "entities/shared/directory_commandbar", locals: {
+    active_entity_scope: "agents",
+    on_agents_toggle: sync_agents_expr,
     header_knobs: [
       {
         label: "Directory",
@@ -25,7 +26,7 @@
             label: "Agents",
             checked: @directory_kind == "agents",
             bind: "entitykind",
-            on_change: pane_get_expr
+            on_change: refresh_expr
           },
           {
             type: "radio",
@@ -35,7 +36,7 @@
             label: "Agencies",
             checked: @directory_kind == "agencies",
             bind: "entitykind",
-            on_change: pane_get_expr
+            on_change: refresh_expr
           }
         ]
       },
@@ -48,12 +49,14 @@
             label: "Active only",
             checked: @active_only,
             bind: "activeonly",
-            on_change: pane_get_expr
+            on_change: refresh_expr
           }
         ]
       }
     ]
   } %>
 
-  <%= render partial: "entities/agents/directory_results" %>
-</main>
+  <main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <%= render partial: "entities/agents/directory_results" %>
+  </main>
+</div>
