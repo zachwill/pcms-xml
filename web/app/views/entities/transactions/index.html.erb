@@ -1,0 +1,113 @@
+<% content_for :title, "Transactions" %>
+
+<% pane_get_expr = "@get('/transactions/pane?daterange=' + $txndaterange + '&team=' + $txnteam + '&signings=' + ($txnsignings ? '1' : '0') + '&waivers=' + ($txnwaivers ? '1' : '0') + '&extensions=' + ($txnextensions ? '1' : '0') + '&other=' + ($txnother ? '1' : '0'))" %>
+<% update_url_expr = "window.history.replaceState({}, '', '/transactions?daterange=' + $txndaterange + '&team=' + $txnteam)" %>
+<% refresh_expr = "#{pane_get_expr}; #{update_url_expr}" %>
+
+<% root_attrs = "data-signals=\"{ txndaterange: '#{@daterange}', txnteam: '#{@team || ''}', txnsignings: #{@signings}, txnwaivers: #{@waivers}, txnextensions: #{@extensions}, txnother: #{@other} }\"" %>
+
+<%= render partial: "entities/shared/entity_page", locals: {
+  root_id: "entity-directory",
+  root_attrs: root_attrs,
+  main_class: "max-w-5xl mx-auto px-4 pt-3 pb-10 space-y-6",
+  commandbar_locals: {
+    active_entity_scope: "transactions",
+    container_class: "max-w-5xl mx-auto",
+    header_knobs: [
+      {
+        label: "Date Range",
+        options: [
+          {
+            type: "radio",
+            name: "txn-daterange",
+            id: "txn-daterange-today",
+            value: "today",
+            label: "Today",
+            checked: @daterange == "today",
+            bind: "txndaterange",
+            on_change: refresh_expr
+          },
+          {
+            type: "radio",
+            name: "txn-daterange",
+            id: "txn-daterange-week",
+            value: "week",
+            label: "This Week",
+            checked: @daterange == "week",
+            bind: "txndaterange",
+            on_change: refresh_expr
+          },
+          {
+            type: "radio",
+            name: "txn-daterange",
+            id: "txn-daterange-month",
+            value: "month",
+            label: "This Month",
+            checked: @daterange == "month",
+            bind: "txndaterange",
+            on_change: refresh_expr
+          },
+          {
+            type: "radio",
+            name: "txn-daterange",
+            id: "txn-daterange-season",
+            value: "season",
+            label: "This Season",
+            checked: @daterange == "season",
+            bind: "txndaterange",
+            on_change: refresh_expr
+          },
+          {
+            type: "radio",
+            name: "txn-daterange",
+            id: "txn-daterange-all",
+            value: "all",
+            label: "All",
+            checked: @daterange == "all",
+            bind: "txndaterange",
+            on_change: refresh_expr
+          }
+        ]
+      },
+      {
+        label: "Type",
+        options: [
+          {
+            type: "checkbox",
+            id: "txn-type-signings",
+            label: "Signings",
+            checked: @signings,
+            bind: "txnsignings",
+            on_change: refresh_expr
+          },
+          {
+            type: "checkbox",
+            id: "txn-type-waivers",
+            label: "Waivers",
+            checked: @waivers,
+            bind: "txnwaivers",
+            on_change: refresh_expr
+          },
+          {
+            type: "checkbox",
+            id: "txn-type-extensions",
+            label: "Extensions",
+            checked: @extensions,
+            bind: "txnextensions",
+            on_change: refresh_expr
+          },
+          {
+            type: "checkbox",
+            id: "txn-type-other",
+            label: "Other",
+            checked: @other,
+            bind: "txnother",
+            on_change: refresh_expr
+          }
+        ]
+      }
+    ]
+  }
+} do %>
+  <%= render partial: "entities/transactions/results" %>
+<% end %>
