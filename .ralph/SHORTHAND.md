@@ -351,3 +351,4 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 242 — SAC→WAS conveys DEN 2028 2nd via SAS/SAC (endnotes 42/238/242); picks 31-33 protected (obligation extinguished if protected). Shorthands: `DEN (p. 31-33)` (WAS MAY_HAVE) and `Own to WAS (p. 31-33)` (DEN outgoing).
 - Endnote 238 — SAS→SAC conveys DEN 2028 2nd (via endnote 42), picks 31-33 protected / extinguished if protected; downstream SAC→WAS is endnote 242. Shorthands (same underlying asset): `DEN (p. 31-33)` and `Own to WAS (p. 31-33)`.
 - Endnote 209 — DEN→CHA conditional 2029 2nd (7/6/2024 multi-team trade). Added shorthands: `DEN` for CHA MAY_HAVE and DEN outgoing (`To CHA: DEN`). Dependency: endnote 53 (OKC fallback).
+- Endnote 209 (verification) — `select team_code, raw_part, shorthand, display_text from pcms.vw_draft_pick_assets where 209=any(effective_endnote_ids) and draft_year>=2026;` now yields CHA: `DEN` and DEN outgoing: `To CHA: DEN`.
