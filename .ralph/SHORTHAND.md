@@ -200,7 +200,7 @@ There are currently 14 2-row clusters; ordered by endnote_id desc.
 - [x] Endnote 242 (2 rows) - Sacramento conveys to Washington: → DEN 2028 2nd (via endnote 238)
 - [x] Endnote 238 (2 rows) - San Antonio conveys to Sacramento: → DEN 2028 2nd (via endnote 42)
 - [x] Endnote 209 (2 rows) - Denver conveys to Charlotte: → DEN 2029 2nd
-- [ ] Endnote 201 (2 rows) - Memphis conveys to Minnesota: → MEM 2030 2nd
+- [x] Endnote 201 (2 rows) - Memphis conveys to Minnesota: → MEM 2030 2nd
 - [ ] Endnote 197 (2 rows) - Portland conveys to Washington: → 2nd MF [POR, BOS, MIL] 2029 1sts (origin rows outstanding)
 - [ ] Endnote 194 (2 rows) - Phoenix conveys to New York: → BOS 2028 2nd (via endnote 144)
 - [ ] Endnote 144 (2 rows) - Orlando conveys to Phoenix: → BOS 2028 2nd (via endnote 48)
@@ -352,3 +352,4 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 238 — SAS→SAC conveys DEN 2028 2nd (via endnote 42), picks 31-33 protected / extinguished if protected; downstream SAC→WAS is endnote 242. Shorthands (same underlying asset): `DEN (p. 31-33)` and `Own to WAS (p. 31-33)`.
 - Endnote 209 — DEN→CHA conditional 2029 2nd (7/6/2024 multi-team trade). Added shorthands: `DEN` for CHA MAY_HAVE and DEN outgoing (`To CHA: DEN`). Dependency: endnote 53 (OKC fallback).
 - Endnote 209 (verification) — `select team_code, raw_part, shorthand, display_text from pcms.vw_draft_pick_assets where 209=any(effective_endnote_ids) and draft_year>=2026;` now yields CHA: `DEN` and DEN outgoing: `To CHA: DEN`.
+- Endnote 201 — MEM→MIN Moore Jr. multi-team trade (7/6/2024). MIN may receive MEM 2030 2nd, top-20 picks in the 2nd round protected (p. 31-50); if protected, obligation is extinguished. Shorthands: `Own to MIN (p. 31-50)` for MEM outgoing and `MEM (p. 31-50)` for MIN MAY_HAVE.
