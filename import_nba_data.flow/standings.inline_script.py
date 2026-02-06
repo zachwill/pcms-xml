@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["psycopg[binary]", "httpx", "typing-extensions"]
+# dependencies = ["psycopg[binary]", "httpx", "sniffio", "typing-extensions"]
 # ///
 import os
 import re
