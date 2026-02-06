@@ -198,7 +198,7 @@ There are currently **no 2+ row clusters**; the entire queue is 1-row clusters. 
 Top of queue (ordered by `endnote_id desc`; each is a 1-row cluster):
 
 - [x] Endnote 280 (1 row) - BOS 2032 1st (frozen): raw_part `Own - Frozen(280)`
-- [ ] Endnote 278 (1 row) - Orlando conveys to Memphis: → ORL 2030 1st
+- [x] Endnote 278 (1 row) - Orlando conveys to Memphis: → ORL 2030 1st
 - [ ] Endnote 271 (1 row) - Cleveland conveys to Atlanta: → CLE 2029 2nd
 - [ ] Endnote 261 (1 row) - Toronto conveys to New Orleans: → TOR 2031 2nd
 - [ ] Endnote 257 (1 row) - Miami conveys to Toronto: → LAL 2026 2nd (via endnote 121)
@@ -368,3 +368,4 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnote 276 — ORL→MEM step in the same ORL 2028 1st chain. As of 2026-02-06, this endnote_id no longer appears in the `missing_shorthand` queue for `draft_year >= 2026` (covered by the Endnote 284 shorthands).
 - Endnote 282 — PHX 2032 1st frozen (Second Apron 2024-25). Added shorthand `PHX` for the PHX own 2032 1st row; verified display_text `PHX`.
 - Endnote 280 — BOS 2032 1st frozen (Second Apron 2024-25). Added shorthand `BOS` for the BOS own 2032 1st row; verified display_text `BOS`.
+- Endnote 278 — ORL conveys its 2030 1st to MEM (Anthony/Caldwell-Pope/Bane trade). Added shorthand `ORL` for the ORL outgoing row; verified display_text `To MEM: ORL`.
