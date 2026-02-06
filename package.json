@@ -9,7 +9,7 @@
     "bun": ">=1.0.0"
   },
   "dependencies": {
-    "@mariozechner/pi-coding-agent": "^0.50.7",
+    "@mariozechner/pi-coding-agent": "^0.52.6",
     "@zenbase/llml": "^0.4.0"
   },
   "scripts": {
@@ -17,5 +17,8 @@
     "refactor": "bun agents/refactor.ts",
     "cleanup": "bun agents/cleanup.ts",
     "roadmap": "bun agents/roadmap.ts"
-  }
+  },
+  "trustedDependencies": [
+    "protobufjs"
+  ]
 }
