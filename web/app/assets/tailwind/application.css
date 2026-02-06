@@ -102,6 +102,10 @@
   .entity-chip--accent {
     @apply bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400;
   }
+
+  [data-entity-scrollspy-link][data-active="true"] {
+    @apply bg-primary/10 text-primary font-medium;
+  }
 }
 
 @layer utilities {

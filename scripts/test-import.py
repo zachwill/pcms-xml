@@ -24,6 +24,7 @@ SCRIPTS = {
     "transactions": "transactions.inline_script.py",
     "league_config": "league_config.inline_script.py",
     "team_financials": "team_financials.inline_script.py",
+    "refresh_caches": "refresh_caches.inline_script.py",
 }
 
 EXTRACT_DIR = "shared/pcms/nba_pcms_full_extract"
@@ -45,7 +46,11 @@ def run_script(name: str, dry_run: bool = True):
     print(f"{'='*60}\n")
 
     main = load_script(name)
-    result = main(dry_run=dry_run, extract_dir=EXTRACT_DIR)
+    # refresh_caches doesn't need extract_dir
+    if name == "refresh_caches":
+        result = main(dry_run=dry_run)
+    else:
+        result = main(dry_run=dry_run, extract_dir=EXTRACT_DIR)
 
     print(json.dumps(result, indent=2))
     return result
