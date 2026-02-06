@@ -194,7 +194,7 @@ There are currently 10 3-row clusters; ordered by endnote_id desc.
 
 - [x] Endnote 235 (3 rows) - San Antonio conveys to Sacramento: → The future conditional first round draft pick (Charlotte's own) that San Antonio is entitled to receive from Atlanta (per endnote 59)
 - [x] Endnote 169 (3 rows) - Dallas conveys to Charlotte: → DAL 2027 1st
-- [ ] Endnote 146 (3 rows) - Milwaukee conveys to Portland: → Right to swap POR 2028 1st for MIL 2028 1st
+- [x] Endnote 146 (3 rows) - Milwaukee conveys to Portland: → Right to swap POR 2028 1st for MIL 2028 1st
 - [ ] Endnote 59 (3 rows) - ATL conveys to SAS: → CHA 1st (via NYK/endnote 41)
 - [ ] Endnote 41 (3 rows) - NYK conveys to ATL: → CHA 1st (via NYK/endnote 28)
 - [ ] Endnote 37 (3 rows) - POR conveys to CHI: → POR 1st (First allowable draft, 2022-2028)
@@ -328,3 +328,4 @@ Note: any `To XYZ: ...` snippets mentioned below are examples of `pcms.vw_draft_
 - Endnotes 34 + 87 + 130 + 273 — No remaining `missing_shorthand` rows for `draft_year >= 2026`; these are all covered by the Endnote 33 MEM 2026 2nd chain work.
 - Endnote 235 — SAS→SAC CHA pick chain (Fox trade, 2/3/2025). CHA's own pick flows CHA→NYK(28)→ATL(41)→SAS(59)→SAC(235)→DET(317). Shorthand: `CHA` for CHA origin and SAC MAY_HAVE rows. Direction-aware: `To DET: CHA` for CHA outgoing.
 - Endnote 169 — DAL→CHA P.J. Washington trade (2/8/2024). DAL 2027 1st (top-2 protected) to CHA; fallback is MIA 2028 2nd (via SAS/DAL per endnotes 76/142). Shorthands: `DAL (p. 1-2)` for CHA MAY_HAVE, `DAL` for DAL OWN, `MIA` for 2028 2nd fallback.
+- Endnote 146 — MIL→POR swap right for 2028 1st (Lillard trade, 9/27/2023). POR has right to swap their 2028 1st for MIL's 2028 1st (auto-exercise if MIL pick more favorable and POR not obligated to CHI per endnote 37). Shorthands: `POR` for POR OWN, `MIL` for POR MAY_HAVE MIL (swap right).
