@@ -1,0 +1,76 @@
+<% content_for :title, "Trades" %>
+
+<% pane_get_expr = "@get('/trades/pane?daterange=' + $tradedaterange + '&team=' + $tradeteam)" %>
+<% update_url_expr = "window.history.replaceState({}, '', '/trades?daterange=' + $tradedaterange + '&team=' + $tradeteam)" %>
+<% refresh_expr = "#{pane_get_expr}; #{update_url_expr}" %>
+
+<% root_attrs = "data-signals=\"{ tradedaterange: '#{@daterange}', tradeteam: '#{@team || ''}' }\"" %>
+
+<%= render partial: "entities/shared/entity_page", locals: {
+  root_id: "entity-directory",
+  root_attrs: root_attrs,
+  main_class: "max-w-5xl mx-auto px-4 pt-3 pb-10 space-y-6",
+  commandbar_locals: {
+    active_entity_scope: "trades",
+    container_class: "max-w-5xl mx-auto",
+    header_knobs: [
+      {
+        label: "Date Range",
+        options: [
+          {
+            type: "radio",
+            name: "trade-daterange",
+            id: "trade-daterange-today",
+            value: "today",
+            label: "Today",
+            checked: @daterange == "today",
+            bind: "tradedaterange",
+            on_change: refresh_expr
+          },
+          {
+            type: "radio",
+            name: "trade-daterange",
+            id: "trade-daterange-week",
+            value: "week",
+            label: "This Week",
+            checked: @daterange == "week",
+            bind: "tradedaterange",
+            on_change: refresh_expr
+          },
+          {
+            type: "radio",
+            name: "trade-daterange",
+            id: "trade-daterange-month",
+            value: "month",
+            label: "This Month",
+            checked: @daterange == "month",
+            bind: "tradedaterange",
+            on_change: refresh_expr
+          },
+          {
+            type: "radio",
+            name: "trade-daterange",
+            id: "trade-daterange-season",
+            value: "season",
+            label: "This Season",
+            checked: @daterange == "season",
+            bind: "tradedaterange",
+            on_change: refresh_expr
+          },
+          {
+            type: "radio",
+            name: "trade-daterange",
+            id: "trade-daterange-all",
+            value: "all",
+            label: "All",
+            checked: @daterange == "all",
+            bind: "tradedaterange",
+            on_change: refresh_expr
+          }
+        ]
+      }
+    ]
+  }
+} do %>
+  <%= render partial: "entities/trades/results" %>
+<% end %>

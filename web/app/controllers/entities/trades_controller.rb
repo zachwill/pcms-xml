@@ -1,5 +1,75 @@
 module Entities
   class TradesController < ApplicationController
+    # GET /trades
+    def index
+      conn = ActiveRecord::Base.connection
+
+      @daterange = params[:daterange].to_s.strip.presence || "season"
+      @team = params[:team].to_s.strip.upcase.presence
+
+      # Calculate date filters
+      today = Date.today
+      season_start = today.month >= 7 ? Date.new(today.year, 7, 1) : Date.new(today.year - 1, 7, 1)
+
+      date_filter = case @daterange
+      when "today"
+        "tr.trade_date = #{conn.quote(today)}"
+      when "week"
+        "tr.trade_date >= #{conn.quote(today - 7)}"
+      when "month"
+        "tr.trade_date >= #{conn.quote(today - 30)}"
+      when "season"
+        "tr.trade_date >= #{conn.quote(season_start)}"
+      else
+        "1=1" # all
+      end
+
+      where_clauses = [date_filter]
+
+      if @team.present?
+        where_clauses << <<~SQL
+          EXISTS (
+            SELECT 1 FROM pcms.trade_teams tt
+            WHERE tt.trade_id = tr.trade_id AND tt.team_code = #{conn.quote(@team)}
+          )
+        SQL
+      end
+
+      @trades = conn.exec_query(<<~SQL).to_a
+        SELECT
+          tr.trade_id,
+          tr.trade_date,
+          tr.trade_finalized_date,
+          tr.trade_comments,
+          (
+            SELECT string_agg(tt.team_code, ', ' ORDER BY tt.seqno)
+            FROM pcms.trade_teams tt WHERE tt.trade_id = tr.trade_id
+          ) AS teams_involved,
+          (
+            SELECT COUNT(DISTINCT ttd.player_id)::int
+            FROM pcms.trade_team_details ttd
+            WHERE ttd.trade_id = tr.trade_id AND ttd.player_id IS NOT NULL
+          ) AS player_count,
+          (
+            SELECT COUNT(*)::int
+            FROM pcms.trade_team_details ttd
+            WHERE ttd.trade_id = tr.trade_id AND ttd.draft_pick_year IS NOT NULL
+          ) AS pick_count
+        FROM pcms.trades tr
+        WHERE #{where_clauses.join(" AND ")}
+        ORDER BY tr.trade_date DESC, tr.trade_id DESC
+        LIMIT 200
+      SQL
+
+      render :index
+    end
+
+    # GET /trades/pane (Datastar partial refresh)
+    def pane
+      index
+      render partial: "entities/trades/results"
+    end
+
     # GET /trades/:id
     def show
       id = Integer(params[:id])

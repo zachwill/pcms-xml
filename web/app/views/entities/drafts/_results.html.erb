@@ -1,0 +1,134 @@
+<div id="drafts-results">
+  <section class="space-y-3">
+    <div class="flex items-center gap-4">
+      <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <%= @view == "picks" ? "Draft Picks" : "Draft Selections" %> — <%= @year %>
+      </h2>
+      
+      <%# Year selector buttons %>
+      <div class="flex gap-1">
+        <% @available_years.first(7).each do |year| %>
+          <button
+            type="button"
+            class="h-6 px-2 rounded text-[11px] font-medium transition-all duration-150 border outline-none inline-flex items-center justify-center <%= year.to_s == @year ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-muted/50 text-foreground border-border hover:bg-muted hover:border-foreground/20' %>"
+            data-on:click="$draftyear = '<%= year %>'; @get('/drafts/pane?view=' + $draftview + '&year=<%= year %>&round=' + $draftround + '&team=' + $draftteam); window.history.replaceState({}, '', '/drafts?view=' + $draftview + '&year=<%= year %>&round=' + $draftround + '&team=' + $draftteam)"
+          ><%= year %></button>
+        <% end %>
+      </div>
+    </div>
+
+    <% if @results.empty? %>
+      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">
+        No <%= @view == "picks" ? "draft picks" : "draft selections" %> found for <%= @year %>.
+      </div>
+    <% else %>
+      <div class="overflow-x-auto rounded-lg border border-border">
+        <table class="entity-table min-w-full text-xs">
+          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+            <% if @view == "picks" %>
+              <tr>
+                <th class="text-left px-3 py-2 font-medium">Round</th>
+                <th class="text-left px-3 py-2 font-medium">Original</th>
+                <th class="text-left px-3 py-2 font-medium">Current Owner</th>
+                <th class="text-left px-3 py-2 font-medium">Status</th>
+                <th class="text-left px-3 py-2 font-medium">Protections</th>
+              </tr>
+            <% else %>
+              <tr>
+                <th class="text-center px-3 py-2 font-medium">Pick</th>
+                <th class="text-left px-3 py-2 font-medium">Player</th>
+                <th class="text-left px-3 py-2 font-medium">Team</th>
+                <th class="text-left px-3 py-2 font-medium">Date</th>
+              </tr>
+            <% end %>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <% if @view == "picks" %>
+              <% @results.each do |pick| %>
+                <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                  <td class="px-3 py-2 font-mono tabular-nums">
+                    R<%= pick["draft_round"] %>
+                  </td>
+                  <td class="px-3 py-2">
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary">
+                        <a href="<%= team_href(team_code: pick['original_team_code']) %>" class="font-medium hover:underline"><%= pick["original_team_code"] %></a>
+                      </div>
+                      <div class="entity-cell-secondary truncate"><%= pick["original_team_name"] %></div>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2">
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary">
+                        <% if pick["current_team_code"] != pick["original_team_code"] %>
+                          <a href="<%= team_href(team_code: pick['current_team_code']) %>" class="font-medium hover:underline text-amber-600 dark:text-amber-400"><%= pick["current_team_code"] %></a>
+                        <% else %>
+                          <span class="text-muted-foreground">—</span>
+                        <% end %>
+                      </div>
+                      <% if pick["current_team_code"] != pick["original_team_code"] %>
+                        <div class="entity-cell-secondary truncate"><%= pick["current_team_name"] %></div>
+                      <% end %>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2">
+                    <% if pick["is_swap"] %>
+                      <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">Swap</span>
+                    <% elsif pick["pick_status"].present? %>
+                      <span class="text-muted-foreground text-[11px]"><%= pick["pick_status"] %></span>
+                    <% else %>
+                      <span class="text-muted-foreground">—</span>
+                    <% end %>
+                  </td>
+                  <td class="px-3 py-2 text-muted-foreground text-[11px] max-w-xs truncate">
+                    <%= pick["protections_summary"].presence || "—" %>
+                  </td>
+                </tr>
+              <% end %>
+            <% else %>
+              <% @results.each do |sel| %>
+                <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                  <td class="px-3 py-2 text-center font-mono tabular-nums">
+                    <div class="text-sm font-medium"><%= sel["pick_number"] %></div>
+                    <div class="text-[10px] text-muted-foreground">R<%= sel["draft_round"] %></div>
+                  </td>
+                  <td class="px-3 py-2">
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary">
+                        <% if sel["player_id"].present? %>
+                          <a href="<%= player_href(sel['player_id']) %>" class="font-medium truncate hover:underline"><%= sel["player_name"] %></a>
+                        <% else %>
+                          <span class="text-muted-foreground">—</span>
+                        <% end %>
+                      </div>
+                      <div class="entity-cell-secondary">id: <code><%= sel["player_id"] %></code></div>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2">
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary">
+                        <a href="<%= team_href(team_code: sel['drafting_team_code']) %>" class="font-medium hover:underline"><%= sel["drafting_team_code"] %></a>
+                      </div>
+                      <div class="entity-cell-secondary truncate"><%= sel["drafting_team_name"] %></div>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2 text-muted-foreground">
+                    <%= sel["transaction_date"].present? ? Date.parse(sel["transaction_date"].to_s).strftime("%b %d, %Y") : "—" %>
+                  </td>
+                </tr>
+              <% end %>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="text-xs text-muted-foreground">
+        <% if @view == "picks" %>
+          Showing <%= @results.size %> draft pick<%= @results.size == 1 ? "" : "s" %> for <%= @year %>.
+        <% else %>
+          Showing <%= @results.size %> selection<%= @results.size == 1 ? "" : "s" %> from the <%= @year %> draft.
+        <% end %>
+      </p>
+    <% end %>
+  </section>
+</div>

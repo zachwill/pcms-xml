@@ -1,0 +1,82 @@
+<% content_for :title, "Drafts" %>
+
+<% query_suffix = "" %>
+<% pane_get_expr = "@get('/drafts/pane?view=' + $draftview + '&year=' + $draftyear + '&round=' + $draftround + '&team=' + $draftteam)" %>
+<% update_url_expr = "window.history.replaceState({}, '', '/drafts?view=' + $draftview + '&year=' + $draftyear + '&round=' + $draftround + '&team=' + $draftteam)" %>
+<% refresh_expr = "#{pane_get_expr}; #{update_url_expr}" %>
+
+<% root_attrs = "data-signals=\"{ draftview: '#{@view}', draftyear: '#{@year}', draftround: '#{@round || 'all'}', draftteam: '#{@team || ''}' }\"" %>
+
+<%= render partial: "entities/shared/entity_page", locals: {
+  root_id: "entity-directory",
+  root_attrs: root_attrs,
+  main_class: "max-w-5xl mx-auto px-4 pt-3 pb-10 space-y-6",
+  commandbar_locals: {
+    active_entity_scope: "drafts",
+    container_class: "max-w-5xl mx-auto",
+    header_knobs: [
+      {
+        label: "View",
+        options: [
+          {
+            type: "radio",
+            name: "draft-view",
+            id: "draft-view-picks",
+            value: "picks",
+            label: "Picks",
+            checked: @view == "picks",
+            bind: "draftview",
+            on_change: refresh_expr
+          },
+          {
+            type: "radio",
+            name: "draft-view",
+            id: "draft-view-selections",
+            value: "selections",
+            label: "Selections",
+            checked: @view == "selections",
+            bind: "draftview",
+            on_change: refresh_expr
+          }
+        ]
+      },
+      {
+        label: "Round",
+        options: [
+          {
+            type: "radio",
+            name: "draft-round",
+            id: "draft-round-all",
+            value: "all",
+            label: "All",
+            checked: @round.nil? || @round == "all",
+            bind: "draftround",
+            on_change: refresh_expr
+          },
+          {
+            type: "radio",
+            name: "draft-round",
+            id: "draft-round-1",
+            value: "1",
+            label: "1st",
+            checked: @round == "1",
+            bind: "draftround",
+            on_change: refresh_expr
+          },
+          {
+            type: "radio",
+            name: "draft-round",
+            id: "draft-round-2",
+            value: "2",
+            label: "2nd",
+            checked: @round == "2",
+            bind: "draftround",
+            on_change: refresh_expr
+          }
+        ]
+      }
+    ]
+  }
+} do %>
+  <%= render partial: "entities/drafts/results" %>
+<% end %>

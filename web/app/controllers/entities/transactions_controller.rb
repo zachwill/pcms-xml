@@ -1,5 +1,88 @@
 module Entities
   class TransactionsController < ApplicationController
+    # GET /transactions
+    def index
+      conn = ActiveRecord::Base.connection
+
+      @daterange = params[:daterange].to_s.strip.presence || "season"
+      @team = params[:team].to_s.strip.upcase.presence
+      @signings = params[:signings] != "0"
+      @waivers = params[:waivers] != "0"
+      @extensions = params[:extensions] != "0"
+      @other = params[:other] == "1"
+
+      # Calculate date filters
+      today = Date.today
+      season_start = today.month >= 7 ? Date.new(today.year, 7, 1) : Date.new(today.year - 1, 7, 1)
+
+      date_filter = case @daterange
+      when "today"
+        "t.transaction_date = #{conn.quote(today)}"
+      when "week"
+        "t.transaction_date >= #{conn.quote(today - 7)}"
+      when "month"
+        "t.transaction_date >= #{conn.quote(today - 30)}"
+      when "season"
+        "t.transaction_date >= #{conn.quote(season_start)}"
+      else
+        "1=1" # all
+      end
+
+      # Build type filter
+      type_conditions = []
+      type_conditions << "t.transaction_type_lk IN ('SIGN', 'RSIGN', 'EXTSN')" if @signings
+      type_conditions << "t.transaction_type_lk IN ('WAIVE', 'WAIVR')" if @waivers
+      type_conditions << "t.transaction_type_lk = 'EXTSN'" if @extensions
+      if @other
+        excluded = %w[SIGN RSIGN EXTSN WAIVE WAIVR TRADE]
+        type_conditions << "t.transaction_type_lk NOT IN (#{excluded.map { |c| conn.quote(c) }.join(', ')})"
+      end
+
+      # Exclude trades (they have their own workspace)
+      type_filter = if type_conditions.any?
+        "(#{type_conditions.join(' OR ')}) AND t.trade_id IS NULL"
+      else
+        "t.trade_id IS NULL"
+      end
+
+      where_clauses = [date_filter, type_filter]
+
+      if @team.present?
+        where_clauses << "(t.from_team_code = #{conn.quote(@team)} OR t.to_team_code = #{conn.quote(@team)})"
+      end
+
+      @transactions = conn.exec_query(<<~SQL).to_a
+        SELECT
+          t.transaction_id,
+          t.transaction_date,
+          t.transaction_type_lk,
+          t.transaction_description_lk,
+          t.player_id,
+          COALESCE(
+            NULLIF(TRIM(CONCAT_WS(' ', p.display_first_name, p.display_last_name)), ''),
+            NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+            t.player_id::text
+          ) AS player_name,
+          t.from_team_code,
+          t.to_team_code,
+          t.signed_method_lk,
+          t.contract_type_lk
+        FROM pcms.transactions t
+        LEFT JOIN pcms.people p ON p.person_id = t.player_id
+        WHERE #{where_clauses.join(" AND ")}
+        ORDER BY t.transaction_date DESC, t.transaction_id DESC
+        LIMIT 200
+      SQL
+
+      render :index
+    end
+
+    # GET /transactions/pane (Datastar partial refresh)
+    def pane
+      index
+      render partial: "entities/transactions/results"
+    end
+
     # GET /transactions/:id
     def show
       id = Integer(params[:id])
