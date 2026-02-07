@@ -128,8 +128,8 @@ A coherent “home” can be a scroll stack of dense modules with strong pivots:
 - Saved reports (pinned)
 
 And then separate directories for systematic browsing:
-- `/players`, `/teams`, `/agents`, `/agencies`, `/draft-selections`
-- draft pick groups: `/draft-picks/:team_code/:year/:round` (no global index yet)
+- `/players`, `/teams`, `/agents`, `/agencies`, `/drafts`
+- draft pick groups: `/drafts/:team_code/:year/:round` (no global index yet)
 - `/transactions` (time-first feed)
 
 The key rule: every module row/event must pivot cleanly into:
