@@ -21,15 +21,8 @@
 <% team_id = team_meta["team_id"] %>
 <% logo_url = team_logo_url(team_id) %>
 
-<%# Current-year summary for KPI cards %>
-<% current_summary = team_summaries[year] || team_summaries[salary_years.first] || {} %>
-<% roster_count = current_summary["roster_row_count"] %>
-<% two_way_count = current_summary["two_way_row_count"] %>
-<% cap_total = current_summary["cap_total"] %>
-<% cap_space = current_summary["cap_space"] %>
-<% room_tax = current_summary["room_under_tax"] %>
-<% room_a1 = current_summary["room_under_first_apron"] %>
-<% room_a2 = current_summary["room_under_second_apron"] %>
+<%# Header KPI cards should follow hovered year for this team only; otherwise fallback to base year. %>
+<% selected_header_year_expr = "(($selectedseasonteam === '#{team_code}' && $selectedseason !== '') ? Number($selectedseason) : #{year})" %>
 
 <%
   # Column math (must match Tailwind widths)
@@ -87,51 +80,109 @@
             </div>
           </div>
 
-          <%# KPI cards row (aligned with year + total columns) %>
+          <%# KPI cards row (aligned with year + total columns; follows hovered year for this team) %>
           <div class="flex items-center">
             <div class="w-24 shrink-0 flex justify-center">
-              <% if roster_count %>
-                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Roster", value: roster_count.to_s, title: "Number of roster players" } %>
+              <% salary_years.each do |kpi_year| %>
+                <% summary = team_summaries[kpi_year] || {} %>
+                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                  <%= render partial: "tools/salary_book/kpi_cell", locals: {
+                    label: "Roster",
+                    value: (summary["roster_row_count"] || "—").to_s,
+                    title: "Number of roster players"
+                  } %>
+                </div>
               <% end %>
             </div>
 
             <div class="w-24 shrink-0 flex justify-center">
-              <% if two_way_count %>
-                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Two-Way", value: two_way_count.to_s, title: "Number of two-way contracts" } %>
+              <% salary_years.each do |kpi_year| %>
+                <% summary = team_summaries[kpi_year] || {} %>
+                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                  <%= render partial: "tools/salary_book/kpi_cell", locals: {
+                    label: "Two-Way",
+                    value: (summary["two_way_row_count"] || "—").to_s,
+                    title: "Number of two-way contracts"
+                  } %>
+                </div>
               <% end %>
             </div>
 
             <div class="w-24 shrink-0 flex justify-center">
-              <% if cap_total %>
-                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Total", value: format_compact_currency(cap_total), title: "Current year total salary" } %>
+              <% salary_years.each do |kpi_year| %>
+                <% summary = team_summaries[kpi_year] || {} %>
+                <% cap_total = summary["cap_total"] %>
+                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                  <%= render partial: "tools/salary_book/kpi_cell", locals: {
+                    label: "Total",
+                    value: cap_total ? format_compact_currency(cap_total) : "—",
+                    title: "Total salary"
+                  } %>
+                </div>
               <% end %>
             </div>
 
             <div class="w-24 shrink-0 flex justify-center">
-              <% if cap_space %>
-                <% variant = cap_space.to_f > 0 ? "positive" : "default" %>
-                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Cap Space", value: format_room_amount(cap_space), title: "Cap space", variant: } %>
+              <% salary_years.each do |kpi_year| %>
+                <% summary = team_summaries[kpi_year] || {} %>
+                <% cap_space = summary["cap_space"] %>
+                <% variant = cap_space.nil? ? "muted" : (cap_space.to_f > 0 ? "positive" : "default") %>
+                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                  <%= render partial: "tools/salary_book/kpi_cell", locals: {
+                    label: "Cap Space",
+                    value: cap_space ? format_room_amount(cap_space) : "—",
+                    title: "Cap space",
+                    variant:
+                  } %>
+                </div>
               <% end %>
             </div>
 
             <div class="w-24 shrink-0 flex justify-center" data-show="$displaytaxaprons">
-              <% if room_tax %>
-                <% variant = room_tax.to_f < 0 ? "negative" : "default" %>
-                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Tax Room", value: format_room_amount(room_tax), title: "Room under luxury tax", variant: } %>
+              <% salary_years.each do |kpi_year| %>
+                <% summary = team_summaries[kpi_year] || {} %>
+                <% room_tax = summary["room_under_tax"] %>
+                <% variant = room_tax.nil? ? "muted" : (room_tax.to_f < 0 ? "negative" : "default") %>
+                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                  <%= render partial: "tools/salary_book/kpi_cell", locals: {
+                    label: "Tax Room",
+                    value: room_tax ? format_room_amount(room_tax) : "—",
+                    title: "Room under luxury tax",
+                    variant:
+                  } %>
+                </div>
               <% end %>
             </div>
 
             <div class="w-24 shrink-0 flex justify-center" data-show="$displaytaxaprons">
-              <% if room_a1 %>
-                <% variant = room_a1.to_f < 0 ? "negative" : "default" %>
-                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Apron 1", value: format_room_amount(room_a1), title: "Room under first apron", variant: } %>
+              <% salary_years.each do |kpi_year| %>
+                <% summary = team_summaries[kpi_year] || {} %>
+                <% room_a1 = summary["room_under_first_apron"] %>
+                <% variant = room_a1.nil? ? "muted" : (room_a1.to_f < 0 ? "negative" : "default") %>
+                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                  <%= render partial: "tools/salary_book/kpi_cell", locals: {
+                    label: "Apron 1",
+                    value: room_a1 ? format_room_amount(room_a1) : "—",
+                    title: "Room under first apron",
+                    variant:
+                  } %>
+                </div>
               <% end %>
             </div>
 
             <div class="w-24 shrink-0 flex justify-center" data-show="$displaytaxaprons">
-              <% if room_a2 %>
-                <% variant = room_a2.to_f < 0 ? "negative" : "default" %>
-                <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Apron 2", value: format_room_amount(room_a2), title: "Room under second apron", variant: } %>
+              <% salary_years.each do |kpi_year| %>
+                <% summary = team_summaries[kpi_year] || {} %>
+                <% room_a2 = summary["room_under_second_apron"] %>
+                <% variant = room_a2.nil? ? "muted" : (room_a2.to_f < 0 ? "negative" : "default") %>
+                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                  <%= render partial: "tools/salary_book/kpi_cell", locals: {
+                    label: "Apron 2",
+                    value: room_a2 ? format_room_amount(room_a2) : "—",
+                    title: "Room under second apron",
+                    variant:
+                  } %>
+                </div>
               <% end %>
             </div>
 
