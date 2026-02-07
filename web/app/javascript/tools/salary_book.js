@@ -131,6 +131,12 @@ const dispatchActiveTeam = (team) => {
   );
 };
 
+const getTeamFromHash = () => {
+  const raw = (window.location.hash || "").replace(/^#/, "").trim().toUpperCase();
+  if (!raw.match(/^[A-Z]{3}$/)) return null;
+  return raw;
+};
+
 const updateActiveTeam = () => {
   const team = getActiveTeamFromDOM();
   if (team) dispatchActiveTeam(team);
@@ -215,8 +221,31 @@ const init = () => {
   // Scroll-spy
   main.addEventListener("scroll", onMainScroll, { passive: true });
 
-  // Initial active team (ATL at scrollTop=0)
-  requestAnimationFrame(updateActiveTeam);
+  // Initial active team:
+  // - if URL has #TEAM (e.g. #POR), force main-canvas sync to that team
+  // - otherwise derive from current sticky position
+  requestAnimationFrame(() => {
+    const hashTeam = getTeamFromHash();
+    const hasHashSection = hashTeam && main.querySelector(`section[data-teamcode="${hashTeam}"]`);
+
+    if (hasHashSection) {
+      scrollToTeam(hashTeam, "instant");
+    } else {
+      updateActiveTeam();
+    }
+  });
+
+  // Late sync pass for browsers that apply hash/restored scroll after first paint.
+  setTimeout(() => {
+    const hashTeam = getTeamFromHash();
+    const hasHashSection = hashTeam && main.querySelector(`section[data-teamcode="${hashTeam}"]`);
+
+    if (hasHashSection && hashTeam !== lastActiveTeam) {
+      scrollToTeam(hashTeam, "instant");
+    } else {
+      updateActiveTeam();
+    }
+  }, 120);
 
   window.addEventListener(
     "resize",
@@ -227,6 +256,14 @@ const init = () => {
       }),
     { passive: true }
   );
+
+  window.addEventListener("hashchange", () => {
+    const hashTeam = getTeamFromHash();
+    const hasHashSection = hashTeam && main.querySelector(`section[data-teamcode="${hashTeam}"]`);
+    if (!hasHashSection) return;
+
+    scrollToTeam(hashTeam, "smooth");
+  });
 
   // Observe DOM changes inside main (future-proofing for Datastar patches)
   const mutationObserver = new MutationObserver(() => {

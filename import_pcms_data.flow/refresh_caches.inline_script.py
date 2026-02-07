@@ -6,7 +6,8 @@
 
 This step runs after all PCMS base tables are imported.
 
-Caches refreshed:
+Sync + caches refreshed:
+- pcms.refresh_people_team_from_transactions (sync people.team_id/team_code/status from transactions)
 - pcms.salary_book_warehouse
 - pcms.team_salary_warehouse
 - pcms.exceptions_warehouse
@@ -45,6 +46,10 @@ def main(dry_run: bool = False):
 
     with psycopg.connect(pg_url) as conn:
         with conn.cursor() as cur:
+            cur.execute("SELECT pcms.refresh_people_team_from_transactions();")
+            people_team_updates = cur.fetchone()[0]
+            refreshed.append(f"pcms.refresh_people_team_from_transactions ({people_team_updates} rows)")
+
             cur.execute("SELECT pcms.refresh_salary_book_warehouse();")
             refreshed.append("pcms.refresh_salary_book_warehouse")
 

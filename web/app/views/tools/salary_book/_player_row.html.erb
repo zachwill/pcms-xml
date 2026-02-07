@@ -52,11 +52,9 @@
 
         <%# Row B: Details %>
         <div class="h-[16px] -mt-px flex items-start gap-2 min-w-0 pl-1 pr-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums">
-          <% if player["age"] %>
-            <span><%= player_age_display(player) %></span>
-          <% end %>
-          <% if player["contract_type_code"].present? %>
-            <span class="truncate"><%= player["contract_type_code"] %></span>
+          <% age_yos = player_age_yos_display(player) %>
+          <% if age_yos.present? %>
+            <span class="truncate"><%= age_yos %></span>
           <% end %>
           <% if player["is_two_way"] %>
             <span class="text-blue-600 dark:text-blue-400">2W</span>

@@ -1,46 +1,63 @@
 <% content_for :title, "Players" %>
 
-<%# Avoid N+1 slug lookups in the results table %>
+<%# Avoid N+1 slug lookups %>
 <% prefetch_canonical_slugs(entity_type: "player", entity_ids: @players.map { |p| p["player_id"] }) %>
 <% prefetch_canonical_slugs(entity_type: "agent", entity_ids: @players.map { |p| p["agent_id"] }) %>
+<% prefetch_canonical_slugs(entity_type: "team", entity_ids: @players.map { |p| p["team_id"] }) %>
 
-<div id="entity-directory" class="min-h-screen w-full bg-background">
+<div id="players-index" class="h-screen w-screen flex flex-col overflow-hidden bg-background">
   <%= render partial: "entities/shared/commandbar", locals: {
     active_entity_scope: "players"
   } %>
 
-  <main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
-    <% if @query.blank? %>
-      <p class="text-sm text-muted-foreground">
-        Tip: try <code>lebron</code>, <code>curry</code>, or a numeric <code>player_id</code>.
-      </p>
-    <% end %>
-
-    <section class="space-y-3">
-      <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Results</h2>
+  <%# Main content area — scrollable master list %>
+  <main id="maincanvas" class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-background relative">
+    <div class="max-w-5xl mx-auto px-4 py-4">
+      <% if @query.blank? && @players.any? %>
+        <div class="mb-4">
+          <p class="text-sm text-muted-foreground">
+            Search for a player by name or <code class="text-xs bg-muted px-1 py-0.5 rounded">player_id</code>.
+          </p>
+        </div>
+      <% end %>
 
       <% if @players.empty? %>
-        <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">
+        <div class="p-6 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic text-center">
           No players found.
         </div>
       <% else %>
-        <div class="overflow-x-auto rounded-lg border border-border">
-          <table class="entity-table min-w-full text-xs">
-            <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-              <tr>
-                <th class="text-left px-3 py-2 font-medium">Player</th>
-                <th class="text-left px-3 py-2 font-medium">Team</th>
-                <th class="text-left px-3 py-2 font-medium">Agent</th>
-                <th class="text-right px-3 py-2 font-medium">Cap 2025</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-border">
-              <% @players.each do |p| %>
-                <tr class="group hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                  <td class="px-3 py-2">
-                    <div class="grid grid-cols-[32px_1fr] grid-rows-[20px_14px] min-h-[34px]">
+        <%# Player list container %>
+        <div class="rounded-lg border border-border overflow-hidden">
+          <%# Sticky header %>
+          <div class="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm border-b border-border">
+            <div class="flex items-center px-4 h-8 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
+              <div class="w-52 shrink-0">Player</div>
+              <div class="w-32 shrink-0">Team</div>
+              <div class="w-40 shrink-0">Agent</div>
+              <div class="w-24 shrink-0 text-right font-mono">Cap 2025</div>
+            </div>
+          </div>
+
+          <%# Player rows %>
+          <div class="divide-y divide-border/50">
+            <% @players.each do |p| %>
+              <% player_href_val = player_href(p["player_id"]) %>
+              <% is_two_way = p["is_two_way"] %>
+              <% yos = p["years_of_service"].present? ? "#{p['years_of_service'].to_i} YOS" : nil %>
+
+              <div
+                class="group cursor-pointer transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10"
+                role="button"
+                tabindex="0"
+                data-on:click="window.location.href='<%= player_href_val %>'"
+                data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); window.location.href='<%= player_href_val %>' }"
+              >
+                <div class="flex items-center px-4 min-h-[48px]">
+                  <%# Player column — double-row grid %>
+                  <div class="w-52 shrink-0">
+                    <div class="grid grid-cols-[36px_1fr] grid-rows-[24px_16px]">
                       <div class="row-span-2 flex items-center justify-start">
-                        <div class="w-7 h-7 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                        <div class="w-8 h-8 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
                           <img
                             src="<%= player_headshot_url(p['player_id']) %>"
                             alt="<%= p['player_name'] %>"
@@ -53,27 +70,24 @@
                         </div>
                       </div>
 
-                      <div class="h-[20px] flex items-end min-w-0 pl-1 pr-2 text-[13px]">
-                        <a href="<%= player_href(p['player_id']) %>" class="font-medium truncate hover:underline group-hover:text-primary"><%= p["player_name"] %></a>
+                      <div class="h-[24px] flex items-end min-w-0 pl-2">
+                        <a href="<%= player_href_val %>" class="truncate font-medium text-[14px] group-hover:text-primary transition-colors" onclick="event.stopPropagation()"><%= p["player_name"] %></a>
                       </div>
 
-                      <div class="h-[14px] -mt-px flex items-start gap-2 min-w-0 pl-1 pr-2 text-[10px] text-muted-foreground/80 tabular-nums leading-none">
+                      <div class="h-[16px] -mt-px flex items-start gap-2 min-w-0 pl-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums">
                         <span>id: <%= p["player_id"] %></span>
-                        <% if p["years_of_service"].present? %>
-                          <span><%= p["years_of_service"].to_i %> YOS</span>
-                        <% end %>
-                        <% if p["is_two_way"] %>
-                          <span class="text-blue-600 dark:text-blue-400">2W</span>
-                        <% end %>
+                        <% if yos %><span><%= yos %></span><% end %>
+                        <% if is_two_way %><span class="text-blue-600 dark:text-blue-400">2W</span><% end %>
                       </div>
                     </div>
-                  </td>
+                  </div>
 
-                  <td class="px-3 py-2">
+                  <%# Team column — double-row grid %>
+                  <div class="w-32 shrink-0">
                     <% if p["team_code"].present? %>
-                      <div class="grid grid-cols-[24px_1fr] grid-rows-[20px_14px] min-h-[34px]">
+                      <div class="grid grid-cols-[28px_1fr] grid-rows-[24px_16px]">
                         <div class="row-span-2 flex items-center justify-start">
-                          <div class="w-5 h-5 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                          <div class="w-6 h-6 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
                             <% if p["team_id"].present? %>
                               <img
                                 src="<%= team_logo_url(p['team_id']) %>"
@@ -90,45 +104,43 @@
                           </div>
                         </div>
 
-                        <div class="h-[20px] flex items-end min-w-0 pl-1 pr-2 text-[13px]">
-                          <a href="<%= team_href(team_code: p['team_code']) %>" class="font-medium truncate hover:underline"><%= p["team_code"] %></a>
+                        <div class="h-[24px] flex items-end min-w-0 pl-1">
+                          <a href="<%= team_href(team_code: p['team_code']) %>" class="font-medium text-[13px] hover:underline" onclick="event.stopPropagation()"><%= p["team_code"] %></a>
                         </div>
 
-                        <div class="h-[14px] -mt-px flex items-start min-w-0 pl-1 pr-2 text-[10px] text-muted-foreground/80 leading-none truncate"><%= p["team_name"].presence || "—" %></div>
+                        <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1 leading-none text-[10px] text-muted-foreground/80 truncate"><%= p["team_name"].presence || "—" %></div>
                       </div>
                     <% else %>
-                      <span class="text-muted-foreground">—</span>
+                      <span class="text-sm text-muted-foreground/50">—</span>
                     <% end %>
-                  </td>
+                  </div>
 
-                  <td class="px-3 py-2">
-                    <div class="entity-cell-two-line">
-                      <div class="entity-cell-primary">
-                        <% if p["agent_id"].present? && p["agent_name"].present? %>
-                          <a href="<%= agent_href(p['agent_id']) %>" class="font-medium truncate hover:underline"><%= p["agent_name"] %></a>
-                        <% elsif p["agent_name"].present? %>
-                          <span class="font-medium truncate"><%= p["agent_name"] %></span>
-                        <% else %>
-                          <span class="text-muted-foreground">—</span>
-                        <% end %>
+                  <%# Agent column %>
+                  <div class="w-40 shrink-0">
+                    <% if p["agent_id"].present? && p["agent_name"].present? %>
+                      <div class="grid grid-rows-[24px_16px]">
+                        <div class="h-[24px] flex items-end min-w-0">
+                          <a href="<%= agent_href(p['agent_id']) %>" class="text-[13px] text-muted-foreground hover:text-foreground hover:underline truncate" onclick="event.stopPropagation()"><%= p["agent_name"] %></a>
+                        </div>
+                        <div class="h-[16px] -mt-px flex items-start min-w-0 leading-none text-[10px] text-muted-foreground/60 truncate">id: <%= p["agent_id"] %></div>
                       </div>
-                      <div class="entity-cell-secondary">agent_id: <%= p["agent_id"] || "—" %></div>
-                    </div>
-                  </td>
+                    <% elsif p["agent_name"].present? %>
+                      <span class="text-[13px] text-muted-foreground truncate"><%= p["agent_name"] %></span>
+                    <% else %>
+                      <span class="text-sm text-muted-foreground/50">—</span>
+                    <% end %>
+                  </div>
 
-                  <td class="px-3 py-2 text-right font-mono tabular-nums">
-                    <%= p["cap_2025"].present? ? format_salary(p["cap_2025"]) : "—" %>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
+                  <%# Cap column %>
+                  <div class="w-24 shrink-0 flex items-center justify-end">
+                    <span class="font-mono tabular-nums text-sm"><%= p["cap_2025"].present? ? format_salary(p["cap_2025"]) : "—" %></span>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
         </div>
-
-        <p class="text-xs text-muted-foreground">
-          Links prefer canonical slugs when known; otherwise they use the numeric fallback (<code>/players/:id</code>) which creates/promotes a canonical slug on demand.
-        </p>
       <% end %>
-    </section>
+    </div>
   </main>
 </div>

@@ -329,6 +329,20 @@ module SalaryBookHelper
     "#{format("%.1f", age.to_f)} YRS"
   end
 
+  # Get years-of-service display (e.g., "7 YOS" / "Rookie")
+  def player_years_of_service_display(player)
+    raw = player["years_of_service"]
+    return nil if raw.nil? || raw.to_s.strip.empty?
+
+    yos = raw.to_i
+    yos <= 0 ? "Rookie" : "#{yos} YOS"
+  end
+
+  # Combined age + YOS metadata display used in Salary Book rows/sidebar.
+  def player_age_yos_display(player, separator: " - ")
+    [player_age_display(player), player_years_of_service_display(player)].compact.join(separator).presence
+  end
+
   # NBA CDN headshot URL
   def player_headshot_url(player_id)
     "https://cdn.nba.com/headshots/nba/latest/1040x760/#{player_id}.png"

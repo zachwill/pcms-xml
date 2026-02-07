@@ -5,6 +5,7 @@
 \ir 000_smoke.sql
 
 -- Warehouse invariants
+\ir 064_people_team_from_transactions_assertions.sql
 \ir 010_salary_book_warehouse_multi_contract_assertions.sql
 \ir 061_salary_book_min_contract_assertions.sql
 \ir 020_exceptions_warehouse_assertions.sql

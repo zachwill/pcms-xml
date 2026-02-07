@@ -14,79 +14,66 @@
 <% room_a1 = current_year_row["room_under_apron1"].to_f %>
 <% room_a2 = current_year_row["room_under_apron2"].to_f %>
 
-<% team_context_badges = [] %>
+<%# Header badges %>
+<% header_badges = [] %>
 <% if current_year_row.present? %>
   <% if current_year_row["apron_level_lk"].present? && current_year_row["apron_level_lk"] != "NONE" %>
-    <% team_context_badges << current_year_row["apron_level_lk"] %>
+    <% header_badges << { label: current_year_row["apron_level_lk"], variant: "warning" } %>
   <% elsif current_year_row["is_taxpayer"] %>
-    <% team_context_badges << "Taxpayer" %>
+    <% header_badges << { label: "Taxpayer", variant: "warning" } %>
   <% else %>
-    <% team_context_badges << "Under tax" %>
+    <% header_badges << { label: "Under tax", variant: "success" } %>
   <% end %>
-  <% team_context_badges << "Repeater" if current_year_row["is_repeater_taxpayer"] %>
+  <% header_badges << { label: "Repeater", variant: "danger" } if current_year_row["is_repeater_taxpayer"] %>
 <% else %>
-  <% team_context_badges << "No cap snapshot" %>
+  <% header_badges << { label: "No cap snapshot", variant: "muted" } %>
 <% end %>
 
-<% team_context_meta = [] %>
-<% team_context_meta << "Roster #{current_year_row['roster_row_count']}/15" if current_year_row.key?("roster_row_count") %>
-<% team_context_meta << "2W #{current_year_row['two_way_row_count']}/3" if current_year_row.key?("two_way_row_count") %>
-<% team_context_meta << "Tax room #{format_room_amount(current_year_row['room_under_tax'])}" if current_year_row.key?("room_under_tax") %>
-<% team_context_meta << "A1 #{format_room_amount(current_year_row['room_under_apron1'])}" if current_year_row.key?("room_under_apron1") %>
-<% team_context_meta << "A2 #{format_room_amount(current_year_row['room_under_apron2'])}" if current_year_row.key?("room_under_apron2") %>
+<%# Header meta %>
+<% header_meta = [] %>
+<% header_meta << "Roster #{current_year_row['roster_row_count']}/15" if current_year_row.key?("roster_row_count") %>
+<% header_meta << "2W #{current_year_row['two_way_row_count']}/3" if current_year_row.key?("two_way_row_count") %>
+<% header_meta << "Tax room #{format_room_amount(current_year_row['room_under_tax'])}" if current_year_row.key?("room_under_tax") %>
+<% header_meta << "A1 #{format_room_amount(current_year_row['room_under_apron1'])}" if current_year_row.key?("room_under_apron1") %>
+<% header_meta << conference if conference.present? %>
+<% header_meta << division if division.present? %>
 
-<% team_context_links = [] %>
-<% team_context_links << ["Browse draft assets", "/drafts"] %>
+<%# Header links %>
+<% header_links = [] %>
+<% header_links << ["Browse draft assets", "/drafts"] %>
+<% header_links << ["Find a player", "/players"] %>
 
-<div id="entity-directory" class="min-h-screen w-full bg-background">
+<div id="team-show" class="min-h-screen w-full bg-background">
   <%= render partial: "entities/shared/commandbar", locals: {
-    active_entity_scope: "teams",
-    title: (team_name.presence || team_code.presence || "Team"),
-    title_badge: team_code.presence,
-    subtitle: [city, conference, division].compact.reject(&:blank?).join(" · "),
-    breadcrumbs: [["Teams", "/teams"], [team_code.presence || "Team", nil]],
-    search_scope: "teams",
-    context_panel: {
-      title: (team_name.presence || team_code.presence || "Team"),
-      subtitle: [team_code.presence, city.presence, conference.presence, division.presence].compact.join(" · "),
-      image_url: team_logo_url(@team_id),
-      image_alt: (team_name.presence || team_code.presence || "Team"),
-      image_fit: "object-contain",
-      image_abbr: (team_code.presence || "NBA"),
-      badges: team_context_badges,
-      meta: team_context_meta,
-      links: team_context_links
-    },
-    salary_book_href: (team_code.present? ? "/tools/salary-book?team=#{team_code}##{team_code}" : "/tools/salary-book"),
-    salary_book_label: (team_code.present? ? "Open in Salary Book" : "Salary Book"),
-    right_links: [["Find a player", "/players"]]
+    active_entity_scope: "teams"
   } %>
 
-  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
-
-  <div class="lg:flex lg:gap-8">
-    <%= render partial: "entities/shared/local_nav", locals: {
-      sections: [
-        ["vitals", "Vitals"],
-        ["constraints", "Constraint posture"],
-        ["roster", "Roster breakdown"],
-        ["draft-assets", "Draft pick assets"],
-        ["cap-horizon", "Cap horizon"],
-        ["apron-provenance", "Apron provenance"],
-        ["two-way", "Two-way capacity"],
-        ["activity", "Transaction activity"]
-      ]
+  <main class="max-w-5xl mx-auto px-4 py-6">
+    <%# Entity header %>
+    <%= render partial: "entities/shared/entity_header", locals: {
+      image_url: team_logo_url(@team_id),
+      image_alt: team_name.presence || team_code,
+      image_fallback: team_code.presence || "NBA",
+      image_fit: "object-contain",
+      title: team_name.presence || team_code.presence || "Team",
+      subtitle: [team_code, city].compact.reject(&:blank?).join(" · "),
+      badges: header_badges,
+      meta: header_meta,
+      links: header_links,
+      salary_book_href: (team_code.present? ? "/tools/salary-book?team=#{team_code}##{team_code}" : "/tools/salary-book")
     } %>
 
-    <div class="min-w-0 flex-1 space-y-6">
-      <section id="vitals" class="scroll-mt-24">
+    <div class="space-y-8">
+      <%# Vitals %>
+      <section id="vitals">
         <%= render partial: "entities/teams/cap_vitals", locals: {
           team_salary_row: current_year_row,
           team_code: team_code
         } %>
       </section>
 
-      <section id="constraints" class="scroll-mt-24 space-y-3">
+      <%# Constraints %>
+      <section id="constraints" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Constraint posture</h2>
         <div class="flex flex-wrap gap-2">
           <% chips = [] %>
@@ -122,7 +109,8 @@
         </div>
       </section>
 
-      <section id="roster" class="scroll-mt-24">
+      <%# Roster %>
+      <section id="roster">
         <%= render partial: "entities/teams/roster_breakdown", locals: {
           roster: @roster,
           cap_holds: @cap_holds,
@@ -131,20 +119,23 @@
         } %>
       </section>
 
-      <section id="draft-assets" class="scroll-mt-24">
+      <%# Draft assets %>
+      <section id="draft-assets">
         <%= render partial: "entities/teams/draft_pick_provenance", locals: {
           draft_assets: @draft_assets,
           team_code: team_code
         } %>
       </section>
 
-      <section id="cap-horizon" class="scroll-mt-24">
+      <%# Cap horizon %>
+      <section id="cap-horizon">
         <%= render partial: "entities/teams/cap_horizon_table", locals: {
           team_salary_rows: @team_salary_rows
         } %>
       </section>
 
-      <section id="apron-provenance" class="scroll-mt-24 space-y-3">
+      <%# Apron provenance %>
+      <section id="apron-provenance" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Apron provenance</h2>
         <details class="rounded-lg border border-border bg-background" open>
           <summary class="cursor-pointer px-4 py-3 text-sm font-medium hover:bg-muted/30">
@@ -205,7 +196,8 @@
         </details>
       </section>
 
-      <section id="two-way" class="scroll-mt-24 space-y-3">
+      <%# Two-way capacity %>
+      <section id="two-way" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Two-way capacity</h2>
         <details class="rounded-lg border border-border bg-background" open>
           <summary class="cursor-pointer px-4 py-3 text-sm font-medium hover:bg-muted/30">
@@ -278,7 +270,8 @@
         </details>
       </section>
 
-      <section id="activity" class="scroll-mt-24 space-y-3">
+      <%# Transaction activity %>
+      <section id="activity" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Transaction activity</h2>
         <details class="rounded-lg border border-border bg-background" open>
           <summary class="cursor-pointer px-4 py-3 text-sm font-medium hover:bg-muted/30">
@@ -378,8 +371,7 @@
         </details>
       </section>
     </div>
-  </div>
 
-  <%= render partial: "entities/shared/known_slugs", locals: { entity_type: "team", entity_id: @team_id, path_prefix: "teams" } %>
+    <%= render partial: "entities/shared/known_slugs", locals: { entity_type: "team", entity_id: @team_id, path_prefix: "teams" } %>
   </main>
 </div>

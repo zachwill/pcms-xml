@@ -6,32 +6,44 @@
 <%# Avoid N+1 slug lookups in client table %>
 <% prefetch_canonical_slugs(entity_type: "player", entity_ids: @clients.map { |c| c["player_id"] }) %>
 
-<div id="entity-directory" class="min-h-screen w-full bg-background">
+<%# Header badges %>
+<% header_badges = [] %>
+<% header_badges << { label: (@agent['is_active'] == false ? 'Inactive' : 'Active'), variant: (@agent['is_active'] == false ? "muted" : "success") } %>
+<% header_badges << { label: (@agent['is_certified'] ? 'Certified' : 'Certification unknown'), variant: (@agent['is_certified'] ? "accent" : "muted") } %>
+
+<%# Header meta %>
+<% header_meta = [] %>
+<% header_meta << "#{@client_rollup['client_count'] || 0} clients" %>
+<% header_meta << "#{@client_rollup['team_count'] || 0} teams" %>
+<% header_meta << "Cap 2025: #{format_salary(@client_rollup['cap_2025_total'])}" if @client_rollup['cap_2025_total'] %>
+<% header_meta << agency_name if agency_name.present? %>
+
+<%# Header links %>
+<% header_links = [] %>
+<% if @agent["agency_id"].present? && agency_name.present? %>
+  <% header_links << ["Agency page", agency_href(@agent['agency_id'])] %>
+<% end %>
+<% header_links << ["Browse Agencies", "/agencies"] %>
+
+<div id="agent-show" class="min-h-screen w-full bg-background">
   <%= render partial: "entities/shared/commandbar", locals: {
-    title: (agent_name.presence || "Agent"),
-    subtitle: ("agent_id: #{@agent_id} · slug: #{@agent_slug}" + (@agent["is_active"] == false ? " · inactive" : "")),
-    breadcrumbs: [["Agents", "/agents"], [agent_name.presence || "Agent", nil]],
-    search_scope: "agents",
-    salary_book_label: "Open in Salary Book",
-    right_links: [["Browse Agencies", "/agencies"]]
+    active_entity_scope: "agents"
   } %>
 
-  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
-
-  <div class="lg:flex lg:gap-8">
-    <%= render partial: "entities/shared/local_nav", locals: {
-      sections: [
-        ["vitals", "Vitals"],
-        ["connections", "Connections"],
-        ["team-distribution", "Team distribution"],
-        ["clients", "Client list"],
-        ["book-by-season", "Book by season"],
-        ["historical", "Historical footprint"]
-      ]
+  <main class="max-w-5xl mx-auto px-4 py-6">
+    <%# Entity header %>
+    <%= render partial: "entities/shared/entity_header", locals: {
+      image_fallback: "AG",
+      title: agent_name.presence || "Agent",
+      subtitle: "agent_id: #{@agent_id}",
+      badges: header_badges,
+      meta: header_meta,
+      links: header_links
     } %>
 
-    <div class="min-w-0 flex-1 space-y-6">
-      <section id="vitals" class="scroll-mt-24 space-y-3">
+    <div class="space-y-8">
+      <%# Vitals %>
+      <section id="vitals" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -60,7 +72,8 @@
         </div>
       </section>
 
-      <section id="connections" class="scroll-mt-24 space-y-3">
+      <%# Connections %>
+      <section id="connections" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connections</h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -87,7 +100,8 @@
         </div>
       </section>
 
-      <section id="team-distribution" class="scroll-mt-24 space-y-3">
+      <%# Team distribution %>
+      <section id="team-distribution" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Team distribution</h2>
 
         <% if @team_distribution.empty? %>
@@ -107,12 +121,8 @@
                   <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
                     <td class="px-3 py-2">
                       <% if r["team_code"].present? %>
-                        <div class="entity-cell-two-line">
-                          <div class="entity-cell-primary">
-                            <a href="<%= team_href(team_code: r['team_code'], team_id: r['team_id']) %>" class="font-medium hover:underline"><%= r["team_code"] %></a>
-                          </div>
-                          <div class="entity-cell-secondary truncate"><%= r["team_name"].presence || "—" %></div>
-                        </div>
+                        <a href="<%= team_href(team_code: r['team_code'], team_id: r['team_id']) %>" class="font-medium hover:underline"><%= r["team_code"] %></a>
+                        <span class="text-muted-foreground ml-1 text-[10px]"><%= r["team_name"].presence || "" %></span>
                       <% else %>
                         <span class="text-muted-foreground">—</span>
                       <% end %>
@@ -127,7 +137,8 @@
         <% end %>
       </section>
 
-      <section id="clients" class="scroll-mt-24 space-y-3">
+      <%# Client list %>
+      <section id="clients" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Client list</h2>
 
         <% if @clients.empty? %>
@@ -148,21 +159,12 @@
                 <% @clients.each do |c| %>
                   <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
                     <td class="px-3 py-2">
-                      <div class="entity-cell-two-line">
-                        <div class="entity-cell-primary">
-                          <a href="<%= player_href(c['player_id']) %>" class="font-medium truncate hover:underline"><%= c["player_name"] %></a>
-                        </div>
-                        <div class="entity-cell-secondary">player_id: <%= c["player_id"] %></div>
-                      </div>
+                      <a href="<%= player_href(c['player_id']) %>" class="font-medium truncate hover:underline"><%= c["player_name"] %></a>
+                      <div class="text-[10px] text-muted-foreground/80">id: <%= c["player_id"] %></div>
                     </td>
                     <td class="px-3 py-2">
                       <% if c["team_code"].present? %>
-                        <div class="entity-cell-two-line">
-                          <div class="entity-cell-primary">
-                            <a href="<%= team_href(team_code: c['team_code'], team_id: c['team_id']) %>" class="font-medium hover:underline"><%= c["team_code"] %></a>
-                          </div>
-                          <div class="entity-cell-secondary truncate"><%= c["team_name"].presence || "—" %></div>
-                        </div>
+                        <a href="<%= team_href(team_code: c['team_code'], team_id: c['team_id']) %>" class="font-medium hover:underline"><%= c["team_code"] %></a>
                       <% else %>
                         <span class="text-muted-foreground">—</span>
                       <% end %>
@@ -184,7 +186,8 @@
         <% end %>
       </section>
 
-      <section id="book-by-season" class="scroll-mt-24 space-y-3">
+      <%# Book by season %>
+      <section id="book-by-season" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Book by season</h2>
 
         <details class="rounded-lg border border-border bg-background p-3">
@@ -222,7 +225,8 @@
         </details>
       </section>
 
-      <section id="historical" class="scroll-mt-24 space-y-3">
+      <%# Historical footprint %>
+      <section id="historical" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Historical footprint</h2>
 
         <details class="rounded-lg border border-border bg-background p-3">
@@ -286,8 +290,7 @@
         </details>
       </section>
     </div>
-  </div>
 
-  <%= render partial: "entities/shared/known_slugs", locals: { entity_type: "agent", entity_id: @agent_id, path_prefix: "agents" } %>
+    <%= render partial: "entities/shared/known_slugs", locals: { entity_type: "agent", entity_id: @agent_id, path_prefix: "agents" } %>
   </main>
 </div>

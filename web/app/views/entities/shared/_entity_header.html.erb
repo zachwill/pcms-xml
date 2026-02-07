@@ -1,0 +1,121 @@
+<%#
+  Entity header — the hero section for entity show pages.
+
+  This is what replaces the old context_panel. It lives in the page body,
+  not the commandbar. Dense, Salary Book-style layout.
+
+  locals:
+  - image_url: (String, optional) headshot/logo URL
+  - image_alt: (String, optional) alt text
+  - image_fallback: (String, optional) fallback text
+  - image_fit: (String, optional) object-fit class
+  - title: (String) primary title (player name, team name)
+  - subtitle: (String, optional) secondary text
+  - badges: (Array[Hash], optional) [{ label:, variant: }] or Array[String]
+  - meta: (Array[String], optional) metadata items
+  - links: (Array[Array], optional) [[label, href], ...]
+  - salary_book_href: (String, optional) link to Salary Book
+%>
+
+<%
+  image_url = local_assigns[:image_url].to_s.strip.presence
+  image_alt = local_assigns[:image_alt].to_s.strip.presence || ""
+  image_fallback = local_assigns[:image_fallback].to_s.strip.presence || "—"
+  image_fit = local_assigns[:image_fit].to_s.strip.presence || "object-cover object-top"
+  title = local_assigns[:title].to_s.strip
+  subtitle = local_assigns[:subtitle].to_s.strip.presence
+  salary_book_href = local_assigns[:salary_book_href].to_s.strip.presence
+
+  badges = Array(local_assigns[:badges]).filter_map do |b|
+    if b.is_a?(Hash)
+      label = (b[:label] || b["label"]).to_s.strip
+      variant = (b[:variant] || b["variant"]).to_s.strip.presence || "muted"
+      next if label.blank?
+      { label: label, variant: variant }
+    else
+      label = b.to_s.strip
+      next if label.blank?
+      { label: label, variant: "muted" }
+    end
+  end
+
+  meta = Array(local_assigns[:meta]).map { |m| m.to_s.strip }.reject(&:blank?)
+
+  links = Array(local_assigns[:links]).filter_map do |entry|
+    if entry.is_a?(Array)
+      label = entry[0].to_s.strip
+      href = entry[1].to_s.strip
+      next if label.blank? || href.blank?
+      [label, href]
+    elsif entry.is_a?(Hash)
+      label = (entry[:label] || entry["label"]).to_s.strip
+      href = (entry[:href] || entry["href"]).to_s.strip
+      next if label.blank? || href.blank?
+      [label, href]
+    end
+  end
+
+  if salary_book_href.present?
+    links.unshift(["Open in Salary Book", salary_book_href])
+  end
+%>
+
+<header class="border-b border-border bg-background pb-4 mb-6">
+  <div class="flex items-start gap-4">
+    <%# Image %>
+    <div class="w-16 h-16 rounded-lg border border-border bg-background overflow-hidden flex items-center justify-center shrink-0">
+      <% if image_url.present? %>
+        <img
+          src="<%= image_url %>"
+          alt="<%= image_alt %>"
+          class="w-full h-full <%= image_fit %>"
+          loading="eager"
+          decoding="sync"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+        />
+        <span class="hidden text-xs font-semibold text-muted-foreground"><%= image_fallback %></span>
+      <% else %>
+        <span class="text-xs font-semibold text-muted-foreground"><%= image_fallback %></span>
+      <% end %>
+    </div>
+
+    <%# Content %>
+    <div class="flex-1 min-w-0 space-y-1">
+      <%# Title + badges %>
+      <div class="flex items-center flex-wrap gap-2">
+        <h1 class="text-lg font-semibold text-foreground truncate"><%= title %></h1>
+        <% badges.each do |badge| %>
+          <% variant_class = case badge[:variant]
+            when "danger" then "entity-chip--danger"
+            when "warning" then "entity-chip--warning"
+            when "success" then "entity-chip--success"
+            when "accent" then "entity-chip--accent"
+            else "entity-chip--muted"
+          end %>
+          <span class="entity-chip <%= variant_class %>"><%= badge[:label] %></span>
+        <% end %>
+      </div>
+
+      <%# Subtitle %>
+      <% if subtitle.present? %>
+        <div class="text-sm text-muted-foreground"><%= subtitle %></div>
+      <% end %>
+
+      <%# Meta row %>
+      <% if meta.any? %>
+        <div class="text-[11px] text-muted-foreground/90">
+          <%= meta.join(" · ") %>
+        </div>
+      <% end %>
+
+      <%# Links %>
+      <% if links.any? %>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs pt-1">
+          <% links.each do |label, href| %>
+            <a href="<%= href %>" class="text-muted-foreground hover:text-foreground hover:underline"><%= label %></a>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</header>

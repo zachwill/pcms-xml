@@ -89,16 +89,7 @@
 
               row_name = client_row_name.call(client)
 
-              age = client["age"]
-              yos = client["years_of_service"]
-
-              meta_parts = []
-              meta_parts << "#{format('%.1f', age.to_f)} YRS" if age.present?
-              if yos.present?
-                yos_num = yos.to_i
-                meta_parts << (yos_num <= 0 ? "Rookie" : "#{yos_num} YOS")
-              end
-              detail_line = meta_parts.any? ? meta_parts.join(" · ") : team_name
+              detail_line = player_age_yos_display(client).presence || team_name
 
               current_salary = client["cap_2025"].to_f
               total_value = salary_years.sum { |y| client["cap_#{y}"].to_f }

@@ -14,7 +14,7 @@
 <% team_code = player["team_code"] || "—" %>
 <% agent_name = player["agent_name"] %>
 <% agent_id = player["agent_id"] %>
-<% age = player["age"] %>
+<% age_yos = player_age_yos_display(player) %>
 <% is_two_way = player["is_two_way"] %>
 
 <%
@@ -119,8 +119,8 @@
       <div class="space-y-0.5">
         <h2 class="text-lg font-semibold text-foreground"><%= player_name %></h2>
         <div class="text-sm text-muted-foreground"><%= team_code %></div>
-        <% if age.present? %>
-          <div class="text-xs text-muted-foreground/80 tabular-nums"><%= format("%.1f", age.to_f) %> YRS</div>
+        <% if age_yos.present? %>
+          <div class="text-xs text-muted-foreground/80 tabular-nums"><%= age_yos %></div>
         <% end %>
       </div>
     </div>

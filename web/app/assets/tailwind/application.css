@@ -60,7 +60,7 @@
   }
 
   .entity-table tbody tr {
-    @apply group;
+    /* `group` is a marker class, not an @apply utility in Tailwind v4. */
   }
 
   .entity-table tbody td {

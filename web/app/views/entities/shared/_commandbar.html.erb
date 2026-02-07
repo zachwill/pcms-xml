@@ -1,101 +1,29 @@
 <%#
-  Unified Salary Book-style command bar for all entity pages.
+  Entity commandbar — matches Salary Book pattern exactly.
 
-  locals (all optional):
+  Layout: [ Entity Grid (4 cols × 3 rows) | Divider | Knobs/Filters/Actions ]
+
+  The entity grid mirrors how Salary Book shows EAST/WEST teams.
+  Each entity type button is same-width, arranged in a grid.
+
+  locals:
   - active_entity_scope: agents|drafts|players|teams|trades|transactions
-  - search_scope: legacy scope hint used for auto-mapping
-  - breadcrumbs: legacy scope hint used for auto-mapping
-  - title: legacy scope hint used for auto-mapping
-  - on_agents_toggle: Datastar expression for /agents sub-mode toggles
-  - header_knobs: Array[Hash] for page-specific radios/checkboxes
-
-  Optional context panel locals:
-  - context_panel: {
-      title:, subtitle:, image_url:, image_alt:, image_fit:, image_abbr:,
-      badges: [], meta: [], links: [[label, href], ...]
-    }
-
-  layout locals:
-  - container_class: max width container for the bar's inner content (default: max-w-7xl mx-auto)
+  - knobs: Array[Hash] — filter groups, each with :label and :options
+    - options: Array[Hash] with :type (checkbox|radio), :id, :label, :name, :value, :checked, :bind, :on_change
 %>
 
 <%
-  explicit_scope = local_assigns[:active_entity_scope].to_s.strip.presence
-  search_scope = local_assigns[:search_scope].to_s.strip
-  breadcrumbs = Array(local_assigns[:breadcrumbs])
-  first_crumb_label = breadcrumbs.first.is_a?(Array) ? breadcrumbs.first.first.to_s.downcase : ""
-  title_text = local_assigns[:title].to_s.downcase
-
-  active_entity_scope = explicit_scope
-  if active_entity_scope.blank?
-    if first_crumb_label.include?("draft") || title_text.include?("draft")
-      active_entity_scope = "drafts"
-    elsif first_crumb_label.include?("trade") || title_text.include?("trade")
-      active_entity_scope = "trades"
-    elsif first_crumb_label.include?("transaction") || title_text.include?("transaction")
-      active_entity_scope = "transactions"
-    elsif search_scope == "teams"
-      active_entity_scope = "teams"
-    elsif %w[agents agencies].include?(search_scope)
-      active_entity_scope = "agents"
-    else
-      active_entity_scope = "players"
-    end
-  end
-
-  # Normalize legacy scopes
+  active_entity_scope = local_assigns[:active_entity_scope].to_s.strip.presence || "players"
   active_entity_scope = "agents" if active_entity_scope == "agencies"
   active_entity_scope = "drafts" if active_entity_scope == "draft"
   active_entity_scope = "teams" if active_entity_scope == "team"
 
-  on_agents_toggle = local_assigns[:on_agents_toggle].to_s.strip.presence
-  header_knobs = Array(local_assigns[:header_knobs])
+  knobs = Array(local_assigns[:knobs].presence || local_assigns[:header_knobs])
 
-  container_class = local_assigns[:container_class].to_s.strip.presence || "max-w-7xl mx-auto"
-
-  context_panel = local_assigns[:context_panel].is_a?(Hash) ? local_assigns[:context_panel] : {}
-  context_title = context_panel[:title].to_s.strip.presence || context_panel["title"].to_s.strip.presence
-  context_subtitle = context_panel[:subtitle].to_s.strip.presence || context_panel["subtitle"].to_s.strip.presence
-  context_image_url = context_panel[:image_url].to_s.strip.presence || context_panel["image_url"].to_s.strip.presence
-  context_image_alt = context_panel[:image_alt].to_s.strip.presence || context_panel["image_alt"].to_s.strip.presence || context_title
-  context_image_abbr = context_panel[:image_abbr].to_s.strip.presence || context_panel["image_abbr"].to_s.strip.presence
-  context_image_fit = context_panel[:image_fit].to_s.strip.presence || context_panel["image_fit"].to_s.strip.presence || "object-cover object-top"
-  context_badges = Array(context_panel[:badges] || context_panel["badges"]).map { |v| v.to_s.strip }.reject(&:blank?)
-  context_meta = Array(context_panel[:meta] || context_panel["meta"]).map { |v| v.to_s.strip }.reject(&:blank?)
-
-  context_links = Array(context_panel[:links] || context_panel["links"]).filter_map do |entry|
-    if entry.is_a?(Array)
-      label = entry[0].to_s.strip
-      href = entry[1].to_s.strip
-      next if label.blank? || href.blank?
-      [label, href]
-    elsif entry.is_a?(Hash)
-      label = (entry[:label] || entry["label"]).to_s.strip
-      href = (entry[:href] || entry["href"]).to_s.strip
-      next if label.blank? || href.blank?
-      [label, href]
-    end
-  end
-
-  salary_book_href = local_assigns[:salary_book_href].to_s.strip.presence
-  salary_book_label = local_assigns[:salary_book_label].to_s.strip.presence || "Open in Salary Book"
-  if salary_book_href.present?
-    context_links.unshift([salary_book_label, salary_book_href])
-  end
-
-  Array(local_assigns[:right_links]).each do |entry|
-    next unless entry.is_a?(Array)
-
-    label = entry[0].to_s.strip
-    href = entry[1].to_s.strip
-    next if label.blank? || href.blank?
-
-    context_links << [label, href]
-  end
-
-  context_links = context_links.uniq
-  context_present = context_title.present? || context_subtitle.present? || context_meta.any? || context_badges.any? || context_links.any?
-
+  # Entity nav links — will be arranged in a 4-col × 3-row grid
+  # Row 1: Agents, Drafts, Players, Teams
+  # Row 2: Trades, Transactions, (future), (future)
+  # Row 3: (future entities)
   nav_links = [
     ["agents", "Agents", "/agents"],
     ["drafts", "Drafts", "/drafts"],
@@ -104,140 +32,73 @@
     ["trades", "Trades", "/trades"],
     ["transactions", "Txns", "/transactions"]
   ]
-  nav_slots = nav_links + Array.new(6)
 %>
 
 <header
   id="commandbar"
-  class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-nav"
+  class="sticky top-0 z-50 w-full shrink-0 h-[130px] border-b border-border bg-background flex items-start px-4 pt-3 gap-4"
 >
-  <div class="<%= container_class %> px-4">
-    <div class="flex items-start gap-4 py-3">
-      <div class="space-y-1 shrink-0">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Entities</div>
-
-        <div
-          role="navigation"
-          aria-label="Entities"
-          class="gap-1 w-[25.5rem]"
-          style="display:grid; grid-template-columns: repeat(4, 6rem); grid-template-rows: repeat(3, 1.75rem);"
-        >
-          <% nav_slots.each do |slot| %>
-            <% if slot.present? %>
-              <% scope, label, href = slot %>
-              <% active = scope == active_entity_scope %>
-              <a
-                href="<%= href %>"
-                class="relative h-7 w-24 px-2 rounded text-xs font-medium transition-all duration-150 border outline-none inline-flex items-center justify-center no-underline hover:no-underline <%= active ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-muted/50 text-foreground border-border hover:bg-muted hover:border-foreground/20' %>"
-                <% if scope == "agents" && on_agents_toggle.present? %>data-on:click.prevent="<%= on_agents_toggle %>"<% end %>
-              ><%= label %></a>
-            <% else %>
-              <div aria-hidden="true" class="h-7 w-24 opacity-0 pointer-events-none"></div>
-            <% end %>
-          <% end %>
-        </div>
-      </div>
-
-      <% if context_present %>
-        <div class="h-20 w-px bg-border self-center"></div>
-
-        <div class="min-w-0 flex-1">
-          <div class="flex items-start gap-3 min-w-0">
-            <div class="w-14 h-14 rounded-lg bg-background border border-border overflow-hidden shrink-0 flex items-center justify-center">
-              <% if context_image_url.present? %>
-                <img
-                  src="<%= context_image_url %>"
-                  alt="<%= context_image_alt %>"
-                  class="w-full h-full <%= context_image_fit %>"
-                  loading="lazy"
-                  decoding="async"
-                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                />
-                <span class="hidden text-[11px] font-semibold text-muted-foreground"><%= context_image_abbr.presence || "—" %></span>
-              <% else %>
-                <span class="text-[11px] font-semibold text-muted-foreground"><%= context_image_abbr.presence || "—" %></span>
-              <% end %>
-            </div>
-
-            <div class="min-w-0 space-y-1.5">
-              <% if context_title.present? || context_badges.any? %>
-                <div class="flex items-center flex-wrap gap-1.5">
-                  <% if context_title.present? %>
-                    <div class="text-sm font-semibold text-foreground truncate max-w-full"><%= context_title %></div>
-                  <% end %>
-
-                  <% context_badges.each do |badge| %>
-                    <span class="entity-chip entity-chip--muted"><%= badge %></span>
-                  <% end %>
-                </div>
-              <% end %>
-
-              <% if context_subtitle.present? %>
-                <div class="text-xs text-muted-foreground truncate max-w-full"><%= context_subtitle %></div>
-              <% end %>
-
-              <% if context_meta.any? %>
-                <div class="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground/90">
-                  <% context_meta.each do |item| %>
-                    <span><%= item %></span>
-                  <% end %>
-                </div>
-              <% end %>
-
-              <% if context_links.any? %>
-                <div class="flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
-                  <% context_links.each do |label, href| %>
-                    <a href="<%= href %>" class="text-muted-foreground hover:text-foreground hover:underline"><%= label %></a>
-                  <% end %>
-                </div>
-              <% end %>
-            </div>
-          </div>
-        </div>
-      <% end %>
-
-      <% if header_knobs.any? %>
-        <div class="h-20 w-px bg-border self-center"></div>
-
-        <div class="flex items-start gap-4" role="group" aria-label="Filters">
-          <% header_knobs.each_with_index do |group, group_idx| %>
-            <% group_label = group[:label].to_s.strip.presence || group["label"].to_s.strip.presence || "Filters" %>
-            <% options = Array(group[:options] || group["options"]) %>
-
-            <div class="min-w-[7rem] space-y-1">
-              <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70"><%= group_label %></div>
-              <div class="space-y-1">
-                <% options.each_with_index do |option, option_idx| %>
-                  <% option_type = option[:type].to_s == "radio" ? "radio" : "checkbox" %>
-                  <% option_name = option[:name].to_s.strip.presence || option["name"].to_s.strip.presence || "entity-knob-#{group_idx}" %>
-                  <% option_label = option[:label].to_s.strip.presence || option["label"].to_s.strip.presence || "Option" %>
-                  <% option_id = option[:id].to_s.strip.presence || option["id"].to_s.strip.presence || "entity-knob-#{group_idx}-#{option_idx}" %>
-                  <% option_value = option[:value].to_s %>
-                  <% option_checked = option.key?(:checked) ? !!option[:checked] : !!option["checked"] %>
-                  <% option_bind = option[:bind].to_s.strip.presence || option["bind"].to_s.strip.presence %>
-                  <% option_on_change = option[:on_change].to_s.strip.presence || option["on_change"].to_s.strip.presence %>
-
-                  <div class="flex items-center gap-1.5">
-                    <input
-                      type="<%= option_type %>"
-                      id="<%= option_id %>"
-                      <% if option_type == "radio" %>
-                        name="<%= option_name %>"
-                        value="<%= option_value %>"
-                      <% end %>
-                      class="size-3.5 accent-primary"
-                      <% if option_checked %>checked<% end %>
-                      <% if option_bind.present? %>data-bind="<%= option_bind %>"<% end %>
-                      <% if option_on_change.present? %>data-on:change="<%= option_on_change %>"<% end %>
-                    />
-                    <label for="<%= option_id %>" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors"><%= option_label %></label>
-                  </div>
-                <% end %>
-              </div>
-            </div>
-          <% end %>
-        </div>
+  <%# Entity Selector Grid — mirrors Salary Book's team grid %>
+  <div class="space-y-1" role="navigation" aria-label="Entities">
+    <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Entities</div>
+    <div class="grid grid-cols-4 gap-1">
+      <% nav_links.each do |scope, label, href| %>
+        <% active = scope == active_entity_scope %>
+        <a
+          href="<%= href %>"
+          class="relative h-7 w-20 px-2 rounded text-xs font-medium transition-all duration-150 border outline-none inline-flex items-center justify-center no-underline hover:no-underline <%= active ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-muted/50 text-foreground border-border hover:bg-muted hover:border-foreground/20' %>"
+        ><%= label %></a>
       <% end %>
     </div>
   </div>
+
+  <%# Divider %>
+  <div class="h-20 w-px bg-border self-center"></div>
+
+  <%# Filter knobs / actions — page-specific %>
+  <% if knobs.any? %>
+    <div class="flex items-start gap-4" role="group" aria-label="Filters">
+      <% knobs.each_with_index do |group, group_idx| %>
+        <% group_label = group[:label].to_s.strip.presence || group["label"].to_s.strip.presence || "Filters" %>
+        <% options = Array(group[:options] || group["options"]) %>
+
+        <div class="min-w-[4.5rem] space-y-1">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70"><%= group_label %></div>
+          <div class="space-y-1">
+            <% options.each_with_index do |option, option_idx| %>
+              <% option_type = option[:type].to_s == "radio" ? "radio" : "checkbox" %>
+              <% option_name = option[:name].to_s.strip.presence || option["name"].to_s.strip.presence || "knob-#{group_idx}" %>
+              <% option_label = option[:label].to_s.strip.presence || option["label"].to_s.strip.presence || "Option" %>
+              <% option_id = option[:id].to_s.strip.presence || option["id"].to_s.strip.presence || "knob-#{group_idx}-#{option_idx}" %>
+              <% option_value = option[:value].to_s %>
+              <% option_checked = option.key?(:checked) ? !!option[:checked] : !!option["checked"] %>
+              <% option_bind = option[:bind].to_s.strip.presence || option["bind"].to_s.strip.presence %>
+              <% option_on_change = option[:on_change].to_s.strip.presence || option["on_change"].to_s.strip.presence %>
+
+              <div class="flex items-center gap-1.5">
+                <input
+                  type="<%= option_type %>"
+                  id="<%= option_id %>"
+                  <% if option_type == "radio" %>
+                    name="<%= option_name %>"
+                    value="<%= option_value %>"
+                  <% end %>
+                  class="size-3.5 accent-primary"
+                  <% if option_checked %>checked<% end %>
+                  <% if option_bind.present? %>data-bind="<%= option_bind %>"<% end %>
+                  <% if option_on_change.present? %>data-on:change="<%= option_on_change %>"<% end %>
+                />
+                <label for="<%= option_id %>" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors"><%= option_label %></label>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <%# Placeholder when no knobs — keep layout balanced %>
+    <div class="flex-1 flex items-center">
+      <div class="text-xs text-muted-foreground/50 italic">No filters for this view</div>
+    </div>
+  <% end %>
 </header>

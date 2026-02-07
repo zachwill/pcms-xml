@@ -37,70 +37,53 @@ end %>
 <% end %>
 <% draft_label_parts << @player["draft_team_code"] if @player["draft_team_code"].present? %>
 
-<% player_context_badges = [] %>
-<% player_context_badges << status_label if status_label.present? %>
-<% player_context_badges << "2W" if (@salary_book_row&.fetch("is_two_way", nil) || @player["person_is_two_way"]) %>
-<% player_context_badges << "Trade restricted" if @salary_book_row&.fetch("is_trade_restricted_now", nil) %>
+<%# Header badges %>
+<% header_badges = [] %>
+<% header_badges << { label: status_label, variant: "muted" } if status_label.present? %>
+<% header_badges << { label: "2W", variant: "accent" } if (@salary_book_row&.fetch("is_two_way", nil) || @player["person_is_two_way"]) %>
+<% header_badges << { label: "Trade restricted", variant: "danger" } if @salary_book_row&.fetch("is_trade_restricted_now", nil) %>
 
-<% player_context_meta = [] %>
-<% player_context_meta << "##{@player['uniform_number']}" if @player["uniform_number"].present? %>
-<% player_context_meta << format_height_inches(@player["height"]) if @player["height"].present? %>
-<% player_context_meta << format_weight_lbs(@player["weight"]) if @player["weight"].present? %>
-<% player_context_meta << "DOB #{format_plain_date(@player['birth_date'])}" if @player["birth_date"].present? %>
-<% player_context_meta << "#{@player['years_of_service'].to_i} YOS" if @player["years_of_service"].present? %>
-<% player_context_meta << "Draft: #{draft_label_parts.join(' · ')}" if draft_label_parts.any? %>
-<% player_context_meta << "Born: #{@player['birth_country_lk']}" if @player["birth_country_lk"].present? %>
-<% player_context_meta << "Current team: #{current_team_name || current_team_code}" if current_team_code.present? %>
+<%# Header meta %>
+<% header_meta = [] %>
+<% header_meta << "##{@player['uniform_number']}" if @player["uniform_number"].present? %>
+<% header_meta << format_height_inches(@player["height"]) if @player["height"].present? %>
+<% header_meta << format_weight_lbs(@player["weight"]) if @player["weight"].present? %>
+<% header_meta << "#{@player['years_of_service'].to_i} YOS" if @player["years_of_service"].present? %>
+<% header_meta << "DOB #{format_plain_date(@player['birth_date'])}" if @player["birth_date"].present? %>
+<% header_meta << "Draft: #{draft_label_parts.join(' · ')}" if draft_label_parts.any? %>
+<% header_meta << current_team_name || current_team_code if current_team_code.present? %>
 
-<% player_context_links = [] %>
+<%# Header links %>
+<% header_links = [] %>
 <% if current_team_code.present? %>
-  <% player_context_links << ["Open team page", team_href(team_code: current_team_code, team_id: current_team_id)] %>
+  <% header_links << ["Team page", team_href(team_code: current_team_code, team_id: current_team_id)] %>
 <% end %>
 <% if @draft_selection.present? %>
-  <% player_context_links << ["Open draft selection", draft_selection_href(@draft_selection['transaction_id'])] %>
+  <% header_links << ["Draft selection", draft_selection_href(@draft_selection['transaction_id'])] %>
 <% end %>
 
-<div id="entity-directory" class="min-h-screen w-full bg-background">
+<div id="player-show" class="min-h-screen w-full bg-background">
   <%= render partial: "entities/shared/commandbar", locals: {
-    active_entity_scope: "players",
-    title: (full_name.presence || "Player"),
-    subtitle: "player_id: #{@player_id} · slug: #{@player_slug}",
-    breadcrumbs: [["Players", "/players"], [full_name.presence || "Player", nil]],
-    search_scope: "players",
-    context_panel: {
-      title: (full_name.presence || "Player"),
-      subtitle: "player_id: #{@player_id} · slug: #{@player_slug}",
-      image_url: player_headshot_url(@player_id),
-      image_alt: (full_name.presence || "Player"),
-      image_abbr: "NBA",
-      badges: player_context_badges,
-      meta: player_context_meta,
-      links: player_context_links
-    },
-    salary_book_href: (@salary_book_row&.fetch("team_code", nil).present? ? "/tools/salary-book?team=#{@salary_book_row['team_code']}##{@salary_book_row['team_code']}" : "/tools/salary-book"),
-    salary_book_label: "Open in Salary Book",
-    right_links: [["Browse Teams", "/teams"]]
+    active_entity_scope: "players"
   } %>
 
-  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6" data-entity-workspace>
-
-  <div class="lg:flex lg:gap-8">
-    <%= render partial: "entities/shared/local_nav", locals: {
-      sections: [
-        ["vitals", "Vitals"],
-        ["constraints", "Constraint posture"],
-        ["connections", "Connections"],
-        ["contract", "Contract horizon"],
-        ["contract-history", "Contract history"],
-        ["guarantees", "Guarantees + protections"],
-        ["incentives", "Incentives"],
-        ["ledger", "Ledger timeline"],
-        ["team-history", "Team history"]
-      ]
+  <main class="max-w-5xl mx-auto px-4 py-6">
+    <%# Entity header %>
+    <%= render partial: "entities/shared/entity_header", locals: {
+      image_url: player_headshot_url(@player_id),
+      image_alt: full_name,
+      image_fallback: "NBA",
+      title: full_name.presence || "Player",
+      subtitle: "player_id: #{@player_id}",
+      badges: header_badges,
+      meta: header_meta,
+      links: header_links,
+      salary_book_href: (@salary_book_row&.fetch("team_code", nil).present? ? "/tools/salary-book?team=#{@salary_book_row['team_code']}##{@salary_book_row['team_code']}" : "/tools/salary-book")
     } %>
 
-    <div class="min-w-0 flex-1 space-y-6">
-      <section id="vitals" class="scroll-mt-24 space-y-3">
+    <div class="space-y-8">
+      <%# Vitals %>
+      <section id="vitals" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div class="rounded-lg border border-border bg-background p-3">
@@ -122,7 +105,8 @@ end %>
         </div>
       </section>
 
-      <section id="constraints" class="scroll-mt-24 space-y-3">
+      <%# Constraints %>
+      <section id="constraints" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Constraint posture</h2>
         <div class="flex flex-wrap gap-2">
           <% chips = [] %>
@@ -162,7 +146,8 @@ end %>
         </div>
       </section>
 
-      <section id="connections" class="scroll-mt-24 space-y-3">
+      <%# Connections %>
+      <section id="connections" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connections</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           <% team_code = @salary_book_row&.fetch("team_code", nil) %>
@@ -174,14 +159,7 @@ end %>
               <div class="mt-1 flex items-center gap-2">
                 <% if team_id.present? %>
                   <div class="w-6 h-6 rounded border border-border bg-background overflow-hidden flex items-center justify-center shrink-0">
-                    <img
-                      src="<%= team_logo_url(team_id) %>"
-                      alt="<%= team_code %>"
-                      class="w-full h-full object-contain"
-                      loading="lazy"
-                      decoding="async"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                    />
+                    <img src="<%= team_logo_url(team_id) %>" alt="<%= team_code %>" class="w-full h-full object-contain" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
                     <span class="hidden text-[9px] font-mono text-muted-foreground"><%= team_code %></span>
                   </div>
                 <% end %>
@@ -224,9 +202,9 @@ end %>
         </div>
       </section>
 
-      <section id="contract" class="scroll-mt-24 space-y-3">
+      <%# Contract horizon %>
+      <section id="contract" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract horizon</h2>
-
         <% if @salary_book_row.present? %>
           <div class="overflow-x-auto rounded-lg border border-border">
             <div class="flex min-w-max">
@@ -273,7 +251,8 @@ end %>
         <% end %>
       </section>
 
-      <section id="contract-history" class="scroll-mt-24 space-y-3">
+      <%# Contract history %>
+      <section id="contract-history" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract history</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Chronology + version rollup (<%= contract_chronology_rows.size %> contracts · <%= contract_version_rows.size %> versions)</summary>
@@ -305,22 +284,8 @@ end %>
                           <div>start year: <%= r["start_year"] || r["min_version_start_year"] || "—" %></div>
                         </td>
                         <td class="px-3 py-2 text-muted-foreground">
-                          <div>
-                            sign:
-                            <% if r["signing_team_id"].present? %>
-                              <a href="<%= safe_team_href(team_code: r['signing_team_code'] || r['team_code'], team_id: r['signing_team_id']) %>" class="hover:underline"><%= r["signing_team_code"] || r["team_code"] || r["signing_team_id"] %></a>
-                            <% else %>
-                              —
-                            <% end %>
-                          </div>
-                          <div>
-                            S&amp;T:
-                            <% if r["sign_and_trade_to_team_id"].present? %>
-                              <a href="<%= safe_team_href(team_code: r['sign_and_trade_to_team_code'], team_id: r['sign_and_trade_to_team_id']) %>" class="hover:underline"><%= r["sign_and_trade_to_team_code"] || r["sign_and_trade_to_team_id"] %></a>
-                            <% else %>
-                              —
-                            <% end %>
-                          </div>
+                          <div>sign: <% if r["signing_team_id"].present? %><a href="<%= safe_team_href(team_code: r['signing_team_code'] || r['team_code'], team_id: r['signing_team_id']) %>" class="hover:underline"><%= r["signing_team_code"] || r["team_code"] || r["signing_team_id"] %></a><% else %>—<% end %></div>
+                          <div>S&amp;T: <% if r["sign_and_trade_to_team_id"].present? %><a href="<%= safe_team_href(team_code: r['sign_and_trade_to_team_code'], team_id: r['sign_and_trade_to_team_id']) %>" class="hover:underline"><%= r["sign_and_trade_to_team_code"] || r["sign_and_trade_to_team_id"] %></a><% else %>—<% end %></div>
                         </td>
                         <td class="px-3 py-2 text-muted-foreground">
                           <div><%= r["signed_method_lk"].presence || "—" %><%= r["signed_method_label"].present? ? " — #{r['signed_method_label']}" : "" %></div>
@@ -375,7 +340,8 @@ end %>
         </details>
       </section>
 
-      <section id="guarantees" class="scroll-mt-24 space-y-3">
+      <%# Guarantees %>
+      <section id="guarantees" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Guarantees + protections</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Guarantee matrix + protection detail</summary>
@@ -484,7 +450,8 @@ end %>
         </details>
       </section>
 
-      <section id="incentives" class="scroll-mt-24 space-y-3">
+      <%# Incentives %>
+      <section id="incentives" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Incentives</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Bonus rows (<%= bonus_rows.size %>)</summary>
@@ -535,7 +502,8 @@ end %>
         </details>
       </section>
 
-      <section id="ledger" class="scroll-mt-24 space-y-3">
+      <%# Ledger %>
+      <section id="ledger" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ledger timeline</h2>
         <details class="rounded-lg border border-border bg-background p-3" open>
           <summary class="cursor-pointer text-sm font-medium">Recent entries (<%= ledger_entries.size %>)</summary>
@@ -594,7 +562,8 @@ end %>
         </details>
       </section>
 
-      <section id="team-history" class="scroll-mt-24 space-y-3">
+      <%# Team history %>
+      <section id="team-history" class="space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Team history</h2>
         <% if team_history_rows.empty? %>
           <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No team history found.</div>
@@ -622,8 +591,7 @@ end %>
         <% end %>
       </section>
     </div>
-  </div>
 
-  <%= render partial: "entities/shared/known_slugs", locals: { entity_type: "player", entity_id: @player_id, path_prefix: "players" } %>
+    <%= render partial: "entities/shared/known_slugs", locals: { entity_type: "player", entity_id: @player_id, path_prefix: "players" } %>
   </main>
 </div>

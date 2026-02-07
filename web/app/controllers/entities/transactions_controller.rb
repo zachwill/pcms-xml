@@ -15,43 +15,61 @@ module Entities
       today = Date.today
       season_start = today.month >= 7 ? Date.new(today.year, 7, 1) : Date.new(today.year - 1, 7, 1)
 
-      date_filter = case @daterange
+      where_clauses = ["t.trade_id IS NULL"] # trades have their own workspace
+
+      case @daterange
       when "today"
-        "t.transaction_date = #{conn.quote(today)}"
+        where_clauses << "t.transaction_date = #{conn.quote(today)}"
       when "week"
-        "t.transaction_date >= #{conn.quote(today - 7)}"
+        where_clauses << "t.transaction_date >= #{conn.quote(today - 7)}"
       when "month"
-        "t.transaction_date >= #{conn.quote(today - 30)}"
+        where_clauses << "t.transaction_date >= #{conn.quote(today - 30)}"
       when "season"
-        "t.transaction_date >= #{conn.quote(season_start)}"
-      else
-        "1=1" # all
+        where_clauses << "t.transaction_date >= #{conn.quote(season_start)}"
       end
 
-      # Build type filter
-      type_conditions = []
-      type_conditions << "t.transaction_type_lk IN ('SIGN', 'RSIGN', 'EXTSN')" if @signings
-      type_conditions << "t.transaction_type_lk IN ('WAIVE', 'WAIVR')" if @waivers
-      type_conditions << "t.transaction_type_lk = 'EXTSN'" if @extensions
+      selected_types = []
+      selected_types.concat(%w[SIGN RSIGN]) if @signings
+      selected_types.concat(%w[WAIVE WAIVR]) if @waivers
+      selected_types << "EXTSN" if @extensions
+      selected_types.uniq!
+
       if @other
         excluded = %w[SIGN RSIGN EXTSN WAIVE WAIVR TRADE]
-        type_conditions << "t.transaction_type_lk NOT IN (#{excluded.map { |c| conn.quote(c) }.join(', ')})"
-      end
+        excluded_sql = excluded.map { |c| conn.quote(c) }.join(", ")
 
-      # Exclude trades (they have their own workspace)
-      type_filter = if type_conditions.any?
-        "(#{type_conditions.join(' OR ')}) AND t.trade_id IS NULL"
-      else
-        "t.trade_id IS NULL"
+        if selected_types.any?
+          selected_sql = selected_types.map { |c| conn.quote(c) }.join(", ")
+          where_clauses << "(t.transaction_type_lk IN (#{selected_sql}) OR t.transaction_type_lk NOT IN (#{excluded_sql}))"
+        else
+          where_clauses << "t.transaction_type_lk NOT IN (#{excluded_sql})"
+        end
+      elsif selected_types.any?
+        selected_sql = selected_types.map { |c| conn.quote(c) }.join(", ")
+        where_clauses << "t.transaction_type_lk IN (#{selected_sql})"
       end
-
-      where_clauses = [date_filter, type_filter]
 
       if @team.present?
         where_clauses << "(t.from_team_code = #{conn.quote(@team)} OR t.to_team_code = #{conn.quote(@team)})"
       end
 
       @transactions = conn.exec_query(<<~SQL).to_a
+        WITH filtered_transactions AS (
+          SELECT
+            t.transaction_id,
+            t.transaction_date,
+            t.transaction_type_lk,
+            t.transaction_description_lk,
+            t.player_id,
+            t.from_team_code,
+            t.to_team_code,
+            t.signed_method_lk,
+            t.contract_type_lk
+          FROM pcms.transactions t
+          WHERE #{where_clauses.join(" AND ")}
+          ORDER BY t.transaction_date DESC, t.transaction_id DESC
+          LIMIT 200
+        )
         SELECT
           t.transaction_id,
           t.transaction_date,
@@ -67,11 +85,9 @@ module Entities
           t.to_team_code,
           t.signed_method_lk,
           t.contract_type_lk
-        FROM pcms.transactions t
+        FROM filtered_transactions t
         LEFT JOIN pcms.people p ON p.person_id = t.player_id
-        WHERE #{where_clauses.join(" AND ")}
         ORDER BY t.transaction_date DESC, t.transaction_id DESC
-        LIMIT 200
       SQL
 
       render :index

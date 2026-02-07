@@ -1,0 +1,97 @@
+<%#
+  Entity row — Salary Book-style double-row layout.
+
+  This is the reusable row pattern: headshot/icon + two text rows (primary + secondary).
+  Used for player lists, team lists, agent lists, etc.
+
+  locals:
+  - href: (String) link target
+  - image_url: (String, optional) image source
+  - image_alt: (String, optional) alt text
+  - image_fallback: (String, optional) fallback text if image fails
+  - image_fit: (String, optional) object-fit class (default: object-cover object-top)
+  - primary: (String) main text (player name, team name, etc.)
+  - secondary: (String, optional) secondary text (id, metadata)
+  - badges: (Array[String], optional) small inline badges
+  - right_content: (block, optional) content for the right side of the row
+  - clickable: (Boolean, default true) whether row is clickable
+  - data_attributes: (Hash, optional) additional data-* attributes
+%>
+
+<%
+  href = local_assigns[:href].to_s.strip.presence
+  image_url = local_assigns[:image_url].to_s.strip.presence
+  image_alt = local_assigns[:image_alt].to_s.strip.presence || ""
+  image_fallback = local_assigns[:image_fallback].to_s.strip.presence || "—"
+  image_fit = local_assigns[:image_fit].to_s.strip.presence || "object-cover object-top"
+  primary = local_assigns[:primary].to_s.strip
+  secondary = local_assigns[:secondary].to_s.strip.presence
+  badges = Array(local_assigns[:badges]).map { |b| b.to_s.strip }.reject(&:blank?)
+  clickable = local_assigns.key?(:clickable) ? local_assigns[:clickable] : true
+  data_attributes = local_assigns[:data_attributes].is_a?(Hash) ? local_assigns[:data_attributes] : {}
+%>
+
+<div
+  class="group border-b border-border/50 transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 <%= clickable ? 'cursor-pointer' : '' %>"
+  <% if clickable && href.present? %>
+    role="button"
+    tabindex="0"
+    data-on:click="window.location.href='<%= href %>'"
+    data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); window.location.href='<%= href %>' }"
+  <% end %>
+  <% data_attributes.each do |key, value| %>
+    data-<%= key %>="<%= value %>"
+  <% end %>
+>
+  <div class="flex items-center px-4 min-h-[48px]">
+    <%# Left: Image + Text %>
+    <div class="flex-1 min-w-0">
+      <div class="grid grid-cols-[40px_1fr] grid-rows-[24px_16px]">
+        <%# Image spans both rows %>
+        <div class="row-span-2 flex items-center justify-start">
+          <div class="w-8 h-8 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+            <% if image_url.present? %>
+              <img
+                src="<%= image_url %>"
+                alt="<%= image_alt %>"
+                class="w-full h-full <%= image_fit %> bg-muted"
+                loading="lazy"
+                decoding="async"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+              />
+              <span class="hidden text-[9px] font-semibold text-muted-foreground"><%= image_fallback %></span>
+            <% else %>
+              <span class="text-[9px] font-semibold text-muted-foreground"><%= image_fallback %></span>
+            <% end %>
+          </div>
+        </div>
+
+        <%# Row A: Primary text %>
+        <div class="h-[24px] flex items-end min-w-0 pl-2 pr-2">
+          <% if href.present? %>
+            <a href="<%= href %>" class="truncate font-medium text-[14px] group-hover:text-primary transition-colors" onclick="event.stopPropagation()"><%= primary %></a>
+          <% else %>
+            <span class="truncate font-medium text-[14px] group-hover:text-primary transition-colors"><%= primary %></span>
+          <% end %>
+        </div>
+
+        <%# Row B: Secondary text + badges %>
+        <div class="h-[16px] -mt-px flex items-start gap-2 min-w-0 pl-2 pr-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums">
+          <% if secondary.present? %>
+            <span class="truncate"><%= secondary %></span>
+          <% end %>
+          <% badges.each do |badge| %>
+            <span class="text-primary/80"><%= badge %></span>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <%# Right: Optional content %>
+    <% if content_for?(:right_content) || local_assigns[:right_content].present? %>
+      <div class="flex-shrink-0 ml-4">
+        <%= yield if block_given? %>
+      </div>
+    <% end %>
+  </div>
+</div>

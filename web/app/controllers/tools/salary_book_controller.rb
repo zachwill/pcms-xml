@@ -304,6 +304,7 @@ module Tools
             sbw.agent_name,
             sbw.agent_id,
             sbw.age,
+            p.years_of_service,
             sbw.cap_2025,
             sbw.cap_2026,
             sbw.cap_2027,
@@ -372,6 +373,8 @@ module Tools
             sbw.unlikely_bonus_2030,
             sbw.refreshed_at
           FROM pcms.salary_book_warehouse sbw
+          LEFT JOIN pcms.people p
+            ON p.person_id = sbw.player_id
           WHERE sbw.player_id = #{id_sql}
           LIMIT 1
         SQL
