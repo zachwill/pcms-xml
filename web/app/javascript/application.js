@@ -2,5 +2,6 @@
 // Tools are loaded per-page via content_for(:head_scripts)
 
 import "entities/workspace";
+import "shared/commandbar_navigation";
 
 console.debug("[app] application.js loaded");

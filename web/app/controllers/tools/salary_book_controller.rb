@@ -172,8 +172,9 @@ module Tools
       raw = params[:year].presence
       return CURRENT_SALARY_YEAR unless raw
 
-      Integer(raw)
-    rescue ArgumentError
+      year = Integer(raw)
+      SALARY_YEARS.include?(year) ? year : CURRENT_SALARY_YEAR
+    rescue ArgumentError, TypeError
       CURRENT_SALARY_YEAR
     end
 

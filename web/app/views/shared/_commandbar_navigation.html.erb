@@ -1,0 +1,29 @@
+<%
+  active_destination = local_assigns[:active_destination].to_s
+  active_destination = "salary_book" unless %w[rip_city salary_book tools].include?(active_destination)
+%>
+
+<div class="w-48 shrink-0 space-y-1">
+  <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Navigation</div>
+
+  <div class="space-y-3">
+    <select
+      data-commandbar-nav-select
+      aria-label="Navigate workspace"
+      class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground outline-none focus-visible:border-foreground"
+    >
+      <option value="/players" <%= "selected" if active_destination == "rip_city" %>>Rip City</option>
+      <option value="/" <%= "selected" if active_destination == "salary_book" %>>Salary Book</option>
+      <option value="/tools/two-way-utility" <%= "selected" if active_destination == "tools" %>>Tools</option>
+    </select>
+
+    <label class="flex items-center gap-1.5 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        data-commandbar-dark-toggle
+        class="size-3.5 accent-primary"
+      />
+      <span class="text-[11px] leading-none text-foreground/80">Dark Mode</span>
+    </label>
+  </div>
+</div>

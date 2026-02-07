@@ -8,3 +8,6 @@ pin "tools/salary_book", to: "tools/salary_book.js"
 
 # Entity workspace UX (scrollspy local nav)
 pin "entities/workspace", to: "entities/workspace.js"
+
+# Shared commandbar controls (global nav + dark mode)
+pin "shared/commandbar_navigation", to: "shared/commandbar_navigation.js"

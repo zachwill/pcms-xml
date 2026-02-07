@@ -1,9 +1,14 @@
 <%# TableHeader — Tailwind port of the React prototype %>
 
 <% salary_years ||= SalaryBookHelper::SALARY_YEARS %>
+<% base_year = local_assigns.fetch(:base_year, salary_years.first) %>
 
 <div class="border-b border-border bg-background">
-  <div class="h-8 flex items-center text-xs font-medium text-muted-foreground">
+  <div
+    class="h-8 flex items-center text-xs font-medium text-muted-foreground select-none cursor-default"
+    data-on:mouseleave="if ($selectedseason !== null) { $selectedseason = null; if ($activeteam) { @get('<%= tools_salary_book_sidebar_team_path(team: '__TEAM__') %>'.replace('__TEAM__', $activeteam) + '&year=<%= base_year %>'); } }"
+    data-on:focusout="if (!el.contains(evt.relatedTarget) && $selectedseason !== null) { $selectedseason = null; if ($activeteam) { @get('<%= tools_salary_book_sidebar_team_path(team: '__TEAM__') %>'.replace('__TEAM__', $activeteam) + '&year=<%= base_year %>'); } }"
+  >
     <%# Player column (sticky left) %>
     <div
       class="w-52 shrink-0 pl-4 sticky left-0 z-[2] bg-background relative
@@ -17,7 +22,12 @@
 
     <%# Year columns %>
     <% salary_years.each do |year| %>
-      <div class="w-24 tabular-nums text-center"><%= format_year_label(year) %></div>
+      <div
+        class="w-24 tabular-nums text-center transition-colors duration-100 cursor-default select-none"
+        data-on:mouseenter="if (Number($selectedseason) !== <%= year %>) { $selectedseason = <%= year %>; if ($activeteam) { @get('<%= tools_salary_book_sidebar_team_path(team: '__TEAM__') %>'.replace('__TEAM__', $activeteam) + '&year=' + $selectedseason); } }"
+        data-on:focusin="if (Number($selectedseason) !== <%= year %>) { $selectedseason = <%= year %>; if ($activeteam) { @get('<%= tools_salary_book_sidebar_team_path(team: '__TEAM__') %>'.replace('__TEAM__', $activeteam) + '&year=' + $selectedseason); } }"
+        data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': Number($selectedseason) === <%= year %> }"
+      ><%= format_year_label(year) %></div>
     <% end %>
 
     <%# Total column %>

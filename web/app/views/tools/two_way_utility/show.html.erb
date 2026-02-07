@@ -1,13 +1,11 @@
 <% content_for :title, "Two-Way Utility" %>
 
 <div class="min-h-screen bg-background">
-  <header class="border-b border-border bg-background">
-    <div class="px-4 py-3 space-y-2">
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <h1 class="text-sm font-semibold tracking-wide uppercase">Two-Way Utility</h1>
-          <p class="text-[11px] text-muted-foreground">Active two-way usage by team • warehouse-backed</p>
-        </div>
+  <header id="commandbar" class="border-b border-border bg-background h-[130px] px-4 pt-3 flex items-start gap-4">
+    <div class="flex-1 min-w-0 space-y-2">
+      <div>
+        <h1 class="text-sm font-semibold tracking-wide uppercase">Two-Way Utility</h1>
+        <p class="text-[11px] text-muted-foreground">Active two-way usage by team • warehouse-backed</p>
       </div>
 
       <% if @teams_by_conference["Eastern"].any? || @teams_by_conference["Western"].any? %>
@@ -29,6 +27,9 @@
         </div>
       <% end %>
     </div>
+
+    <div class="h-20 w-px bg-border self-center ml-auto shrink-0"></div>
+    <%= render partial: "shared/commandbar_navigation", locals: { active_destination: "tools" } %>
   </header>
 
   <main class="pb-8">
