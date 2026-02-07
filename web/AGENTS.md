@@ -1,245 +1,185 @@
-# web/AGENTS.md — Rails + Datastar (primary UI)
+# web/AGENTS.md — Rails + Datastar
 
-> Notes for AI coding agents working in **web/**.
-> This is the *canonical* human-facing app going forward.
+> Read the hard rules. Follow the decision trees. Check the checklist before coding.
 
-## What `web/` is
+---
 
-`web/` is the home for a **Rails + Datastar** application that turns our Postgres warehouses into:
+## Hard rules (non-negotiable)
 
-1) **Entity navigation** (Bricklink-style link graph)
-   - players ↔ contracts ↔ teams ↔ seasons ↔ agents/agencies ↔ transactions ↔ picks
-   - everything should be linkable and pivotable
+1. **Server HTML, not JSON.** Datastar patches elements by `id`. Don't return JSON and render client-side.
+2. **Multi-region = one SSE.** Updating 2+ regions? Return `text/event-stream` with ordered patches. Never multiple fetches or client stitching.
+3. **No Turbo/Hotwire/Stimulus.** Datastar is the only UI runtime. Don't add Turbo Frames, Turbo Streams, or Stimulus controllers.
+4. **Scroll = state.** In tools (Salary Book, etc.), scroll position determines active context. Don't override with click-driven state machines.
+5. **Sidebar: base + one overlay.** No modal stacks, no nested overlays. `#rightpanel-base` + `#rightpanel-overlay`, that's it.
+6. **Density is the design.** Rows, links, data. Not cards, not whitespace, not "premium aesthetics." Scannable tables are the product.
+7. **SQL does the math.** Cap/trade/CBA logic lives in Postgres (`pcms.fn_*`, warehouses). Don't reimplement in Ruby or JS.
 
-2) **Tools** (dense instruments)
-   - `/tools/salary-book` (scroll-driven sheet + right-panel intelligence)
-   - later: trade machine, buyout calculator, scenario builders, etc.
+---
 
-Core stance:
-- **Postgres is the product.** Warehouses + `fn_*` functions are the API.
-- Rails renders **HTML-first**.
-- Datastar morphs/patches HTML and uses signals for *ephemeral UI state*.
+## Decision trees
 
-### React prototype
+### How do I return a response?
 
-The previous Bun + React Salary Book prototype lives here:
-- `prototypes/salary-book-react/`
+```
+UPDATING UI?
+│
+├─ 1 region
+│  → return text/html
+│  → Datastar morphs content into element by id
+│
+├─ 2+ regions (commandbar + sidebar, main + flash, etc.)
+│  → return text/event-stream (one-off SSE is normal)
+│  → patch each region in sequence
+│  → see: web/docs/datastar_sse_playbook.md
+│
+└─ signals only, no HTML change
+   → return application/json
+```
 
-Use it as a markup/interaction reference (scroll spy, scroll sync, overlay transitions), but treat it as **read-only prototype code**.
+### How do I use the sidebar?
 
-## Ruby version (important)
+```
+SIDEBAR CONTENT?
+│
+├─ "home" context (team summary, tool state)
+│  → patch #rightpanel-base
+│
+├─ drill-in detail (player, contract, pick)
+│  → patch #rightpanel-overlay
+│  → set signal: overlaytype = "player" (or relevant type)
+│
+└─ closing the overlay?
+   → clear #rightpanel-overlay innerHTML
+   → set signal: overlaytype = ""
+```
 
-This Rails app is pinned via `web/.ruby-version` (Ruby 3.4.x).
+### How do I add filtering/toggling?
 
-In some environments (including agent shells), `ruby` may resolve to macOS system Ruby (`/usr/bin/ruby`, often 2.6). That will break Bundler/Rails and can cause `bin/dev` to try installing gems into the system Ruby.
+```
+FILTER OR TOGGLE?
+│
+├─ changes what data shows (cap vs cash, include options, etc.)
+│  → lens toggle: same URL, signal changes, server re-renders
+│
+└─ changes which entity/page
+   → navigation: URL changes, full page or major section swap
+```
 
-Before running Rails commands, ensure Ruby 3.4 is first in `PATH`:
+### Where does logic live?
 
-```bash
-cd web
-# Homebrew Ruby 3.4 (include gem bin dir so `foreman`/`bin/dev` works)
-export PATH="/opt/homebrew/opt/ruby@3.4/bin:/opt/homebrew/lib/ruby/gems/3.4.0/bin:$PATH"
-
-ruby -v  # should be 3.4.x
+```
+BUSINESS LOGIC?
+│
+├─ cap math, trade rules, CBA calculations
+│  → SQL: add/extend pcms.fn_* functions or warehouses
+│  → run migrations, then call from Rails
+│
+├─ UI state (which panel is open, scroll position, active filters)
+│  → Datastar signals (ephemeral, client-side)
+│
+└─ rendering decisions (what HTML to show)
+   → Rails controllers + ERB partials
 ```
 
 ---
 
-## Start here (reading order)
+## Datastar request-cancellation gotcha (important)
 
-1) **UI invariants**
-   - `web/specs/00-ui-philosophy.md`
-   - `web/specs/01-salary-book.md`
+Datastar backend actions (`@get`, `@post`, etc.) default to `requestCancellation: auto`.
 
-2) **Rails rewrite mental model**
-   - `web/MIGRATION_MEMO.md` (rewrite memo / interaction mapping)
+- Cancellation is **per element**.
+- If one element fires multiple requests quickly, a newer request can cancel an older in-flight request.
+- This can break shell→hydrate flows (skeleton loads, but heavy payload never lands).
 
-3) **Datastar**
-   - `reference/datastar/insights.md` (hard rules + gotchas)
-   - `reference/datastar/rails.md` (Rails SSE + framing)
-   - `reference/datastar/basecamp.md` (Basecamp-ish patterns translated to Datastar)
+Salary Book guardrail:
+- Keep heavy bootstrap fetches on a **separate element** from sidebar/auxiliary fetches.
+- If needed, set `requestCancellation: 'disabled'` for one-off bootstrap requests.
+- Current working pattern: `#salarybook-bootstrap` (maincanvas hydrate) is separate from root `#salarybook` sidebar effects.
 
-4) **Bricklink navigation inspiration**
-   - `reference/sites/bricklink.txt`
+## Before you code (checklist)
 
----
+Answer these before writing code:
 
-## Information architecture (URLs)
-
-### Entities: clean, top-level, slug-first
-
-Goal: URLs that feel like a catalog, without looking like one.
-
-Examples (canonical):
-- `/players/lebron`
-- `/players/damian-lillard`
-- `/teams/bos`
-- `/agents/rich-paul`
-
-Rules:
-- **Canonical routes are slug-only.**
-- Keep an **ID fallback** for migration/debug (ex: `/players/2544` → 301 → `/players/lebron`).
-- Slugs are not auto-magical; maintain a **slug registry** (with aliases) so we can manually promote “short slugs” over time.
-  - Non-canonical slugs should 301 → the canonical slug.
-
-### Tools: everything dense/instrument-like goes under `/tools/*`
-
-Examples:
-- `/tools/salary-book`
-- `/tools/trade-machine`
-
-Tool fragment endpoints (Datastar patch targets) should live *under the tool*:
-- `/tools/salary-book/sidebar/player/:id`
-- `/tools/salary-book/teams/:teamcode/section`
-
-This keeps:
-- entity pages canonical + shareable
-- tools free to be “weird” without polluting the global URL space
+- [ ] **Patch targets:** Which `id`(s) am I patching? (`#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`, `#flash`)
+- [ ] **Response type:** Is this 1 region (HTML) or 2+ regions (SSE)?
+- [ ] **Client JS:** Am I keeping JS to scroll/measure/sync/transition only? No business logic?
+- [ ] **Data source:** Is the data I need already in a warehouse or `fn_*` function? If not, extend SQL first.
+- [ ] **Existing patterns:** Have I checked similar implementations in `web/app/views/` before inventing something new?
 
 ---
 
-## Datastar conventions (treat as hard rules)
+## Canonical patch boundaries
 
-From `reference/datastar/insights.md`:
+These are the stable `id`s Datastar targets:
 
-- **Signals are flatcase**: `activeteam`, `overlaytype`, `displaycapholds`
-- Signals starting with `_` are **local-only** (not serialized to backend)
-- **DOM refs must be underscore-prefixed**:
-  - `data-ref="_dialog"` → use as `$_dialog`
-- Prefer **stable `id` patch boundaries** and patch whole sections.
-- Avoid mixing literal attributes with bindings (`value="..."` + `data-bind`, etc.).
+| ID | What it holds | Owner |
+|----|---------------|-------|
+| `#commandbar` | navigation + filters + search | shared |
+| `#maincanvas` | primary content (table, entity modules) | page-specific |
+| `#rightpanel-base` | sidebar "home" context | page-specific |
+| `#rightpanel-overlay` | drill-in detail layer | page-specific |
+| `#flash` | toast/alerts | shared |
 
-Default response type preference:
-1) `text/html` (stable IDs + morph)
-2) `application/json` (signal-only patches)
-3) `text/event-stream` (only when streaming/progress/live feeds are required)
+More detail: `web/docs/patch_boundaries.md`
 
 ---
 
-## Tailwind conventions (utility-first in ERB)
+## Deep dives (read when needed)
 
-We use **`tailwindcss-rails`** (compiled CSS), not the CDN.
+| Doc | What it covers |
+|-----|----------------|
+| `web/docs/datastar_sse_playbook.md` | SSE response templates, Rails `ActionController::Live` patterns |
+| `web/docs/ui_invariants.md` | Product-level interaction rules |
+| `web/docs/patch_boundaries.md` | Full patch boundary ownership map |
+| `reference/sites/INTERACTION_MODELS.md` | Scroll-driven tools, entity workspaces, catalog surfaces |
+| `reference/datastar/insights.md` | Signal naming, DOM refs, Datastar conventions |
+| `reference/datastar/rails.md` | Rails + Datastar integration patterns |
 
-**Strong preference**: Write utility classes directly in `.html.erb` partials. Avoid custom CSS classes unless there's a good reason (e.g., Datastar `data-class` toggling, complex animations, or truly reusable components).
-
-### Standard column widths (Salary Book table)
-
-| Element | Width | Class |
-|---------|-------|-------|
-| Sticky label column | 208px | `w-52` |
-| Year cells | 96px | `w-24` |
-| Total column | 96px | `w-24` |
-| Agent column | 160px | `w-40` |
-
-### Patterns
-
-- **Sticky columns**: `sticky left-0 z-[N]` + `after:` pseudo-element for right border
-  ```erb
-  class="w-52 shrink-0 pl-4 sticky left-0 z-[2] bg-background relative
-         after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/30"
-  ```
-
-- **Row hover**: Use `group` on parent + `group-hover:` on children
-  ```erb
-  <div class="group hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10">
-    <div class="group-hover:text-primary">...</div>
-  </div>
-  ```
-
-- **Dark mode**: Always include `dark:` variants for backgrounds, text, borders
-
-- **Monospace numbers**: `font-mono tabular-nums`
-
-### Row heights
-
-| Row type | Height | Notes |
-|----------|--------|-------|
-| Player row | 40px | Two sub-rows: 24px (name/salary) + 16px (metadata) |
-| Subsection row | 32px | `h-8` |
-| Header row | 32px | `h-8` |
-
-### Font sizes
-
-| Element | Size |
-|---------|------|
-| Player names | `text-[14px]` |
-| Subsection titles | `text-[12px]` |
-| Metadata/badges | `text-[10px]` |
-| General small text | `text-xs` |
-
-### What stays in CSS
-
-Keep in `app/assets/tailwind/application.css` (Tailwind entrypoint):
-- CSS custom properties (design tokens): `--background`, `--foreground`, `--border`, etc.
-- Truly global resets or base styles
-- ID/selector-driven rules required for Datastar patching (ex: `#rightpanel-overlay`, `:has()` fades)
-- Complex animations that can't be expressed in utilities
-
-Avoid `app/assets/stylesheets/application.css` (legacy). The layout does not load it anymore.
+Historical/reference:
+| Doc | What it covers |
+|-----|----------------|
+| `prototypes/salary-book-react/` | React prototype (interaction reference, not implementation) |
+| `web/MIGRATION_MEMO.md` | Why we moved from React to Rails + Datastar |
 
 ---
 
-## The irreducible client-side JS (keep it tiny)
+## Quick reference
 
-Even with Datastar, Salary Book needs a small JS runtime for:
+### Ruby version
 
-1) **Scroll spy** (active team + section progress)
-2) **Sticky + horizontal scroll sync** (header/body scrollers)
-3) **Overlay transitions** (safe-to-unmount exit animations)
+Pinned to Ruby 3.4.x via `web/.ruby-version`. Before running Rails commands:
 
-Integration pattern:
-- JS updates the DOM directly where appropriate (fades, scroll sync)
-- JS emits bubbling `CustomEvent`s
-- Datastar listens and patches signals (then the server patches HTML)
+```bash
+export PATH="/opt/homebrew/opt/ruby@3.4/bin:/opt/homebrew/lib/ruby/gems/3.4.0/bin:$PATH"
+ruby -v  # should be 3.4.x
+```
 
-This keeps the mental model clean:
-- *UI state* → signals
-- *authoritative data* → server-rendered HTML
+### Datastar signal conventions
 
----
+- Signals are **flatcase**: `activeteam`, `overlaytype`, `displaycapholds`
+- Underscore prefix = **local-only** (not sent to server): `_scrollpos`
+- DOM refs must be underscore-prefixed: `data-ref="_dialog"` → `$_dialog`
 
-## Data + DB conventions
+### File locations
 
-- Connection string: `POSTGRES_URL` (repo convention)
-  - Rails usually expects `DATABASE_URL`; we should support `POSTGRES_URL` as the primary env var.
+| What | Where |
+|------|-------|
+| Entity pages | `web/app/controllers/entities/*`, `web/app/views/entities/*` |
+| Tools | `web/app/controllers/tools/*`, `web/app/views/tools/*` |
+| Shared partials | `web/app/views/shared/*`, `web/app/views/entities/shared/*` |
+| Client JS (minimal) | `web/app/javascript/` |
+| Styles | `web/app/assets/tailwind/application.css` |
 
-- Read-side data:
-  - `pcms.*` warehouses + primitives (`pcms.salary_book_warehouse`, `pcms.fn_tpe_trade_math()`, etc.)
-  - optional: `public.nba_players` (position metadata)
+### URL structure
 
-- Write-side app data (Rails-owned):
-  - keep it in a dedicated Rails schema (default: `web`, configurable via `RAILS_APP_SCHEMA`):
-    - slug registry
-    - user accounts/sessions (if needed)
-    - annotations/notes
-    - saved views/scenarios
+- Entities: `/players/lebron`, `/teams/bos`, `/agents/rich-paul` (slug-first, canonical)
+- Tools: `/tools/salary-book`, `/tools/trade-machine`
+- Tool fragments: `/tools/salary-book/sidebar/player/:id` (nested under tool)
 
-Guardrail:
-- **Do not re-implement cap/trade/CBA math in Ruby.**
-  - If the UI needs a derived field, add/extend a warehouse or SQL function in `migrations/`.
+### Tailwind patterns
 
----
-
-## Where things should live (once Rails is scaffolded)
-
-High-level intended layout:
-
-- Rails code
-  - `web/app/controllers/entities/*` → entity pages (routes are top-level)
-  - `web/app/controllers/tools/*` → Salary Book + other instruments (`/tools/*`)
-  - `web/app/views/...` → partials with stable IDs
-  - `web/app/javascript/...` → the tiny Salary Book runtime (no React)
-
-- Product specs + references (already present)
-  - `web/specs/*`
-  - `web/reference/*`
-
----
-
-## If you’re about to make changes
-
-Before implementing:
-- Identify the **patch boundary** you want (stable `id`).
-- Prefer returning HTML that patches that region.
-- Ensure URLs remain canonical and shareable (progressive enhancement).
-- If you need new data, add it to Postgres warehouses/functions first.
+- Utility classes in ERB directly (not custom CSS classes)
+- Sticky columns: `sticky left-0 z-[N]`
+- Row hover: parent `group` + child `group-hover:`
+- Monospace numbers: `font-mono tabular-nums`
+- Always include `dark:` variants

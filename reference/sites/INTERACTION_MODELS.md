@@ -11,7 +11,8 @@ It exists to answer:
 ### 1) Tools / workbenches (scroll-driven, dense, stateful)
 A “tool” is a *continuous planning surface* where **scroll position is primary state** and a sidebar provides drill-in context.
 
-- Canonical example in this repo: **Salary Book** (`web/specs/01-salary-book.md`).
+- Canonical example in this repo: **Salary Book** (`/tools/salary-book`; implementation in `web/app/views/tools/salary_book/*`).
+- Historical interaction spec archive: `prototypes/salary-book-react/docs/legacy-web-specs/01-salary-book.md`.
 - Common traits:
   - One primary scroll container (“rows are the product”).
   - Sticky command bar with fast toggles/filters.

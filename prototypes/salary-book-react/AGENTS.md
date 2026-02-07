@@ -13,10 +13,14 @@ It’s kept for:
 
 **Canonical app going forward:** `web/` (Rails + Datastar).
 
-Canonical docs/specs now live in `web/`:
+Current product docs/specs:
 - `web/AGENTS.md`
-- `web/specs/*`
+- `reference/sites/INTERACTION_MODELS.md`
+- `reference/datastar/*`
 - `web/MIGRATION_MEMO.md`
+
+Historical OG specs (archived from `web/specs/`):
+- `prototypes/salary-book-react/docs/legacy-web-specs/*`
 
 ---
 

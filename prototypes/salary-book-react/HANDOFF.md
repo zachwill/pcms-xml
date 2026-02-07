@@ -36,8 +36,9 @@ We're building a **front-office instrument**, not a documentation UI. Key princi
 | File | Purpose |
 |------|---------|
 | **`TODO.md`** | Prototype work items, what's done, what's next |
-| **`web/specs/00-ui-philosophy.md`** | Core invariants + the scroll-driven model |
-| **`web/specs/01-salary-book.md`** | Full interaction spec |
+| **`prototypes/salary-book-react/docs/legacy-web-specs/00-ui-philosophy.md`** | OG core invariants + scroll-driven model |
+| **`prototypes/salary-book-react/docs/legacy-web-specs/01-salary-book.md`** | OG full interaction spec |
+| **`reference/sites/INTERACTION_MODELS.md`** | Current interaction thesis for `web/` |
 
 ### Core infrastructure
 

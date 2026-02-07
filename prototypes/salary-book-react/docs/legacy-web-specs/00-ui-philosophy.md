@@ -1,4 +1,4 @@
-# web/specs/00 — UI Philosophy & Invariants
+# Spec 00 — UI Philosophy & Invariants (legacy archive)
 
 > This is not a visual design doc. It is the interaction + information-design contract.
 > The Salary Book UI is intentionally **not** a "documentation UI" and should not drift into that.
@@ -166,9 +166,9 @@ Never translate rules into "read this explanation." Translate into "here is what
 
 ## Related specs
 
-- `web/specs/01-salary-book.md` — main interaction model.
-- `web/specs/02-team-header-and-draft-assets.md` — header KPIs + draft assets UI.
-- `web/specs/03-trade-machine.md` — trade planning UI + DB primitives.
+- `01-salary-book.md` — main interaction model.
+- `02-team-header-and-draft-assets.md` — header KPIs + draft assets UI.
+- `03-trade-machine.md` — trade planning UI + DB primitives.
 
 ---
 

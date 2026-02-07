@@ -2,7 +2,9 @@
 
 Purpose: capture “portable Basecamp patterns” (from `reference/basecamp/specs/*`) and translate them into a **Datastar-first** UI architecture.
 
-This is a thought experiment + design memo:
+This is a thought experiment + design memo.
+
+**Important:** We do **not** use Turbo/Hotwire/Stimulus in `web/`. Any Hotwire mentions below are comparative context only.
 
 - Basecamp/Fizzy/Campfire posture: **Rails omakase**, server-rendered HTML, small JS, strong request context (`Current`), and real-time UX.
 - Datastar posture: **hypermedia-first** + “in morph we trust” + signals for ephemeral UI + SSE for streaming.
@@ -136,19 +138,18 @@ Datastar behavior is driven by `Content-Type`.
 
 Practical Basecamp-style guideline:
 
-- Prefer `text/html` for normal CRUD.
-  - You can patch multiple regions at once by returning multiple **top-level elements with stable `id`s**.
+- Prefer `text/html` for single-region CRUD-style patches.
   - For “target + mode” control (without SSE), set Datastar response headers on the backend-action response:
     - `datastar-selector: #tray` (optional; default is morph-by-id)
     - `datastar-mode: inner|outer|replace|append|prepend|before|after|remove`
     - `datastar-use-view-transition: true` (optional)
     - (`datastar-namespace` exists too, but is rarely needed)
+- Prefer short-lived SSE (`text/event-stream`) when one interaction must patch **multiple disjoint regions** or apply ordered patch steps.
 - Use `application/json` only for true “signal-only” updates. Optional header:
   - `datastar-only-if-missing: true`
-- Use SSE (`text/event-stream`) when you need:
+- Use long-lived SSE streams for:
   - progress / streaming updates (uploads, exports)
-  - long-lived feeds (chat room, notifications)
-  - multiple incremental patches over time (0..N events)
+  - live feeds (chat room, notifications)
 
 How to think about patching:
 

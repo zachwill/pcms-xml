@@ -16,7 +16,10 @@ Rails.application.routes.draw do
     get "salary-book/sidebar/pick", to: "salary_book#sidebar_pick", as: :salary_book_sidebar_pick
     get "salary-book/sidebar/clear", to: "salary_book#sidebar_clear", as: :salary_book_sidebar_clear
 
-    # SSE demo endpoints (prove Rails ActionController::Live + Datastar framing)
+    # SSE bootstrap + patch template endpoints (canonical one-off SSE pattern)
+    get "salary-book/sse/bootstrap", to: "salary_book_sse#bootstrap", as: :salary_book_sse_bootstrap
+    get "salary-book/sse/patch-template", to: "salary_book_sse#demo", as: :salary_book_sse_patch_template
+    # Legacy alias
     get "salary-book/sse/demo", to: "salary_book_sse#demo", as: :salary_book_sse_demo
   end
 

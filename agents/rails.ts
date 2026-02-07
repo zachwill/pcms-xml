@@ -37,11 +37,14 @@ Every 4 commits, review progress and keep the roadmap accurate.
 REVIEW INPUTS:
 1) ${TASK_FILE} (canonical roadmap / priorities)
 2) web/AGENTS.md (Rails + Datastar conventions)
-3) web/specs/00-ui-philosophy.md
-4) web/specs/01-salary-book.md
-5) web/specs/02-team-header-and-draft-assets.md
-6) web/specs/03-trade-machine.md
-7) web/MIGRATION_MEMO.md
+3) reference/sites/INTERACTION_MODELS.md
+4) reference/datastar/insights.md
+5) reference/datastar/rails.md
+6) prototypes/salary-book-react/docs/legacy-web-specs/00-ui-philosophy.md
+7) prototypes/salary-book-react/docs/legacy-web-specs/01-salary-book.md
+8) prototypes/salary-book-react/docs/legacy-web-specs/02-team-header-and-draft-assets.md
+9) prototypes/salary-book-react/docs/legacy-web-specs/03-trade-machine.md
+10) web/MIGRATION_MEMO.md
 
 SUPERVISOR CHECKLIST:
 - Is the worker advancing the highest-priority unchecked task (P0/P1 first unless roadmap says otherwise)?
@@ -85,10 +88,13 @@ Read the full context at the top of ${TASK_FILE} before coding.
 KEY REFERENCES:
 - ${TASK_FILE} — canonical roadmap + TODOs
 - web/AGENTS.md — conventions + guardrails
-- web/specs/00-ui-philosophy.md — core invariants
-- web/specs/01-salary-book.md — Salary Book interaction contract
-- web/specs/02-team-header-and-draft-assets.md — header + draft details
-- web/specs/03-trade-machine.md — trade overlay requirements
+- reference/sites/INTERACTION_MODELS.md — current interaction thesis
+- reference/datastar/insights.md — Datastar conventions
+- reference/datastar/rails.md — Rails + Datastar SSE patterns
+- prototypes/salary-book-react/docs/legacy-web-specs/00-ui-philosophy.md — OG invariants
+- prototypes/salary-book-react/docs/legacy-web-specs/01-salary-book.md — OG Salary Book interaction contract
+- prototypes/salary-book-react/docs/legacy-web-specs/02-team-header-and-draft-assets.md — OG header + draft details
+- prototypes/salary-book-react/docs/legacy-web-specs/03-trade-machine.md — OG trade overlay requirements
 - web/MIGRATION_MEMO.md — implementation mapping
 
 STYLE CONVENTIONS:
@@ -126,10 +132,13 @@ Audit current implementation and generate the next prioritized backlog.
 INPUTS:
 - ${TASK_FILE}
 - web/AGENTS.md
-- web/specs/00-ui-philosophy.md
-- web/specs/01-salary-book.md
-- web/specs/02-team-header-and-draft-assets.md
-- web/specs/03-trade-machine.md
+- reference/sites/INTERACTION_MODELS.md
+- reference/datastar/insights.md
+- reference/datastar/rails.md
+- prototypes/salary-book-react/docs/legacy-web-specs/00-ui-philosophy.md
+- prototypes/salary-book-react/docs/legacy-web-specs/01-salary-book.md
+- prototypes/salary-book-react/docs/legacy-web-specs/02-team-header-and-draft-assets.md
+- prototypes/salary-book-react/docs/legacy-web-specs/03-trade-machine.md
 - web/MIGRATION_MEMO.md
 - current state of web/
 

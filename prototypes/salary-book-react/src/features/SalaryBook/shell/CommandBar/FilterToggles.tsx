@@ -1,7 +1,8 @@
 /**
  * FilterToggles — Command bar filter controls
  *
- * Filters are "lenses, not navigation" (see `web/specs/00-ui-philosophy.md`).
+ * Filters are "lenses, not navigation" (see
+ * `prototypes/salary-book-react/docs/legacy-web-specs/00-ui-philosophy.md`).
  * They reshape what the Salary Book shows without changing scroll/selection state.
  *
  * Groups:

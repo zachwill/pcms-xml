@@ -140,5 +140,4 @@ function initEntityWorkspaces() {
 }
 
 document.addEventListener("DOMContentLoaded", initEntityWorkspaces);
-document.addEventListener("turbo:load", initEntityWorkspaces);
 window.addEventListener("pageshow", initEntityWorkspaces);

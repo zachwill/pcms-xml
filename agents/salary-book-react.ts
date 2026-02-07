@@ -7,8 +7,11 @@ import { loop, work, generate, supervisor } from "./core";
  * Maintains the Bun + React Salary Book prototype in:
  *   prototypes/salary-book-react/
  *
- * Canonical interaction specs live in:
- *   web/specs/*
+ * Historical interaction specs live in:
+ *   prototypes/salary-book-react/docs/legacy-web-specs/*
+ *
+ * Current interaction thesis for web work:
+ *   reference/sites/INTERACTION_MODELS.md
  *
  * Usage:
  *   bun agents/salary-book-react.ts
@@ -31,9 +34,10 @@ loop({
     Every 4 commits, review progress and adjust the backlog.
 
     CONTEXT:
-    1. Read web/specs/01-salary-book.md — the full specification
-    2. Read .ralph/SALARY_BOOK.md — current task backlog
-    3. Check prototypes/salary-book-react/src/features/SalaryBook/ — what's been built
+    1. Read prototypes/salary-book-react/docs/legacy-web-specs/01-salary-book.md — historical full spec
+    2. Read reference/sites/INTERACTION_MODELS.md — current interaction thesis
+    3. Read .ralph/SALARY_BOOK.md — current task backlog
+    4. Check prototypes/salary-book-react/src/features/SalaryBook/ — what's been built
 
     REVIEW CHECKLIST:
 
@@ -93,10 +97,11 @@ loop({
         Your task: ${state.nextTodo}
 
         REQUIRED READING (before any code):
-        1. web/specs/01-salary-book.md — The full specification
-        2. prototypes/salary-book-react/docs/bun-postgres.md — How to use Bun's SQL client
-        3. prototypes/salary-book-react/src/components/ui/index.ts — Available UI primitives
-        4. prototypes/salary-book-react/src/lib/utils.ts — Utilities (cx, focusRing, formatters)
+        1. prototypes/salary-book-react/docs/legacy-web-specs/01-salary-book.md — Historical full specification
+        2. reference/sites/INTERACTION_MODELS.md — Current interaction thesis
+        3. prototypes/salary-book-react/docs/bun-postgres.md — How to use Bun's SQL client
+        4. prototypes/salary-book-react/src/components/ui/index.ts — Available UI primitives
+        5. prototypes/salary-book-react/src/lib/utils.ts — Utilities (cx, focusRing, formatters)
 
         DATA SOURCE — PostgreSQL (pcms schema):
         - pcms.salary_book_warehouse: player salaries (cap_2025..cap_2030, option_*, agent_name, is_two_way, etc.)
@@ -202,7 +207,7 @@ loop({
       .ralph/SALARY_BOOK.md has no unchecked tasks.
       ${contextBlock}
 
-      Read web/specs/01-salary-book.md and generate the next batch of tasks.
+      Read prototypes/salary-book-react/docs/legacy-web-specs/01-salary-book.md and reference/sites/INTERACTION_MODELS.md, then generate the next batch of tasks.
 
       Check prototypes/salary-book-react/src/features/SalaryBook/ to see what exists.
 

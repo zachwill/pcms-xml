@@ -8,20 +8,12 @@ module Tools
     def show
       @salary_year = salary_year_param
       @salary_years = SALARY_YEARS
+      # Default path: ship shell quickly, then patch full #maincanvas HTML in a follow-up GET.
+      @defer_heavy_load = params[:full].to_s != "1"
 
-      @team_codes = fetch_team_codes(@salary_year)
-      @teams_by_conference = fetch_teams_by_conference
-      @players_by_team = fetch_players_by_team(@team_codes)
-
-      # Bulk fetch sub-section data (avoids N+1)
-      @cap_holds_by_team = fetch_cap_holds_by_team(@team_codes)
-      @exceptions_by_team = fetch_exceptions_by_team(@team_codes)
-      @dead_money_by_team = fetch_dead_money_by_team(@team_codes)
-      @picks_by_team = fetch_picks_by_team(@team_codes)
-
-      # Bulk fetch team salary summaries for all teams × years (for header KPIs + totals footer)
-      @team_summaries = fetch_all_team_summaries(@team_codes)
-      @team_meta_by_code = fetch_team_meta_by_code(@team_codes)
+      team_rows = fetch_team_index_rows(@salary_year)
+      @team_codes = team_rows.map { |row| row["team_code"] }.compact
+      @teams_by_conference, @team_meta_by_code = build_team_maps(team_rows)
 
       requested = params[:team]
       @initial_team = if requested.present? && valid_team_code?(requested)
@@ -31,15 +23,44 @@ module Tools
       end
 
       @initial_team_meta = @initial_team ? (@team_meta_by_code[@initial_team] || {}) : {}
-      @initial_team_summaries_by_year = @initial_team ? (@team_summaries[@initial_team] || {}) : {}
-      @initial_team_summary = if @initial_team
-        @initial_team_summaries_by_year[@salary_year] || @initial_team_summaries_by_year[SALARY_YEARS.first]
+
+      if @defer_heavy_load
+        @players_by_team = {}
+        @cap_holds_by_team = {}
+        @exceptions_by_team = {}
+        @dead_money_by_team = {}
+        @picks_by_team = {}
+        @team_summaries = {}
+        @initial_team_summary = nil
+        @initial_team_summaries_by_year = {}
+      else
+        @players_by_team = fetch_players_by_team(@team_codes)
+
+        # Bulk fetch sub-section data (avoids N+1)
+        @cap_holds_by_team = fetch_cap_holds_by_team(@team_codes)
+        @exceptions_by_team = fetch_exceptions_by_team(@team_codes)
+        @dead_money_by_team = fetch_dead_money_by_team(@team_codes)
+        @picks_by_team = fetch_picks_by_team(@team_codes)
+
+        # Bulk fetch team salary summaries for all teams × years (for header KPIs + totals footer)
+        @team_summaries = fetch_all_team_summaries(@team_codes)
+
+        @initial_team_summaries_by_year = @initial_team ? (@team_summaries[@initial_team] || {}) : {}
+        @initial_team_summary = if @initial_team
+          @initial_team_summaries_by_year[@salary_year] || @initial_team_summaries_by_year[SALARY_YEARS.first]
+        end
+      end
+
+      if maincanvas_fragment_request?
+        render_maincanvas_fragment
+        return
       end
     rescue ActiveRecord::StatementInvalid => e
       # Useful when a dev DB hasn't been hydrated with the pcms.* schema yet.
       @boot_error = e.message
       @salary_year = salary_year_param
       @salary_years = SALARY_YEARS
+      @defer_heavy_load = false
       @team_codes = []
       @teams_by_conference = { "Eastern" => [], "Western" => [] }
       @players_by_team = {}
@@ -53,6 +74,11 @@ module Tools
       @initial_team_summary = nil
       @initial_team_meta = {}
       @initial_team_summaries_by_year = {}
+
+      if maincanvas_fragment_request?
+        render_maincanvas_fragment
+        return
+      end
     end
 
     # GET /tools/salary-book/teams/:teamcode/section
@@ -189,33 +215,72 @@ module Tools
       team
     end
 
-    def fetch_team_codes(year)
-      year_sql = conn.quote(year)
-
-      conn.exec_query(
-        "SELECT team_code FROM pcms.team_salary_warehouse WHERE salary_year = #{year_sql} ORDER BY team_code"
-      ).rows.flatten.compact
+    def maincanvas_fragment_request?
+      params[:fragment].to_s == "maincanvas"
     end
 
-    def fetch_teams_by_conference
-      rows = conn.exec_query(<<~SQL).to_a
-        SELECT team_code, team_name, conference_name
-        FROM pcms.teams
-        WHERE league_lk = 'NBA'
-          AND team_name NOT LIKE 'Non-NBA%'
-          AND conference_name IS NOT NULL
-        ORDER BY team_code
+    def render_maincanvas_fragment
+      original = ActionView::Base.annotate_rendered_view_with_filenames
+      ActionView::Base.annotate_rendered_view_with_filenames = false
+
+      render partial: "tools/salary_book/maincanvas", locals: {
+        defer_heavy_load: @defer_heavy_load,
+        boot_error: @boot_error,
+        team_codes: @team_codes,
+        salary_year: @salary_year,
+        salary_years: @salary_years,
+        players_by_team: @players_by_team,
+        cap_holds_by_team: @cap_holds_by_team,
+        exceptions_by_team: @exceptions_by_team,
+        dead_money_by_team: @dead_money_by_team,
+        picks_by_team: @picks_by_team,
+        team_summaries: @team_summaries,
+        team_meta_by_code: @team_meta_by_code
+      }, layout: false
+    ensure
+      ActionView::Base.annotate_rendered_view_with_filenames = original
+    end
+
+    # Team index rows for the selected salary year (single query).
+    # Includes all metadata needed by the shell command bar + logos map.
+    def fetch_team_index_rows(year)
+      year_sql = conn.quote(year)
+
+      conn.exec_query(<<~SQL).to_a
+        SELECT
+          tsw.team_code,
+          t.team_name,
+          t.conference_name,
+          t.team_id
+        FROM pcms.team_salary_warehouse tsw
+        LEFT JOIN pcms.teams t
+          ON t.team_code = tsw.team_code
+         AND t.league_lk = 'NBA'
+        WHERE tsw.salary_year = #{year_sql}
+        ORDER BY tsw.team_code
       SQL
+    end
 
-      result = { "Eastern" => [], "Western" => [] }
+    def build_team_maps(rows)
+      teams_by_conference = { "Eastern" => [], "Western" => [] }
+      team_meta_by_code = {}
+
       rows.each do |row|
-        conf = row["conference_name"]
-        next unless result.key?(conf)
+        code = row["team_code"]
+        next if code.blank?
 
-        result[conf] << { code: row["team_code"], name: row["team_name"] }
+        team_meta_by_code[code] = row
+
+        conf = row["conference_name"]
+        next unless teams_by_conference.key?(conf)
+
+        teams_by_conference[conf] << {
+          code:,
+          name: (row["team_name"].presence || code)
+        }
       end
 
-      result
+      [teams_by_conference, team_meta_by_code]
     end
 
     def fetch_players_by_team(team_codes)

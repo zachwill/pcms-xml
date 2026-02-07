@@ -1,70 +1,146 @@
 module Tools
-  class SalaryBookSseController < ApplicationController
-    include ActionController::Live
+  class SalaryBookSseController < SalaryBookController
+    include Datastar
 
-    # GET /tools/salary-book/sse/demo
+    # GET /tools/salary-book/sse/bootstrap
+    # One-off SSE bootstrap stream for the Salary Book root shell:
+    # - patches #flash quickly (loading/progress)
+    # - streams each team section patch by id (smaller events, progressive paint)
+    # - clears #flash + marks bootstrapstatus done
+    def bootstrap
+      year = salary_year_param
+
+      with_sse_stream do |sse|
+        patch_signals(sse, bootstrapstatus: "loading", sseticks: 0)
+        patch_flash(sse, "Loading teams…")
+
+        team_rows = fetch_team_index_rows(year)
+        team_codes = team_rows.map { |row| row["team_code"] }.compact
+        _teams_by_conference, team_meta_by_code = build_team_maps(team_rows)
+
+        if team_codes.empty?
+          patch_maincanvas_error(sse, year:, message: nil)
+          patch_flash(sse, "")
+          patch_signals(sse, bootstrapstatus: "done", sseticks: 0)
+          return
+        end
+
+        patch_flash(sse, "Loading players…")
+        players_by_team = fetch_players_by_team(team_codes)
+
+        patch_flash(sse, "Loading cap holds…")
+        cap_holds_by_team = fetch_cap_holds_by_team(team_codes)
+
+        patch_flash(sse, "Loading exceptions…")
+        exceptions_by_team = fetch_exceptions_by_team(team_codes)
+
+        patch_flash(sse, "Loading dead money…")
+        dead_money_by_team = fetch_dead_money_by_team(team_codes)
+
+        patch_flash(sse, "Loading draft assets…")
+        picks_by_team = fetch_picks_by_team(team_codes)
+
+        patch_flash(sse, "Loading team summaries…")
+        team_summaries = fetch_all_team_summaries(team_codes)
+
+        patch_signals(sse, bootstrapstatus: "streaming", sseticks: 0)
+
+        without_view_annotations do
+          total = team_codes.length
+          team_codes.each_with_index do |team_code, idx|
+            section_html = render_to_string(
+              partial: "tools/salary_book/team_section",
+              locals: {
+                team_code:,
+                players: (players_by_team[team_code] || []),
+                cap_holds: (cap_holds_by_team[team_code] || []),
+                exceptions: (exceptions_by_team[team_code] || []),
+                dead_money: (dead_money_by_team[team_code] || []),
+                picks: (picks_by_team[team_code] || []),
+                team_summaries: (team_summaries[team_code] || {}),
+                team_meta: (team_meta_by_code[team_code] || {}),
+                year:,
+                salary_years: SALARY_YEARS
+              },
+            )
+
+            patch_elements_by_id(sse, section_html)
+            patch_signals(sse, sseticks: idx + 1)
+
+            if ((idx + 1) % 5).zero? || idx == total - 1
+              patch_flash(sse, "Rendering teams… #{idx + 1}/#{total}")
+            end
+          end
+        end
+
+        patch_flash(sse, "")
+        patch_signals(sse, bootstrapstatus: "done", sseticks: team_codes.length)
+      rescue ActiveRecord::StatementInvalid => e
+        patch_maincanvas_error(sse, year:, message: e.message)
+        patch_flash(sse, "Salary Book bootstrap failed.")
+        patch_signals(sse, bootstrapstatus: "error")
+      end
+    end
+
+    # GET /tools/salary-book/sse/patch-template
+    # GET /tools/salary-book/sse/demo (legacy alias)
     #
-    # Proves:
+    # Canonical one-off SSE template for this repo:
     # - Rails ActionController::Live streaming
     # - Datastar SSE event framing (patch-signals + patch-elements)
+    # - multi-region patch sequencing in a single request/response
     def demo
-      response.headers["Content-Type"] = "text/event-stream; charset=utf-8"
-      response.headers["Cache-Control"] = "no-cache, no-transform"
-      response.headers["X-Accel-Buffering"] = "no" # nginx
-      response.headers["Last-Modified"] = Time.now.httpdate
-      response.headers.delete("ETag")
-
-      sse = ActionController::Live::SSE.new(response.stream, retry: 5_000)
-
-      begin
-        write_signals(sse, ssestatus: "connected", sseticks: 0)
-        write_flash(sse, "SSE connected (streaming 5 ticks)…")
+      with_sse_stream do |sse|
+        patch_signals(sse, ssestatus: "connected", sseticks: 0)
+        patch_flash(sse, "SSE connected (streaming 5 ticks)…")
 
         1.upto(5) do |i|
           sleep 0.6
-          write_signals(sse, ssestatus: "streaming", sseticks: i)
+          patch_signals(sse, ssestatus: "streaming", sseticks: i)
           append_log(sse, "tick #{i} @ #{Time.now.strftime('%H:%M:%S')}")
         end
 
-        write_signals(sse, ssestatus: "done")
-        write_flash(sse, "SSE done.")
-      rescue ActionController::Live::ClientDisconnected
-        # client navigated away / closed tab
-      ensure
-        sse.close
+        patch_signals(sse, ssestatus: "done")
+        patch_flash(sse, "SSE done.")
       end
     end
 
     private
 
-    def write_signals(sse, **signals)
-      sse.write("signals #{signals.to_json}", event: "datastar-patch-signals")
+    def patch_maincanvas_error(sse, year:, message:)
+      html = without_view_annotations do
+        render_to_string(
+          partial: "tools/salary_book/maincanvas_content",
+          locals: {
+            boot_error: message,
+            team_codes: [],
+            salary_year: year,
+            salary_years: SALARY_YEARS,
+            players_by_team: {},
+            cap_holds_by_team: {},
+            exceptions_by_team: {},
+            dead_money_by_team: {},
+            picks_by_team: {},
+            team_summaries: {},
+            team_meta_by_code: {}
+          },
+        )
+      end
+
+      patch_elements(sse, selector: "#maincanvas", html:, mode: "inner")
     end
 
-    def write_flash(sse, message)
-      html = "<div id=\"flash\">#{ERB::Util.h(message)}</div>"
-      sse.write(datastar_elements_by_id_payload(html), event: "datastar-patch-elements")
+    def without_view_annotations
+      original = ActionView::Base.annotate_rendered_view_with_filenames
+      ActionView::Base.annotate_rendered_view_with_filenames = false
+      yield
+    ensure
+      ActionView::Base.annotate_rendered_view_with_filenames = original
     end
 
     def append_log(sse, message)
       html = "<div class=\"sse-log-line\">#{ERB::Util.h(message)}</div>"
-      sse.write(
-        datastar_elements_payload(selector: "#sse-log", html:, mode: "append"),
-        event: "datastar-patch-elements",
-      )
-    end
-
-    def datastar_elements_payload(selector:, html:, mode: "inner")
-      [
-        "mode #{mode}",
-        "selector #{selector}",
-        *html.lines.map { |l| "elements #{l.chomp}" },
-      ].join("\n")
-    end
-
-    # Morph-by-id payload (no selector/mode; Datastar matches on top-level `id` attributes).
-    def datastar_elements_by_id_payload(html)
-      html.lines.map { |l| "elements #{l.chomp}" }.join("\n")
+      patch_elements(sse, selector: "#sse-log", html:, mode: "append")
     end
   end
 end

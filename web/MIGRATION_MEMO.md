@@ -6,8 +6,9 @@ Goal: capture the mental models + key steps for turning the current **Bun + Reac
 
 If you’re starting cold, read first:
 
-- `web/specs/00-ui-philosophy.md` (invariants)
-- `web/specs/01-salary-book.md` (full interaction model)
+- `reference/sites/INTERACTION_MODELS.md` (current interaction thesis)
+- `prototypes/salary-book-react/docs/legacy-web-specs/00-ui-philosophy.md` (OG invariants archive)
+- `prototypes/salary-book-react/docs/legacy-web-specs/01-salary-book.md` (OG full interaction model archive)
 - `web/AGENTS.md` (current folder map + conventions)
 - `prototypes/salary-book-react/HANDOFF.md` (React prototype file map)
 - Datastar conventions: `reference/datastar/insights.md`, `reference/datastar/rails.md`, `reference/datastar/basecamp.md`
@@ -27,7 +28,7 @@ Postgres (pcms.* warehouses + fn_*)
 
 ### UX invariants you must preserve
 
-From `web/specs/00-ui-philosophy.md`:
+From `prototypes/salary-book-react/docs/legacy-web-specs/00-ui-philosophy.md`:
 
 - **Rows are the product**: dense sheet first.
 - **Scroll position IS state**: `activeTeam` drives context.
@@ -66,9 +67,9 @@ A Rails + Datastar rewrite should treat these as a **small JS runtime** that sta
 ### …with this
 
 - Rails controllers that return:
-  - `text/html` fragments with stable IDs (default)
+  - `text/html` fragments with stable IDs (single-region default)
   - `application/json` only for true signal-only updates
-  - `text/event-stream` only when streaming is required
+  - `text/event-stream` for multi-region/disjoint patches, ordered patch sequences, or streaming
 
 ### Patch boundaries are everything
 
@@ -85,8 +86,9 @@ If a patch boundary is stable, the UI stays sane.
 
 ### Rails defaults you should decide on early
 
-- **Turbo/Hotwire:** a new Rails app ships with `turbo-rails` by default.
-  - If Datastar is the runtime, either remove Turbo entirely, or keep Turbo *only* for normal page navigation and make sure it doesn’t intercept Datastar backend actions.
+- **Turbo/Hotwire:** we do **not** use Turbo/Hotwire/Stimulus in this app.
+  - This codebase is intentionally **Rails + Datastar**.
+  - Do not add `turbo-rails` / `stimulus-rails`, Turbo Frames/Streams, or Stimulus controllers.
 - **CSP:** Datastar evaluates expressions using the `Function` constructor.
   - Rails CSP must allow **`'unsafe-eval'`** or Datastar expressions won’t run.
   - See: `reference/datastar/insights.md`.

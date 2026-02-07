@@ -1,6 +1,6 @@
 # Spec 02 — Sticky Team Header + Draft Assets (Table + Sidebar)
 
-> Builds on `web/specs/01-salary-book.md`.
+> Builds on `01-salary-book.md`.
 > Goal: lock the UI grammar for (a) the sticky team header and (b) draft assets, without drifting into documentation UI.
 
 ---

@@ -83,7 +83,6 @@ const initCommandbarNavigation = () => {
 applyTheme(resolveInitialTheme());
 
 document.addEventListener("DOMContentLoaded", initCommandbarNavigation);
-document.addEventListener("turbo:load", initCommandbarNavigation);
 window.addEventListener("pageshow", initCommandbarNavigation);
 window.addEventListener("storage", (event) => {
   if (event.key !== THEME_STORAGE_KEY) return;

@@ -1,7 +1,8 @@
 /**
  * Global filter types + defaults
  *
- * Filters are "lenses, not navigation" (see web/specs/00-ui-philosophy.md).
+ * Filters are "lenses, not navigation" (see
+ * prototypes/salary-book-react/docs/legacy-web-specs/00-ui-philosophy.md).
  * Today these filters primarily shape the Salary Book table, but they live
  * at the app level so additional views can reuse or override them over time.
  */

@@ -9,7 +9,7 @@ This folder is the **Datastar reference pack** for this repo. Start here.
 - **Signals are flatcase**: `activeteam`, `overlaytype`, `displaycapholds` (NOT camelCase, NOT kebab-case)
 - **DOM refs are underscore-prefixed**: `data-ref="_dialog"` → use as `$_dialog`
 - **Patch whole sections by stable ID**: `#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`, `#teamsection-<TEAM>`
-- **Response types**: `text/html` (default, morph by ID), `application/json` (signal-only), `text/event-stream` (SSE for multi-part or streaming)
+- **Response types**: `text/html` (single-region default), `application/json` (signal-only), `text/event-stream` (SSE for multi-region/disjoint patches, ordered patch steps, or streaming)
 - **Expressions need semicolons** between statements
 - **Don't mix static + bound attributes**: no `value="..."` with `data-bind`, no `style="display:none"` with `data-show`
 
@@ -46,7 +46,7 @@ Also useful:
 |--------------|-------------------|-------------|
 | `text/html` | Morph elements by `id` | Most updates. Default choice. |
 | `application/json` | Merge Patch into signals | Pure signal updates, no DOM change. |
-| `text/event-stream` | Stream `datastar-patch-*` events | Multi-part updates, progress, live feeds. |
+| `text/event-stream` | Stream `datastar-patch-*` events | Multi-region/disjoint updates, ordered patch sequences, progress, live feeds (one-off or long-lived). |
 
 ### Patching strategy
 

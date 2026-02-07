@@ -44,7 +44,7 @@ If you want a compromise:
 
 ---
 
-## 1) Choose the simplest response type first (SSE is optional)
+## 1) Choose response type by patch shape
 
 Datastar behavior is driven by the response **Content-Type**:
 
@@ -52,9 +52,12 @@ Datastar behavior is driven by the response **Content-Type**:
 |---|---|---|
 | `text/html` | Morph top-level elements into the DOM (by `id` by default). | Most UI updates. Simplest path. |
 | `application/json` | JSON Merge Patch into signals. | Pure “data only” updates. |
-| `text/event-stream` | Apply `datastar-patch-elements` / `datastar-patch-signals` events. | Streaming/progress/multi-patch responses or long-lived feeds. |
+| `text/event-stream` | Apply `datastar-patch-elements` / `datastar-patch-signals` events. | Multi-region/disjoint patches, ordered patch sequences, streaming/progress, and long-lived feeds. |
 
-If you can do it with `text/html` + stable IDs, do that first. Reach for SSE when you *need* streaming.
+Rule of thumb:
+- Single-region update → `text/html`
+- Multi-region update from one interaction → short-lived `text/event-stream` (one-off SSE is fine)
+- Signal-only update → `application/json`
 
 ---
 

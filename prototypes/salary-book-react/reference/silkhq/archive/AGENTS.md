@@ -6,7 +6,7 @@ Reverse-engineered specs for the Silk UI primitives library (v0.9.12). These doc
 
 ## How to use this reference
 
-The Salary Book is scroll-driven (`web/specs/01-salary-book.md`). Silk solves similar problems:
+The Salary Book is scroll-driven (`prototypes/salary-book-react/docs/legacy-web-specs/01-salary-book.md`). Silk solves similar problems:
 
 - Scroll position → UI state
 - Sticky/fixed positioning during transforms

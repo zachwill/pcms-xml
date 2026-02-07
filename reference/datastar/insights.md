@@ -111,7 +111,9 @@ Datastar behavior is driven by the response `Content-Type`:
 | `text/event-stream` | Stream SSE events (`datastar-patch-elements`, `datastar-patch-signals`). | (SSE framing; see `prototypes/salary-book-react/docs/bun-sse.md`) |
 | `text/javascript` | Execute returned script (use sparingly). | `datastar-script-attributes` |
 
-If you can do it with `text/html` + stable IDs, do that first; reach for SSE when you need streaming / progress / multiple incremental patches.
+If one interaction updates a single region, `text/html` is usually simplest.
+For **multi-region/disjoint updates** (or ordered patch sequences), prefer a short-lived `text/event-stream` response that emits multiple patch events, then closes.
+Use long-lived SSE streams for feeds/progress/live data.
 
 ---
 

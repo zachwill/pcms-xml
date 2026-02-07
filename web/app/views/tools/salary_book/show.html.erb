@@ -2,6 +2,7 @@
 
 <%# Build team_id lookup for back button logos %>
 <% team_id_map = @team_meta_by_code.transform_values { |meta| meta["team_id"] }.to_json %>
+<% maincanvas_full_path = root_path(full: 1, fragment: "maincanvas", year: @salary_year, team: initial_team.presence) %>
 
 <div
   id="salarybook"
@@ -15,6 +16,9 @@
     overlayid: '',
     ssestatus: 'idle',
     sseticks: 0,
+    bootstrapstatus: '<%= @defer_heavy_load ? "idle" : "done" %>',
+    sidebarteamloaded: '<%= @defer_heavy_load ? "" : initial_team %>',
+    sidebaryearloaded: '<%= @defer_heavy_load ? "" : @salary_year %>',
     displaycapholds: false,
     displayexceptions: true,
     displaydraftpicks: true,
@@ -27,9 +31,31 @@
     displaytwoway: true
   }"
   data-on:salarybook-activeteam="if ($activeteam !== evt.detail.team) { $activeteam = evt.detail.team; }"
-  data-effect="if ($activeteam) { @get('<%= tools_salary_book_sidebar_team_path(team: '__TEAM__') %>'.replace('__TEAM__', $activeteam) + '&year=' + (($selectedseasonteam === $activeteam && $selectedseason !== '') ? $selectedseason : <%= @salary_year %>)); }"
+  data-effect="
+    if ($activeteam) {
+      if ($sidebarteamloaded !== $activeteam || String($sidebaryearloaded) !== String((($selectedseasonteam === $activeteam && $selectedseason !== '') ? $selectedseason : <%= @salary_year %>))) {
+        $sidebarteamloaded = $activeteam;
+        $sidebaryearloaded = (($selectedseasonteam === $activeteam && $selectedseason !== '') ? $selectedseason : <%= @salary_year %>);
+        @get('<%= tools_salary_book_sidebar_team_path(team: '__TEAM__') %>'.replace('__TEAM__', $activeteam) + '&year=' + (($selectedseasonteam === $activeteam && $selectedseason !== '') ? $selectedseason : <%= @salary_year %>));
+      }
+    }
+  "
 >
   <div id="flash"></div>
+
+  <%# Bootstrap heavy main-canvas payload on a separate element to avoid auto-cancellation
+      with sidebar @get() requests (Datastar default requestCancellation: auto is per element). %>
+  <div
+    id="salarybook-bootstrap"
+    class="hidden"
+    aria-hidden="true"
+    data-effect="
+      if ($bootstrapstatus === 'idle') {
+        $bootstrapstatus = 'loading';
+        @get('<%= maincanvas_full_path %>', { requestCancellation: 'disabled' });
+      }
+    "
+  ></div>
 
   <%# Command bar (prototype height: 130px) %>
   <header
@@ -194,46 +220,20 @@
 
   <div id="viewport" class="flex flex-1 overflow-hidden relative">
     <%# Main canvas %>
-    <main
-      id="maincanvas"
-      class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-background relative overscroll-y-contain scroll-touch isolate snap-y snap-proximity"
-    >
-      <% if @boot_error %>
-        <div class="p-6">
-          <div class="text-sm font-medium text-destructive">Warehouse not available</div>
-          <div class="mt-2 text-xs text-muted-foreground">
-            Booted Rails, but querying <code>pcms.*</code> failed:
-          </div>
-          <pre class="mt-3 p-3 rounded-lg bg-muted/30 border border-border/50 text-xs overflow-auto"><%= @boot_error %></pre>
-        </div>
-      <% elsif @team_codes.empty? %>
-        <div class="flex items-center justify-center h-96 text-muted-foreground">
-          No rows returned from <code>pcms.team_salary_warehouse</code> for <code><%= @salary_year %></code>.
-        </div>
-      <% else %>
-        <div class="min-h-full">
-          <div class="space-y-0">
-            <% @team_codes.each do |team_code| %>
-              <%= render partial: "tools/salary_book/team_section", locals: {
-                team_code: team_code,
-                players: (@players_by_team[team_code] || []),
-                cap_holds: (@cap_holds_by_team[team_code] || []),
-                exceptions: (@exceptions_by_team[team_code] || []),
-                dead_money: (@dead_money_by_team[team_code] || []),
-                picks: (@picks_by_team[team_code] || []),
-                team_summaries: (@team_summaries[team_code] || {}),
-                team_meta: (@team_meta_by_code[team_code] || {}),
-                year: @salary_year,
-                salary_years: @salary_years
-              } %>
-            <% end %>
-
-            <%# Small scroll spacer so the last team header can still reach sticky position %>
-            <div aria-hidden class="h-8"></div>
-          </div>
-        </div>
-      <% end %>
-    </main>
+    <%= render partial: "tools/salary_book/maincanvas", locals: {
+      defer_heavy_load: @defer_heavy_load,
+      boot_error: @boot_error,
+      team_codes: @team_codes,
+      salary_year: @salary_year,
+      salary_years: @salary_years,
+      players_by_team: @players_by_team,
+      cap_holds_by_team: @cap_holds_by_team,
+      exceptions_by_team: @exceptions_by_team,
+      dead_money_by_team: @dead_money_by_team,
+      picks_by_team: @picks_by_team,
+      team_summaries: @team_summaries,
+      team_meta_by_code: @team_meta_by_code
+    } %>
 
     <%# Right panel %>
     <aside
@@ -244,7 +244,7 @@
         id="rightpanel-base-layer"
         class="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-y-contain scroll-touch pt-2 px-4 pb-4 transition-opacity duration-300"
       >
-        <% if @initial_team %>
+        <% if @initial_team && !@defer_heavy_load %>
           <%= render partial: "tools/salary_book/sidebar_team", locals: {
             team_code: @initial_team,
             summary: @initial_team_summary,
@@ -252,6 +252,12 @@
             summaries_by_year: @initial_team_summaries_by_year,
             year: @salary_year
           } %>
+        <% elsif @defer_heavy_load %>
+          <div id="rightpanel-base" class="space-y-4">
+            <div class="p-4 rounded-lg border border-border bg-muted/20 text-sm text-muted-foreground">
+              Loading team context…
+            </div>
+          </div>
         <% else %>
           <div class="flex flex-col items-center justify-center py-12 text-center">
             <div class="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">

@@ -53,11 +53,16 @@ module.exports = {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(400%)" },
         },
+        pulse: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.5" },
+        },
       },
       animation: {
         "slide-down-fade": "slide-down-fade 0.3s ease-in-out",
         shimmer: "shimmer 2s ease-in-out infinite",
         "progress-indeterminate": "progress-indeterminate 1.5s ease-in-out infinite",
+        pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
     },
   },
