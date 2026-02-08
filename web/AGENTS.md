@@ -1,6 +1,8 @@
 # web/AGENTS.md — Rails + Datastar
 
-> Read the hard rules. Follow the decision trees. Check the checklist before coding.
+> Read the hard rules. Follow the decision trees. Read the design guide. Check the checklist before coding.
+>
+> **New here?** Start with the hard rules below, then read `web/docs/design_guide.md` end to end before writing any ERB. It has the concrete Tailwind patterns, row anatomy, and copy-paste templates that define the expected visual output.
 
 ---
 
@@ -100,11 +102,15 @@ Salary Book guardrail:
 
 Answer these before writing code:
 
+- [ ] **Design guide read?** Have I read `web/docs/design_guide.md` and identified which page shell pattern (A/B/C) this page uses?
 - [ ] **Patch targets:** Which `id`(s) am I patching? (`#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`, `#flash`)
 - [ ] **Response type:** Is this 1 region (HTML) or 2+ regions (SSE)?
 - [ ] **Client JS:** Am I keeping JS to scroll/measure/sync/transition only? No business logic?
 - [ ] **Data source:** Is the data I need already in a warehouse or `fn_*` function? If not, extend SQL first.
 - [ ] **Existing patterns:** Have I checked similar implementations in `web/app/views/` before inventing something new?
+- [ ] **Row density:** Am I using double-row grid cells (identity) and entity-cell-two-line (data)? Not cards or whitespace?
+- [ ] **Hover treatment:** Am I using `hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10` on rows?
+- [ ] **Numbers:** Am I using `font-mono tabular-nums` on all financial/numeric data?
 
 ---
 
@@ -128,6 +134,7 @@ More detail: `web/docs/patch_boundaries.md`
 
 | Doc | What it covers |
 |-----|----------------|
+| `web/docs/design_guide.md` | **Start here for visual design.** Concrete Tailwind patterns, row anatomy, page shell templates, typography scale, new page checklist |
 | `web/docs/datastar_sse_playbook.md` | SSE response templates, Rails `ActionController::Live` patterns |
 | `web/docs/ui_invariants.md` | Product-level interaction rules |
 | `web/docs/patch_boundaries.md` | Full patch boundary ownership map |
@@ -185,6 +192,8 @@ Every page follows this structure. No exceptions.
 3. **Edge-to-edge flex layout** — No `max-w-*` or `mx-auto` on `<main>`. Use `px-4 pb-8`.
 
 Best examples: Salary Book → Two-Way Utility → Team Summary.
+
+Page shell patterns (with copy-paste ERB): `web/docs/design_guide.md`
 
 More detail: `web/docs/ui_invariants.md`
 

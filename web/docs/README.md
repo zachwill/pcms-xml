@@ -4,11 +4,13 @@ Use this folder for **web-local implementation guidance** (not external referenc
 
 ## Reading order
 
-1. `ui_invariants.md`
+1. `design_guide.md`
+   - **Start here for all visual/design work.** Concrete Tailwind patterns, row anatomy, page shell templates, typography scale, copy-paste ERB.
+2. `ui_invariants.md`
    - Non-negotiable interaction rules for tools/entity workspaces.
-2. `datastar_sse_playbook.md`
+3. `datastar_sse_playbook.md`
    - HTML vs JSON vs one-off SSE decision model + copy/paste Rails templates.
-3. `patch_boundaries.md`
+4. `patch_boundaries.md`
    - Canonical patch boundaries + ownership map.
 
 ## Deep references (outside this folder)

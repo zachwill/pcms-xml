@@ -49,3 +49,40 @@ Best examples (in order of quality):
 - Do not switch to JSON + client rendering to avoid server HTML.
 - Do not avoid SSE just because the response is short-lived.
 - Do not re-implement cap/trade/CBA math in Ruby/JS.
+
+---
+
+## Design vocabulary (concrete patterns)
+
+These are the building blocks of every page. They're fully documented with copy-paste ERB in `web/docs/design_guide.md`. Summary here for quick reference.
+
+### Row density patterns
+
+Every data row uses one of these structures:
+
+- **Double-row grid cell** (identity): `grid grid-cols-[40px_1fr] grid-rows-[24px_16px]` — image + name (14px medium) + meta (10px muted). Used for player/team/agent identity columns.
+- **entity-cell-two-line** (data): CSS component with `grid-rows-[20px_14px]` — primary value (13px) + secondary label (10px muted). Used for financial/numeric columns.
+- Both patterns produce exactly 34–40px row height. This density is intentional. Don't add padding.
+
+### Universal row hover
+
+```
+hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75
+```
+
+This is the only row hover treatment. Sticky columns carry their own hover via `group-hover:`.
+
+### Financial numbers
+
+All money and numeric data: `font-mono tabular-nums`. Positive room values: `text-emerald-600 dark:text-emerald-400`. Negative/over values: `text-red-500`. Nil: `—`.
+
+### Chips / badges
+
+Use the CSS classes: `entity-chip entity-chip--{muted|warning|danger|success|accent}`.
+
+### Tables
+
+Wrap in `overflow-x-auto rounded-lg border border-border`. Use `entity-table min-w-full text-xs`. Header: `bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90`. Body: `divide-y divide-border`.
+
+### See `web/docs/design_guide.md` for full details.
+
