@@ -84,5 +84,5 @@ Use the CSS classes: `entity-chip entity-chip--{muted|warning|danger|success|acc
 
 Wrap in `overflow-x-auto rounded-lg border border-border`. Use `entity-table min-w-full text-xs`. Header: `bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90`. Body: `divide-y divide-border`.
 
-### See `web/docs/design_guide.md` for full details.
+For full details with copy-paste ERB, see `web/docs/design_guide.md`.
 

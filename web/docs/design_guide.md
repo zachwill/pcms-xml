@@ -19,7 +19,7 @@ Know where the bar is before you start.
 | ★★★☆☆ | Two-Way Utility | Good | Command bar correct, team grid, dense rows. Missing: sidebar, filter toggles, interactive drill-in |
 | ★★★☆☆ | Team Summary | Good | Sticky column header, sortable columns, flags. Missing: sidebar, interactive row drill-in |
 | ★★★☆☆ | Trades index | Good | Datastar signal-driven filters, pane refresh. Missing: richer row density |
-| ★★☆☆☆ | System Values | OK | Correct layout shell. Multiple tables with toggle visibility. Missing: denser row treatment, sticky headers per table |
+| ★★☆☆☆ | System Values | OK | Correct layout shell. Multiple tables with toggle visibility. Missing: denser row treatment, sticky column headers on each table section |
 | ★★☆☆☆ | Agent show | OK | Entity header, sections, tables. Missing: local nav scrollspy, deferred bootstrap |
 | ★★☆☆☆ | Agency show | OK | Same gaps as Agent show |
 | ★★☆☆☆ | Trade show | OK | Workspace header, local nav, good table structure. Missing: entity header (uses workspace_header instead), deferred bootstrap |
