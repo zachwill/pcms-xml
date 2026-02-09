@@ -105,6 +105,11 @@
   <% end %>
 
   <%# Global navigation + theme controls %>
+  <% navigation_destination = case active_entity_scope
+     when "drafts" then "draft"
+     when "agents", "players", "teams", "trades", "transactions" then active_entity_scope
+     else "players"
+     end %>
   <div class="h-20 w-px bg-border self-center ml-auto shrink-0"></div>
-  <%= render partial: "shared/commandbar_navigation", locals: { active_destination: "rip_city" } %>
+  <%= render partial: "shared/commandbar_navigation", locals: { active_destination: navigation_destination } %>
 </header>

@@ -105,5 +105,8 @@ Rails.application.routes.draw do
     get "transactions/:id", to: "transactions#show", as: :transaction, constraints: { id: /\d+/ }
   end
 
+  # Rip City stubs
+  get "rip-city/noah", to: "rip_city/noah#show", as: :rip_city_noah
+
   root "tools/salary_book#show"
 end

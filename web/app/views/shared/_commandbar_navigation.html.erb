@@ -1,6 +1,6 @@
 <%
   active_destination = local_assigns[:active_destination].to_s
-  valid_destinations = %w[rip_city salary_book two_way_utility system_values team_summary]
+  valid_destinations = %w[salary_book system_values team_summary two_way_utility agents draft players teams trades transactions noah]
   active_destination = "salary_book" unless valid_destinations.include?(active_destination)
 %>
 
@@ -13,12 +13,25 @@
       aria-label="Navigate workspace"
       class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground outline-none focus-visible:border-foreground"
     >
-      <option value="/players" <%= "selected" if active_destination == "rip_city" %>>Rip City</option>
       <option value="/" <%= "selected" if active_destination == "salary_book" %>>Salary Book</option>
-      <optgroup label="Tools">
-        <option value="/tools/two-way-utility" <%= "selected" if active_destination == "two_way_utility" %>>Two-Way Utility</option>
+
+      <optgroup label="PCMS">
         <option value="/tools/system-values" <%= "selected" if active_destination == "system_values" %>>System Values</option>
         <option value="/tools/team-summary" <%= "selected" if active_destination == "team_summary" %>>Team Summary</option>
+        <option value="/tools/two-way-utility" <%= "selected" if active_destination == "two_way_utility" %>>Two-Way Utility</option>
+      </optgroup>
+
+      <optgroup label="NBA">
+        <option value="/agents" <%= "selected" if active_destination == "agents" %>>Agents</option>
+        <option value="/drafts" <%= "selected" if active_destination == "draft" %>>Draft</option>
+        <option value="/players" <%= "selected" if active_destination == "players" %>>Players</option>
+        <option value="/teams" <%= "selected" if active_destination == "teams" %>>Teams</option>
+        <option value="/trades" <%= "selected" if active_destination == "trades" %>>Trades</option>
+        <option value="/transactions" <%= "selected" if active_destination == "transactions" %>>Transactions</option>
+      </optgroup>
+
+      <optgroup label="Rip City">
+        <option value="/rip-city/noah" <%= "selected" if active_destination == "noah" %>>Noah</option>
       </optgroup>
     </select>
 
