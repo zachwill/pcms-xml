@@ -10,11 +10,12 @@ This doc is intentionally concrete: it tells you **which shell pattern to choose
 
 Before writing ERB:
 
-1. **Choose shell pattern**: A (full-viewport tool), B (scrolling tool page), or C (entity workspace).
-2. **Choose row pattern**: identity cell (double-row grid) or data cell (`entity-cell-two-line`).
-3. **Enforce visual invariants**: row hover = yellow class, numbers = `font-mono tabular-nums`.
-4. **Keep content edge-to-edge**: avoid `max-w-*` and `mx-auto` on primary content.
-5. **If deviating**, cite an existing page that already does it.
+1. **Choose shell pattern**: A (full-viewport tool), B (document-scroll page), or C (entity workspace).
+2. **Pick one scroll owner** for dense surfaces (usually `<main class="flex-1 min-h-0 overflow-auto">`).
+3. **Choose row pattern**: identity cell (double-row grid) or data cell (`entity-cell-two-line`).
+4. **Enforce visual invariants**: row hover = yellow class, numbers = `font-mono tabular-nums`.
+5. **Keep content edge-to-edge**: avoid `max-w-*` and `mx-auto` on primary content.
+6. **If deviating**, cite an existing page that already does it.
 
 ---
 
@@ -24,8 +25,8 @@ Use these as source-of-truth templates.
 
 | Pattern | Primary examples |
 |---|---|
-| **A. Full-viewport tool** | `web/app/views/tools/salary_book/show.html.erb`, `web/app/views/entities/players/index.html.erb` |
-| **B. Scrolling page** | `web/app/views/tools/team_summary/show.html.erb`, `web/app/views/tools/two_way_utility/show.html.erb`, `web/app/views/tools/system_values/show.html.erb` |
+| **A. Full-viewport tool** | `web/app/views/tools/salary_book/show.html.erb`, `web/app/views/tools/team_summary/show.html.erb`, `web/app/views/tools/two_way_utility/show.html.erb`, `web/app/views/tools/system_values/show.html.erb`, `web/app/views/entities/players/index.html.erb` |
+| **B. Document-scroll page** | `web/app/views/rip_city/noah/show.html.erb` |
 | **C. Entity workspace** | `web/app/views/entities/players/show.html.erb`, `web/app/views/entities/teams/show.html.erb` |
 
 Additional workspace variants (legacy but valid when editing existing pages):
@@ -51,7 +52,7 @@ Use for scroll-driven tools/catalogs where the page owns the viewport.
   </header>
 
   <div id="viewport" class="flex flex-1 overflow-hidden relative">
-    <main id="maincanvas" class="flex-1 min-w-0 overflow-y-auto overflow-x-auto">
+    <main id="maincanvas" class="flex-1 min-h-0 min-w-0 overflow-auto">
       <%# primary content %>
     </main>
 
@@ -67,12 +68,14 @@ Use for scroll-driven tools/catalogs where the page owns the viewport.
 
 Rules:
 - Root must be `h-screen flex flex-col overflow-hidden`.
-- Command bar is fixed-height `h-[130px]`.
-- Main canvas and sidebar scroll independently.
+- Command bar is fixed-height `h-[130px]` (`shrink-0`).
+- Pick one primary scroll owner for the dense surface (usually `#maincanvas` / `<main>` with `overflow-auto`).
+- Sticky headers inside that scroll owner should use `top-0`.
+- Main canvas and sidebar may scroll independently, but avoid nested accidental scroll owners inside the main surface.
 
-### Pattern B — Scrolling page
+### Pattern B — Document-scroll page
 
-Use when normal document scroll is fine.
+Use when the page is lightweight and document scroll is intentional.
 
 ```erb
 <div class="min-h-screen bg-background">
@@ -90,7 +93,8 @@ Use when normal document scroll is fine.
 Rules:
 - Keep `min-h-screen bg-background`.
 - Keep command bar sticky with `h-[130px]`.
-- Avoid centered max-width wrappers on primary content.
+- Sticky children in document scroll context should use `top-[130px]`.
+- Do **not** use this pattern for dense two-axis tools (use Pattern A).
 
 ### Pattern C — Entity workspace
 
@@ -228,7 +232,7 @@ Common text sizes:
 - [ ] Numeric/data cells use `entity-cell-two-line` where appropriate.
 - [ ] Row hover uses yellow hover class.
 - [ ] Financial numbers use `font-mono tabular-nums`.
-- [ ] Sticky headers use `top-[130px]` when under command bar.
+- [ ] Sticky headers use `top-0` inside scrolling `<main>`; use `top-[130px]` only in document-scroll shells.
 - [ ] Dark mode variants are present for custom color overrides.
 - [ ] Any intentional deviation references an existing page pattern.
 
@@ -239,6 +243,7 @@ Common text sizes:
 - Card-heavy layouts with excessive whitespace for row-first data.
 - Custom hover palettes instead of the shared yellow hover class.
 - `max-w-* mx-auto` wrapping primary tool/entity content.
+- Mixed scroll ownership on dense surfaces (document scroll + nested `overflow-x-auto` islands).
 - Recreating component CSS when existing utilities/classes already cover it.
 - Switching to client-rendered JSON for server-rendered surfaces.
 

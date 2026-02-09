@@ -19,7 +19,7 @@
   class="space-y-4"
   data-signals="{ sidebartab: 'cap' }"
   data-effect="
-    const activeyear = (($selectedseasonteam === '<%= team_code %>' && $selectedseason !== '') ? $selectedseason : <%= year %>);
+    const activeyear = (($selectedseasonteam === '<%= team_code %>' && $selectedseason !== '') ? $selectedseason : '<%= year %>');
     if ($sidebartab === 'draft' && (!$sidebardraftloaded || String($sidebardraftyearloaded) !== String(activeyear))) {
       $sidebardraftloaded = true;
       $sidebardraftyearloaded = activeyear;

@@ -4,6 +4,11 @@
 <% team_id_map = @team_meta_by_code.transform_values { |meta| meta["team_id"] }.to_json %>
 <% maincanvas_full_path = root_path(full: 1, fragment: "maincanvas", year: @salary_year, team: initial_team.presence) %>
 
+<%# Season column state machine:
+    - Hover/focus year header => preview (selectedseason + selectedseasonteam)
+    - Click year header => lock/unlock preview (seasonlocked)
+    - Active team changes => clear lock + preview
+%>
 <div
   id="salarybook"
   class="h-screen w-screen flex flex-col overflow-hidden bg-background"
@@ -11,6 +16,7 @@
     activeteam: '<%= initial_team %>',
     selectedseason: '',
     selectedseasonteam: '',
+    seasonlocked: false,
     sidebarview: 'teamview',
     overlaytype: 'none',
     overlayid: '',
@@ -36,7 +42,13 @@
   }"
   data-on:salarybook-activeteam="if ($activeteam !== evt.detail.team) { $activeteam = evt.detail.team; }"
   data-effect="
-    const effectiveyear = (($selectedseasonteam === $activeteam && $selectedseason !== '') ? $selectedseason : <%= @salary_year %>);
+    if ($seasonlocked && $selectedseasonteam && $selectedseasonteam !== $activeteam) {
+      $seasonlocked = false;
+      $selectedseason = '';
+      $selectedseasonteam = '';
+    }
+
+    const effectiveyear = (($selectedseasonteam === $activeteam && $selectedseason !== '') ? $selectedseason : '<%= @salary_year %>');
     if ($activeteam) {
       if ($sidebarteamloaded !== $activeteam) {
         $sidebarteamloaded = $activeteam;

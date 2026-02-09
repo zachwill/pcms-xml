@@ -21,8 +21,8 @@
 <% team_id = team_meta["team_id"] %>
 <% logo_url = team_logo_url(team_id) %>
 
-<%# Header KPI cards should follow hovered year for this team only; otherwise fallback to base year. %>
-<% selected_header_year_expr = "(($selectedseasonteam === '#{team_code}' && $selectedseason !== '') ? Number($selectedseason) : #{year})" %>
+<%# Header KPI cards should follow hovered/locked year for this team only; otherwise fallback to base year. %>
+<% selected_header_year_expr = "(($selectedseasonteam === '#{team_code}' && $selectedseason !== '') ? $selectedseason : '#{year}')" %>
 
 <%
   # Column math (must match Tailwind widths)
@@ -87,7 +87,7 @@
             <div class="w-24 shrink-0 flex justify-center">
               <% salary_years.each do |kpi_year| %>
                 <% summary = team_summaries[kpi_year] || {} %>
-                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                <div data-show="<%= "#{selected_header_year_expr} === '#{kpi_year}'" %>" style="display: none;">
                   <%= render partial: "tools/salary_book/kpi_cell", locals: {
                     label: "Roster",
                     value: (summary["roster_row_count"] || "—").to_s,
@@ -100,7 +100,7 @@
             <div class="w-24 shrink-0 flex justify-center">
               <% salary_years.each do |kpi_year| %>
                 <% summary = team_summaries[kpi_year] || {} %>
-                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                <div data-show="<%= "#{selected_header_year_expr} === '#{kpi_year}'" %>" style="display: none;">
                   <%= render partial: "tools/salary_book/kpi_cell", locals: {
                     label: "Two-Way",
                     value: (summary["two_way_row_count"] || "—").to_s,
@@ -114,7 +114,7 @@
               <% salary_years.each do |kpi_year| %>
                 <% summary = team_summaries[kpi_year] || {} %>
                 <% cap_total = summary["cap_total"] %>
-                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                <div data-show="<%= "#{selected_header_year_expr} === '#{kpi_year}'" %>" style="display: none;">
                   <%= render partial: "tools/salary_book/kpi_cell", locals: {
                     label: "Total",
                     value: cap_total ? format_compact_currency(cap_total) : "—",
@@ -129,7 +129,7 @@
                 <% summary = team_summaries[kpi_year] || {} %>
                 <% cap_space = summary["cap_space"] %>
                 <% variant = cap_space.nil? ? "muted" : (cap_space.to_f > 0 ? "positive" : "default") %>
-                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                <div data-show="<%= "#{selected_header_year_expr} === '#{kpi_year}'" %>" style="display: none;">
                   <%= render partial: "tools/salary_book/kpi_cell", locals: {
                     label: "Cap Space",
                     value: cap_space ? format_room_amount(cap_space) : "—",
@@ -145,7 +145,7 @@
                 <% summary = team_summaries[kpi_year] || {} %>
                 <% room_tax = summary["room_under_tax"] %>
                 <% variant = room_tax.nil? ? "muted" : (room_tax.to_f < 0 ? "negative" : "default") %>
-                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                <div data-show="<%= "#{selected_header_year_expr} === '#{kpi_year}'" %>" style="display: none;">
                   <%= render partial: "tools/salary_book/kpi_cell", locals: {
                     label: "Tax Room",
                     value: room_tax ? format_room_amount(room_tax) : "—",
@@ -161,7 +161,7 @@
                 <% summary = team_summaries[kpi_year] || {} %>
                 <% room_a1 = summary["room_under_first_apron"] %>
                 <% variant = room_a1.nil? ? "muted" : (room_a1.to_f < 0 ? "negative" : "default") %>
-                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                <div data-show="<%= "#{selected_header_year_expr} === '#{kpi_year}'" %>" style="display: none;">
                   <%= render partial: "tools/salary_book/kpi_cell", locals: {
                     label: "Apron 1",
                     value: room_a1 ? format_room_amount(room_a1) : "—",
@@ -177,7 +177,7 @@
                 <% summary = team_summaries[kpi_year] || {} %>
                 <% room_a2 = summary["room_under_second_apron"] %>
                 <% variant = room_a2.nil? ? "muted" : (room_a2.to_f < 0 ? "negative" : "default") %>
-                <div data-show="<%= "#{selected_header_year_expr} === #{kpi_year}" %>" style="display: none;">
+                <div data-show="<%= "#{selected_header_year_expr} === '#{kpi_year}'" %>" style="display: none;">
                   <%= render partial: "tools/salary_book/kpi_cell", locals: {
                     label: "Apron 2",
                     value: room_a2 ? format_room_amount(room_a2) : "—",

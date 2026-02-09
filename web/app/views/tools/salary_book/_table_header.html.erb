@@ -18,12 +18,13 @@
       </div>
     </div>
 
-    <%# EPM + Year columns %>
+    <%# EPM + Year columns
+        Hover/focus previews a year; click toggles lock on that year. %>
     <div
       class="h-full flex shrink-0"
-      data-on:salarybook-setseason="if ($activeteam !== '<%= team_code %>') { $activeteam = '<%= team_code %>'; }; if ($selectedseasonteam !== '<%= team_code %>') { $selectedseasonteam = '<%= team_code %>'; }; if (Number($selectedseason) !== evt.detail.year) { $selectedseason = evt.detail.year; }"
-      data-on:mouseleave="if ($selectedseasonteam === '<%= team_code %>' && $selectedseason !== '') { $selectedseason = ''; $selectedseasonteam = ''; }"
-      data-on:focusout="if (evt.relatedTarget && !el.contains(evt.relatedTarget) && $selectedseasonteam === '<%= team_code %>' && $selectedseason !== '') { $selectedseason = ''; $selectedseasonteam = ''; }"
+      data-on:salarybook-setseason="if (!($seasonlocked && $selectedseasonteam === '<%= team_code %>')) { const nextyear = String(evt.detail.year); if ($activeteam !== '<%= team_code %>') { $activeteam = '<%= team_code %>'; }; if ($selectedseasonteam !== '<%= team_code %>') { $selectedseasonteam = '<%= team_code %>'; }; if ($selectedseason !== nextyear) { $selectedseason = nextyear; } }"
+      data-on:mouseleave="if (!$seasonlocked && $selectedseasonteam === '<%= team_code %>' && $selectedseason !== '') { $selectedseason = ''; $selectedseasonteam = ''; }"
+      data-on:focusout="if (!$seasonlocked && evt.relatedTarget && !el.contains(evt.relatedTarget) && $selectedseasonteam === '<%= team_code %>' && $selectedseason !== '') { $selectedseason = ''; $selectedseasonteam = ''; }"
     >
       <div
         class="w-24 h-full shrink-0 flex items-center justify-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
@@ -31,10 +32,12 @@
       >EPM</div>
       <% salary_years.each do |year| %>
         <div
-          class="w-24 h-full shrink-0 flex items-center justify-center tabular-nums text-center transition-colors duration-100 cursor-default select-none"
-          data-on:mouseenter="el.dispatchEvent(new CustomEvent('salarybook-setseason', { detail: { year: <%= year %> }, bubbles: true }))"
-          data-on:focusin="el.dispatchEvent(new CustomEvent('salarybook-setseason', { detail: { year: <%= year %> }, bubbles: true }))"
-          data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': Number($selectedseason) === <%= year %> && $selectedseasonteam === '<%= team_code %>' }"
+          class="w-24 h-full shrink-0 flex items-center justify-center tabular-nums text-center transition-colors duration-100 cursor-pointer select-none"
+          title="Hover to preview season · click to lock"
+          data-on:mouseenter="el.dispatchEvent(new CustomEvent('salarybook-setseason', { detail: { year: '<%= year %>' }, bubbles: true }))"
+          data-on:focusin="el.dispatchEvent(new CustomEvent('salarybook-setseason', { detail: { year: '<%= year %>' }, bubbles: true }))"
+          data-on:click="const samecell = ($selectedseasonteam === '<%= team_code %>' && $selectedseason === '<%= year %>'); if (samecell && $seasonlocked) { $seasonlocked = false; $selectedseason = ''; $selectedseasonteam = ''; } else { if ($activeteam !== '<%= team_code %>') { $activeteam = '<%= team_code %>'; } $selectedseasonteam = '<%= team_code %>'; $selectedseason = '<%= year %>'; $seasonlocked = true; }"
+          data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $selectedseason === '<%= year %>' && $selectedseasonteam === '<%= team_code %>' }"
         ><%= format_year_label(year) %></div>
       <% end %>
     </div>
