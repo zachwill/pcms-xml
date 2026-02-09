@@ -114,11 +114,13 @@ module Tools
     end
 
     # GET /tools/salary-book/sidebar/team?team=BOS
+    # Base team sidebar shell (header + tabs + cap/stats payload).
+    # Draft/Rights tabs are lazy-loaded via dedicated endpoints.
     def sidebar_team
       team_code = normalize_team_code(params[:team])
       year = salary_year_param
 
-      # Multi-year summaries for projections bar chart + stats tab
+      # Multi-year summaries for cap tab + stats tab
       summaries_by_year = fetch_all_team_summaries([team_code])[team_code] || {}
 
       # Current year summary (includes computed cap_space + apron aliases)
@@ -127,18 +129,56 @@ module Tools
       # Team metadata (name, conference, logo)
       team_meta = fetch_team_meta(team_code)
 
-      # Sidebar tab payloads
-      draft_assets = fetch_sidebar_draft_assets(team_code, start_year: year, year_count: 3)
-      rights_by_kind = fetch_sidebar_rights_by_kind(team_code)
-
       render partial: "tools/salary_book/sidebar_team", locals: {
         team_code:,
         summary:,
         team_meta:,
         summaries_by_year:,
-        draft_assets:,
-        rights_by_kind:,
         year:
+      }, layout: false
+    end
+
+    # GET /tools/salary-book/sidebar/team/cap?team=BOS&year=2026
+    # Lightweight hover/year patch: only updates the Cap tab content.
+    def sidebar_team_cap
+      team_code = normalize_team_code(params[:team])
+      year = salary_year_param
+
+      summaries_by_year = fetch_all_team_summaries([team_code])[team_code] || {}
+      summary = summaries_by_year[year] || {}
+
+      render partial: "tools/salary_book/sidebar_team_tab_cap", locals: {
+        summary:,
+        summaries_by_year:,
+        year:
+      }, layout: false
+    end
+
+    # GET /tools/salary-book/sidebar/team/draft?team=BOS&year=2025
+    # Lazy-loaded Draft tab payload.
+    def sidebar_team_draft
+      team_code = normalize_team_code(params[:team])
+      year = salary_year_param
+
+      draft_assets = fetch_sidebar_draft_assets(team_code, start_year: year, year_count: 3)
+
+      render partial: "tools/salary_book/sidebar_team_tab_draft", locals: {
+        team_code:,
+        year:,
+        draft_assets:,
+        draft_loaded: true
+      }, layout: false
+    end
+
+    # GET /tools/salary-book/sidebar/team/rights?team=BOS
+    # Lazy-loaded Rights tab payload.
+    def sidebar_team_rights
+      team_code = normalize_team_code(params[:team])
+      rights_by_kind = fetch_sidebar_rights_by_kind(team_code)
+
+      render partial: "tools/salary_book/sidebar_team_tab_rights", locals: {
+        rights_by_kind:,
+        rights_loaded: true
       }, layout: false
     end
 

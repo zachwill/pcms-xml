@@ -18,7 +18,10 @@
     sseticks: 0,
     bootstrapstatus: '<%= @defer_heavy_load ? "idle" : "done" %>',
     sidebarteamloaded: '<%= @defer_heavy_load ? "" : initial_team %>',
-    sidebaryearloaded: '<%= @defer_heavy_load ? "" : @salary_year %>',
+    sidebarcapyearloaded: '<%= @defer_heavy_load ? "" : @salary_year %>',
+    sidebardraftloaded: false,
+    sidebardraftyearloaded: '',
+    sidebarrightsloaded: false,
     displaycapholds: false,
     displayexceptions: true,
     displaydraftpicks: true,
@@ -33,11 +36,18 @@
   }"
   data-on:salarybook-activeteam="if ($activeteam !== evt.detail.team) { $activeteam = evt.detail.team; }"
   data-effect="
+    const effectiveyear = (($selectedseasonteam === $activeteam && $selectedseason !== '') ? $selectedseason : <%= @salary_year %>);
     if ($activeteam) {
-      if ($sidebarteamloaded !== $activeteam || String($sidebaryearloaded) !== String((($selectedseasonteam === $activeteam && $selectedseason !== '') ? $selectedseason : <%= @salary_year %>))) {
+      if ($sidebarteamloaded !== $activeteam) {
         $sidebarteamloaded = $activeteam;
-        $sidebaryearloaded = (($selectedseasonteam === $activeteam && $selectedseason !== '') ? $selectedseason : <%= @salary_year %>);
-        @get('<%= tools_salary_book_sidebar_team_path(team: '__TEAM__') %>'.replace('__TEAM__', $activeteam) + '&year=' + (($selectedseasonteam === $activeteam && $selectedseason !== '') ? $selectedseason : <%= @salary_year %>));
+        $sidebarcapyearloaded = effectiveyear;
+        $sidebardraftloaded = false;
+        $sidebardraftyearloaded = '';
+        $sidebarrightsloaded = false;
+        @get('<%= tools_salary_book_sidebar_team_path(team: '__TEAM__') %>'.replace('__TEAM__', $activeteam) + '&year=' + effectiveyear);
+      } else if (String($sidebarcapyearloaded) !== String(effectiveyear)) {
+        $sidebarcapyearloaded = effectiveyear;
+        @get('<%= tools_salary_book_sidebar_team_cap_path(team: '__TEAM__') %>'.replace('__TEAM__', $activeteam) + '&year=' + effectiveyear);
       }
     }
   "

@@ -13,6 +13,9 @@ Rails.application.routes.draw do
     # Datastar HTML fragment endpoints (patch targets)
     get "salary-book/teams/:teamcode/section", to: "salary_book#team_section", as: :salary_book_team_section
     get "salary-book/sidebar/team", to: "salary_book#sidebar_team", as: :salary_book_sidebar_team
+    get "salary-book/sidebar/team/cap", to: "salary_book#sidebar_team_cap", as: :salary_book_sidebar_team_cap
+    get "salary-book/sidebar/team/draft", to: "salary_book#sidebar_team_draft", as: :salary_book_sidebar_team_draft
+    get "salary-book/sidebar/team/rights", to: "salary_book#sidebar_team_rights", as: :salary_book_sidebar_team_rights
     get "salary-book/sidebar/player/:id", to: "salary_book#sidebar_player", as: :salary_book_sidebar_player
     get "salary-book/sidebar/agent/:id", to: "salary_book#sidebar_agent", as: :salary_book_sidebar_agent
     get "salary-book/sidebar/pick", to: "salary_book#sidebar_pick", as: :salary_book_sidebar_pick
