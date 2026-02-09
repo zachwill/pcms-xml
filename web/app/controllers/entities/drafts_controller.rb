@@ -53,26 +53,71 @@ module Entities
     def load_picks(conn)
       year_sql = conn.quote(@year.to_i)
 
-      where_clauses = ["dp.draft_year = #{year_sql}"]
-      where_clauses << "dp.draft_round = #{conn.quote(@round.to_i)}" if @round.present? && @round != "all"
-      where_clauses << "dp.current_team_code = #{conn.quote(@team)}" if @team.present?
+      round_filter_sql = if @round.present? && @round != "all"
+        "AND v.draft_round = #{conn.quote(@round.to_i)}"
+      else
+        ""
+      end
+
+      team_filter_sql = if @team.present?
+        "WHERE picks.current_team_code = #{conn.quote(@team)}"
+      else
+        ""
+      end
 
       @results = conn.exec_query(<<~SQL).to_a
+        WITH picks AS (
+          SELECT
+            v.draft_year,
+            v.draft_round,
+            v.team_code AS original_team_code,
+            COALESCE(
+              MAX(
+                CASE
+                  WHEN v.asset_type = 'TO' THEN
+                    COALESCE(
+                      (regexp_match(v.display_text, '^To\\s+([A-Z]{3})\\s*:'))[1],
+                      NULLIF(v.counterparty_team_code, '')
+                    )
+                END
+              ),
+              v.team_code
+            ) AS current_team_code,
+            BOOL_OR(v.is_swap) AS is_swap,
+            STRING_AGG(DISTINCT v.display_text, '; ')
+              FILTER (WHERE v.asset_type <> 'OWN') AS protections_summary,
+            CASE
+              WHEN BOOL_OR(v.is_forfeited) THEN 'Forfeited'
+              WHEN BOOL_OR(v.is_conditional) THEN 'Conditional'
+              WHEN BOOL_OR(v.asset_type = 'TO') THEN 'Traded'
+              ELSE 'Own'
+            END AS pick_status
+          FROM pcms.vw_draft_pick_assets v
+          WHERE v.draft_year = #{year_sql}
+            #{round_filter_sql}
+          GROUP BY v.draft_year, v.draft_round, v.team_code
+        )
         SELECT
-          dp.draft_year,
-          dp.draft_round,
-          dp.original_team_code,
-          dp.current_team_code,
+          picks.draft_year,
+          picks.draft_round,
+          picks.original_team_code,
+          picks.current_team_code,
           ot.team_name AS original_team_name,
           ct.team_name AS current_team_name,
-          dp.is_swap,
-          dp.protections_summary,
-          dp.pick_status
-        FROM pcms.draft_picks dp
-        LEFT JOIN pcms.teams ot ON ot.team_code = dp.original_team_code AND ot.league_lk = 'NBA'
-        LEFT JOIN pcms.teams ct ON ct.team_code = dp.current_team_code AND ct.league_lk = 'NBA'
-        WHERE #{where_clauses.join(" AND ")}
-        ORDER BY dp.draft_round, dp.original_team_code
+          picks.is_swap,
+          picks.protections_summary,
+          picks.pick_status
+        FROM picks
+        LEFT JOIN pcms.teams ot
+          ON ot.team_code = picks.original_team_code
+         AND ot.league_lk = 'NBA'
+         AND ot.is_active = TRUE
+        LEFT JOIN pcms.teams ct
+          ON ct.team_code = picks.current_team_code
+         AND ct.league_lk = 'NBA'
+         AND ct.is_active = TRUE
+        #{team_filter_sql}
+        ORDER BY picks.draft_round, picks.original_team_code
       SQL
     end
 
