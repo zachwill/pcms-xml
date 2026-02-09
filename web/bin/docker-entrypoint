@@ -16,8 +16,8 @@ fi
 # Use bin/rails so we always run in app context.
 if [ ! -f /rails/public/assets/.manifest.json ] || ! ruby -rjson -e 'm = JSON.parse(File.read("/rails/public/assets/.manifest.json")); exit(m.key?("tailwind.css") ? 0 : 1)' ; then
   echo "Precompiled assets missing/incomplete; running assets:precompile..."
-  SECRET_KEY_BASE_DUMMY=1 bundle exec bin/rails tailwindcss:build
-  SECRET_KEY_BASE_DUMMY=1 bundle exec bin/rails assets:precompile
+  SECRET_KEY_BASE_DUMMY=1 bin/rails tailwindcss:build
+  SECRET_KEY_BASE_DUMMY=1 bin/rails assets:precompile
 fi
 
 exec "$@"
