@@ -13,14 +13,14 @@
   available_team_ids = team_meta_by_code.values.map { |meta| meta["team_id"] }.compact.uniq
   available_team_ids = fallback_team_ids if available_team_ids.empty?
 
-  selected_team_ids = available_team_ids.shuffle.first(8)
+  selected_team_ids = available_team_ids.shuffle.first(16)
 
-  if selected_team_ids.length < 8
+  if selected_team_ids.length < 16
     supplement_ids = (fallback_team_ids - selected_team_ids).shuffle
-    selected_team_ids += supplement_ids.first(8 - selected_team_ids.length)
+    selected_team_ids += supplement_ids.first(16 - selected_team_ids.length)
   end
 
-  dot_logo_urls = selected_team_ids.first(8).map { |team_id| team_logo_url(team_id) }
+  dot_logo_urls = selected_team_ids.first(16).map { |team_id| team_logo_url(team_id) }
 %>
 
 <div class="min-h-full bg-muted/30 dark:bg-muted/20">
