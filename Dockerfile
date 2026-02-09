@@ -11,6 +11,7 @@ RUN apt-get update -qq && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 ENV RAILS_ENV=production \
+    RAILS_SERVE_STATIC_FILES=true \
     BUNDLE_DEPLOYMENT=1 \
     BUNDLE_PATH=/usr/local/bundle \
     BUNDLE_WITHOUT="development:test"
@@ -29,9 +30,13 @@ COPY web/ .
 RUN bundle install && \
     rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git
 
-# Precompile assets (Tailwind CSS, propshaft manifests).
+# Build Tailwind explicitly, then precompile assets (Propshaft manifest).
 # SECRET_KEY_BASE_DUMMY lets Rails boot without real credentials.
-RUN SECRET_KEY_BASE_DUMMY=1 bundle exec rails assets:precompile
+RUN mkdir -p app/assets/builds && \
+    SECRET_KEY_BASE_DUMMY=1 bundle exec rails tailwindcss:build && \
+    SECRET_KEY_BASE_DUMMY=1 bundle exec rails assets:precompile && \
+    test -f public/assets/.manifest.json && \
+    ruby -rjson -e 'm = JSON.parse(File.read("public/assets/.manifest.json")); abort("tailwind.css missing from precompile manifest") unless m.key?("tailwind.css")'
 
 # ─── Stage 3: runtime ───────────────────────────────────────────────
 FROM base
