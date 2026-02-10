@@ -91,12 +91,10 @@ Datastar backend actions (`@get`, `@post`, etc.) default to `requestCancellation
 
 - Cancellation is **per element**.
 - If one element fires multiple requests quickly, a newer request can cancel an older in-flight request.
-- This can break shell→hydrate flows (skeleton loads, but heavy payload never lands).
 
 Salary Book guardrail:
-- Keep heavy bootstrap fetches on a **separate element** from sidebar/auxiliary fetches.
-- If needed, set `requestCancellation: 'disabled'` for one-off bootstrap requests.
-- Current working pattern: `#salarybook-bootstrap` (maincanvas hydrate) is separate from root `#salarybook` sidebar effects.
+- The sidebar-loader element (`#salarybook-sidebar-loader`) fires cap-year updates via `data-effect`. It is a **separate element** from the root `#salarybook` shell, so sidebar refreshes don't cancel team-switch SSE requests (or vice versa).
+- If adding new `@get`/`@post` triggers, keep heavy fetches on dedicated elements to avoid cross-cancellation.
 
 ## Before you code (checklist)
 
@@ -125,7 +123,26 @@ These are the stable `id`s Datastar targets:
 | `#rightpanel-overlay` | drill-in detail layer | page-specific |
 | `#flash` | toast/alerts | shared |
 
-More detail: `web/docs/patch_boundaries.md`
+### Salary Book boundaries
+
+| ID | What it holds |
+|----|---------------|
+| `#salarybook-team-frame` | Patchable frame inside `#maincanvas`. SSE `switch-team` morphs this element. |
+| `#rightpanel-base` | Team/system context underlay (sidebar team summary + tabs). |
+| `#rightpanel-overlay` | Entity overlay layer (player, agent, pick detail). |
+
+Ownership map:
+- Shell: `web/app/views/tools/salary_book/show.html.erb`
+- Team section partials: `web/app/views/tools/salary_book/_team_section.html.erb`
+- Sidebar partials: `web/app/views/tools/salary_book/_sidebar_*.html.erb`
+- SSE controller: `web/app/controllers/tools/salary_book_sse_controller.rb`
+
+### Patch guidance
+
+- Prefer section-level patches, not tiny leaf patches.
+- Keep IDs stable across refactors.
+- If interaction patches multiple boundaries, use one-off SSE.
+- Protect third-party-managed DOM with `data-ignore-morph`.
 
 ---
 
@@ -135,8 +152,6 @@ More detail: `web/docs/patch_boundaries.md`
 |-----|----------------|
 | `web/docs/design_guide.md` | Concrete visual patterns (shells, row/cell anatomy, table conventions, checklist) |
 | `web/docs/datastar_sse_playbook.md` | SSE response templates, Rails `ActionController::Live` patterns |
-| `web/docs/ui_invariants.md` | Product-level interaction rules |
-| `web/docs/patch_boundaries.md` | Full patch boundary ownership map |
 | `reference/sites/INTERACTION_MODELS.md` | Scroll-driven tools, entity workspaces, catalog surfaces |
 | `reference/datastar/insights.md` | Signal naming, DOM refs, Datastar conventions |
 | `reference/datastar/rails.md` | Rails + Datastar integration patterns |
@@ -187,14 +202,12 @@ ruby -v  # should be 3.4.x
 This is the default structure for new pages. If an existing page differs, follow its local pattern unless you are intentionally migrating it.
 
 1. **Command Bar** — `sticky top-0 z-40 h-[130px]`, `border-b border-border bg-background`
-2. **Sticky Header(s)** (if applicable) — `sticky top-[130px] z-30` for column headers on data-dense pages
+2. **Sticky Header(s)** (if applicable) — `sticky top-0 z-30` for column headers inside a viewport-shell scroll owner (Pattern A). Use `sticky top-[130px] z-30` only in document-scroll shells (Pattern B) where the command bar is `sticky top-0`.
 3. **Edge-to-edge flex layout** — No `max-w-*` or `mx-auto` on `<main>`. Use `px-4 pb-8`.
 
 Best examples: Salary Book → Two-Way Utility → Team Summary.
 
 Concrete templates: `web/docs/design_guide.md`
-
-More detail: `web/docs/ui_invariants.md`
 
 ### Tailwind patterns
 

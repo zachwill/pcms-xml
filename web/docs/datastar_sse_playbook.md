@@ -98,12 +98,14 @@ data: elements </div>
 ## Repo examples
 
 - Concern: `web/app/controllers/concerns/datastar.rb`
-- SSE usage (Salary Book): `web/app/controllers/tools/salary_book_sse_controller.rb`
+- SSE usage (Salary Book team switch): `web/app/controllers/tools/salary_book_sse_controller.rb`
 - HTML bootstrap (entities): `web/app/controllers/entities/players_sse_controller.rb`, `teams_sse_controller.rb`
 - Routes:
-  - `GET /tools/salary-book/sse/switch-team` (multi-region SSE patch for main canvas + sidebar)
+  - `GET /tools/salary-book/sse/switch-team` (multi-region SSE: patches `#salarybook-team-frame` + `#rightpanel-base`)
   - `GET /players/:slug/sse/bootstrap` (text/html, morph-by-id)
   - `GET /teams/:slug/sse/bootstrap` (text/html, morph-by-id)
+
+Note: Salary Book **does not use an SSE bootstrap**. The initial team is server-rendered on page load (`SalaryBookController#show`). SSE is only used for subsequent team switches.
 
 ## Entity page bootstrap pattern (text/html, not SSE)
 

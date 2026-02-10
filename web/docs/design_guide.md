@@ -251,4 +251,4 @@ Common text sizes:
 
 ## Maintenance rule
 
-When changing a canonical class pattern in ERB/CSS, update this file and `web/docs/ui_invariants.md` in the same PR.
+When changing a canonical class pattern in ERB/CSS, update this file and `web/AGENTS.md` in the same PR.
