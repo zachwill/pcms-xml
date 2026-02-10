@@ -108,16 +108,18 @@ module Tools
     end
 
     # GET /tools/salary-book/sidebar/team/draft?team=BOS&year=2025
-    # Lazy-loaded Draft tab payload.
+    # Lazy-loaded Draft tab payload (future years only, starting after selected year).
     def sidebar_team_draft
       team_code = normalize_team_code(params[:team])
       year = salary_year_param
+      draft_start_year = year + 1
 
-      draft_assets = fetch_sidebar_draft_assets(team_code, start_year: year, year_count: 3)
+      draft_assets = fetch_sidebar_draft_assets(team_code, start_year: draft_start_year)
 
       render partial: "tools/salary_book/sidebar_team_tab_draft", locals: {
         team_code:,
         year:,
+        draft_start_year:,
         draft_assets:,
         draft_loaded: true
       }, layout: false
@@ -640,10 +642,9 @@ module Tools
     # Sidebar tab data (team context)
     # -------------------------------------------------------------------------
 
-    def fetch_sidebar_draft_assets(team_code, start_year:, year_count: 3)
+    def fetch_sidebar_draft_assets(team_code, start_year:)
       team_sql = conn.quote(team_code)
       from_year = start_year.to_i
-      to_year = from_year + year_count.to_i - 1
 
       rows = conn.exec_query(<<~SQL).to_a
         SELECT
@@ -659,7 +660,7 @@ module Tools
           raw_part AS description
         FROM pcms.draft_pick_summary_assets
         WHERE team_code = #{team_sql}
-          AND draft_year BETWEEN #{conn.quote(from_year)} AND #{conn.quote(to_year)}
+          AND draft_year >= #{conn.quote(from_year)}
         ORDER BY draft_year, draft_round, asset_slot, sub_asset_slot
       SQL
 

@@ -4,16 +4,57 @@
 <% team_summaries ||= {} %>
 
 <div class="!bg-zinc-900 dark:!bg-background border-t border-zinc-700/70 dark:border-border">
+  <%# Footer header (season context row) %>
+  <div class="h-8 flex items-center border-b border-zinc-700/70 dark:border-border/70 text-xs font-medium text-zinc-400 dark:text-muted-foreground !bg-zinc-900 dark:!bg-background select-none cursor-default">
+    <div
+      class="w-52 shrink-0 pl-4 sticky left-0 z-[2] self-stretch relative !bg-zinc-900 dark:!bg-background
+             after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-zinc-700/80 dark:after:bg-border/40"
+    >
+      <div class="grid grid-cols-[40px_1fr] items-center h-full">
+        <div></div>
+        <div class="pl-1">Totals</div>
+      </div>
+    </div>
+
+    <div
+      class="h-full flex shrink-0"
+      data-on:salarybook-setseason="if (!$seasonlocked) { const nextyear = String(evt.detail.year); if ($selectedseason !== nextyear) { $selectedseason = nextyear; } }"
+      data-on:mouseleave="if (!$seasonlocked && $selectedseason !== '') { $selectedseason = ''; }"
+      data-on:focusout="if (!$seasonlocked && evt.relatedTarget && !el.contains(evt.relatedTarget) && $selectedseason !== '') { $selectedseason = ''; }"
+    >
+      <div
+        class="w-24 h-full shrink-0 flex items-center justify-center"
+        data-show="$displayepm"
+      >EPM</div>
+
+      <% salary_years.each do |year| %>
+        <div
+          class="w-24 h-full shrink-0 flex items-center justify-center tabular-nums text-center transition-colors duration-100 cursor-pointer select-none"
+          title="Hover to preview season · click to lock"
+          data-on:mouseenter="el.dispatchEvent(new CustomEvent('salarybook-setseason', { detail: { year: '<%= year %>' }, bubbles: true }))"
+          data-on:focusin="el.dispatchEvent(new CustomEvent('salarybook-setseason', { detail: { year: '<%= year %>' }, bubbles: true }))"
+          data-on:click="const samecell = ($selectedseason === '<%= year %>'); if (samecell && $seasonlocked) { $seasonlocked = false; $selectedseason = ''; } else { $selectedseason = '<%= year %>'; $seasonlocked = true; }"
+          data-class="{ 'bg-yellow-900/20 text-zinc-100 dark:text-foreground': $selectedseason === '<%= year %>' }"
+        ><%= format_year_label(year) %></div>
+      <% end %>
+    </div>
+
+    <div class="w-24 shrink-0"></div>
+    <div class="w-40 pr-4 shrink-0"></div>
+  </div>
+
   <%# Roster Cost %>
   <div class="h-12 flex items-center text-xs !bg-zinc-900 dark:!bg-background">
     <div
-      class="w-52 shrink-0 pl-4 sticky left-0 z-[2] relative !bg-zinc-900 dark:!bg-background
+      class="w-52 shrink-0 pl-4 sticky left-0 z-[2] self-stretch relative !bg-zinc-900 dark:!bg-background
              after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-zinc-700/80 dark:after:bg-border/40"
     >
       <div class="grid grid-cols-[40px_1fr] items-center h-full">
         <div class="flex items-center justify-start text-zinc-400 dark:text-muted-foreground">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8"/>
+            <path d="M12 18V6"/>
           </svg>
         </div>
         <div class="pl-1 min-w-0 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-muted-foreground">Roster Cost</div>
@@ -45,7 +86,7 @@
   <%# Cap Space %>
   <div class="h-12 flex items-center text-xs !bg-zinc-900 dark:!bg-background">
     <div
-      class="w-52 shrink-0 pl-4 sticky left-0 z-[2] relative !bg-zinc-900 dark:!bg-background
+      class="w-52 shrink-0 pl-4 sticky left-0 z-[2] self-stretch relative !bg-zinc-900 dark:!bg-background
              after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-zinc-700/80 dark:after:bg-border/40"
     >
       <div class="grid grid-cols-[40px_1fr] items-center h-full">
@@ -85,7 +126,7 @@
   <%# Tax/Apron Status %>
   <div class="h-12 flex items-center text-xs !bg-zinc-900 dark:!bg-background" data-show="$displaytaxaprons">
     <div
-      class="w-52 shrink-0 pl-4 sticky left-0 z-[2] relative !bg-zinc-900 dark:!bg-background
+      class="w-52 shrink-0 pl-4 sticky left-0 z-[2] self-stretch relative !bg-zinc-900 dark:!bg-background
              after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-zinc-700/80 dark:after:bg-border/40"
     >
       <div class="grid grid-cols-[40px_1fr] items-center h-full">
@@ -124,7 +165,7 @@
   <%# Luxury Tax Owed %>
   <div class="h-12 flex items-center text-xs !bg-zinc-900 dark:!bg-background" data-show="$displayluxurytax">
     <div
-      class="w-52 shrink-0 pl-4 sticky left-0 z-[2] relative !bg-zinc-900 dark:!bg-background
+      class="w-52 shrink-0 pl-4 sticky left-0 z-[2] self-stretch relative !bg-zinc-900 dark:!bg-background
              after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-zinc-700/80 dark:after:bg-border/40"
     >
       <div class="grid grid-cols-[40px_1fr] items-center h-full">
