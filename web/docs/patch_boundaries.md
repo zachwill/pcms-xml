@@ -29,4 +29,4 @@ Stable IDs are the patch contract.
 - Salary Book shell: `web/app/views/tools/salary_book/show.html.erb`
 - Team section partials: `web/app/views/tools/salary_book/_team_section.html.erb`
 - Sidebar partials: `web/app/views/tools/salary_book/_sidebar_*.html.erb`
-- SSE template controller: `web/app/controllers/tools/salary_book_sse_controller.rb`
+- SSE controller: `web/app/controllers/tools/salary_book_sse_controller.rb`

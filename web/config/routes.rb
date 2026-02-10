@@ -11,7 +11,6 @@ Rails.application.routes.draw do
     get "team-summary", to: "team_summary#show"
 
     # Datastar HTML fragment endpoints (patch targets)
-    get "salary-book/teams/:teamcode/section", to: "salary_book#team_section", as: :salary_book_team_section
     get "salary-book/sidebar/team", to: "salary_book#sidebar_team", as: :salary_book_sidebar_team
     get "salary-book/sidebar/team/cap", to: "salary_book#sidebar_team_cap", as: :salary_book_sidebar_team_cap
     get "salary-book/sidebar/team/draft", to: "salary_book#sidebar_team_draft", as: :salary_book_sidebar_team_draft
@@ -21,12 +20,8 @@ Rails.application.routes.draw do
     get "salary-book/sidebar/pick", to: "salary_book#sidebar_pick", as: :salary_book_sidebar_pick
     get "salary-book/sidebar/clear", to: "salary_book#sidebar_clear", as: :salary_book_sidebar_clear
 
-    # SSE bootstrap + patch template endpoints (canonical one-off SSE pattern)
-    get "salary-book/sse/bootstrap", to: "salary_book_sse#bootstrap", as: :salary_book_sse_bootstrap
+    # SSE multi-region team switch (main canvas + sidebar in one request)
     get "salary-book/sse/switch-team", to: "salary_book_sse#switch_team", as: :salary_book_sse_switch_team
-    get "salary-book/sse/patch-template", to: "salary_book_sse#demo", as: :salary_book_sse_patch_template
-    # Legacy alias
-    get "salary-book/sse/demo", to: "salary_book_sse#demo", as: :salary_book_sse_demo
   end
 
   # Entities (Bricklink-style navigation; clean top-level URLs)

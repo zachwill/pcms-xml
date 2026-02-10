@@ -92,12 +92,8 @@ const syncAllSalaryTableScrollPositions = () => {
 };
 
 // -------------------------------------------------------------------------
-// Public API (kept for backwards compatibility)
+// Public API
 // -------------------------------------------------------------------------
-
-const scrollToTeam = (_teamCode, _behavior = "smooth") => {
-  // Single-team canvas now loads by Datastar signal; no JS scrolling needed.
-};
 
 const preserveContext = () => {
   requestAnimationFrame(() => {
@@ -145,7 +141,6 @@ const init = () => {
   mutationObserver.observe(main, { childList: true, subtree: true });
 
   // Expose public API
-  window.__salaryBookScrollToTeam = scrollToTeam;
   window.__salaryBookRebuildCache = rebuildCache;
   window.__salaryBookPreserveContext = preserveContext;
 
@@ -158,4 +153,4 @@ if (document.readyState === "loading") {
   init();
 }
 
-export { init, scrollToTeam, rebuildCache, preserveContext };
+export { init, rebuildCache, preserveContext };

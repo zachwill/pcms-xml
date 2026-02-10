@@ -101,9 +101,7 @@ data: elements </div>
 - SSE usage (Salary Book): `web/app/controllers/tools/salary_book_sse_controller.rb`
 - HTML bootstrap (entities): `web/app/controllers/entities/players_sse_controller.rb`, `teams_sse_controller.rb`
 - Routes:
-  - `GET /tools/salary-book/sse/bootstrap` (shell → full maincanvas hydration, SSE)
-  - `GET /tools/salary-book/sse/patch-template`
-  - `GET /tools/salary-book/sse/demo` (legacy alias)
+  - `GET /tools/salary-book/sse/switch-team` (multi-region SSE patch for main canvas + sidebar)
   - `GET /players/:slug/sse/bootstrap` (text/html, morph-by-id)
   - `GET /teams/:slug/sse/bootstrap` (text/html, morph-by-id)
 

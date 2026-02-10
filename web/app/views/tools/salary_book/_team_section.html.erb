@@ -22,7 +22,7 @@
 <% logo_url = team_logo_url(team_id) %>
 
 <%# Header KPI cards should follow hovered/locked year for this team only; otherwise fallback to base year. %>
-<% selected_header_year_expr = "(($selectedseasonteam === '#{team_code}' && $selectedseason !== '') ? $selectedseason : '#{year}')" %>
+<% selected_header_year_expr = "($selectedseason !== '' ? $selectedseason : '#{year}')" %>
 
 <%
   # Column math (must match Tailwind widths)
@@ -69,12 +69,7 @@
 
             <div class="grid grid-rows-[24px_16px] min-w-0">
               <div class="h-[24px] flex items-end min-w-0">
-                <button
-                  type="button"
-                  class="cursor-pointer font-semibold leading-tight text-left text-[14px] block w-full truncate hover:text-primary transition-colors
-                         focus:outline-none focus-visible:underline focus-visible:text-primary"
-                  data-on:click="$activeteam = '<%= team_code %>'"
-                ><%= team_name %></button>
+                <div class="font-semibold leading-tight text-left text-[14px] block w-full truncate"><%= team_name %></div>
               </div>
               <div class="h-[16px] -mt-px flex items-start min-w-0">
                 <span class="text-[10px] leading-none tabular-nums text-muted-foreground/80 truncate"><%= conference %> Conference</span>

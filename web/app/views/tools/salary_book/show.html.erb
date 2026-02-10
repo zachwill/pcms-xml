@@ -5,9 +5,8 @@
 <% salary_book_base_path = root_path %>
 
 <%# Season column state machine:
-    - Hover/focus year header => preview (selectedseason + selectedseasonteam)
+    - Hover/focus year header => preview (selectedseason)
     - Click year header => lock/unlock preview (seasonlocked)
-    - Active team changes => clear lock + preview
 %>
 <div
   id="salarybook"
@@ -15,7 +14,6 @@
   data-signals="{
     activeteam: '<%= initial_team %>',
     selectedseason: '',
-    selectedseasonteam: '',
     seasonlocked: false,
     sidebarview: 'teamview',
     overlaytype: 'none',
@@ -37,13 +35,6 @@
     displayincentives: true,
     displaytwoway: true
   }"
-  data-effect="
-    if ($seasonlocked && $selectedseasonteam && $selectedseasonteam !== $activeteam) {
-      $seasonlocked = false;
-      $selectedseason = '';
-      $selectedseasonteam = '';
-    }
-  "
 >
   <div id="flash"></div>
 
@@ -53,7 +44,7 @@
     class="hidden"
     aria-hidden="true"
     data-effect="
-      const effectiveyear = (($selectedseasonteam === $activeteam && $selectedseason !== '') ? $selectedseason : '<%= @salary_year %>');
+      const effectiveyear = ($selectedseason !== '' ? $selectedseason : '<%= @salary_year %>');
       if ($activeteam && $sidebarteamloaded === $activeteam && String($sidebarcapyearloaded) !== String(effectiveyear)) {
         $sidebarcapyearloaded = effectiveyear;
         @get('/tools/salary-book/sidebar/team/cap?team=' + $activeteam + '&year=' + effectiveyear);
@@ -81,6 +72,8 @@
                     const nextteam = '<%= team[:code] %>';
                     if ($activeteam !== nextteam) {
                       $activeteam = nextteam;
+                      $seasonlocked = false;
+                      $selectedseason = '';
                       $sidebarteamloaded = nextteam;
                       $sidebarcapyearloaded = '<%= @salary_year %>';
                       $sidebardraftloaded = false;
