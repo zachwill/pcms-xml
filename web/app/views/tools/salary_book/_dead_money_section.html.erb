@@ -2,7 +2,6 @@
 
 <% dead_money ||= [] %>
 <% salary_years ||= SalaryBookHelper::SALARY_YEARS %>
-<% team_code = local_assigns.fetch(:team_code, dead_money.first&.dig("team_code")) %>
 <% return if dead_money.empty? %>
 
 <div>

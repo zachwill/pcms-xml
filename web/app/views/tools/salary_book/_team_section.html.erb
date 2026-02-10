@@ -21,7 +21,7 @@
 <% team_id = team_meta["team_id"] %>
 <% logo_url = team_logo_url(team_id) %>
 
-<%# Header KPI cards should follow hovered/locked year for this team only; otherwise fallback to base year. %>
+<%# Header KPI cards follow hovered/locked year; otherwise fallback to base year. %>
 <% selected_header_year_expr = "($selectedseason !== '' ? $selectedseason : '#{year}')" %>
 
 <%
@@ -195,7 +195,7 @@
                  [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
           <div class="min-w-max" style="min-width: <%= min_table_width_px %>px;">
-            <%= render partial: "tools/salary_book/table_header", locals: { salary_years: salary_years, team_code: team_code } %>
+            <%= render partial: "tools/salary_book/table_header", locals: { salary_years: salary_years } %>
           </div>
         </div>
       </div>
@@ -232,9 +232,9 @@
 
         <div data-show="$displaycapholds">
           <% if cap_holds.any? %>
-            <%= render partial: "tools/salary_book/cap_holds_section", locals: { cap_holds: cap_holds, salary_years: salary_years, team_code: team_code } %>
+            <%= render partial: "tools/salary_book/cap_holds_section", locals: { cap_holds: cap_holds, salary_years: salary_years } %>
           <% else %>
-            <%= render partial: "tools/salary_book/placeholder_section_row", locals: { label: "Cap Holds", salary_years: salary_years, team_code: team_code } %>
+            <%= render partial: "tools/salary_book/placeholder_section_row", locals: { label: "Cap Holds", salary_years: salary_years } %>
           <% end %>
         </div>
 
@@ -242,30 +242,29 @@
           <% if exceptions.any? %>
             <%= render partial: "tools/salary_book/exceptions_section", locals: { exceptions: exceptions } %>
           <% else %>
-            <%= render partial: "tools/salary_book/placeholder_section_row", locals: { label: "Exceptions", salary_years: salary_years, team_code: team_code } %>
+            <%= render partial: "tools/salary_book/placeholder_section_row", locals: { label: "Exceptions", salary_years: salary_years } %>
           <% end %>
         </div>
 
         <div data-show="$displaydeadmoney">
           <% if dead_money.any? %>
-            <%= render partial: "tools/salary_book/dead_money_section", locals: { dead_money: dead_money, salary_years: salary_years, team_code: team_code } %>
+            <%= render partial: "tools/salary_book/dead_money_section", locals: { dead_money: dead_money, salary_years: salary_years } %>
           <% else %>
-            <%= render partial: "tools/salary_book/placeholder_section_row", locals: { label: "Dead Money", salary_years: salary_years, team_code: team_code } %>
+            <%= render partial: "tools/salary_book/placeholder_section_row", locals: { label: "Dead Money", salary_years: salary_years } %>
           <% end %>
         </div>
 
         <div data-show="$displaydraftpicks">
           <% if picks.any? %>
-            <%= render partial: "tools/salary_book/draft_assets_section", locals: { picks: picks, salary_years: salary_years, team_code: team_code } %>
+            <%= render partial: "tools/salary_book/draft_assets_section", locals: { picks: picks, salary_years: salary_years } %>
           <% else %>
-            <%= render partial: "tools/salary_book/placeholder_section_row", locals: { label: "Draft Assets", salary_years: salary_years, team_code: team_code } %>
+            <%= render partial: "tools/salary_book/placeholder_section_row", locals: { label: "Draft Assets", salary_years: salary_years } %>
           <% end %>
         </div>
 
         <%= render partial: "tools/salary_book/totals_footer", locals: {
           team_summaries: team_summaries,
-          salary_years: salary_years,
-          team_code: team_code
+          salary_years: salary_years
         } %>
       </div>
     </div>

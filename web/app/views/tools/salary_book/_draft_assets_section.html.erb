@@ -2,7 +2,6 @@
 
 <% picks ||= [] %>
 <% salary_years ||= SalaryBookHelper::SALARY_YEARS %>
-<% team_code = local_assigns.fetch(:team_code, picks.first&.dig("team_code")) %>
 <% return if picks.empty? %>
 
 <% picks_by_year = picks.group_by { |p| p["year"].to_i } %>

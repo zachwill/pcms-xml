@@ -2,7 +2,6 @@
 
 <% cap_holds ||= [] %>
 <% salary_years ||= SalaryBookHelper::SALARY_YEARS %>
-<% team_code = local_assigns.fetch(:team_code, cap_holds.first&.dig("team_code")) %>
 <% return if cap_holds.empty? %>
 
 <div>

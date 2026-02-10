@@ -69,19 +69,19 @@
                   type="button"
                   class="cursor-pointer relative h-7 px-2 rounded text-xs font-medium transition-all duration-150 border outline-none inline-flex items-center justify-center"
                   data-on:click="
-                    const nextteam = '<%= team[:code] %>';
-                    if ($activeteam !== nextteam) {
-                      $activeteam = nextteam;
+                    const teamcode = '<%= team[:code] %>';
+                    if ($activeteam !== teamcode) {
+                      $activeteam = teamcode;
                       $seasonlocked = false;
                       $selectedseason = '';
-                      $sidebarteamloaded = nextteam;
+                      $sidebarteamloaded = teamcode;
                       $sidebarcapyearloaded = '<%= @salary_year %>';
                       $sidebardraftloaded = false;
                       $sidebardraftyearloaded = '';
                       $sidebarrightsloaded = false;
 
-                      @get('/tools/salary-book/sse/switch-team?team=' + nextteam + '&year=<%= @salary_year %>');
-                      window.history.replaceState({}, '', '<%= salary_book_base_path %>?team=' + nextteam + '&year=<%= @salary_year %>');
+                      @get('/tools/salary-book/sse/switch-team?team=' + teamcode + '&year=<%= @salary_year %>');
+                      window.history.replaceState({}, '', '<%= salary_book_base_path %>?team=' + teamcode + '&year=<%= @salary_year %>');
                     }
                   "
                   data-class="{
