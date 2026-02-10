@@ -1,6 +1,6 @@
-# REFACTOR.md — App Shell vs SalaryBook Boundary Cleanup
+# REFACTOR.md - App Shell vs SalaryBook Boundary Cleanup
 
-> Purpose: a thorough refactor plan (no feature changes) to **cleanly separate** the invariant “application frame” from what is intrinsically part of the **Salary Book** view.
+> Purpose: a thorough refactor plan (no feature changes) to **cleanly separate** the invariant "application frame" from what is intrinsically part of the **Salary Book** view.
 >
 > This document is written to be executable as a handoff: you should be able to open a fresh context window and implement step-by-step.
 
@@ -8,18 +8,18 @@
 
 ## 0) Executive Summary
 
-Today, `prototypes/salary-book-react/src/components/app/*` and `prototypes/salary-book-react/src/state/shell/*` look like generic “app shell” infrastructure, but they encode **Salary Book semantics**:
+Today, `prototypes/salary-book-react/src/components/app/*` and `prototypes/salary-book-react/src/state/shell/*` look like generic "app shell" infrastructure, but they encode **Salary Book semantics**:
 
 - `TopNav` is actually the Salary Book command bar (teams grid + filters).
 - `ShellProvider` is a Salary Book runtime (scroll-spy, loaded teams, entity sidebar stack).
-- `AppShell` hard-codes Salary Book’s fixed header height + margin offset.
+- `AppShell` hard-codes Salary Book's fixed header height + margin offset.
 
 **Goal:** invert the dependency direction so:
 
 - **App frame** is dumb, slot-based, and feature-agnostic.
 - **Salary Book** owns its command bar + runtime state machine (scrollspy + sidebar entity stack).
 
-This enables new views (Free Agents, Tankathon, Trade Machine, etc.) to either reuse the frame or ship their own “view shell” without inheriting SalaryBook assumptions.
+This enables new views (Free Agents, Tankathon, Trade Machine, etc.) to either reuse the frame or ship their own "view shell" without inheriting SalaryBook assumptions.
 
 ---
 
@@ -33,20 +33,20 @@ This enables new views (Free Agents, Tankathon, Trade Machine, etc.) to either r
 - `src/components/app/AppShell/AppShell.tsx`
   - hard-codes `<TopNav />`
   - wraps everything in `<ShellProvider topOffset={0}>`
-  - hard-codes SalaryBook’s header offset (`style={{ marginTop: "130px" }}`)
+  - hard-codes SalaryBook's header offset (`style={{ marginTop: "130px" }}`)
 
 - `src/components/app/TopNav/*`
   - `TeamSelectorGrid` depends on SalaryBook data: `useTeams` from `@/features/SalaryBook/hooks`
   - depends on global filters state: `@/state/filters`
-  - includes placeholder “ViewSelector” UI
+  - includes placeholder "ViewSelector" UI
 
 - `src/state/shell/*`
-  - `ShellProvider`: scrollspy + entity stack + “loaded teams” model + filter-change scroll preservation + NBA team ordering.
+  - `ShellProvider`: scrollspy + entity stack + "loaded teams" model + filter-change scroll preservation + NBA team ordering.
 
 ### 1.2 Boundary smells
 
 1) **Inverted dependency direction**
-   - “app” layer imports “feature” layer (`TopNav/TeamSelectorGrid → useTeams`).
+   - "app" layer imports "feature" layer (`TopNav/TeamSelectorGrid → useTeams`).
 
 2) **Misleading naming**
    - `AppShell`, `TopNav`, `ShellProvider` imply app-global invariants, but they are SalaryBook-specific.
@@ -74,8 +74,8 @@ This enables new views (Free Agents, Tankathon, Trade Machine, etc.) to either r
   - app frame must not import from `features/*`.
 
 - Make naming self-describing:
-  - “TopNav” becomes a SalaryBook command bar.
-  - “ShellProvider” becomes SalaryBook runtime provider.
+  - "TopNav" becomes a SalaryBook command bar.
+  - "ShellProvider" becomes SalaryBook runtime provider.
 
 - Keep behavior identical:
   - fixed header height
@@ -98,7 +98,7 @@ This enables new views (Free Agents, Tankathon, Trade Machine, etc.) to either r
 
 - **App Frame**: invariant layout structure (header slot, main slot, right slot). No SalaryBook knowledge.
 - **View Shell**: a view-level composition layer that wires together runtime providers + chrome + view surfaces.
-- **Feature Internals**: SalaryBook’s table + rows + right panel modules.
+- **Feature Internals**: SalaryBook's table + rows + right panel modules.
 
 ### 3.2 Proposed folder layout
 
@@ -146,8 +146,8 @@ src/
 ```
 
 Notes:
-- The “shell” directory is intentionally separate from “components” to encode that it is **runtime state + chrome**.
-- “RightPanel” is a rename of SalaryBook’s sidebar to avoid collisions with the UI primitive `components/ui/Sidebar`.
+- The "shell" directory is intentionally separate from "components" to encode that it is **runtime state + chrome**.
+- "RightPanel" is a rename of SalaryBook's sidebar to avoid collisions with the UI primitive `components/ui/Sidebar`.
 
 ### 3.3 Dependency rules (explicit)
 
@@ -182,7 +182,7 @@ Notes:
 ### 4.3 Naming collision policy
 
 - `components/ui/Sidebar.tsx` remains the generic UI primitive.
-- SalaryBook’s right surface should not use the name “Sidebar” at the top level.
+- SalaryBook's right surface should not use the name "Sidebar" at the top level.
 
 ---
 
@@ -190,7 +190,7 @@ Notes:
 
 Each phase is intended to be a clean commit with a working app + green typecheck.
 
-### Phase 0 — Baseline + guardrails (prep)
+### Phase 0 - Baseline + guardrails (prep)
 
 1) Confirm usage graph:
    - `rg "components/app" src | head`
@@ -206,7 +206,7 @@ Each phase is intended to be a clean commit with a working app + green typecheck
 
 ---
 
-### Phase 1 — Introduce a dumb layout frame (no behavior change)
+### Phase 1 - Introduce a dumb layout frame (no behavior change)
 
 **Goal:** replace `AppShell` with a truly feature-agnostic layout.
 
@@ -224,7 +224,7 @@ Each phase is intended to be a clean commit with a working app + green typecheck
 
 ---
 
-### Phase 2 — Create SalaryBook “view shell” (provider + command bar wiring)
+### Phase 2 - Create SalaryBook "view shell" (provider + command bar wiring)
 
 **Goal:** SalaryBook owns its shell concerns; app frame stays dumb.
 
@@ -243,11 +243,11 @@ Each phase is intended to be a clean commit with a working app + green typecheck
 3) Keep `features/SalaryBook/SalaryBook.tsx` as a compatibility alias:
 - `export function SalaryBook() { return <SalaryBookPage /> }`
 
-**Acceptance:** SalaryBook still renders identically, but composition now clearly indicates what’s SalaryBook.
+**Acceptance:** SalaryBook still renders identically, but composition now clearly indicates what's SalaryBook.
 
 ---
 
-### Phase 3 — Move/rename TopNav into SalaryBook shell/CommandBar
+### Phase 3 - Move/rename TopNav into SalaryBook shell/CommandBar
 
 **Goal:** eliminate app → feature dependency inversion.
 
@@ -267,15 +267,15 @@ Steps:
 - `TopNav` → `SalaryBookCommandBar`
 
 3) Ensure the command bar imports SalaryBook hooks without crossing boundaries:
-- `TeamSelectorGrid` using `useTeams` is now feature-local, so it’s fine.
+- `TeamSelectorGrid` using `useTeams` is now feature-local, so it's fine.
 
 4) Delete or deprecate `components/app/TopNav` barrel exports.
 
-**Acceptance:** there is no longer a generic “app top nav” that imports SalaryBook.
+**Acceptance:** there is no longer a generic "app top nav" that imports SalaryBook.
 
 ---
 
-### Phase 4 — Move/rename ShellProvider (state/shell → SalaryBook shell)
+### Phase 4 - Move/rename ShellProvider (state/shell → SalaryBook shell)
 
 **Goal:** SalaryBook runtime state lives with the SalaryBook feature.
 
@@ -299,7 +299,7 @@ Steps:
 
 ---
 
-### Phase 5 — Disambiguate SalaryBook “Sidebar” naming
+### Phase 5 - Disambiguate SalaryBook "Sidebar" naming
 
 **Goal:** remove confusion between UI `Sidebar` primitive and SalaryBook right panel.
 
@@ -311,13 +311,13 @@ Steps:
 
 3) Update imports inside SalaryBook.
 
-**Acceptance:** it’s impossible to confuse the app’s generic nav sidebar primitive with SalaryBook’s intelligence panel.
+**Acceptance:** it's impossible to confuse the app's generic nav sidebar primitive with SalaryBook's intelligence panel.
 
 ---
 
-### Phase 6 — Remove dead/duplicate hook code
+### Phase 6 - Remove dead/duplicate hook code
 
-**Goal:** ensure there’s exactly one source-of-truth for sidebar stack.
+**Goal:** ensure there's exactly one source-of-truth for sidebar stack.
 
 1) Remove `features/SalaryBook/hooks/useSidebarStack.ts` (currently redundant).
 2) Ensure `features/SalaryBook/hooks/index.ts` re-exports from the canonical location.
@@ -326,13 +326,13 @@ Steps:
 
 ---
 
-### Phase 7 — Update docs + AGENTS handoff
+### Phase 7 - Update docs + AGENTS handoff
 
 1) Update `web/HANDOFF.md`:
-   - “ShellProvider” renamed / moved
-   - “TopNav” renamed / moved
+   - "ShellProvider" renamed / moved
+   - "TopNav" renamed / moved
 
-2) Update `web/MIGRATION_MEMO.md` (or `web/AGENTS.md`) with “Boundary refactor” completion.
+2) Update `web/AGENTS.md` with "Boundary refactor" completion.
 
 ---
 
@@ -394,13 +394,13 @@ Steps:
 
 These are explicitly out-of-scope for the initial refactor, but become easier after separation:
 
-1) **Generalize “command bar slots”**
+1) **Generalize "command bar slots"**
    - If future views need their own command bars, the app frame can provide a header slot; each view provides its own header component.
 
-2) **Generalize “3-pane layout” variants**
+2) **Generalize "3-pane layout" variants**
    - Some views may want no right panel or a collapsible right panel.
 
-3) **Extract a generic “StickyHeaderTable” pattern**
+3) **Extract a generic "StickyHeaderTable" pattern**
    - Only after a second view needs the same mechanics.
 
 ---
@@ -409,7 +409,7 @@ These are explicitly out-of-scope for the initial refactor, but become easier af
 
 When implementing:
 
-- Prefer *move + re-export* over “move everything and update every import in one shot”.
+- Prefer *move + re-export* over "move everything and update every import in one shot".
 - Keep commits small and behavior-preserving.
 - Use `rg` to find imports and update systematically.
 
@@ -430,11 +430,11 @@ Suggested command sequence per phase:
 
 1) **Where should global filters live long-term?**
    - Today `FilterProvider` is app-global; UI is SalaryBook-specific.
-   - This is acceptable if filters are intended to be “global lenses” across future views.
+   - This is acceptable if filters are intended to be "global lenses" across future views.
 
 2) **Should `useTeams` become app-global?**
-   - Right now it’s in SalaryBook hooks; command bar uses it.
-   - If future views need teams, consider moving `useTeams` into a shared “NBA” domain module (but not required now).
+   - Right now it's in SalaryBook hooks; command bar uses it.
+   - If future views need teams, consider moving `useTeams` into a shared "NBA" domain module (but not required now).
 
 3) **What do we call the right panel?**
    - `RightPanel` is neutral.
@@ -442,7 +442,7 @@ Suggested command sequence per phase:
 
 ---
 
-### Appendix A — Current files implicated (for quick grep)
+### Appendix A - Current files implicated (for quick grep)
 
 - Layout / app-ish:
   - `src/components/app/AppShell/AppShell.tsx`

@@ -160,7 +160,6 @@ Historical/reference:
 | Doc | What it covers |
 |-----|----------------|
 | `prototypes/salary-book-react/` | React prototype (interaction reference, not implementation) |
-| `web/MIGRATION_MEMO.md` | Why we moved from React to Rails + Datastar |
 
 ---
 

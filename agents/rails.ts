@@ -44,7 +44,6 @@ REVIEW INPUTS:
 7) prototypes/salary-book-react/docs/legacy-web-specs/01-salary-book.md
 8) prototypes/salary-book-react/docs/legacy-web-specs/02-team-header-and-draft-assets.md
 9) prototypes/salary-book-react/docs/legacy-web-specs/03-trade-machine.md
-10) web/MIGRATION_MEMO.md
 
 SUPERVISOR CHECKLIST:
 - Is the worker advancing the highest-priority unchecked task (P0/P1 first unless roadmap says otherwise)?
@@ -95,7 +94,6 @@ KEY REFERENCES:
 - prototypes/salary-book-react/docs/legacy-web-specs/01-salary-book.md — OG Salary Book interaction contract
 - prototypes/salary-book-react/docs/legacy-web-specs/02-team-header-and-draft-assets.md — OG header + draft details
 - prototypes/salary-book-react/docs/legacy-web-specs/03-trade-machine.md — OG trade overlay requirements
-- web/MIGRATION_MEMO.md — implementation mapping
 
 STYLE CONVENTIONS:
 - Prefer Tailwind utility classes in .html.erb.
@@ -139,7 +137,6 @@ INPUTS:
 - prototypes/salary-book-react/docs/legacy-web-specs/01-salary-book.md
 - prototypes/salary-book-react/docs/legacy-web-specs/02-team-header-and-draft-assets.md
 - prototypes/salary-book-react/docs/legacy-web-specs/03-trade-machine.md
-- web/MIGRATION_MEMO.md
 - current state of web/
 
 BACKLOG REQUIREMENTS:

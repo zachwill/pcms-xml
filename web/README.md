@@ -59,7 +59,6 @@ Notes:
 - `web/docs/README.md` (operational playbooks)
 - `reference/sites/INTERACTION_MODELS.md` (current interaction thesis)
 - `reference/datastar/insights.md` + `reference/datastar/rails.md` (Datastar conventions)
-- `web/MIGRATION_MEMO.md` (historical rewrite memo)
 - `prototypes/salary-book-react/docs/legacy-web-specs/*` (archived OG specs)
 
 Backlog is tracked in PRs/issues (we intentionally avoid a `web/TODO.md` file to reduce staleness).

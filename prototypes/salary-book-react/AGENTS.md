@@ -17,7 +17,6 @@ Current product docs/specs:
 - `web/AGENTS.md`
 - `reference/sites/INTERACTION_MODELS.md`
 - `reference/datastar/*`
-- `web/MIGRATION_MEMO.md`
 
 Historical OG specs (archived from `web/specs/`):
 - `prototypes/salary-book-react/docs/legacy-web-specs/*`
