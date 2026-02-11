@@ -98,12 +98,33 @@ BEGIN
      OR (w.cap_2026_total_percentile IS NOT NULL AND (w.cap_2026_total_percentile < 0 OR w.cap_2026_total_percentile > 1))
      OR (w.cap_2027_total_percentile IS NOT NULL AND (w.cap_2027_total_percentile < 0 OR w.cap_2027_total_percentile > 1))
      OR (w.client_count_percentile IS NOT NULL AND (w.client_count_percentile < 0 OR w.client_count_percentile > 1))
-     OR (w.max_contract_count_percentile IS NOT NULL AND (w.max_contract_count_percentile < 0 OR w.max_contract_count_percentile > 1));
+     OR (w.max_contract_count_percentile IS NOT NULL AND (w.max_contract_count_percentile < 0 OR w.max_contract_count_percentile > 1))
+     OR (w.team_count_percentile IS NOT NULL AND (w.team_count_percentile < 0 OR w.team_count_percentile > 1))
+     OR (w.standard_count_percentile IS NOT NULL AND (w.standard_count_percentile < 0 OR w.standard_count_percentile > 1))
+     OR (w.two_way_count_percentile IS NOT NULL AND (w.two_way_count_percentile < 0 OR w.two_way_count_percentile > 1));
 
   IF out_of_range_count > 0 THEN
     RAISE EXCEPTION
       'agents_warehouse percentile out-of-range rows=%',
       out_of_range_count;
+  END IF;
+END;
+$$;
+
+DO $$
+DECLARE
+  null_count int;
+BEGIN
+  SELECT COUNT(*) INTO null_count
+  FROM pcms.agents_warehouse w
+  WHERE w.team_count_percentile IS NULL
+     OR w.standard_count_percentile IS NULL
+     OR w.two_way_count_percentile IS NULL;
+
+  IF null_count > 0 THEN
+    RAISE EXCEPTION
+      'agents_warehouse new percentile columns are NULL rows=%',
+      null_count;
   END IF;
 END;
 $$;

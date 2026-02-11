@@ -856,53 +856,42 @@ module Tools
       id_sql = conn.quote(agent_id)
 
       conn.exec_query(<<~SQL).first || {}
-        WITH ranked AS (
-          SELECT
-            agent_id,
-            PERCENT_RANK() OVER (ORDER BY team_count) AS team_count_percentile,
-            PERCENT_RANK() OVER (ORDER BY standard_count) AS standard_count_percentile,
-            PERCENT_RANK() OVER (ORDER BY two_way_count) AS two_way_count_percentile
-          FROM pcms.agents_warehouse
-        )
         SELECT
-          w.standard_count,
-          w.two_way_count,
-          w.client_count AS total_count,
-          w.team_count,
+          standard_count,
+          two_way_count,
+          client_count AS total_count,
+          team_count,
 
-          w.cap_2025_total AS book_2025,
-          w.cap_2026_total AS book_2026,
-          w.cap_2027_total AS book_2027,
+          cap_2025_total AS book_2025,
+          cap_2026_total AS book_2026,
+          cap_2027_total AS book_2027,
 
-          w.rookie_scale_count,
-          w.min_contract_count,
-          w.no_trade_count,
-          w.trade_kicker_count,
-          w.trade_restricted_count,
+          rookie_scale_count,
+          min_contract_count,
+          no_trade_count,
+          trade_kicker_count,
+          trade_restricted_count,
 
-          w.expiring_2025,
-          w.expiring_2026,
-          w.expiring_2027,
+          expiring_2025,
+          expiring_2026,
+          expiring_2027,
 
-          w.player_option_count,
-          w.team_option_count,
+          player_option_count,
+          team_option_count,
 
-          w.max_contract_count,
-          w.prior_year_nba_now_free_agent_count,
+          max_contract_count,
+          prior_year_nba_now_free_agent_count,
 
-          w.cap_2025_total_percentile,
-          w.cap_2026_total_percentile,
-          w.cap_2027_total_percentile,
-          w.client_count_percentile,
-          w.max_contract_count_percentile,
-
-          r.team_count_percentile,
-          r.standard_count_percentile,
-          r.two_way_count_percentile
-        FROM pcms.agents_warehouse w
-        LEFT JOIN ranked r
-          ON r.agent_id = w.agent_id
-        WHERE w.agent_id = #{id_sql}
+          cap_2025_total_percentile,
+          cap_2026_total_percentile,
+          cap_2027_total_percentile,
+          client_count_percentile,
+          max_contract_count_percentile,
+          team_count_percentile,
+          standard_count_percentile,
+          two_way_count_percentile
+        FROM pcms.agents_warehouse
+        WHERE agent_id = #{id_sql}
         LIMIT 1
       SQL
     end

@@ -154,6 +154,15 @@ module SalaryBookHelper
     y == 2 || y == 3
   end
 
+  # Current-season trade restrictions used by Two-Way badges and salary-cell overrides.
+  def trade_restricted_now?(player, year = SALARY_YEARS.first)
+    return false unless current_season?(year)
+
+    player["is_trade_consent_required_now"] ||
+      player["is_trade_restricted_now"] ||
+      poison_pill_now?(player, year)
+  end
+
   # Get CSS classes for a salary cell based on guarantee/option/trade status
   def salary_cell_classes(player, year)
     salary = player_salary(player, year)
@@ -209,11 +218,9 @@ module SalaryBookHelper
     end
 
     # Current-season trade restrictions (override all other coloring)
-    if is_current
-      if player["is_trade_consent_required_now"] || player["is_trade_restricted_now"] || poison_pill_now?(player, year)
-        bg_class = "bg-red-100/60 dark:bg-red-900/30"
-        text_class = "text-red-700 dark:text-red-300"
-      end
+    if trade_restricted_now?(player, year)
+      bg_class = "bg-red-100/60 dark:bg-red-900/30"
+      text_class = "text-red-700 dark:text-red-300"
     end
 
     "#{bg_class} #{text_class}".strip
