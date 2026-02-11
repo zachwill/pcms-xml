@@ -5,7 +5,7 @@
   - label: optional string
   - value: optional string/HTML
   - title: optional string (tooltip)
-  - variant: "default" | "positive" | "negative" | "muted"
+  - variant: "default" | "positive" | "negative" | "muted" | "option_po" | "option_to" | "option_eto"
   - dark: boolean (totals footer)
   - class_name: extra classes for the outer box
   - label_class_name: extra classes for the label
@@ -30,23 +30,47 @@
     "default" => "text-foreground",
     "positive" => "text-green-600 dark:text-green-400",
     "negative" => "text-red-500",
-    "muted" => "text-muted-foreground/60"
+    "muted" => "text-muted-foreground/60",
+    "option_po" => "text-blue-700 dark:text-blue-300",
+    "option_to" => "text-purple-700 dark:text-purple-300",
+    "option_eto" => "text-orange-700 dark:text-orange-300"
   }[variant] || "text-foreground"
 
   dark_value_color = {
     "default" => "text-zinc-100 dark:text-foreground",
     "positive" => "text-green-400",
     "negative" => "text-red-400 dark:text-red-500",
-    "muted" => "text-zinc-500 dark:text-muted-foreground/60"
+    "muted" => "text-zinc-500 dark:text-muted-foreground/60",
+    "option_po" => "text-blue-700 dark:text-blue-300",
+    "option_to" => "text-purple-700 dark:text-purple-300",
+    "option_eto" => "text-orange-700 dark:text-orange-300"
   }[variant] || "text-zinc-100 dark:text-foreground"
+
+  option_bg = {
+    "option_po" => "bg-blue-100/60 dark:bg-blue-900/30",
+    "option_to" => "bg-purple-100/60 dark:bg-purple-900/30",
+    "option_eto" => "bg-orange-100/60 dark:bg-orange-900/30"
+  }[variant]
+
+  label_color = {
+    "option_po" => "text-blue-700/80 dark:text-blue-300/80",
+    "option_to" => "text-purple-700/80 dark:text-purple-300/80",
+    "option_eto" => "text-orange-700/80 dark:text-orange-300/80"
+  }[variant] || (dark ? "text-zinc-400 dark:text-muted-foreground" : "text-muted-foreground")
 
   has_label = label.present?
   has_subvalue = subvalue.present?
 
   # Determine if class_name overrides background (contains 'bg-')
   has_custom_bg = class_name.to_s.include?("bg-")
-  default_bg = has_custom_bg ? "" : (dark ? "bg-zinc-700 dark:bg-zinc-700/80" : "bg-zinc-200/80 dark:bg-zinc-700/80")
-  label_color = dark ? "text-zinc-400 dark:text-muted-foreground" : "text-muted-foreground"
+  default_bg = if has_custom_bg
+    ""
+  elsif option_bg.present?
+    option_bg
+  else
+    dark ? "bg-zinc-700 dark:bg-zinc-700/80" : "bg-zinc-200/80 dark:bg-zinc-700/80"
+  end
+
   subvalue_color = dark ? "text-zinc-400/90 dark:text-zinc-300/80" : "text-muted-foreground/80"
   height_class = has_subvalue ? "h-12" : "h-10"
 %>

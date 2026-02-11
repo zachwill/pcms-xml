@@ -85,9 +85,9 @@
 
   next_decision_variant = if next_option.present?
     case next_option[:option]
-    when "PO" then "default"
-    when "TO" then "default"
-    when "ETO" then "default"
+    when "PO" then "option_po"
+    when "TO" then "option_to"
+    when "ETO" then "option_eto"
     else "muted"
     end
   elsif fa_year.present?
