@@ -45,6 +45,25 @@ def parse_date(value: str | None):
             return None
 
 
+def normalize_season_type(value: str | None) -> str:
+    if not value:
+        return ""
+
+    normalized = " ".join(str(value).strip().lower().replace("-", " ").split())
+    aliases = {
+        "regular": "regular season",
+        "regular season": "regular season",
+        "pre season": "pre season",
+        "preseason": "pre season",
+        "playoff": "playoffs",
+        "playoffs": "playoffs",
+        "play in": "playin",
+        "playin": "playin",
+        "all star": "all star",
+    }
+    return aliases.get(normalized, normalized)
+
+
 def parse_iso_duration(value: str | None):
     if not value:
         return None
@@ -786,6 +805,7 @@ def main(
     try:
         season_label_value = season_label
         season_type_value = season_type or "Regular Season"
+        desired_season_type = normalize_season_type(season_type_value)
         conn = psycopg.connect(os.environ["POSTGRES_URL"])
         game_list: list[tuple[str, int | None]] = []
         game_id_list: list[str] = []
@@ -801,15 +821,27 @@ def main(
                 game_list = [(gid, status_map.get(gid)) for gid in game_id_list]
         else:
             start_dt, end_dt = resolve_date_range(mode, days_back, start_date, end_date, season_label)
+            season_label_filter = season_label_value or None
             query = """
-                SELECT game_id, game_status
+                SELECT game_id, game_status, season_type
                 FROM nba.games
                 WHERE game_date BETWEEN %s AND %s
+                  AND league_id = %s
+                  AND (%s::text IS NULL OR season_label = %s)
                 ORDER BY game_date, game_id
             """
             with conn.cursor() as cur:
-                cur.execute(query, (start_dt, end_dt))
-                game_list = cur.fetchall()
+                cur.execute(query, (start_dt, end_dt, league_id, season_label_filter, season_label_filter))
+                game_rows = cur.fetchall()
+
+            if desired_season_type:
+                game_rows = [
+                    (gid, status, game_season_type)
+                    for gid, status, game_season_type in game_rows
+                    if normalize_season_type(game_season_type) == desired_season_type
+                ]
+
+            game_list = [(gid, status) for gid, status, _ in game_rows]
 
         allow_unknown_final = bool(game_id_list)
         if only_final_games:

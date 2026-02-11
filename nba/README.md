@@ -1,36 +1,27 @@
-# NBA (nba)
+# NBA (`nba`)
 
-This folder is the workspace for integrating **official NBA data** (new NBA Developer Portal APIs) plus the legacy **NGSS** feeds when they still provide important missing fields (e.g., certain Play-by-Play details).
+This folder supports ingesting **official NBA API** data plus legacy **NGSS** data (where NGSS still provides required fields).
 
-The output target is a new Postgres schema named `nba`.
+Target database schema: `nba`.
 
-## What's Here
+## What’s Here
 
-- `nba/api/` — OpenAPI specs (NBA Developer Portal + `ngss.txt`)
-- `nba/schema/` — table specs (design docs; not migrations yet)
-- `nba/samples/` — example API payloads
-- `nba/inspiration/` — UI patterns from other sites we want the schema to support
+- `nba/api/` — API reference specs (official NBA + NGSS)
+- `nba/samples/` — sample payloads
+- `nba/inspiration/` — product/UI inspiration
+- `nba/migrations/` — SQL migrations for `nba.*`
 
-## Design Philosophy (Short)
+## Canonical Sources of Truth
 
-- Prefer **wide, useful tables** over perfect normalization.
-- Prefer **UPSERTs into tables** over complicated VIEW stacks.
-- Use JSONB when it prevents schema explosion, especially for **Play-by-Play (PBP)**.
-- Official NBA data is the backbone for identity:
-  - players use `nba_id`
-  - teams use `team_id`
-- When NGSS is required, store it in `ngss_*` tables (within the same `nba` schema).
+For current implementation details, use:
 
-See `nba/AGENTS.md` for the full agent-facing rules.
+1. `import_nba_data.flow/` (what is fetched + written)
+2. `nba/migrations/` (actual DDL)
 
-## Agent: Schema Design
+`nba/schema/` has been removed.
 
-We use an agent loop to iteratively design the `nba` schema as specs under `nba/schema/`.
+## Where to Look Next
 
-- Agent: `agents/nba.ts`
-- Task file: `.ralph/NBA.md`
-- Output: `nba/schema/*.txt`
-
-Run:
-- `bun agents/nba.ts`
-- With focus: `bun agents/nba.ts -c "Start with games + boxscore + pbp"`
+- `nba/AGENTS.md` — working conventions for this lane
+- `import_nba_data.flow/AGENTS.md` — flow behavior + local run guidance
+- `nba/migrations/README.md` — migration scope notes

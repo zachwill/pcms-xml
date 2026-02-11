@@ -206,6 +206,9 @@ value:
           season_label:
             type: javascript
             expr: flow_input.season_label
+          season_type:
+            type: javascript
+            expr: flow_input.season_type
           mode:
             type: javascript
             expr: flow_input.run_mode

@@ -36,6 +36,25 @@ def parse_date(value: str | None):
             return None
 
 
+def normalize_season_type(value: str | None) -> str:
+    if not value:
+        return ""
+
+    normalized = " ".join(str(value).strip().lower().replace("-", " ").split())
+    aliases = {
+        "regular": "regular season",
+        "regular season": "regular season",
+        "pre season": "pre season",
+        "preseason": "pre season",
+        "playoff": "playoffs",
+        "playoffs": "playoffs",
+        "play in": "playin",
+        "playin": "playin",
+        "all star": "all star",
+    }
+    return aliases.get(normalized, normalized)
+
+
 def parse_datetime(value: str | None):
     if not value:
         return None
@@ -235,6 +254,7 @@ def main(
     dry_run: bool = False,
     league_id: str = "00",
     season_label: str | None = None,
+    season_type: str | None = None,
     mode: str = "refresh",
     days_back: int = 2,
     start_date: str | None = None,
@@ -515,15 +535,28 @@ def main(
             game_list = [gid.strip() for gid in game_ids.split(",") if gid.strip()]
         else:
             start_dt, end_dt = resolve_date_range(mode, days_back, start_date, end_date, season_label)
+            season_label_filter = season_label or None
+            desired_season_type = normalize_season_type(season_type)
             query = """
-                SELECT game_id
+                SELECT game_id, season_type
                 FROM nba.games
                 WHERE game_date BETWEEN %s AND %s
+                  AND league_id = %s
+                  AND (%s::text IS NULL OR season_label = %s)
                 ORDER BY game_date, game_id
             """
             with conn.cursor() as cur:
-                cur.execute(query, (start_dt, end_dt))
-                game_list = [row[0] for row in cur.fetchall()]
+                cur.execute(query, (start_dt, end_dt, league_id, season_label_filter, season_label_filter))
+                game_rows = cur.fetchall()
+
+            if desired_season_type:
+                game_rows = [
+                    (game_id_value, game_season_type)
+                    for game_id_value, game_season_type in game_rows
+                    if normalize_season_type(game_season_type) == desired_season_type
+                ]
+
+            game_list = [row[0] for row in game_rows]
 
         alert_rows: list[dict] = []
         storyline_rows: list[dict] = []

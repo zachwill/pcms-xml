@@ -63,6 +63,25 @@ def parse_date(value: str | None):
             return None
 
 
+def normalize_season_type(value: str | None) -> str:
+    if not value:
+        return ""
+
+    normalized = " ".join(str(value).strip().lower().replace("-", " ").split())
+    aliases = {
+        "regular": "regular season",
+        "regular season": "regular season",
+        "pre season": "pre season",
+        "preseason": "pre season",
+        "playoff": "playoffs",
+        "playoffs": "playoffs",
+        "play in": "playin",
+        "playin": "playin",
+        "all star": "all star",
+    }
+    return aliases.get(normalized, normalized)
+
+
 def resolve_season_date_range(season_label: str | None) -> tuple[date, date]:
     if not season_label:
         raise ValueError("season_backfill mode requires season_label")
@@ -591,6 +610,7 @@ def main(
         fetched_at = now_utc()
         season_label_value = season_label
         season_year = parse_season_year(season_label_value)
+        desired_season_type = normalize_season_type(season_type)
 
         player_rows: list[dict] = []
         team_rows: list[dict] = []
@@ -606,19 +626,30 @@ def main(
             game_list = [gid.strip() for gid in game_ids.split(",") if gid.strip()]
         else:
             start_dt, end_dt = resolve_date_range(mode, days_back, start_date, end_date, season_label)
+            season_label_filter = season_label_value or None
             query = """
-                SELECT game_id, game_status
+                SELECT game_id, game_status, season_type
                 FROM nba.games
                 WHERE game_date BETWEEN %s AND %s
+                  AND league_id = %s
+                  AND (%s::text IS NULL OR season_label = %s)
                 ORDER BY game_date, game_id
             """
             with conn.cursor() as cur:
-                cur.execute(query, (start_dt, end_dt))
+                cur.execute(query, (start_dt, end_dt, league_id, season_label_filter, season_label_filter))
                 game_status_rows = cur.fetchall()
+
+            if desired_season_type:
+                game_status_rows = [
+                    (gid, status, game_season_type)
+                    for gid, status, game_season_type in game_status_rows
+                    if normalize_season_type(game_season_type) == desired_season_type
+                ]
+
             if only_final_games:
-                game_list = [gid for gid, status in game_status_rows if status == 3]
+                game_list = [gid for gid, status, _ in game_status_rows if status == 3]
             else:
-                game_list = [gid for gid, _ in game_status_rows]
+                game_list = [gid for gid, _, _ in game_status_rows]
 
         with httpx.Client(timeout=60) as client:
             for per_mode in PLAYER_PER_MODES:
