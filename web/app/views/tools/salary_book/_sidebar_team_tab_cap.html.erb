@@ -228,7 +228,7 @@
               <% ledger_status_label = ledger_status[:label] == "Under Tax" ? "Under" : ledger_status[:label] %>
               <% ledger_cap_space_class = ledger_cap_space.nil? ? nil : (ledger_cap_space.to_f >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500") %>
               <% highlight = ledger_year.to_i == year.to_i %>
-              <tr class="<%= highlight ? 'bg-yellow-50/70 dark:bg-yellow-900/10' : '' %>">
+              <tr class="<%= highlight ? 'bg-yellow-50/70 dark:bg-yellow-900/25' : '' %>">
                 <td class="px-2 py-1.5 tabular-nums"><%= format_year_label(ledger_year) %></td>
                 <td class="px-2 py-1.5 text-right tabular-nums"><%= ledger_cap_total ? format_compact_currency(ledger_cap_total) : "—" %></td>
                 <td class="px-2 py-1.5 text-right tabular-nums <%= ledger_cap_space_class %>"><%= ledger_cap_space ? format_room_amount(ledger_cap_space) : "—" %></td>

@@ -60,16 +60,17 @@
     c["player_name"].to_s
   }
 
-  # Determine the "next FA year" for each client
+  # Determine each client's next free-agency summer label (e.g., "FA 28").
   next_fa_label = ->(c) {
     return nil if c["is_two_way"]
-    if c["cap_2025"].to_f > 0 && c["cap_2026"].to_f == 0
-      "FA '25"
-    elsif c["cap_2026"].to_f > 0 && c["cap_2027"].to_f == 0
-      "FA '26"
-    elsif c["cap_2027"].to_f > 0 && c["cap_2028"].to_f == 0
-      "FA '27"
+
+    salary_years.each_cons(2) do |y, y_next|
+      if c["cap_#{y}"].to_f > 0 && c["cap_#{y_next}"].to_f == 0
+        return "FA #{y_next.to_s[-2..]}"
+      end
     end
+
+    nil
   }
 
   # Active option on next decision year

@@ -28,7 +28,7 @@
       <% salary_years.each do |year| %>
         <div
           class="w-24 shrink-0"
-          data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10': $selectedseason === '<%= year %>' }"
+          data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/25': $selectedseason === '<%= year %>' }"
         ></div>
       <% end %>
 
@@ -68,7 +68,7 @@
           <% is_empty = amt.nil? || amt.to_f == 0 %>
           <div
             class="w-24 shrink-0 font-mono tabular-nums text-center <%= is_empty ? 'text-muted-foreground/50' : '' %>"
-            data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10': $selectedseason === '<%= year %>' }"
+            data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/25': $selectedseason === '<%= year %>' }"
           >
             <%= is_empty ? "—" : format_compact_currency(amt) %>
           </div>

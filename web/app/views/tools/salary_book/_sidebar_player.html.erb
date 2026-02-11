@@ -400,7 +400,7 @@
                     bonus_parts << "L #{compact.call(likely_bonus)}" if likely_bonus.present? && likely_bonus.to_f != 0
                     bonus_parts << "U #{compact.call(unlikely_bonus)}" if unlikely_bonus.present? && unlikely_bonus.to_f != 0
                   %>
-                  <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                  <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 transition-colors duration-75">
                     <td class="px-2 py-1.5 tabular-nums"><%= format_year_label(y) %></td>
                     <td class="px-2 py-1.5 text-right tabular-nums font-medium"><%= compact.call(salary) %></td>
                     <td class="px-2 py-1.5 text-right">

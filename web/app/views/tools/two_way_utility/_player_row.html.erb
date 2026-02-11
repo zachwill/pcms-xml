@@ -7,10 +7,41 @@
 <% games_used_pct = player["games_used_pct"] %>
 <% status_chip = player["limit_status_chip"] %>
 
+<% current_year = SalaryBookHelper::SALARY_YEARS.first %>
+<% next_year = SalaryBookHelper::SALARY_YEARS[1] %>
 <% age_yos = player_age_yos_display(player) %>
 <% cap_2025 = player["cap_2025"] %>
 <% cap_2026 = player["cap_2026"] %>
-<% trade_restricted_now = player["is_trade_consent_required_now"] || player["is_trade_restricted_now"] || player["is_poison_pill"] %>
+
+<% poison_pill_now = poison_pill_now?(player, current_year) %>
+<% trade_restricted_now = player["is_trade_consent_required_now"] || player["is_trade_restricted_now"] || poison_pill_now %>
+
+<% status_tokens = [] %>
+<% status_tokens << { label: "2W", classes: "text-foreground" } if player["is_two_way"] %>
+<% status_tokens << { label: "NTC", classes: "text-red-600 dark:text-red-400" } if player["is_no_trade"] %>
+<% status_tokens << { label: "PP", classes: "text-red-600 dark:text-red-400" } if poison_pill_now %>
+<% if player["is_trade_restricted_now"] || player["is_trade_consent_required_now"] %>
+  <% status_tokens << { label: "TR", classes: "text-red-600 dark:text-red-400" } %>
+<% end %>
+
+<% if next_year.present? %>
+  <% next_option = player_option(player, next_year) %>
+  <% option_classes = case next_option
+    when "PO", "ETO"
+      "text-blue-600 dark:text-blue-400"
+    when "TO"
+      "text-purple-600 dark:text-purple-400"
+  end %>
+  <% status_tokens << { label: next_option, classes: option_classes } if next_option.present? && option_classes.present? %>
+
+  <% next_year_salary = player_salary(player, next_year) %>
+  <% if player["is_non_guaranteed_#{next_year}"] && next_year_salary.present? && next_year_salary.to_f > 0 %>
+    <% status_tokens << { label: "NG", classes: "text-amber-600 dark:text-amber-400" } %>
+  <% end %>
+<% end %>
+
+<% show_trade_kicker = player["is_trade_bonus"] && trade_bonus_has_room?(player, current_year) != false %>
+<% status_tokens << { label: "TK", classes: "text-orange-600 dark:text-orange-400" } if show_trade_kicker %>
 
 <% restricted_2025_cell_class = trade_restricted_now ? "bg-red-100/60 dark:bg-red-900/30" : "" %>
 <% restricted_2025_text_class = trade_restricted_now ? "text-red-700 dark:text-red-300" : "text-foreground" %>
@@ -109,12 +140,22 @@ end %>
         </a>
       </div>
 
-      <div class="h-[16px] -mt-px flex items-start gap-2 min-w-0 pl-1 pr-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums">
-        <% if age_yos.present? %>
-          <span class="truncate"><%= age_yos %></span>
-        <% end %>
-        <% if player["is_two_way"] %>
-          <span class="text-blue-600 dark:text-blue-400">2W</span>
+      <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1 pr-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
+        <% if age_yos.present? || status_tokens.any? %>
+          <div class="flex items-start min-w-0 overflow-hidden whitespace-nowrap">
+            <% if age_yos.present? %>
+              <span class="truncate"><%= age_yos %></span>
+            <% end %>
+
+            <% status_tokens.each_with_index do |token, idx| %>
+              <% if age_yos.present? || idx.positive? %>
+                <span class="px-1 text-muted-foreground/50">·</span>
+              <% end %>
+              <span class="<%= token[:classes] %>"><%= token[:label] %></span>
+            <% end %>
+          </div>
+        <% else %>
+          <span class="text-muted-foreground/50">—</span>
         <% end %>
       </div>
     </div>

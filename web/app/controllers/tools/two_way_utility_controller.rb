@@ -52,7 +52,13 @@ module Tools
           COALESCE(sbw.is_two_way, true) AS is_two_way,
           COALESCE(sbw.is_trade_consent_required_now, false) AS is_trade_consent_required_now,
           COALESCE(sbw.is_trade_restricted_now, false) AS is_trade_restricted_now,
-          COALESCE(sbw.is_poison_pill, false) AS is_poison_pill
+          COALESCE(sbw.is_poison_pill, false) AS is_poison_pill,
+          COALESCE(sbw.is_no_trade, false) AS is_no_trade,
+          COALESCE(sbw.is_trade_bonus, false) AS is_trade_bonus,
+          sbw.trade_bonus_percent,
+          sbw.option_2026,
+          COALESCE(sbw.is_non_guaranteed_2026, false) AS is_non_guaranteed_2026,
+          sbw.pct_cap_2025
         FROM pcms.two_way_utility_warehouse tw
         LEFT JOIN LATERAL (
           SELECT
@@ -64,7 +70,13 @@ module Tools
             s.is_two_way,
             s.is_trade_consent_required_now,
             s.is_trade_restricted_now,
-            s.is_poison_pill
+            s.is_poison_pill,
+            s.is_no_trade,
+            s.is_trade_bonus,
+            s.trade_bonus_percent,
+            s.option_2026,
+            s.is_non_guaranteed_2026,
+            s.pct_cap_2025
           FROM pcms.salary_book_warehouse s
           WHERE s.player_id = tw.player_id
             AND s.team_code = tw.team_code

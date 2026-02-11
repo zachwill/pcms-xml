@@ -26,7 +26,7 @@
           <% years.each do |stats_year| %>
             <% row = stats_by_year[stats_year] || {} %>
             <% highlight = stats_year.to_i == year.to_i %>
-            <tr class="<%= highlight ? 'bg-yellow-50/70 dark:bg-yellow-900/10' : '' %>">
+            <tr class="<%= highlight ? 'bg-yellow-50/70 dark:bg-yellow-900/25' : '' %>">
               <td class="px-2 py-1.5 tabular-nums"><%= format_year_label(stats_year) %></td>
               <td class="px-2 py-1.5 text-right tabular-nums"><%= row["cap_total"] ? format_compact_currency(row["cap_total"]) : "—" %></td>
               <td class="px-2 py-1.5 text-right tabular-nums"><%= row["tax_total"] ? format_compact_currency(row["tax_total"]) : "—" %></td>

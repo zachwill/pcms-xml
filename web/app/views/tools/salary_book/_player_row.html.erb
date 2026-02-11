@@ -17,7 +17,7 @@
 <div
   id="player-<%= player_id %>"
   class="group cursor-pointer border-b border-border/50 transition-colors duration-75
-         hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10"
+         hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25"
   role="button"
   tabindex="0"
   data-on:click="@get('<%= tools_salary_book_sidebar_player_path(id: player_id) %>')"
@@ -28,7 +28,7 @@
     <div
       class="w-52 shrink-0 pl-4 sticky left-0 z-20 relative
              bg-background transition-colors duration-75
-             group-hover:bg-yellow-50 dark:group-hover:bg-yellow-900
+             group-hover:bg-yellow-50 dark:group-hover:bg-yellow-900/25
              after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/30"
     >
       <div class="grid grid-cols-[40px_1fr] grid-rows-[24px_16px]" aria-label="<%= player_name %> player info">
@@ -54,16 +54,53 @@
         </div>
 
         <%# Row B: Details %>
-        <div class="h-[16px] -mt-px flex items-start gap-2 min-w-0 pl-1 pr-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums">
+        <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1 pr-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
+          <% current_year = salary_years.first %>
+          <% next_year = salary_years[1] %>
           <% age_yos = player_age_yos_display(player) %>
-          <% if age_yos.present? %>
-            <span class="truncate"><%= age_yos %></span>
+
+          <% status_tokens = [] %>
+          <% status_tokens << { label: "2W", classes: "text-foreground" } if player["is_two_way"] %>
+          <% status_tokens << { label: "NTC", classes: "text-red-600 dark:text-red-400" } if player["is_no_trade"] %>
+          <% status_tokens << { label: "PP", classes: "text-red-600 dark:text-red-400" } if poison_pill_now?(player, current_year) %>
+          <% if player["is_trade_restricted_now"] || player["is_trade_consent_required_now"] %>
+            <% status_tokens << { label: "TR", classes: "text-red-600 dark:text-red-400" } %>
           <% end %>
-          <% if player["is_two_way"] %>
-            <span class="text-blue-600 dark:text-blue-400">2W</span>
+
+          <% if next_year.present? %>
+            <% next_option = player_option(player, next_year) %>
+            <% option_classes = case next_option
+              when "PO", "ETO"
+                "text-blue-600 dark:text-blue-400"
+              when "TO"
+                "text-purple-600 dark:text-purple-400"
+            end %>
+            <% status_tokens << { label: next_option, classes: option_classes } if next_option.present? && option_classes.present? %>
+
+            <% next_year_salary = player_salary(player, next_year) %>
+            <% if player["is_non_guaranteed_#{next_year}"] && next_year_salary.present? && next_year_salary.to_f > 0 %>
+              <% status_tokens << { label: "NG", classes: "text-amber-600 dark:text-amber-400" } %>
+            <% end %>
           <% end %>
-          <% if player["is_no_trade"] %>
-            <span class="text-red-500">NTC</span>
+
+          <% show_trade_kicker = player["is_trade_bonus"] && trade_bonus_has_room?(player, current_year) != false %>
+          <% status_tokens << { label: "TK", classes: "text-orange-600 dark:text-orange-400" } if show_trade_kicker %>
+
+          <% if age_yos.present? || status_tokens.any? %>
+            <div class="flex items-start min-w-0 overflow-hidden whitespace-nowrap">
+              <% if age_yos.present? %>
+                <span class="truncate"><%= age_yos %></span>
+              <% end %>
+
+              <% status_tokens.each_with_index do |token, idx| %>
+                <% if age_yos.present? || idx.positive? %>
+                  <span class="px-1 text-muted-foreground/50">·</span>
+                <% end %>
+                <span class="<%= token[:classes] %>"><%= token[:label] %></span>
+              <% end %>
+            </div>
+          <% else %>
+            <span class="text-muted-foreground/50">—</span>
           <% end %>
         </div>
       </div>
@@ -109,9 +146,9 @@
         <% is_trade_restricted_cell = trade_restricted_now?(player, year) %>
         <% has_special_bg = effective_cell_classes.include?("bg-") %>
         <% data_class_expr = if is_empty && cap_hold_present
-          "{ 'bg-zinc-100/60 dark:bg-zinc-800/30 text-zinc-700 dark:text-zinc-300': $displayplayercapholds, 'bg-yellow-50/70 dark:bg-yellow-900/10': $selectedseason === '#{year}' && !$displayplayercapholds }"
+          "{ 'bg-zinc-100/60 dark:bg-zinc-800/30 text-zinc-700 dark:text-zinc-300': $displayplayercapholds, 'bg-yellow-50/70 dark:bg-yellow-900/25': $selectedseason === '#{year}' && !$displayplayercapholds }"
         elsif !has_special_bg
-          "{ 'bg-yellow-50/70 dark:bg-yellow-900/10': $selectedseason === '#{year}' }"
+          "{ 'bg-yellow-50/70 dark:bg-yellow-900/25': $selectedseason === '#{year}' }"
         end %>
 
         <div

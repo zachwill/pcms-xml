@@ -357,7 +357,7 @@
                 <% flags << "swap" if pick["is_swap"] || pick["endnote_is_swap"] %>
                 <% flags << "conditional" if pick["is_conditional"] || pick["endnote_is_conditional"] %>
 
-                <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+                <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 transition-colors duration-75">
                   <td class="px-2 py-1.5 tabular-nums"><%= pick["asset_slot"] %>.<%= pick["sub_asset_slot"] %></td>
                   <td class="px-2 py-1.5 font-mono"><%= pick["asset_type"] || "—" %></td>
                   <td class="px-2 py-1.5 text-muted-foreground"><%= flags.any? ? flags.join(" · ") : "—" %></td>

@@ -36,7 +36,7 @@
           data-on:mouseenter="el.dispatchEvent(new CustomEvent('salarybook-setseason', { detail: { year: '<%= year %>' }, bubbles: true }))"
           data-on:focusin="el.dispatchEvent(new CustomEvent('salarybook-setseason', { detail: { year: '<%= year %>' }, bubbles: true }))"
           data-on:click="const samecell = ($selectedseason === '<%= year %>'); if (samecell && $seasonlocked) { $seasonlocked = false; $selectedseason = ''; } else { $selectedseason = '<%= year %>'; $seasonlocked = true; }"
-          data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $selectedseason === '<%= year %>' }"
+          data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/25 text-foreground': $selectedseason === '<%= year %>' }"
         ><%= format_year_label(year) %></div>
       <% end %>
     </div>
