@@ -378,7 +378,7 @@ def main(
     include_game_data: bool = True,
     include_aggregates: bool = False,
     include_supplemental: bool = False,
-    include_ngss: bool = False,
+    include_ngss: bool = True,
     only_final_games: bool = True,
 ) -> dict:
     started_at = now_utc()

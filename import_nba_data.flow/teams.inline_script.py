@@ -93,8 +93,14 @@ def main(
         }
 
     try:
+        params = {"leagueId": league_id}
+        if season_label:
+            params["season"] = season_label
+        if season_type:
+            params["seasonType"] = season_type
+
         with httpx.Client(timeout=30) as client:
-            payload = request_json(client, "/api/stats/team/index", {"leagueId": league_id})
+            payload = request_json(client, "/api/stats/team/index", params)
 
         teams = payload.get("teams") or payload.get("data", {}).get("teams") or []
         fetched_at = now_utc()

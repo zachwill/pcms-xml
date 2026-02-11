@@ -14,7 +14,8 @@ QUERY_TOOL_URL = "https://api.nba.com/v0/api/querytool"
 
 PLAYER_MEASURE_TYPES = ["Base", "Advanced", "Misc", "Scoring"]
 TEAM_MEASURE_TYPES = ["Base", "Advanced", "Misc", "Scoring", "Opponent"]
-PER_MODES = ["Totals", "PerGame", "Per36", "Per100Possessions"]
+PLAYER_PER_MODES = ["Totals", "PerGame", "Per36", "Per100Possessions"]
+TEAM_PER_MODES = ["Totals", "PerGame"]
 LINEUP_MEASURE_TYPES = ["Base", "Advanced"]
 LINEUP_PER_MODES = ["Totals", "PerGame", "Per36Minutes", "Per100Possessions"]
 LINEUP_GAME_PER_MODE = "Totals"
@@ -80,7 +81,14 @@ def request_json(
     url = f"{base_url}{path}"
 
     for attempt in range(retries):
-        resp = client.get(url, params=params, headers=headers)
+        try:
+            resp = client.get(url, params=params, headers=headers)
+        except httpx.TimeoutException:
+            if attempt == retries - 1:
+                raise
+            time.sleep(1 + attempt)
+            continue
+
         if resp.status_code in {429, 500, 502, 503, 504}:
             if attempt == retries - 1:
                 resp.raise_for_status()
@@ -98,7 +106,15 @@ def upsert(conn: psycopg.Connection, table: str, rows: list[dict], conflict_keys
     if not rows:
         return 0
     update_exclude = update_exclude or []
-    cols = list(rows[0].keys())
+
+    cols: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        for col in row.keys():
+            if col not in seen:
+                seen.add(col)
+                cols.append(col)
+
     update_cols = [c for c in cols if c not in conflict_keys and c not in update_exclude]
 
     placeholders = ", ".join(["%s"] * len(cols))
@@ -112,7 +128,7 @@ def upsert(conn: psycopg.Connection, table: str, rows: list[dict], conflict_keys
         sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT ({conflict}) DO NOTHING"
 
     with conn.cursor() as cur:
-        cur.executemany(sql, [tuple(r[c] for c in cols) for r in rows])
+        cur.executemany(sql, [tuple(r.get(c) for c in cols) for r in rows])
     conn.commit()
     return len(rows)
 
@@ -335,14 +351,30 @@ LINEUP_STAT_MAP = {
 }
 
 
+AGG_INT_COLUMNS = {"games_played", "wins", "losses", "double_doubles", "triple_doubles"}
+
+
 def map_stats(stats: dict, mapping: dict, allowed_columns: set[str]) -> dict:
     row: dict = {}
     for key, value in stats.items():
         column = mapping.get(key)
         if not column:
             column = "".join(["_" + c.lower() if c.isupper() else c for c in key]).lstrip("_")
-        if column in allowed_columns:
-            row[column] = value
+        if column not in allowed_columns:
+            continue
+
+        if column in AGG_INT_COLUMNS:
+            parsed = parse_int(value)
+        else:
+            parsed = parse_float(value)
+
+        if parsed is None:
+            continue
+
+        if column == "tm_tov_pct" and abs(parsed) > 1:
+            parsed = parsed / 100
+
+        row[column] = parsed
     return row
 
 
@@ -427,6 +459,19 @@ def normalize_lineup_stat_key(key: str) -> str:
     return normalized
 
 
+LINEUP_RATE_COLUMNS = {
+    "ast_pct",
+    "oreb_pct",
+    "dreb_pct",
+    "reb_pct",
+    "tm_tov_pct",
+    "efg_pct",
+    "ts_pct",
+    "usg_pct",
+    "pie",
+}
+
+
 def map_lineup_stats(stats: dict) -> dict:
     row: dict = {}
     for key, value in stats.items():
@@ -440,8 +485,16 @@ def map_lineup_stats(stats: dict) -> dict:
             parsed = parse_minutes_interval(value)
         else:
             parsed = parse_float(value)
-        if parsed is not None:
-            row[column] = parsed
+        if parsed is None:
+            continue
+        if column == "pie":
+            if abs(parsed) > 100:
+                parsed = parsed / 10000
+            elif abs(parsed) > 1:
+                parsed = parsed / 100
+        elif column in LINEUP_RATE_COLUMNS and abs(parsed) > 1:
+            parsed = parsed / 100
+        row[column] = parsed
     return row
 
 
@@ -473,7 +526,7 @@ def main(
     include_schedule_and_standings: bool = True,
     include_games: bool = True,
     include_game_data: bool = True,
-    include_aggregates: bool = False,
+    include_aggregates: bool = True,
     include_supplemental: bool = False,
     only_final_games: bool = True,
 ) -> dict:
@@ -518,8 +571,8 @@ def main(
             else:
                 game_list = [gid for gid, _ in game_list]
 
-        with httpx.Client(timeout=30) as client:
-            for per_mode in PER_MODES:
+        with httpx.Client(timeout=60) as client:
+            for per_mode in PLAYER_PER_MODES:
                 for measure_type in PLAYER_MEASURE_TYPES:
                     payload = request_json(
                         client,
@@ -556,6 +609,7 @@ def main(
                         compute_fg2(row)
                         player_rows.append(row)
 
+            for per_mode in TEAM_PER_MODES:
                 for measure_type in TEAM_MEASURE_TYPES:
                     payload = request_json(
                         client,

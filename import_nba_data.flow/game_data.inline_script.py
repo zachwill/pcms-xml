@@ -174,7 +174,15 @@ def upsert(conn: psycopg.Connection, table: str, rows: list[dict], conflict_keys
     if not rows:
         return 0
     update_exclude = update_exclude or []
-    cols = list(rows[0].keys())
+
+    cols: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        for col in row.keys():
+            if col not in seen:
+                seen.add(col)
+                cols.append(col)
+
     update_cols = [c for c in cols if c not in conflict_keys and c not in update_exclude]
 
     placeholders = ", ".join(["%s"] * len(cols))
@@ -188,7 +196,7 @@ def upsert(conn: psycopg.Connection, table: str, rows: list[dict], conflict_keys
         sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT ({conflict}) DO NOTHING"
 
     with conn.cursor() as cur:
-        cur.executemany(sql, [tuple(r[c] for c in cols) for r in rows])
+        cur.executemany(sql, [tuple(r.get(c) for c in cols) for r in rows])
     conn.commit()
     return len(rows)
 
@@ -503,12 +511,39 @@ def camel_to_snake(name: str) -> str:
     return out.lstrip("_")
 
 
+ADVANCED_KEY_ALIASES = {
+    "ast_to": "ast_to_ratio",
+}
+
+ADVANCED_PCT_NEEDS_NORMALIZE = {
+    "tm_tov_pct",
+    "e_tm_tov_pct",
+}
+
+
 def map_advanced_stats(stats: dict) -> dict:
     result: dict = {}
     for key, value in stats.items():
         column = camel_to_snake(key)
-        if column in ADVANCED_COLUMNS:
-            result[column] = value
+        column = ADVANCED_KEY_ALIASES.get(column, column)
+        if column not in ADVANCED_COLUMNS:
+            continue
+
+        parsed = value
+        if column == "minutes":
+            parsed = parse_minutes_interval(value)
+        elif column == "poss":
+            parsed = parse_int(value)
+        else:
+            parsed = parse_float(value)
+
+        if parsed is None:
+            continue
+
+        if column in ADVANCED_PCT_NEEDS_NORMALIZE and parsed > 1:
+            parsed = parsed / 100
+
+        result[column] = parsed
     return result
 
 

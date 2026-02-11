@@ -13,6 +13,7 @@ Usage:
 """
 import argparse
 import importlib.util
+import inspect
 import json
 from pathlib import Path
 
@@ -84,7 +85,10 @@ def run_script(name: str, dry_run: bool, params: dict):
     script_params["dry_run"] = dry_run
     script_params.update(SCRIPT_FORCE_FLAGS.get(name, {}))
 
-    result = main(**script_params)
+    accepted = set(inspect.signature(main).parameters.keys())
+    filtered_params = {k: v for k, v in script_params.items() if k in accepted}
+
+    result = main(**filtered_params)
     print(json.dumps(result, indent=2))
     return result
 

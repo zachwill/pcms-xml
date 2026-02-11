@@ -20,24 +20,6 @@ value:
           game_ids:
             type: javascript
             expr: flow_input.game_ids
-          include_aggregates:
-            type: javascript
-            expr: flow_input.include_aggregates
-          include_game_data:
-            type: javascript
-            expr: flow_input.include_game_data
-          include_games:
-            type: javascript
-            expr: flow_input.include_games
-          include_reference:
-            type: javascript
-            expr: flow_input.include_reference
-          include_schedule_and_standings:
-            type: javascript
-            expr: flow_input.include_schedule_and_standings
-          include_supplemental:
-            type: javascript
-            expr: flow_input.include_supplemental
           league_id:
             type: javascript
             expr: flow_input.league_id
@@ -76,24 +58,6 @@ value:
           game_ids:
             type: javascript
             expr: flow_input.game_ids
-          include_aggregates:
-            type: javascript
-            expr: flow_input.include_aggregates
-          include_game_data:
-            type: javascript
-            expr: flow_input.include_game_data
-          include_games:
-            type: javascript
-            expr: flow_input.include_games
-          include_reference:
-            type: javascript
-            expr: flow_input.include_reference
-          include_schedule_and_standings:
-            type: javascript
-            expr: flow_input.include_schedule_and_standings
-          include_supplemental:
-            type: javascript
-            expr: flow_input.include_supplemental
           league_id:
             type: javascript
             expr: flow_input.league_id
@@ -132,24 +96,6 @@ value:
           game_ids:
             type: javascript
             expr: flow_input.game_ids
-          include_aggregates:
-            type: javascript
-            expr: flow_input.include_aggregates
-          include_game_data:
-            type: javascript
-            expr: flow_input.include_game_data
-          include_games:
-            type: javascript
-            expr: flow_input.include_games
-          include_reference:
-            type: javascript
-            expr: flow_input.include_reference
-          include_schedule_and_standings:
-            type: javascript
-            expr: flow_input.include_schedule_and_standings
-          include_supplemental:
-            type: javascript
-            expr: flow_input.include_supplemental
           league_id:
             type: javascript
             expr: flow_input.league_id
@@ -188,24 +134,6 @@ value:
           game_ids:
             type: javascript
             expr: flow_input.game_ids
-          include_aggregates:
-            type: javascript
-            expr: flow_input.include_aggregates
-          include_game_data:
-            type: javascript
-            expr: flow_input.include_game_data
-          include_games:
-            type: javascript
-            expr: flow_input.include_games
-          include_reference:
-            type: javascript
-            expr: flow_input.include_reference
-          include_schedule_and_standings:
-            type: javascript
-            expr: flow_input.include_schedule_and_standings
-          include_supplemental:
-            type: javascript
-            expr: flow_input.include_supplemental
           league_id:
             type: javascript
             expr: flow_input.league_id
@@ -244,24 +172,6 @@ value:
           game_ids:
             type: javascript
             expr: flow_input.game_ids
-          include_aggregates:
-            type: javascript
-            expr: flow_input.include_aggregates
-          include_game_data:
-            type: javascript
-            expr: flow_input.include_game_data
-          include_games:
-            type: javascript
-            expr: flow_input.include_games
-          include_reference:
-            type: javascript
-            expr: flow_input.include_reference
-          include_schedule_and_standings:
-            type: javascript
-            expr: flow_input.include_schedule_and_standings
-          include_supplemental:
-            type: javascript
-            expr: flow_input.include_supplemental
           league_id:
             type: javascript
             expr: flow_input.league_id
@@ -300,24 +210,6 @@ value:
           game_ids:
             type: javascript
             expr: flow_input.game_ids
-          include_aggregates:
-            type: javascript
-            expr: flow_input.include_aggregates
-          include_game_data:
-            type: javascript
-            expr: flow_input.include_game_data
-          include_games:
-            type: javascript
-            expr: flow_input.include_games
-          include_reference:
-            type: javascript
-            expr: flow_input.include_reference
-          include_schedule_and_standings:
-            type: javascript
-            expr: flow_input.include_schedule_and_standings
-          include_supplemental:
-            type: javascript
-            expr: flow_input.include_supplemental
           league_id:
             type: javascript
             expr: flow_input.league_id
@@ -356,24 +248,6 @@ value:
           game_ids:
             type: javascript
             expr: flow_input.game_ids
-          include_aggregates:
-            type: javascript
-            expr: flow_input.include_aggregates
-          include_game_data:
-            type: javascript
-            expr: flow_input.include_game_data
-          include_games:
-            type: javascript
-            expr: flow_input.include_games
-          include_reference:
-            type: javascript
-            expr: flow_input.include_reference
-          include_schedule_and_standings:
-            type: javascript
-            expr: flow_input.include_schedule_and_standings
-          include_supplemental:
-            type: javascript
-            expr: flow_input.include_supplemental
           league_id:
             type: javascript
             expr: flow_input.league_id
@@ -412,24 +286,6 @@ value:
           game_ids:
             type: javascript
             expr: flow_input.game_ids
-          include_aggregates:
-            type: javascript
-            expr: flow_input.include_aggregates
-          include_game_data:
-            type: javascript
-            expr: flow_input.include_game_data
-          include_games:
-            type: javascript
-            expr: flow_input.include_games
-          include_reference:
-            type: javascript
-            expr: flow_input.include_reference
-          include_schedule_and_standings:
-            type: javascript
-            expr: flow_input.include_schedule_and_standings
-          include_supplemental:
-            type: javascript
-            expr: flow_input.include_supplemental
           league_id:
             type: javascript
             expr: flow_input.league_id
@@ -468,27 +324,6 @@ value:
           game_ids:
             type: javascript
             expr: flow_input.game_ids
-          include_aggregates:
-            type: javascript
-            expr: flow_input.include_aggregates
-          include_game_data:
-            type: javascript
-            expr: flow_input.include_game_data
-          include_games:
-            type: javascript
-            expr: flow_input.include_games
-          include_ngss:
-            type: javascript
-            expr: flow_input.include_ngss
-          include_reference:
-            type: javascript
-            expr: flow_input.include_reference
-          include_schedule_and_standings:
-            type: javascript
-            expr: flow_input.include_schedule_and_standings
-          include_supplemental:
-            type: javascript
-            expr: flow_input.include_supplemental
           league_id:
             type: javascript
             expr: flow_input.league_id
@@ -523,13 +358,6 @@ schema:
     - start_date
     - end_date
     - game_ids
-    - include_reference
-    - include_schedule_and_standings
-    - include_games
-    - include_game_data
-    - include_aggregates
-    - include_supplemental
-    - include_ngss
     - only_final_games
   properties:
     days_back:
@@ -548,34 +376,6 @@ schema:
       type: string
       description: Comma-separated game IDs (optional override)
       default: ''
-    include_aggregates:
-      type: boolean
-      description: Fetch + upsert player/team aggregate stats
-      default: true
-    include_game_data:
-      type: boolean
-      description: Fetch + upsert boxscores/pbp/poc (+ optional hustle/tracking)
-      default: true
-    include_games:
-      type: boolean
-      description: Fetch + upsert games (scoreboard)
-      default: true
-    include_ngss:
-      type: boolean
-      description: Fetch + upsert NGSS game/boxscore/pbp/roster/officials data
-      default: true
-    include_reference:
-      type: boolean
-      description: Fetch + upsert teams/players
-      default: true
-    include_schedule_and_standings:
-      type: boolean
-      description: Fetch + upsert schedules + standings
-      default: true
-    include_supplemental:
-      type: boolean
-      description: Fetch + upsert injuries/alerts/storylines/tracking streams
-      default: true
     league_id:
       type: string
       description: 'League ID (00=NBA, 10=WNBA, 20=G League)'

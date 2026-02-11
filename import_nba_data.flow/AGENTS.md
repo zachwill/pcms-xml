@@ -40,7 +40,9 @@ Most scripts share the same parameter set (passed through from `flow_input`):
 - `season_type` (e.g. `Regular Season`)
 - `mode`: `refresh` (last N days) or `backfill` (explicit date range)
 - `days_back`, `start_date`, `end_date`, `game_ids`
-- `include_*` toggles and `only_final_games`
+- `only_final_games`
+
+The flow is intentionally configured to run the full pipeline (reference + games + game data + aggregates + supplemental + NGSS) each run.
 
 ---
 
@@ -60,11 +62,7 @@ uv run scripts/test-nba-import.py games \
   --write
 
 # run everything (writes)
-uv run scripts/test-nba-import.py all \
-  --include-aggregates \
-  --include-supplemental \
-  --include-ngss \
-  --write
+uv run scripts/test-nba-import.py all --write
 ```
 
 Notes:

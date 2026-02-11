@@ -150,7 +150,7 @@ def main(
     include_games: bool = True,
     include_game_data: bool = True,
     include_aggregates: bool = False,
-    include_supplemental: bool = False,
+    include_supplemental: bool = True,
     only_final_games: bool = True,
 ) -> dict:
     started_at = now_utc()
@@ -193,6 +193,17 @@ def main(
                     "fetched_at": fetched_at,
                 }
             )
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT nba_id FROM nba.players")
+            valid_player_ids = {row[0] for row in cur.fetchall()}
+            cur.execute("SELECT team_id FROM nba.teams")
+            valid_team_ids = {row[0] for row in cur.fetchall()}
+
+        injury_rows = [
+            row for row in injury_rows
+            if row["nba_id"] in valid_player_ids and row["team_id"] in valid_team_ids
+        ]
 
         if not dry_run:
             with conn.cursor() as cur:
