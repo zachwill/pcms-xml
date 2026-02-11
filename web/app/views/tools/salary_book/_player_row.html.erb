@@ -87,12 +87,12 @@
             <% if epm_percentile.present? %>
               <span class="text-[10px] leading-none font-mono tabular-nums whitespace-nowrap <%= epm_color_class || 'text-zinc-700 dark:text-zinc-300' %>"><%= epm_percentile_blocks(epm_percentile) %></span>
             <% else %>
-              <span class="text-[10px] leading-none tabular-nums whitespace-nowrap text-gray-400/50">—</span>
+              <span class="text-[10px] leading-none tabular-nums whitespace-nowrap text-muted-foreground/50">—</span>
             <% end %>
           </div>
         <% else %>
           <span class="grid place-items-center w-full">
-            <span class="inline-block font-mono tabular-nums text-center text-gray-400/50" style="width: 6ch">—</span>
+            <span class="inline-block font-mono tabular-nums text-center text-muted-foreground/50" style="width: 6ch">—</span>
           </span>
         <% end %>
       </div>
@@ -128,7 +128,7 @@
           <% elsif is_empty %>
             <% if cap_hold_present %>
               <span class="grid place-items-center w-full" data-show="!$displayplayercapholds">
-                <span class="inline-block font-mono tabular-nums text-center text-gray-400/50" style="width: 6ch">—</span>
+                <span class="inline-block font-mono tabular-nums text-center text-muted-foreground/50" style="width: 6ch">—</span>
               </span>
               <div class="h-[40px] w-full flex flex-col italic" data-show="$displayplayercapholds" style="display: none;">
                 <div class="h-[24px] flex items-end justify-center text-sm">
@@ -142,7 +142,7 @@
               </div>
             <% else %>
               <span class="grid place-items-center w-full">
-                <span class="inline-block font-mono tabular-nums text-center text-gray-400/50" style="width: 6ch">—</span>
+                <span class="inline-block font-mono tabular-nums text-center text-muted-foreground/50" style="width: 6ch">—</span>
               </span>
             <% end %>
           <% else %>
@@ -187,9 +187,9 @@
           </div>
           <div class="h-[16px] -mt-px flex items-start justify-center">
             <% if player["contract_type_code"].present? %>
-              <span class="text-[10px] leading-none tabular-nums whitespace-nowrap text-gray-400 dark:text-gray-500"><%= player["contract_type_code"] %></span>
+              <span class="text-[10px] leading-none tabular-nums whitespace-nowrap text-muted-foreground"><%= player["contract_type_code"] %></span>
             <% else %>
-              <span class="text-[10px] leading-none tabular-nums whitespace-nowrap text-gray-400/50 dark:text-gray-500/50">—</span>
+              <span class="text-[10px] leading-none tabular-nums whitespace-nowrap text-muted-foreground/50">—</span>
             <% end %>
           </div>
         <% end %>
@@ -209,12 +209,12 @@
           <% if player["agent_name"].present? && player["agent_id"].present? %>
             <button
               type="button"
-              class="cursor-pointer block w-full text-left text-xs leading-tight truncate -translate-y-[3px] text-gray-400 dark:text-gray-500 hover:text-muted-foreground hover:underline
-                     focus:outline-none focus-visible:underline focus-visible:text-muted-foreground transition-colors"
+              class="cursor-pointer block w-full text-left text-xs leading-tight truncate -translate-y-[3px] text-muted-foreground hover:text-foreground hover:underline
+                     focus:outline-none focus-visible:underline focus-visible:text-foreground transition-colors"
               data-on:click="evt.stopPropagation(); @get('<%= tools_salary_book_sidebar_agent_path(id: player["agent_id"]) %>')"
             ><%= player["agent_name"] %></button>
           <% elsif player["agent_name"].present? %>
-            <span class="block w-full text-xs leading-tight truncate -translate-y-[3px] text-gray-400 dark:text-gray-500"><%= player["agent_name"] %></span>
+            <span class="block w-full text-xs leading-tight truncate -translate-y-[3px] text-muted-foreground"><%= player["agent_name"] %></span>
           <% else %>
             <span class="text-xs -translate-y-[3px] text-muted-foreground/50">—</span>
           <% end %>
@@ -223,9 +223,9 @@
         <%# Row B: Agency name %>
         <div class="h-[16px] -mt-px flex items-start justify-start gap-1.5 leading-none text-[10px] tabular-nums min-w-0 overflow-hidden">
           <% if player["agency_name"].present? %>
-            <span class="block w-full text-gray-400 dark:text-gray-500 leading-tight truncate -translate-y-px"><%= player["agency_name"] %></span>
+            <span class="block w-full text-muted-foreground leading-tight truncate -translate-y-px"><%= player["agency_name"] %></span>
           <% else %>
-            <span class="text-gray-400/50 dark:text-gray-500/50 -translate-y-px">—</span>
+            <span class="text-muted-foreground/50 -translate-y-px">—</span>
           <% end %>
         </div>
       </div>

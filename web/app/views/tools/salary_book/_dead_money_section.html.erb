@@ -67,7 +67,7 @@
           <% amt = dead_money_amount(row, year) %>
           <% is_empty = amt.nil? || amt.to_f == 0 %>
           <div
-            class="w-24 shrink-0 font-mono tabular-nums text-center <%= is_empty ? 'text-gray-400/50' : '' %>"
+            class="w-24 shrink-0 font-mono tabular-nums text-center <%= is_empty ? 'text-muted-foreground/50' : '' %>"
             data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10': $selectedseason === '<%= year %>' }"
           >
             <%= is_empty ? "—" : format_compact_currency(amt) %>

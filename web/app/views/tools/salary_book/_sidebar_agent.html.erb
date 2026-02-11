@@ -35,9 +35,7 @@
   trade_restricted_count = rollup["trade_restricted_count"].to_i
 
   expiring_2025 = rollup["expiring_2025"].to_i
-  expiring_2026 = rollup["expiring_2026"].to_i
-  expiring_2027 = rollup["expiring_2027"].to_i
-  total_expiring = expiring_2025 + expiring_2026 + expiring_2027
+  total_expiring = expiring_2025
 
   player_option_count = rollup["player_option_count"].to_i
   team_option_count = rollup["team_option_count"].to_i
@@ -226,20 +224,6 @@
             </div>
           <% end %>
 
-          <% if expiring_2026 > 0 %>
-            <div class="flex items-center justify-between py-1.5">
-              <span class="text-sm text-muted-foreground">FA after <%= format_year_label(2026) %></span>
-              <span class="tabular-nums text-sm font-medium text-orange-600 dark:text-orange-400"><%= expiring_2026 %></span>
-            </div>
-          <% end %>
-
-          <% if expiring_2027 > 0 %>
-            <div class="flex items-center justify-between py-1.5">
-              <span class="text-sm text-muted-foreground">FA after <%= format_year_label(2027) %></span>
-              <span class="tabular-nums text-sm font-medium text-orange-600 dark:text-orange-400"><%= expiring_2027 %></span>
-            </div>
-          <% end %>
-
           <% if has_prior_year_now_fa %>
             <div class="flex items-center justify-between py-1.5">
               <span class="text-sm text-muted-foreground">Last year NBA, now FA</span>
@@ -385,7 +369,7 @@
                       <%
                         total_value = salary_years.sum { |y| client["cap_#{y}"].to_f }
                       %>
-                      <div class="text-[10px] leading-none tabular-nums whitespace-nowrap text-gray-400 dark:text-gray-500"><%= compact.call(total_value) %> total</div>
+                      <div class="text-[10px] leading-none tabular-nums whitespace-nowrap text-muted-foreground"><%= compact.call(total_value) %> total</div>
                     <% end %>
                   </div>
                 <% else %>
