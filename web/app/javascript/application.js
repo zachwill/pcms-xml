@@ -3,5 +3,6 @@
 
 import "entities/workspace";
 import "shared/commandbar_navigation";
+import "shared/combobox";
 
 console.debug("[app] application.js loaded");

@@ -1,0 +1,148 @@
+<%
+  agency ||= {}
+  top_agents ||= []
+  top_clients ||= []
+  year_label = format_year_label(2025).split("-").first
+%>
+
+<% prefetch_canonical_slugs(entity_type: "agency", entity_ids: [agency["agency_id"]]) %>
+<% prefetch_canonical_slugs(entity_type: "agent", entity_ids: top_agents.map { |a| a["agent_id"] } + top_clients.map { |c| c["agent_id"] }) %>
+<% prefetch_canonical_slugs(entity_type: "player", entity_ids: top_clients.map { |c| c["player_id"] }) %>
+<% prefetch_canonical_slugs(entity_type: "team", entity_ids: top_clients.map { |c| c["team_id"] }) %>
+
+<div id="rightpanel-overlay" class="absolute inset-0 bg-background overflow-y-auto border-l border-border">
+  <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
+    <button
+      type="button"
+      class="cursor-pointer text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+      data-on:click="$overlaytype = 'none'; $overlayid = ''; @get('/agents/sidebar/clear')"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Back
+    </button>
+
+    <a href="<%= agency_href(agency['agency_id']) %>" class="text-xs text-muted-foreground hover:text-foreground hover:underline">Open agency page</a>
+  </div>
+
+  <div class="px-4 py-4 space-y-4">
+    <div class="space-y-1">
+      <h3 class="text-base font-semibold leading-tight"><%= agency["agency_name"].presence || "Agency" %></h3>
+      <div class="text-xs text-muted-foreground flex items-center gap-2">
+        <% if agency["is_active"] == false %>
+          <span class="entity-chip entity-chip--muted">inactive</span>
+        <% else %>
+          <span class="entity-chip entity-chip--success">active</span>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-1.5">
+      <%= render partial: "tools/salary_book/kpi_cell", locals: {
+        label: "Agents",
+        value: agency["agent_count"].to_i.to_s,
+        subvalue: (representation_percentile_int(agency["agent_count_percentile"]).present? ? "P#{representation_percentile_int(agency['agent_count_percentile'])}" : nil),
+        subvalue_class_name: representation_percentile_color_class(agency["agent_count_percentile"]),
+        class_name: "w-full"
+      } %>
+
+      <%= render partial: "tools/salary_book/kpi_cell", locals: {
+        label: "Clients",
+        value: agency["client_count"].to_i.to_s,
+        subvalue: (representation_percentile_int(agency["client_count_percentile"]).present? ? "P#{representation_percentile_int(agency['client_count_percentile'])}" : nil),
+        subvalue_class_name: representation_percentile_color_class(agency["client_count_percentile"]),
+        class_name: "w-full"
+      } %>
+
+      <%= render partial: "tools/salary_book/kpi_cell", locals: {
+        label: "Teams",
+        value: agency["team_count"].to_i.to_s,
+        class_name: "w-full"
+      } %>
+
+      <%= render partial: "tools/salary_book/kpi_cell", locals: {
+        label: "Book '#{year_label}",
+        value: format_compact_currency(agency["cap_2025_total"]),
+        subvalue: (representation_percentile_int(agency["cap_2025_total_percentile"]).present? ? "P#{representation_percentile_int(agency['cap_2025_total_percentile'])}" : nil),
+        subvalue_class_name: representation_percentile_color_class(agency["cap_2025_total_percentile"]),
+        value_class_name: "text-[11px]",
+        class_name: "w-full"
+      } %>
+    </div>
+
+    <div class="rounded-lg border border-border bg-background">
+      <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Composition</div>
+      <div class="px-3 py-2 space-y-1 text-xs">
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">Standard</span><span class="font-mono tabular-nums"><%= agency["standard_count"].to_i %></span></div>
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">Two-way</span><span class="font-mono tabular-nums"><%= agency["two_way_count"].to_i %></span></div>
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">Max-level</span><span class="font-mono tabular-nums"><%= agency["max_contract_count"].to_i %></span></div>
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">Rookie-scale</span><span class="font-mono tabular-nums"><%= agency["rookie_scale_count"].to_i %></span></div>
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">Minimum</span><span class="font-mono tabular-nums"><%= agency["min_contract_count"].to_i %></span></div>
+      </div>
+    </div>
+
+    <div class="rounded-lg border border-border bg-background">
+      <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Top agents</div>
+      <% if top_agents.empty? %>
+        <div class="p-3 text-sm text-muted-foreground italic">No agents.</div>
+      <% else %>
+        <div class="divide-y divide-border">
+          <% top_agents.each do |a| %>
+            <div class="px-3 py-2 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+              <div class="entity-cell-two-line">
+                <div class="entity-cell-primary justify-between gap-2">
+                  <a href="<%= agent_href(a['agent_id']) %>" class="truncate font-medium hover:underline"><%= a["full_name"] %></a>
+                  <span class="font-mono tabular-nums text-[11px]"><%= format_compact_currency(a["cap_2025_total"]) %></span>
+                </div>
+                <div class="entity-cell-secondary justify-between gap-2">
+                  <span><%= a["client_count"].to_i %> clients · <%= a["team_count"].to_i %> teams</span>
+                  <% if representation_percentile_int(a["cap_2025_total_percentile"]).present? %>
+                    <span class="font-mono tabular-nums <%= representation_percentile_color_class(a['cap_2025_total_percentile']) %>">P<%= representation_percentile_int(a["cap_2025_total_percentile"]) %></span>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="rounded-lg border border-border bg-background">
+      <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Top clients</div>
+      <% if top_clients.empty? %>
+        <div class="p-3 text-sm text-muted-foreground italic">No clients.</div>
+      <% else %>
+        <div class="divide-y divide-border">
+          <% top_clients.each do |c| %>
+            <div class="px-3 py-2 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+              <div class="entity-cell-two-line">
+                <div class="entity-cell-primary justify-between gap-2">
+                  <a href="<%= player_href(c['player_id']) %>" class="truncate font-medium hover:underline"><%= c["player_name"] %></a>
+                  <% if c["is_two_way"] %>
+                    <span class="entity-chip entity-chip--muted">2W</span>
+                  <% else %>
+                    <span class="font-mono tabular-nums text-[11px]"><%= format_salary(c["cap_2025"]) %></span>
+                  <% end %>
+                </div>
+                <div class="entity-cell-secondary justify-between gap-2">
+                  <span>
+                    <% if c["team_code"].present? %>
+                      <a href="<%= team_href(team_code: c['team_code'], team_id: c['team_id']) %>" class="hover:underline"><%= c["team_code"] %></a>
+                    <% else %>
+                      —
+                    <% end %>
+                    <% if c["agent_id"].present? %>
+                      · <a href="<%= agent_href(c['agent_id']) %>" class="hover:underline"><%= c["agent_name"] %></a>
+                    <% end %>
+                  </span>
+                  <span class="font-mono tabular-nums"><%= format_compact_currency(c["total_salary_from_2025"]) %></span>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

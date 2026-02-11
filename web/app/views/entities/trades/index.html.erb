@@ -4,9 +4,9 @@
 <% update_url_expr = "window.history.replaceState({}, '', '/trades?daterange=' + $tradedaterange + '&team=' + $tradeteam)" %>
 <% refresh_expr = "#{pane_get_expr}; #{update_url_expr}" %>
 
-<% root_attrs = "data-signals=\"{ tradedaterange: '#{@daterange}', tradeteam: '#{@team || ''}' }\"" %>
+<% signals_literal = "{ tradedaterange: #{@daterange.to_json}, tradeteam: #{(@team || '').to_json} }" %>
 
-<div id="entity-directory" class="min-h-screen w-full bg-background" <%= root_attrs.present? ? root_attrs.html_safe : "" %>>
+<div id="entity-directory" class="min-h-screen w-full bg-background" data-signals="<%= signals_literal %>">
   <%= render partial: "entities/shared/commandbar", locals: {
     active_entity_scope: "trades",
     header_knobs: [

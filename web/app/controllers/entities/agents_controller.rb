@@ -1,20 +1,220 @@
 module Entities
   class AgentsController < ApplicationController
+    BOOK_YEARS = [2025, 2026, 2027].freeze
+    AGENT_SORT_KEYS = %w[book clients teams max expirings options name].freeze
+    AGENCY_SORT_KEYS = %w[book clients agents teams max expirings options name].freeze
+
     # GET /agents
     def index
       setup_directory_filters!
       load_directory_rows!
+      build_sidebar_summary!
 
       render :index
     end
 
     # GET /agents/pane
-    # Datastar patch target for the directory results pane.
+    # Datastar patch target for main canvas only.
     def pane
       setup_directory_filters!
       load_directory_rows!
+      build_sidebar_summary!
 
-      render partial: "entities/agents/directory_results"
+      render partial: "entities/agents/workspace_main"
+    end
+
+    # GET /agents/sidebar/base
+    def sidebar_base
+      setup_directory_filters!
+      load_directory_rows!
+      build_sidebar_summary!
+
+      render partial: "entities/agents/rightpanel_base"
+    end
+
+    # GET /agents/sidebar/agent/:id
+    def sidebar_agent
+      agent_id = Integer(params[:id])
+      conn = ActiveRecord::Base.connection
+      id_sql = conn.quote(agent_id)
+
+      agent = conn.exec_query(<<~SQL).first
+        SELECT
+          w.agent_id,
+          w.full_name,
+          w.agency_id,
+          w.agency_name,
+          w.is_active,
+          w.is_certified,
+          w.client_count,
+          w.standard_count,
+          w.two_way_count,
+          w.team_count,
+          w.cap_2025_total,
+          w.cap_2026_total,
+          w.cap_2027_total,
+          w.total_salary_from_2025,
+          w.max_contract_count,
+          w.rookie_scale_count,
+          w.min_contract_count,
+          w.no_trade_count,
+          w.trade_kicker_count,
+          w.trade_restricted_count,
+          w.expiring_2025,
+          w.expiring_2026,
+          w.expiring_2027,
+          w.player_option_count,
+          w.team_option_count,
+          w.prior_year_nba_now_free_agent_count,
+          w.cap_2025_total_percentile,
+          w.cap_2026_total_percentile,
+          w.cap_2027_total_percentile,
+          w.client_count_percentile,
+          w.max_contract_count_percentile,
+          w.team_count_percentile,
+          w.standard_count_percentile,
+          w.two_way_count_percentile
+        FROM pcms.agents_warehouse w
+        WHERE w.agent_id = #{id_sql}
+        LIMIT 1
+      SQL
+      raise ActiveRecord::RecordNotFound unless agent
+
+      clients = conn.exec_query(<<~SQL).to_a
+        SELECT
+          sbw.player_id,
+          sbw.player_name,
+          sbw.team_code,
+          t.team_id,
+          t.team_name,
+          sbw.cap_2025::numeric AS cap_2025,
+          sbw.cap_2026::numeric AS cap_2026,
+          sbw.cap_2027::numeric AS cap_2027,
+          sbw.total_salary_from_2025::numeric AS total_salary_from_2025,
+          COALESCE(sbw.is_two_way, false)::boolean AS is_two_way,
+          COALESCE(sbw.is_trade_restricted_now, false)::boolean AS is_trade_restricted_now,
+          COALESCE(sbw.is_no_trade, false)::boolean AS is_no_trade,
+          COALESCE(sbw.is_trade_bonus, false)::boolean AS is_trade_bonus,
+          COALESCE(sbw.is_min_contract, false)::boolean AS is_min_contract,
+          sbw.option_2026,
+          sbw.option_2027,
+          sbw.option_2028,
+          p.years_of_service
+        FROM pcms.salary_book_warehouse sbw
+        LEFT JOIN pcms.teams t
+          ON t.team_code = sbw.team_code
+         AND t.league_lk = 'NBA'
+        LEFT JOIN pcms.people p
+          ON p.person_id = sbw.player_id
+        WHERE sbw.agent_id = #{id_sql}
+        ORDER BY sbw.cap_2025 DESC NULLS LAST, sbw.player_name
+        LIMIT 120
+      SQL
+
+      render partial: "entities/agents/rightpanel_overlay_agent", locals: {
+        agent:,
+        clients:
+      }
+    rescue ArgumentError
+      raise ActiveRecord::RecordNotFound
+    end
+
+    # GET /agents/sidebar/agency/:id
+    def sidebar_agency
+      agency_id = Integer(params[:id])
+      conn = ActiveRecord::Base.connection
+      id_sql = conn.quote(agency_id)
+
+      agency = conn.exec_query(<<~SQL).first
+        SELECT
+          w.agency_id,
+          w.agency_name,
+          w.is_active,
+          w.agent_count,
+          w.client_count,
+          w.standard_count,
+          w.two_way_count,
+          w.team_count,
+          w.cap_2025_total,
+          w.cap_2026_total,
+          w.cap_2027_total,
+          w.total_salary_from_2025,
+          w.max_contract_count,
+          w.rookie_scale_count,
+          w.min_contract_count,
+          w.no_trade_count,
+          w.trade_kicker_count,
+          w.trade_restricted_count,
+          w.expiring_2025,
+          w.expiring_2026,
+          w.expiring_2027,
+          w.player_option_count,
+          w.team_option_count,
+          w.prior_year_nba_now_free_agent_count,
+          w.cap_2025_total_percentile,
+          w.cap_2026_total_percentile,
+          w.cap_2027_total_percentile,
+          w.client_count_percentile,
+          w.max_contract_count_percentile,
+          w.agent_count_percentile
+        FROM pcms.agencies_warehouse w
+        WHERE w.agency_id = #{id_sql}
+        LIMIT 1
+      SQL
+      raise ActiveRecord::RecordNotFound unless agency
+
+      top_agents = conn.exec_query(<<~SQL).to_a
+        SELECT
+          w.agent_id,
+          w.full_name,
+          w.client_count,
+          w.team_count,
+          w.cap_2025_total,
+          w.cap_2025_total_percentile,
+          w.client_count_percentile,
+          w.max_contract_count,
+          w.expiring_2025
+        FROM pcms.agents_warehouse w
+        WHERE w.agency_id = #{id_sql}
+        ORDER BY w.cap_2025_total DESC NULLS LAST, w.full_name
+        LIMIT 60
+      SQL
+
+      top_clients = conn.exec_query(<<~SQL).to_a
+        SELECT
+          sbw.player_id,
+          sbw.player_name,
+          sbw.team_code,
+          t.team_id,
+          t.team_name,
+          sbw.agent_id,
+          a.full_name AS agent_name,
+          sbw.cap_2025::numeric AS cap_2025,
+          sbw.total_salary_from_2025::numeric AS total_salary_from_2025,
+          COALESCE(sbw.is_two_way, false)::boolean AS is_two_way
+        FROM pcms.agents a
+        JOIN pcms.salary_book_warehouse sbw
+          ON sbw.agent_id = a.agent_id
+        LEFT JOIN pcms.teams t
+          ON t.team_code = sbw.team_code
+         AND t.league_lk = 'NBA'
+        WHERE a.agency_id = #{id_sql}
+        ORDER BY sbw.cap_2025 DESC NULLS LAST, sbw.player_name
+        LIMIT 80
+      SQL
+
+      render partial: "entities/agents/rightpanel_overlay_agency", locals: {
+        agency:,
+        top_agents:,
+        top_clients:
+      }
+    rescue ArgumentError
+      raise ActiveRecord::RecordNotFound
+    end
+
+    # GET /agents/sidebar/clear
+    def sidebar_clear
+      render partial: "entities/agents/rightpanel_clear"
     end
 
     # GET /agents/:slug
@@ -255,62 +455,267 @@ module Entities
 
     def setup_directory_filters!
       @directory_kind = params[:kind].to_s == "agencies" ? "agencies" : "agents"
-      @active_only = ActiveModel::Type::Boolean.new.cast(params[:active_only])
-      @query = params[:q].to_s.strip
+
+      @active_only = cast_bool(params[:active_only])
+      @certified_only = cast_bool(params[:certified_only])
+      @with_clients = cast_bool(params[:with_clients])
+      @with_book = cast_bool(params[:with_book])
+      @with_restrictions = cast_bool(params[:with_restrictions])
+      @with_expiring = cast_bool(params[:with_expiring])
+
+      year = begin
+        Integer(params[:year])
+      rescue ArgumentError, TypeError
+        nil
+      end
+      @book_year = BOOK_YEARS.include?(year) ? year : BOOK_YEARS.first
+
+      @sort_dir = params[:dir].to_s == "asc" ? "asc" : "desc"
+
+      allowed_sort_keys = @directory_kind == "agencies" ? AGENCY_SORT_KEYS : AGENT_SORT_KEYS
+      @sort_key = params[:sort].to_s
+      @sort_key = "book" unless allowed_sort_keys.include?(@sort_key)
     end
 
     def load_directory_rows!
       conn = ActiveRecord::Base.connection
-      q_sql = @query.present? ? conn.quote("%#{@query}%") : nil
-      active_only_sql = @active_only ? "AND COALESCE(a.is_active, true) = true" : ""
+      book_total_sql = sql_book_total("w")
+      book_percentile_sql = sql_book_percentile("w")
+      expiring_sql = sql_expiring_in_window("w")
 
       if @directory_kind == "agencies"
-        query_sql = q_sql.present? ? "AND a.agency_name ILIKE #{q_sql}" : ""
+        sort_sql = sql_sort_for_agencies(book_total_sql:, expiring_sql:)
+        where_clauses = ["1 = 1"]
+        where_clauses << "COALESCE(w.is_active, true) = true" if @active_only
+        where_clauses << "COALESCE(w.client_count, 0) > 0" if @with_clients
+        where_clauses << "COALESCE(#{book_total_sql}, 0) > 0" if @with_book
+        where_clauses << "COALESCE(#{expiring_sql}, 0) > 0" if @with_expiring
+        where_clauses << "(COALESCE(w.no_trade_count, 0) > 0 OR COALESCE(w.trade_kicker_count, 0) > 0 OR COALESCE(w.trade_restricted_count, 0) > 0)" if @with_restrictions
+
         @agencies = conn.exec_query(<<~SQL).to_a
           SELECT
-            a.agency_id,
-            a.agency_name,
-            a.is_active,
+            w.agency_id,
+            w.agency_name,
+            w.is_active,
+
             COALESCE(w.agent_count, 0)::integer AS agent_count,
             COALESCE(w.client_count, 0)::integer AS client_count,
-            COALESCE(w.cap_2025_total, 0)::bigint AS cap_2025_total,
-            w.agent_count_percentile,
-            w.client_count_percentile,
-            w.cap_2025_total_percentile
-          FROM pcms.agencies a
-          LEFT JOIN pcms.agencies_warehouse w
-            ON w.agency_id = a.agency_id
-          WHERE 1 = 1
-            #{active_only_sql}
-            #{query_sql}
-          ORDER BY w.cap_2025_total DESC NULLS LAST, a.agency_name
-        SQL
-        @agents = []
-      else
-        query_sql = q_sql.present? ? "AND (a.full_name ILIKE #{q_sql} OR a.agency_name ILIKE #{q_sql})" : ""
-        @agents = conn.exec_query(<<~SQL).to_a
-          SELECT
-            a.agent_id,
-            a.full_name,
-            a.agency_id,
-            a.agency_name,
-            a.is_active,
-            COALESCE(w.client_count, 0)::integer AS client_count,
-            COALESCE(w.team_count, 0)::integer AS team_count,
-            COALESCE(w.cap_2025_total, 0)::bigint AS cap_2025_total,
             COALESCE(w.standard_count, 0)::integer AS standard_count,
             COALESCE(w.two_way_count, 0)::integer AS two_way_count,
-            w.cap_2025_total_percentile,
-            w.client_count_percentile
-          FROM pcms.agents a
-          LEFT JOIN pcms.agents_warehouse w
-            ON w.agent_id = a.agent_id
-          WHERE 1 = 1
-            #{active_only_sql}
-            #{query_sql}
-          ORDER BY w.cap_2025_total DESC NULLS LAST, a.full_name
+            COALESCE(w.team_count, 0)::integer AS team_count,
+
+            COALESCE(#{book_total_sql}, 0)::bigint AS book_total,
+            #{book_percentile_sql} AS book_total_percentile,
+            COALESCE(w.cap_2025_total, 0)::bigint AS cap_2025_total,
+            COALESCE(w.cap_2026_total, 0)::bigint AS cap_2026_total,
+            COALESCE(w.cap_2027_total, 0)::bigint AS cap_2027_total,
+            COALESCE(w.total_salary_from_2025, 0)::bigint AS total_salary_from_2025,
+
+            COALESCE(w.max_contract_count, 0)::integer AS max_contract_count,
+            COALESCE(w.rookie_scale_count, 0)::integer AS rookie_scale_count,
+            COALESCE(w.min_contract_count, 0)::integer AS min_contract_count,
+
+            COALESCE(w.no_trade_count, 0)::integer AS no_trade_count,
+            COALESCE(w.trade_kicker_count, 0)::integer AS trade_kicker_count,
+            COALESCE(w.trade_restricted_count, 0)::integer AS trade_restricted_count,
+
+            COALESCE(#{expiring_sql}, 0)::integer AS expiring_in_window,
+            COALESCE(w.expiring_2025, 0)::integer AS expiring_2025,
+            COALESCE(w.expiring_2026, 0)::integer AS expiring_2026,
+            COALESCE(w.expiring_2027, 0)::integer AS expiring_2027,
+
+            COALESCE(w.player_option_count, 0)::integer AS player_option_count,
+            COALESCE(w.team_option_count, 0)::integer AS team_option_count,
+
+            w.agent_count_percentile,
+            w.client_count_percentile,
+            w.max_contract_count_percentile
+          FROM pcms.agencies_warehouse w
+          WHERE #{where_clauses.join(" AND ")}
+          ORDER BY #{sort_sql} #{sql_sort_direction_for_key} NULLS LAST,
+                   w.agency_name ASC
         SQL
+
+        @agents = []
+      else
+        sort_sql = sql_sort_for_agents(book_total_sql:, expiring_sql:)
+        where_clauses = ["1 = 1"]
+        where_clauses << "COALESCE(w.is_active, true) = true" if @active_only
+        where_clauses << "COALESCE(w.is_certified, false) = true" if @certified_only
+        where_clauses << "COALESCE(w.client_count, 0) > 0" if @with_clients
+        where_clauses << "COALESCE(#{book_total_sql}, 0) > 0" if @with_book
+        where_clauses << "COALESCE(#{expiring_sql}, 0) > 0" if @with_expiring
+        where_clauses << "(COALESCE(w.no_trade_count, 0) > 0 OR COALESCE(w.trade_kicker_count, 0) > 0 OR COALESCE(w.trade_restricted_count, 0) > 0)" if @with_restrictions
+
+        @agents = conn.exec_query(<<~SQL).to_a
+          SELECT
+            w.agent_id,
+            w.full_name,
+            w.agency_id,
+            w.agency_name,
+            w.is_active,
+            w.is_certified,
+
+            COALESCE(w.client_count, 0)::integer AS client_count,
+            COALESCE(w.standard_count, 0)::integer AS standard_count,
+            COALESCE(w.two_way_count, 0)::integer AS two_way_count,
+            COALESCE(w.team_count, 0)::integer AS team_count,
+
+            COALESCE(#{book_total_sql}, 0)::bigint AS book_total,
+            #{book_percentile_sql} AS book_total_percentile,
+            COALESCE(w.cap_2025_total, 0)::bigint AS cap_2025_total,
+            COALESCE(w.cap_2026_total, 0)::bigint AS cap_2026_total,
+            COALESCE(w.cap_2027_total, 0)::bigint AS cap_2027_total,
+            COALESCE(w.total_salary_from_2025, 0)::bigint AS total_salary_from_2025,
+
+            COALESCE(w.max_contract_count, 0)::integer AS max_contract_count,
+            COALESCE(w.rookie_scale_count, 0)::integer AS rookie_scale_count,
+            COALESCE(w.min_contract_count, 0)::integer AS min_contract_count,
+
+            COALESCE(w.no_trade_count, 0)::integer AS no_trade_count,
+            COALESCE(w.trade_kicker_count, 0)::integer AS trade_kicker_count,
+            COALESCE(w.trade_restricted_count, 0)::integer AS trade_restricted_count,
+
+            COALESCE(#{expiring_sql}, 0)::integer AS expiring_in_window,
+            COALESCE(w.expiring_2025, 0)::integer AS expiring_2025,
+            COALESCE(w.expiring_2026, 0)::integer AS expiring_2026,
+            COALESCE(w.expiring_2027, 0)::integer AS expiring_2027,
+
+            COALESCE(w.player_option_count, 0)::integer AS player_option_count,
+            COALESCE(w.team_option_count, 0)::integer AS team_option_count,
+
+            w.client_count_percentile,
+            w.team_count_percentile,
+            w.standard_count_percentile,
+            w.two_way_count_percentile,
+            w.max_contract_count_percentile
+          FROM pcms.agents_warehouse w
+          WHERE #{where_clauses.join(" AND ")}
+          ORDER BY #{sort_sql} #{sql_sort_direction_for_key} NULLS LAST,
+                   w.full_name ASC
+        SQL
+
         @agencies = []
+      end
+    end
+
+    def build_sidebar_summary!
+      rows = @directory_kind == "agencies" ? @agencies : @agents
+
+      @sidebar_summary = {
+        kind: @directory_kind,
+        year: @book_year,
+        sort_key: @sort_key,
+        sort_dir: @sort_dir,
+        row_count: rows.size,
+        active_count: rows.count { |row| row["is_active"] != false },
+        client_total: rows.sum { |row| row["client_count"].to_i },
+        standard_total: rows.sum { |row| row["standard_count"].to_i },
+        two_way_total: rows.sum { |row| row["two_way_count"].to_i },
+        team_total: rows.sum { |row| row["team_count"].to_i },
+        max_total: rows.sum { |row| row["max_contract_count"].to_i },
+        expiring_total: rows.sum { |row| row["expiring_in_window"].to_i },
+        restricted_total: rows.sum { |row| row["trade_restricted_count"].to_i },
+        option_total: rows.sum { |row| row["player_option_count"].to_i + row["team_option_count"].to_i },
+        book_total: rows.sum { |row| row["book_total"].to_i },
+        filters: sidebar_filter_labels,
+        top_rows: sidebar_top_rows(rows)
+      }
+    end
+
+    def sidebar_top_rows(rows)
+      rows.first(14).map do |row|
+        if @directory_kind == "agencies"
+          {
+            type: "agency",
+            id: row["agency_id"],
+            title: row["agency_name"],
+            subtitle: "#{row['agent_count'].to_i} agents · #{row['client_count'].to_i} clients",
+            book_total: row["book_total"].to_i,
+            percentile: row["book_total_percentile"]
+          }
+        else
+          {
+            type: "agent",
+            id: row["agent_id"],
+            title: row["full_name"],
+            subtitle: "#{row['client_count'].to_i} clients · #{row['team_count'].to_i} teams",
+            book_total: row["book_total"].to_i,
+            percentile: row["book_total_percentile"]
+          }
+        end
+      end
+    end
+
+    def sidebar_filter_labels
+      labels = []
+      labels << "Active only" if @active_only
+      labels << "Certified only" if @certified_only && @directory_kind == "agents"
+      labels << "With clients" if @with_clients
+      labels << "With book" if @with_book
+      labels << "With restrictions" if @with_restrictions
+      labels << "With expirings" if @with_expiring
+      labels
+    end
+
+    def cast_bool(value)
+      ActiveModel::Type::Boolean.new.cast(value)
+    end
+
+    def sql_book_total(table_alias)
+      case @book_year
+      when 2026 then "#{table_alias}.cap_2026_total"
+      when 2027 then "#{table_alias}.cap_2027_total"
+      else "#{table_alias}.cap_2025_total"
+      end
+    end
+
+    def sql_book_percentile(table_alias)
+      case @book_year
+      when 2026 then "#{table_alias}.cap_2026_total_percentile"
+      when 2027 then "#{table_alias}.cap_2027_total_percentile"
+      else "#{table_alias}.cap_2025_total_percentile"
+      end
+    end
+
+    def sql_expiring_in_window(table_alias)
+      case @book_year
+      when 2026 then "#{table_alias}.expiring_2026"
+      when 2027 then "#{table_alias}.expiring_2027"
+      else "#{table_alias}.expiring_2025"
+      end
+    end
+
+    def sql_sort_for_agents(book_total_sql:, expiring_sql:)
+      case @sort_key
+      when "clients" then "w.client_count"
+      when "teams" then "w.team_count"
+      when "max" then "w.max_contract_count"
+      when "expirings" then expiring_sql
+      when "options" then "(COALESCE(w.player_option_count, 0) + COALESCE(w.team_option_count, 0))"
+      when "name" then "w.full_name"
+      else book_total_sql
+      end
+    end
+
+    def sql_sort_for_agencies(book_total_sql:, expiring_sql:)
+      case @sort_key
+      when "clients" then "w.client_count"
+      when "agents" then "w.agent_count"
+      when "teams" then "w.team_count"
+      when "max" then "w.max_contract_count"
+      when "expirings" then expiring_sql
+      when "options" then "(COALESCE(w.player_option_count, 0) + COALESCE(w.team_option_count, 0))"
+      when "name" then "w.agency_name"
+      else book_total_sql
+      end
+    end
+
+    def sql_sort_direction_for_key
+      if @sort_key == "name"
+        @sort_dir == "desc" ? "DESC" : "ASC"
+      else
+        @sort_dir == "asc" ? "ASC" : "DESC"
       end
     end
   end

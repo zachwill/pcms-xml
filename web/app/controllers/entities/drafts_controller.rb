@@ -4,6 +4,19 @@ module Entities
     # Unified workspace for draft picks (future assets), draft selections (historical),
     # and pick grid (team × year × round ownership matrix).
     def index
+      load_index_state!
+      render :index
+    end
+
+    # GET /drafts/pane (Datastar partial refresh)
+    def pane
+      load_index_state!
+      render partial: "entities/drafts/results"
+    end
+
+    private
+
+    def load_index_state!
       conn = ActiveRecord::Base.connection
 
       @view = params[:view].to_s.strip.presence || "picks"
@@ -38,17 +51,7 @@ module Entities
           SELECT DISTINCT draft_year FROM pcms.draft_selections ORDER BY draft_year DESC
         SQL
       end
-
-      render :index
     end
-
-    # GET /drafts/pane (Datastar partial refresh)
-    def pane
-      index
-      render partial: "entities/drafts/results"
-    end
-
-    private
 
     def load_picks(conn)
       year_sql = conn.quote(@year.to_i)

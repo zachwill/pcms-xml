@@ -153,6 +153,40 @@ module Tools
       render partial: "tools/salary_book/sidebar_clear", layout: false
     end
 
+    # GET /tools/salary-book/combobox/players/search?team=BOS&q=jay&limit=12&seq=3
+    # Returns server-rendered popup/list HTML for the Salary Book player combobox.
+    def combobox_players_search
+      query = params[:q].to_s.strip
+      seq = begin
+        Integer(params[:seq])
+      rescue ArgumentError, TypeError
+        0
+      end
+
+      limit = params[:limit].to_i
+      limit = 12 if limit <= 0
+      limit = [limit, 50].min
+
+      team_param = params[:team].to_s.strip.upcase
+      team_code = valid_team_code?(team_param) ? team_param : nil
+
+      players = fetch_combobox_players(team_code:, query:, limit:)
+
+      render partial: "tools/salary_book/combobox_players_popup", locals: {
+        players:,
+        query:,
+        seq:,
+        error_message: nil
+      }, layout: false
+    rescue ActiveRecord::StatementInvalid => e
+      render partial: "tools/salary_book/combobox_players_popup", locals: {
+        players: [],
+        query:,
+        seq:,
+        error_message: e.message
+      }, layout: false
+    end
+
     # GET /tools/salary-book/sidebar/agent/:id
     def sidebar_agent
       agent_id = Integer(params[:id])
@@ -268,6 +302,58 @@ module Tools
       end
 
       [teams_by_conference, team_meta_by_code]
+    end
+
+    def fetch_combobox_players(team_code:, query:, limit:)
+      q = query.to_s.strip
+      limit_i = [[limit.to_i, 1].max, 50].min
+
+      where_clauses = []
+      where_clauses << "sbw.team_code = #{conn.quote(team_code)}" if team_code.present?
+
+      order_rank_sql = "0"
+      if q.present?
+        q_like = conn.quote("%#{q}%")
+        q_prefix = conn.quote("#{q.downcase}%")
+        q_token_prefix = conn.quote("% #{q.downcase}%")
+
+        where_clauses << "sbw.player_name ILIKE #{q_like}"
+        order_rank_sql = <<~SQL.squish
+          CASE
+            WHEN LOWER(sbw.player_name) LIKE #{q_prefix} THEN 0
+            WHEN LOWER(sbw.player_name) LIKE #{q_token_prefix} THEN 1
+            ELSE 2
+          END
+        SQL
+      end
+
+      where_sql = where_clauses.any? ? where_clauses.join(" AND ") : "TRUE"
+
+      conn.exec_query(<<~SQL).to_a
+        SELECT
+          sbw.player_id,
+          sbw.player_name,
+          sbw.team_code,
+          sbw.agent_name,
+          sbw.age,
+          p.years_of_service,
+          sbw.cap_2025::numeric AS cap_2025,
+          sbw.is_two_way,
+          t.team_id
+        FROM pcms.salary_book_warehouse sbw
+        LEFT JOIN pcms.people p
+          ON p.person_id = sbw.player_id
+        LEFT JOIN pcms.teams t
+          ON t.team_code = sbw.team_code
+         AND t.league_lk = 'NBA'
+        WHERE #{where_sql}
+        ORDER BY
+          #{order_rank_sql},
+          sbw.cap_2025 DESC NULLS LAST,
+          sbw.player_name ASC,
+          sbw.player_id ASC
+        LIMIT #{limit_i}
+      SQL
     end
 
     def fetch_team_players(team_code)

@@ -296,11 +296,11 @@ Combobox option rows should be information-dense and scannable (name + team/meta
 Target: salary-book player search/selection where current Select is limiting.
 
 Deliverables:
-- controller endpoint for search (HTML)
-- optional commit endpoint (SSE)
-- ERB partials for popup/list/row/status
-- minimal JS helper in `web/app/javascript/shared/combobox.js`
-- one integrated usage in Salary Book view
+- [x] controller endpoint for search (HTML)
+- [ ] optional commit endpoint (SSE)
+- [x] ERB partials for popup/list/row/status
+- [x] minimal JS helper in `web/app/javascript/shared/combobox.js`
+- [x] one integrated usage in Salary Book view
 
 ## Phase 2 — Hardening
 - IME validation
@@ -362,11 +362,11 @@ Deliverables:
 
 ## 17) Immediate next actions
 
-1. Pick exact first surface in Salary Book (player picker with highest UX pain).
-2. Create endpoint stubs + partial skeletons.
-3. Implement local signal/loader wiring and HTML search patching.
-4. Add commit path with SSE only if selection updates 2+ regions.
-5. Write a short `web/docs/contracts/combobox_player_search.md` after implementation.
+1. [x] Pick exact first surface in Salary Book (player picker with highest UX pain).
+2. [x] Create endpoint stubs + partial skeletons.
+3. [x] Implement local signal/loader wiring and HTML search patching.
+4. [ ] Add commit path with SSE only if selection updates 2+ regions.
+5. [x] Write a short `web/docs/contracts/combobox_player_search.md` after implementation.
 
 ---
 

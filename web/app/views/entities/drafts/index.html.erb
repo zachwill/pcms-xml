@@ -5,9 +5,9 @@
 <% update_url_expr = "window.history.replaceState({}, '', '/drafts?view=' + $draftview + '&year=' + $draftyear + '&round=' + $draftround + '&team=' + $draftteam)" %>
 <% refresh_expr = "#{pane_get_expr}; #{update_url_expr}" %>
 
-<% root_attrs = "data-signals=\"{ draftview: '#{@view}', draftyear: '#{@year}', draftround: '#{@round || 'all'}', draftteam: '#{@team || ''}' }\"" %>
+<% signals_literal = "{ draftview: #{@view.to_json}, draftyear: #{(@year || '').to_json}, draftround: #{(@round || 'all').to_json}, draftteam: #{(@team || '').to_json} }" %>
 
-<div id="entity-directory" class="min-h-screen w-full bg-background" <%= root_attrs.present? ? root_attrs.html_safe : "" %>>
+<div id="entity-directory" class="min-h-screen w-full bg-background" data-signals="<%= signals_literal %>">
   <%= render partial: "entities/shared/commandbar", locals: {
     active_entity_scope: "drafts",
     header_knobs: [

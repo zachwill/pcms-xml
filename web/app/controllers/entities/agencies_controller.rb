@@ -6,6 +6,14 @@ module Entities
       query = {
         kind: "agencies",
         active_only: params[:active_only],
+        certified_only: params[:certified_only],
+        with_clients: params[:with_clients],
+        with_book: params[:with_book],
+        with_restrictions: params[:with_restrictions],
+        with_expiring: params[:with_expiring],
+        year: params[:year],
+        sort: params[:sort],
+        dir: params[:dir],
         q: params[:q]
       }.compact_blank
 

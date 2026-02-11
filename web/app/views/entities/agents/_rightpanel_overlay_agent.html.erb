@@ -1,0 +1,167 @@
+<%
+  agent ||= {}
+  clients ||= []
+  year_label = format_year_label(2025).split("-").first
+  name = agent["full_name"].to_s
+%>
+
+<% prefetch_canonical_slugs(entity_type: "player", entity_ids: clients.map { |c| c["player_id"] }) %>
+<% prefetch_canonical_slugs(entity_type: "team", entity_ids: clients.map { |c| c["team_id"] }) %>
+<% prefetch_canonical_slugs(entity_type: "agency", entity_ids: [agent["agency_id"]]) %>
+
+<div id="rightpanel-overlay" class="absolute inset-0 bg-background overflow-y-auto border-l border-border">
+  <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
+    <button
+      type="button"
+      class="cursor-pointer text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+      data-on:click="$overlaytype = 'none'; $overlayid = ''; @get('/agents/sidebar/clear')"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Back
+    </button>
+
+    <a href="<%= agent_href(agent['agent_id']) %>" class="text-xs text-muted-foreground hover:text-foreground hover:underline">Open agent page</a>
+  </div>
+
+  <div class="px-4 py-4 space-y-4">
+    <div class="space-y-1">
+      <h3 class="text-base font-semibold leading-tight"><%= name.presence || "Agent" %></h3>
+      <div class="text-xs text-muted-foreground flex items-center gap-2">
+        <% if agent["agency_id"].present? && agent["agency_name"].present? %>
+          <a href="<%= agency_href(agent['agency_id']) %>" class="hover:underline"><%= agent["agency_name"] %></a>
+        <% elsif agent["agency_name"].present? %>
+          <span><%= agent["agency_name"] %></span>
+        <% else %>
+          <span>Agency unknown</span>
+        <% end %>
+        <% if agent["is_active"] == false %>
+          <span class="entity-chip entity-chip--muted">inactive</span>
+        <% end %>
+        <% if agent["is_certified"] %>
+          <span class="entity-chip entity-chip--accent">certified</span>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-1.5">
+      <%= render partial: "tools/salary_book/kpi_cell", locals: {
+        label: "Clients",
+        value: agent["client_count"].to_i.to_s,
+        subvalue: (representation_percentile_int(agent["client_count_percentile"]).present? ? "P#{representation_percentile_int(agent['client_count_percentile'])}" : nil),
+        subvalue_class_name: representation_percentile_color_class(agent["client_count_percentile"]),
+        class_name: "w-full"
+      } %>
+
+      <%= render partial: "tools/salary_book/kpi_cell", locals: {
+        label: "Teams",
+        value: agent["team_count"].to_i.to_s,
+        subvalue: (representation_percentile_int(agent["team_count_percentile"]).present? ? "P#{representation_percentile_int(agent['team_count_percentile'])}" : nil),
+        subvalue_class_name: representation_percentile_color_class(agent["team_count_percentile"]),
+        class_name: "w-full"
+      } %>
+
+      <%= render partial: "tools/salary_book/kpi_cell", locals: {
+        label: "Std",
+        value: agent["standard_count"].to_i.to_s,
+        subvalue: (representation_percentile_int(agent["standard_count_percentile"]).present? ? "P#{representation_percentile_int(agent['standard_count_percentile'])}" : nil),
+        subvalue_class_name: representation_percentile_color_class(agent["standard_count_percentile"]),
+        class_name: "w-full"
+      } %>
+
+      <%= render partial: "tools/salary_book/kpi_cell", locals: {
+        label: "2W",
+        value: agent["two_way_count"].to_i.to_s,
+        subvalue: (representation_percentile_int(agent["two_way_count_percentile"]).present? ? "P#{representation_percentile_int(agent['two_way_count_percentile'])}" : nil),
+        subvalue_class_name: representation_percentile_color_class(agent["two_way_count_percentile"]),
+        class_name: "w-full"
+      } %>
+    </div>
+
+    <div class="grid grid-cols-3 gap-1.5">
+      <%= render partial: "tools/salary_book/kpi_cell", locals: {
+        label: "#{year_label}",
+        value: format_compact_currency(agent["cap_2025_total"]),
+        subvalue: (representation_percentile_int(agent["cap_2025_total_percentile"]).present? ? "P#{representation_percentile_int(agent['cap_2025_total_percentile'])}" : nil),
+        subvalue_class_name: representation_percentile_color_class(agent["cap_2025_total_percentile"]),
+        value_class_name: "text-[11px]",
+        class_name: "w-full"
+      } %>
+      <%= render partial: "tools/salary_book/kpi_cell", locals: {
+        label: "2026",
+        value: format_compact_currency(agent["cap_2026_total"]),
+        subvalue: (representation_percentile_int(agent["cap_2026_total_percentile"]).present? ? "P#{representation_percentile_int(agent['cap_2026_total_percentile'])}" : nil),
+        subvalue_class_name: representation_percentile_color_class(agent["cap_2026_total_percentile"]),
+        value_class_name: "text-[11px]",
+        class_name: "w-full"
+      } %>
+      <%= render partial: "tools/salary_book/kpi_cell", locals: {
+        label: "2027",
+        value: format_compact_currency(agent["cap_2027_total"]),
+        subvalue: (representation_percentile_int(agent["cap_2027_total_percentile"]).present? ? "P#{representation_percentile_int(agent['cap_2027_total_percentile'])}" : nil),
+        subvalue_class_name: representation_percentile_color_class(agent["cap_2027_total_percentile"]),
+        value_class_name: "text-[11px]",
+        class_name: "w-full"
+      } %>
+    </div>
+
+    <div class="rounded-lg border border-border bg-background">
+      <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Contract mix</div>
+      <div class="px-3 py-2 space-y-1 text-xs">
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">Max-level</span><span class="font-mono tabular-nums"><%= agent["max_contract_count"].to_i %></span></div>
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">Rookie-scale</span><span class="font-mono tabular-nums"><%= agent["rookie_scale_count"].to_i %></span></div>
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">Minimum</span><span class="font-mono tabular-nums"><%= agent["min_contract_count"].to_i %></span></div>
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">Expiring <%= year_label %></span><span class="font-mono tabular-nums"><%= agent["expiring_2025"].to_i %></span></div>
+      </div>
+    </div>
+
+    <div class="rounded-lg border border-border bg-background">
+      <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Restrictions + options</div>
+      <div class="px-3 py-2 space-y-1 text-xs">
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">No-trade</span><span class="font-mono tabular-nums"><%= agent["no_trade_count"].to_i %></span></div>
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">Trade kicker</span><span class="font-mono tabular-nums"><%= agent["trade_kicker_count"].to_i %></span></div>
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">Restricted now</span><span class="font-mono tabular-nums"><%= agent["trade_restricted_count"].to_i %></span></div>
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">Player options</span><span class="font-mono tabular-nums"><%= agent["player_option_count"].to_i %></span></div>
+        <div class="flex items-center justify-between"><span class="text-muted-foreground">Team options</span><span class="font-mono tabular-nums"><%= agent["team_option_count"].to_i %></span></div>
+      </div>
+    </div>
+
+    <div class="rounded-lg border border-border bg-background">
+      <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Clients</div>
+      <% if clients.empty? %>
+        <div class="p-3 text-sm text-muted-foreground italic">No clients.</div>
+      <% else %>
+        <div class="divide-y divide-border">
+          <% clients.each do |c| %>
+            <div class="px-3 py-2 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
+              <div class="entity-cell-two-line">
+                <div class="entity-cell-primary justify-between gap-2">
+                  <a href="<%= player_href(c['player_id']) %>" class="truncate font-medium hover:underline"><%= c["player_name"] %></a>
+                  <% if c["is_two_way"] %>
+                    <span class="entity-chip entity-chip--muted">2W</span>
+                  <% else %>
+                    <span class="font-mono tabular-nums text-[11px]"><%= format_salary(c["cap_2025"]) %></span>
+                  <% end %>
+                </div>
+                <div class="entity-cell-secondary justify-between gap-2">
+                  <span>
+                    <% if c["team_code"].present? %>
+                      <a href="<%= team_href(team_code: c['team_code'], team_id: c['team_id']) %>" class="hover:underline"><%= c["team_code"] %></a>
+                    <% else %>
+                      —
+                    <% end %>
+                    <% if c["years_of_service"].present? %>
+                      · <span class="tabular-nums"><%= c["years_of_service"].to_i %> YOS</span>
+                    <% end %>
+                  </span>
+                  <span class="font-mono tabular-nums"><%= format_compact_currency(c["total_salary_from_2025"]) %></span>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

@@ -20,6 +20,9 @@ Rails.application.routes.draw do
     get "salary-book/sidebar/pick", to: "salary_book#sidebar_pick", as: :salary_book_sidebar_pick
     get "salary-book/sidebar/clear", to: "salary_book#sidebar_clear", as: :salary_book_sidebar_clear
 
+    # Salary Book combobox fragments (server-rendered HTML options)
+    get "salary-book/combobox/players/search", to: "salary_book#combobox_players_search", as: :salary_book_combobox_players_search
+
     # SSE multi-region team switch (main canvas + sidebar in one request)
     get "salary-book/sse/switch-team", to: "salary_book_sse#switch_team", as: :salary_book_sse_switch_team
   end
@@ -61,6 +64,11 @@ Rails.application.routes.draw do
     # ---------------------------------------------------------------------
     get "agents", to: "agents#index"
     get "agents/pane", to: "agents#pane"
+    get "agents/sidebar/base", to: "agents#sidebar_base", as: :agents_sidebar_base
+    get "agents/sidebar/agent/:id", to: "agents#sidebar_agent", as: :agents_sidebar_agent, constraints: { id: /\d+/ }
+    get "agents/sidebar/agency/:id", to: "agents#sidebar_agency", as: :agents_sidebar_agency, constraints: { id: /\d+/ }
+    get "agents/sidebar/clear", to: "agents#sidebar_clear", as: :agents_sidebar_clear
+    get "agents/sse/refresh", to: "agents_sse#refresh", as: :agents_sse_refresh
     get "agents/:id", to: "agents#redirect", constraints: { id: /\d+/ }
     get "agents/:slug", to: "agents#show", as: :agent, constraints: slug_route_constraint
 
