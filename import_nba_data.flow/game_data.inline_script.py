@@ -15,6 +15,29 @@ BASE_URL = "https://api.nba.com/v0"
 HUSTLE_URL = "https://api.nba.com/v0/api/hustlestats"
 QUERY_TOOL_URL = "https://api.nba.com/v0/api/querytool"
 
+TRACKING_BATCH_SIZE = 100
+TRACKING_MAX_ROWS_RETURNED = 10000
+QUERY_TOOL_TRUNCATION_THRESHOLD = 9900
+
+DEFENSIVE_BATCH_SIZE = 100
+VIOLATIONS_BATCH_SIZE = 100
+VIOLATIONS_TEAM_BATCH_SIZE = 200
+
+QUERYTOOL_EVENT_STREAM_MAX_ROWS_RETURNED = 10000
+QUERYTOOL_EVENT_STREAM_BATCH_SIZES = {
+    "TrackingPasses": 15,
+    "DefensiveEvents": 30,
+    "TrackingDrives": 50,
+    "TrackingIsolations": 200,
+    "TrackingPostUps": 200,
+}
+QUERYTOOL_EVENT_STREAM_TYPES = list(QUERYTOOL_EVENT_STREAM_BATCH_SIZES.keys())
+
+QUERYTOOL_EVENT_STREAM_PER_MODE = "Totals"
+QUERYTOOL_EVENT_STREAM_SUM_SCOPE = "Event"
+QUERYTOOL_EVENT_STREAM_GROUPING = "None"
+QUERYTOOL_EVENT_STREAM_TEAM_GROUPING = "Y"
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -159,7 +182,13 @@ def request_json(
     url = f"{base_url}{path}"
 
     for attempt in range(retries):
-        resp = client.get(url, params=params, headers=headers)
+        try:
+            resp = client.get(url, params=params, headers=headers)
+        except httpx.TimeoutException:
+            if attempt == retries - 1:
+                raise
+            time.sleep(1 + attempt)
+            continue
         if resp.status_code in {429, 500, 502, 503, 504}:
             if attempt == retries - 1:
                 resp.raise_for_status()
@@ -184,7 +213,13 @@ def request_xml(
     url = f"{base_url}{path}"
 
     for attempt in range(retries):
-        resp = client.get(url, params=params, headers=headers)
+        try:
+            resp = client.get(url, params=params, headers=headers)
+        except httpx.TimeoutException:
+            if attempt == retries - 1:
+                raise
+            time.sleep(1 + attempt)
+            continue
         if resp.status_code in {429, 500, 502, 503, 504}:
             if attempt == retries - 1:
                 resp.raise_for_status()
@@ -664,6 +699,224 @@ TRACKING_KEY_MAP = {
 }
 
 
+DEFENSIVE_COLUMNS = [
+    "minutes",
+    "def_fgm",
+    "def_fga",
+    "def_fg_pct",
+    "def_fg3m",
+    "def_fg3a",
+    "def_fg3_pct",
+    "def_ftm",
+    "def_fta",
+    "def_ft_pct",
+    "def_ast",
+    "def_tov",
+    "def_foul",
+    "def_shooting_foul",
+    "def_blk",
+    "def_stl",
+    "def_pts",
+]
+
+DEFENSIVE_INT_COLUMNS = {
+    "def_fgm",
+    "def_fga",
+    "def_fg3m",
+    "def_fg3a",
+    "def_ftm",
+    "def_fta",
+    "def_ast",
+    "def_tov",
+    "def_foul",
+    "def_shooting_foul",
+    "def_blk",
+    "def_stl",
+    "def_pts",
+}
+
+DEFENSIVE_PCT_COLUMNS = {
+    "def_fg_pct",
+    "def_fg3_pct",
+    "def_ft_pct",
+}
+
+DEFENSIVE_KEY_MAP = {
+    "MIN": "minutes",
+    "DEF_FGM": "def_fgm",
+    "DEF_FGA": "def_fga",
+    "DEF_FG_PCT": "def_fg_pct",
+    "DEF_FG3M": "def_fg3m",
+    "DEF_FG3A": "def_fg3a",
+    "DEF_FG3_PCT": "def_fg3_pct",
+    "DEF_FTM": "def_ftm",
+    "DEF_FTA": "def_fta",
+    "DEF_FT_PCT": "def_ft_pct",
+    "DEF_AST": "def_ast",
+    "DEF_TOV": "def_tov",
+    "DEF_FOUL": "def_foul",
+    "DEF_SHOOTING_FOUL": "def_shooting_foul",
+    "DEF_BLK": "def_blk",
+    "DEF_STL": "def_stl",
+    "DEF_PTS": "def_pts",
+}
+
+
+def map_defensive_stats(stats: dict) -> dict:
+    row: dict = {}
+    for key, value in (stats or {}).items():
+        column = DEFENSIVE_KEY_MAP.get(key)
+        if not column:
+            continue
+
+        if column == "minutes":
+            parsed = parse_minutes_interval(value)
+        elif column in DEFENSIVE_INT_COLUMNS:
+            parsed = parse_int(value)
+        elif column in DEFENSIVE_PCT_COLUMNS:
+            parsed = normalize_pct(value)
+        else:
+            parsed = parse_float(value)
+
+        if parsed is None:
+            continue
+
+        row[column] = parsed
+    return row
+
+
+VIOLATIONS_PLAYER_COLUMNS = [
+    "started",
+    "minutes",
+    "travel",
+    "double_dribble",
+    "discontinued_dribble",
+    "off_three_sec",
+    "def_three_sec",
+    "inbound",
+    "backcourt",
+    "off_goaltending",
+    "def_goaltending",
+    "palming",
+    "kicked_ball",
+    "jump_ball",
+    "lane",
+    "charge",
+    "off_foul",
+]
+
+VIOLATIONS_TEAM_COLUMNS = [
+    "minutes",
+    "travel",
+    "double_dribble",
+    "discontinued_dribble",
+    "off_three_sec",
+    "def_three_sec",
+    "inbound",
+    "backcourt",
+    "off_goaltending",
+    "def_goaltending",
+    "palming",
+    "kicked_ball",
+    "jump_ball",
+    "lane",
+    "charge",
+    "off_foul",
+    "tm_delay_of_game",
+    "tm_eight_sec",
+    "tm_five_sec",
+    "tm_shot_clock",
+]
+
+VIOLATIONS_COUNT_KEY_MAP = {
+    "TRAVEL": "travel",
+    "DOUBLE_DRIBBLE": "double_dribble",
+    "DISCONTINUED_DRIBBLE": "discontinued_dribble",
+    "OFF_THREE_SEC": "off_three_sec",
+    "DEF_THREE_SEC": "def_three_sec",
+    "INBOUND": "inbound",
+    "BACKCOURT": "backcourt",
+    "OFF_GOALTENDING": "off_goaltending",
+    "DEF_GOALTENDING": "def_goaltending",
+    "PALMING": "palming",
+    "KICKED_BALL": "kicked_ball",
+    "JUMP_BALL": "jump_ball",
+    "LANE": "lane",
+    "CHARGE": "charge",
+    "OFF_FOUL": "off_foul",
+}
+
+VIOLATIONS_TEAM_KEY_MAP = {
+    **VIOLATIONS_COUNT_KEY_MAP,
+    "TM_DELAY_OF_GAME": "tm_delay_of_game",
+    "TM_EIGHT_SEC": "tm_eight_sec",
+    "TM_FIVE_SEC": "tm_five_sec",
+    "TM_SHOT_CLOCK": "tm_shot_clock",
+}
+
+
+def map_violations_player_stats(stats: dict) -> dict:
+    row: dict = {}
+    if stats is None:
+        return row
+
+    started_value = stats.get("STARTED")
+    if started_value is not None:
+        row["started"] = to_bool(started_value)
+
+    minutes_value = stats.get("MIN")
+    if minutes_value is not None:
+        row["minutes"] = parse_minutes_interval(minutes_value)
+
+    for key, column in VIOLATIONS_COUNT_KEY_MAP.items():
+        if key not in stats:
+            continue
+        parsed = parse_int(stats.get(key))
+        if parsed is None:
+            continue
+        row[column] = parsed
+
+    return row
+
+
+def map_violations_team_stats(stats: dict) -> dict:
+    row: dict = {}
+    if stats is None:
+        return row
+
+    minutes_value = stats.get("MIN")
+    if minutes_value is not None:
+        row["minutes"] = parse_minutes_interval(minutes_value)
+
+    for key, column in VIOLATIONS_TEAM_KEY_MAP.items():
+        if key not in stats:
+            continue
+        parsed = parse_int(stats.get(key))
+        if parsed is None:
+            continue
+        row[column] = parsed
+
+    return row
+
+
+def reduce_querytool_event_row(payload_row: dict) -> dict:
+    stats = payload_row.get("stats") or {}
+    team_id = parse_int(payload_row.get("teamId"))
+    if team_id == 0:
+        team_id = None
+
+    return {
+        "event_number": parse_int(payload_row.get("eventNumber")),
+        "nba_id": parse_int(payload_row.get("playerId")),
+        "team_id": team_id,
+        "period": parse_int(payload_row.get("period")),
+        "game_clock": parse_float(payload_row.get("gameClock")),
+        "x": parse_int(payload_row.get("x")),
+        "y": parse_int(payload_row.get("y")),
+        "stats": stats,
+    }
+
+
 def camel_to_snake(name: str) -> str:
     out = ""
     for char in name:
@@ -856,6 +1109,189 @@ def parse_hustle_events(xml_text: str | None) -> dict | None:
     return {"attributes": root.attrib, "events": events}
 
 
+def chunked(values: list[str], size: int) -> list[list[str]]:
+    if size <= 0:
+        size = 1
+    return [values[i:i + size] for i in range(0, len(values), size)]
+
+
+def split_batch(values: list[str]) -> tuple[list[str], list[str]]:
+    midpoint = max(1, len(values) // 2)
+    return values[:midpoint], values[midpoint:]
+
+
+def fetch_querytool_batched_rows(
+    client: httpx.Client,
+    path: str,
+    base_params: dict,
+    game_ids: list[str],
+    row_key: str,
+    batch_size: int,
+    max_rows_returned: int = TRACKING_MAX_ROWS_RETURNED,
+    truncation_threshold: int = QUERY_TOOL_TRUNCATION_THRESHOLD,
+) -> tuple[list[dict], list[str]]:
+    pending_batches = chunked(game_ids, batch_size)
+    all_rows: list[dict] = []
+    warnings: list[str] = []
+
+    while pending_batches:
+        batch = pending_batches.pop(0)
+        if not batch:
+            continue
+
+        params = dict(base_params)
+        params["GameId"] = ",".join(batch)
+        params["MaxRowsReturned"] = max_rows_returned
+
+        try:
+            payload = request_json(
+                client,
+                path,
+                params,
+                base_url=QUERY_TOOL_URL,
+            )
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            if status == 414 and len(batch) > 1:
+                left, right = split_batch(batch)
+                pending_batches = [left, right, *pending_batches]
+                continue
+            raise
+
+        rows = payload.get(row_key) or []
+        rows_returned = parse_int((payload.get("meta") or {}).get("rowsReturned"))
+        suspicious = (
+            (rows_returned is not None and rows_returned >= truncation_threshold)
+            or len(rows) >= truncation_threshold
+        )
+
+        if suspicious and len(batch) > 1:
+            left, right = split_batch(batch)
+            pending_batches = [left, right, *pending_batches]
+            continue
+
+        if suspicious:
+            warnings.append(
+                f"{path} batch for game {batch[0]} may be truncated "
+                f"(rows={len(rows)}, rowsReturned={rows_returned})"
+            )
+
+        all_rows.extend(rows)
+
+    return all_rows, warnings
+
+
+def build_tracking_row(player: dict, fallback_game_id: str, fetched_at: datetime) -> dict | None:
+    nba_id = parse_int(player.get("playerId"))
+    if nba_id is None:
+        return None
+
+    team_id = parse_int(player.get("teamId"))
+    if team_id == 0:
+        team_id = None
+
+    row = {
+        "game_id": player.get("gameId") or fallback_game_id,
+        "nba_id": nba_id,
+        "team_id": team_id,
+        "created_at": fetched_at,
+        "updated_at": fetched_at,
+        "fetched_at": fetched_at,
+    }
+    for column in TRACKING_COLUMNS:
+        row[column] = None
+
+    raw_tracking_stats = player.get("stats") or {}
+    row["tracking_stats_json"] = Json(raw_tracking_stats) if raw_tracking_stats else None
+    row.update(map_tracking_stats(raw_tracking_stats))
+    return row
+
+
+def build_defensive_row(player: dict, fetched_at: datetime) -> dict | None:
+    nba_id = parse_int(player.get("playerId"))
+    if nba_id is None:
+        return None
+
+    team_id = parse_int(player.get("teamId"))
+    if team_id == 0:
+        team_id = None
+
+    game_id = player.get("gameId")
+    if not game_id:
+        return None
+
+    row = {
+        "game_id": game_id,
+        "nba_id": nba_id,
+        "team_id": team_id,
+        "created_at": fetched_at,
+        "updated_at": fetched_at,
+        "fetched_at": fetched_at,
+    }
+    for column in DEFENSIVE_COLUMNS:
+        row[column] = None
+
+    raw_stats = player.get("stats") or {}
+    row["defensive_stats_json"] = Json(raw_stats) if raw_stats else None
+    row.update(map_defensive_stats(raw_stats))
+    return row
+
+
+def build_violations_player_row(player: dict, fetched_at: datetime) -> dict | None:
+    nba_id = parse_int(player.get("playerId"))
+    if nba_id is None:
+        return None
+
+    team_id = parse_int(player.get("teamId"))
+    if team_id == 0:
+        team_id = None
+
+    game_id = player.get("gameId")
+    if not game_id:
+        return None
+
+    row = {
+        "game_id": game_id,
+        "nba_id": nba_id,
+        "team_id": team_id,
+        "created_at": fetched_at,
+        "updated_at": fetched_at,
+        "fetched_at": fetched_at,
+    }
+    for column in VIOLATIONS_PLAYER_COLUMNS:
+        row[column] = None
+
+    raw_stats = player.get("stats") or {}
+    row["violations_stats_json"] = Json(raw_stats) if raw_stats else None
+    row.update(map_violations_player_stats(raw_stats))
+    return row
+
+
+def build_violations_team_row(team: dict, fetched_at: datetime) -> dict | None:
+    team_id = parse_int(team.get("teamId"))
+    if team_id is None:
+        return None
+
+    game_id = team.get("gameId")
+    if not game_id:
+        return None
+
+    row = {
+        "game_id": game_id,
+        "team_id": team_id,
+        "created_at": fetched_at,
+        "updated_at": fetched_at,
+        "fetched_at": fetched_at,
+    }
+    for column in VIOLATIONS_TEAM_COLUMNS:
+        row[column] = None
+
+    raw_stats = team.get("stats") or {}
+    row["violations_stats_json"] = Json(raw_stats) if raw_stats else None
+    row.update(map_violations_team_stats(raw_stats))
+    return row
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -923,6 +1359,7 @@ def main(
                 game_list = [(gid, status) for gid, status in game_list if status == 3]
 
         fetched_at = now_utc()
+        errors: list[str] = []
         player_rows: list[dict] = []
         team_rows: list[dict] = []
         advanced_rows: list[dict] = []
@@ -933,6 +1370,12 @@ def main(
         hustle_team_rows: list[dict] = []
         hustle_event_rows: list[dict] = []
         tracking_rows: list[dict] = []
+        defensive_rows: list[dict] = []
+        violations_player_rows: list[dict] = []
+        violations_team_rows: list[dict] = []
+        querytool_event_stream_rows_total = 0
+        querytool_event_stream_upserted_total = 0
+        querytool_game_ids: list[str] = []
 
         with httpx.Client(timeout=30) as client:
             for game_id_value, status in game_list:
@@ -1078,44 +1521,195 @@ def main(
                             }
                         )
 
-                # Tracking stats (final games only)
+                # Query Tool game-level data (final games only, fetched in batched pass)
                 if is_final and season_label_value and season_type_value:
-                    tracking_payload = request_json(
-                        client,
-                        "/game/player",
-                        {
+                    querytool_game_ids.append(game_id_value)
+
+            if querytool_game_ids and season_label_value and season_type_value:
+                # --- Tracking stats (MeasureType=Tracking) ---
+                tracking_payload_rows, tracking_warnings = fetch_querytool_batched_rows(
+                    client=client,
+                    path="/game/player",
+                    base_params={
+                        "LeagueId": league_id,
+                        "SeasonYear": season_label_value,
+                        "SeasonType": season_type_value,
+                        "Grouping": "None",
+                        "TeamGrouping": "Y",
+                        "MeasureType": "Tracking",
+                    },
+                    game_ids=querytool_game_ids,
+                    row_key="players",
+                    batch_size=TRACKING_BATCH_SIZE,
+                    max_rows_returned=TRACKING_MAX_ROWS_RETURNED,
+                )
+                errors.extend([f"tracking_stats: {warning}" for warning in tracking_warnings])
+
+                for player in tracking_payload_rows:
+                    row = build_tracking_row(player, fallback_game_id="", fetched_at=fetched_at)
+                    if row is None or not row.get("game_id"):
+                        continue
+                    tracking_rows.append(row)
+
+                # --- Defensive attribution (MeasureType=Defensive) ---
+                defensive_payload_rows, defensive_warnings = fetch_querytool_batched_rows(
+                    client=client,
+                    path="/game/player",
+                    base_params={
+                        "LeagueId": league_id,
+                        "SeasonYear": season_label_value,
+                        "SeasonType": season_type_value,
+                        "Grouping": "None",
+                        "TeamGrouping": "Y",
+                        "MeasureType": "Defensive",
+                    },
+                    game_ids=querytool_game_ids,
+                    row_key="players",
+                    batch_size=DEFENSIVE_BATCH_SIZE,
+                    max_rows_returned=TRACKING_MAX_ROWS_RETURNED,
+                )
+                errors.extend([f"defensive_stats: {warning}" for warning in defensive_warnings])
+
+                for player in defensive_payload_rows:
+                    row = build_defensive_row(player, fetched_at=fetched_at)
+                    if row is None:
+                        continue
+                    defensive_rows.append(row)
+
+                # --- Violations (player) (MeasureType=Violations) ---
+                violations_payload_rows, violations_warnings = fetch_querytool_batched_rows(
+                    client=client,
+                    path="/game/player",
+                    base_params={
+                        "LeagueId": league_id,
+                        "SeasonYear": season_label_value,
+                        "SeasonType": season_type_value,
+                        "Grouping": "None",
+                        "TeamGrouping": "Y",
+                        "MeasureType": "Violations",
+                    },
+                    game_ids=querytool_game_ids,
+                    row_key="players",
+                    batch_size=VIOLATIONS_BATCH_SIZE,
+                    max_rows_returned=TRACKING_MAX_ROWS_RETURNED,
+                )
+                errors.extend([f"violations_player: {warning}" for warning in violations_warnings])
+
+                for player in violations_payload_rows:
+                    row = build_violations_player_row(player, fetched_at=fetched_at)
+                    if row is None:
+                        continue
+                    violations_player_rows.append(row)
+
+                # --- Violations (team) (MeasureType=Violations) ---
+                violations_team_payload_rows, violations_team_warnings = fetch_querytool_batched_rows(
+                    client=client,
+                    path="/game/team",
+                    base_params={
+                        "LeagueId": league_id,
+                        "SeasonYear": season_label_value,
+                        "SeasonType": season_type_value,
+                        "Grouping": "None",
+                        "MeasureType": "Violations",
+                    },
+                    game_ids=querytool_game_ids,
+                    row_key="teams",
+                    batch_size=VIOLATIONS_TEAM_BATCH_SIZE,
+                    max_rows_returned=TRACKING_MAX_ROWS_RETURNED,
+                )
+                errors.extend([f"violations_team: {warning}" for warning in violations_team_warnings])
+
+                for team in violations_team_payload_rows:
+                    row = build_violations_team_row(team, fetched_at=fetched_at)
+                    if row is None:
+                        continue
+                    violations_team_rows.append(row)
+
+                # --- Query Tool event streams (store per-game JSONB) ---
+                for event_type in QUERYTOOL_EVENT_STREAM_TYPES:
+                    batch_size = QUERYTOOL_EVENT_STREAM_BATCH_SIZES.get(event_type, 25)
+                    pending_batches = chunked(querytool_game_ids, batch_size)
+
+                    while pending_batches:
+                        batch = pending_batches.pop(0)
+                        if not batch:
+                            continue
+
+                        params = {
                             "LeagueId": league_id,
                             "SeasonYear": season_label_value,
                             "SeasonType": season_type_value,
-                            "Grouping": "None",
-                            "TeamGrouping": "Y",
-                            "MeasureType": "Tracking",
-                            "GameId": game_id_value,
-                        },
-                        base_url=QUERY_TOOL_URL,
-                    )
-                    for player in tracking_payload.get("players") or []:
-                        nba_id = parse_int(player.get("playerId"))
-                        if nba_id is None:
-                            continue
-                        team_id = parse_int(player.get("teamId"))
-                        if team_id == 0:
-                            team_id = None
-                        row = {
-                            "game_id": player.get("gameId") or game_id_value,
-                            "nba_id": nba_id,
-                            "team_id": team_id,
-                            "created_at": fetched_at,
-                            "updated_at": fetched_at,
-                            "fetched_at": fetched_at,
+                            "PerMode": QUERYTOOL_EVENT_STREAM_PER_MODE,
+                            "SumScope": QUERYTOOL_EVENT_STREAM_SUM_SCOPE,
+                            "Grouping": QUERYTOOL_EVENT_STREAM_GROUPING,
+                            "TeamGrouping": QUERYTOOL_EVENT_STREAM_TEAM_GROUPING,
+                            "EventType": event_type,
+                            "GameId": ",".join(batch),
+                            "MaxRowsReturned": QUERYTOOL_EVENT_STREAM_MAX_ROWS_RETURNED,
                         }
-                        for column in TRACKING_COLUMNS:
-                            row[column] = None
 
-                        raw_tracking_stats = player.get("stats") or {}
-                        row["tracking_stats_json"] = Json(raw_tracking_stats) if raw_tracking_stats else None
-                        row.update(map_tracking_stats(raw_tracking_stats))
-                        tracking_rows.append(row)
+                        try:
+                            payload = request_json(
+                                client,
+                                "/event/player",
+                                params,
+                                base_url=QUERY_TOOL_URL,
+                            )
+                        except httpx.HTTPStatusError as exc:
+                            status = exc.response.status_code if exc.response is not None else None
+                            if status in {414, 504} and len(batch) > 1:
+                                left, right = split_batch(batch)
+                                pending_batches = [left, right, *pending_batches]
+                                continue
+                            raise
+
+                        rows = payload.get("players") or []
+                        rows_returned = parse_int((payload.get("meta") or {}).get("rowsReturned"))
+                        suspicious = (
+                            (rows_returned is not None and rows_returned >= QUERY_TOOL_TRUNCATION_THRESHOLD)
+                            or len(rows) >= QUERY_TOOL_TRUNCATION_THRESHOLD
+                        )
+
+                        if suspicious and len(batch) > 1:
+                            left, right = split_batch(batch)
+                            pending_batches = [left, right, *pending_batches]
+                            continue
+
+                        if suspicious:
+                            errors.append(
+                                f"querytool_event_streams {event_type}: batch for game {batch[0]} may be truncated "
+                                f"(rows={len(rows)}, rowsReturned={rows_returned})"
+                            )
+
+                        grouped: dict[str, list[dict]] = {gid: [] for gid in batch}
+                        for payload_row in rows:
+                            game_id_row = payload_row.get("gameId")
+                            if not game_id_row or game_id_row not in grouped:
+                                continue
+                            grouped[game_id_row].append(reduce_querytool_event_row(payload_row))
+
+                        stream_rows: list[dict] = []
+                        for gid in batch:
+                            stream_rows.append(
+                                {
+                                    "game_id": gid,
+                                    "event_type": event_type,
+                                    "events_json": Json(grouped.get(gid) or []),
+                                    "created_at": fetched_at,
+                                    "updated_at": fetched_at,
+                                    "fetched_at": fetched_at,
+                                }
+                            )
+
+                        querytool_event_stream_rows_total += len(stream_rows)
+                        if not dry_run:
+                            querytool_event_stream_upserted_total += upsert(
+                                conn,
+                                "nba.querytool_event_streams",
+                                stream_rows,
+                                ["game_id", "event_type"],
+                                update_exclude=["created_at"],
+                            )
 
         inserted_players = 0
         inserted_teams = 0
@@ -1127,6 +1721,10 @@ def main(
         inserted_hustle_teams = 0
         inserted_hustle_events = 0
         inserted_tracking = 0
+        inserted_defensive = 0
+        inserted_violations_player = 0
+        inserted_violations_team = 0
+        inserted_querytool_event_streams = 0
 
         if not dry_run:
             inserted_players = upsert(conn, "nba.boxscores_traditional", player_rows, ["game_id", "nba_id"], update_exclude=["created_at"])
@@ -1170,6 +1768,36 @@ def main(
                     update_exclude=["created_at"],
                 )
 
+            if defensive_rows:
+                inserted_defensive = upsert(
+                    conn,
+                    "nba.defensive_stats",
+                    defensive_rows,
+                    ["game_id", "nba_id"],
+                    update_exclude=["created_at"],
+                )
+
+            if violations_player_rows:
+                inserted_violations_player = upsert(
+                    conn,
+                    "nba.violations_player",
+                    violations_player_rows,
+                    ["game_id", "nba_id"],
+                    update_exclude=["created_at"],
+                )
+
+            if violations_team_rows:
+                inserted_violations_team = upsert(
+                    conn,
+                    "nba.violations_team",
+                    violations_team_rows,
+                    ["game_id", "team_id"],
+                    update_exclude=["created_at"],
+                )
+
+            # Event streams are upserted incrementally during fetch.
+            inserted_querytool_event_streams = querytool_event_stream_upserted_total
+
         conn.close()
 
         return {
@@ -1187,8 +1815,16 @@ def main(
                 {"table": "nba.hustle_stats_team", "rows": len(hustle_team_rows), "upserted": inserted_hustle_teams},
                 {"table": "nba.hustle_events", "rows": len(hustle_event_rows), "upserted": inserted_hustle_events},
                 {"table": "nba.tracking_stats", "rows": len(tracking_rows), "upserted": inserted_tracking},
+                {"table": "nba.defensive_stats", "rows": len(defensive_rows), "upserted": inserted_defensive},
+                {"table": "nba.violations_player", "rows": len(violations_player_rows), "upserted": inserted_violations_player},
+                {"table": "nba.violations_team", "rows": len(violations_team_rows), "upserted": inserted_violations_team},
+                {
+                    "table": "nba.querytool_event_streams",
+                    "rows": querytool_event_stream_rows_total,
+                    "upserted": inserted_querytool_event_streams,
+                },
             ],
-            "errors": [],
+            "errors": errors,
         }
     except Exception as exc:
         return {

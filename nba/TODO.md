@@ -1,128 +1,173 @@
-# NBA Import — Query Tool Migration TODO
+# NBA Import — Query Tool batching + hybrid ingest TODO
 
-Assessment dates: 2026-02-09 to 2026-02-11
+Assessment dates: 2026-02-09 → 2026-02-11
 
-This tracks follow-up work to improve `import_nba_data.flow/` using Query Tool
-batching where it helps, while keeping legacy endpoints where they remain the
-better fit.
+This tracks follow-up work to speed up `import_nba_data.flow/` by using **Query Tool batching** where it’s a clear win, while keeping **legacy `/api/stats/*`** endpoints where they provide important semantics/metadata.
 
 Related: `nba/api/QUERY_TOOL_NOTES.md`
 
 ---
 
-## Decisions from latest assessment
+## Current state (preprod reality check)
 
-1. **Use Query Tool batching more aggressively for game-level backfill/refresh**
-   (`/event/*`, `/game/*` endpoints).
-2. **Keep a hybrid model** (do **not** force full migration off `/api/stats/*`).
-3. **Do not treat 5k as an API hard cap**.
-   - Global hard cap is 10k.
-   - 5k ceilings are often caller-imposed (`MaxRowsReturned=5000`).
-4. **Add split/retry guardrails** for both row cap and URI size limits.
+Observed in `$POSTGRES_URL`:
 
----
+- `nba.games`: **816 total / 801 final**
+- Query Tool path proven:
+  - `nba.shot_chart`: **801 games** (fully populated; batched Query Tool)
+- Underfilled / missing (obvious next wins):
+  - `nba.tracking_stats`: **10 games**
+  - `nba.lineup_stats_game`: **0 games**
+- Legacy game-data tables are only partially populated (expected for preprod):
+  - `nba.boxscores_traditional`: **13 games**
+  - `nba.boxscores_advanced`: **13 games**
 
-## Key empirical findings (preprod)
-
-### 1) Batching is much faster than one-call-per-game
-
-10-game benchmark:
-
-- `/game/player` Tracking: ~33.7s → ~1.0s batched
-- `/game/lineups` Base: ~20.0s → ~1.2s batched
-- `/event/player` FieldGoals: ~19.9s → ~1.0s batched
-
-### 2) 10k is the true hard cap; 5k is often self-inflicted
-
-- `MaxRowsReturned > 10000` returns `400`.
-- Setting `MaxRowsReturned=5000` can silently truncate at 5k.
-- Omitting `MaxRowsReturned` is endpoint-specific (e.g. `/season/lineups`
-  defaulted to 2000 in tests).
-
-### 3) URI length can fail before row cap
-
-- Very large `GameId` lists can return `414 URI Too Long`.
-- Observed failures around 320+ game IDs in one request.
-
-### 4) Query Tool is not a complete boxscore replacement yet
-
-Compared to legacy `/api/stats/boxscore`, Query Tool game/player responses have
-schema/semantics differences (especially around full roster + not-playing
-metadata). Keeping legacy boxscore calls currently preserves expected table
-shape and semantics.
+Interpretation: **shot chart is the success case**; tracking + game lineups are the next most valuable batching upgrades.
 
 ---
 
-## Current data shape observations (preprod)
+## What we’re optimizing for
 
-- `nba.shot_chart` is fully populated for all final games (good Query Tool path).
-- `nba.tracking_stats` and `nba.lineup_stats_game` are underfilled relative to
-  final games, indicating immediate wins from batched game-level backfill.
-- `nba.lineup_stats_season` currently uses `LINEUP_MAX_ROWS=5000` in flow;
-  this likely risks silent truncation for league-wide pulls.
+1) **Fast season backfills** (reduce call count by batching `GameId`)
+2) **Fast daily refresh** (batch the last N games in one request)
+3) **No accidental semantic regressions** (especially boxscore “roster/DNP metadata”)
+
+---
+
+## What Query Tool is great for (high leverage)
+
+These endpoints support **comma-separated `GameId` batching** and have stable, upsert-friendly keys:
+
+- `/event/player` (`EventType=FieldGoals`, `SumScope=Event`) → `nba.shot_chart` (already good)
+- `/game/player` (`MeasureType=Tracking`) → `nba.tracking_stats`
+- `/game/lineups` (`MeasureType=Base|Advanced`) → `nba.lineup_stats_game`
+
+---
+
+## What Query Tool is *not* a drop-in replacement for
+
+### Boxscore semantics + roster metadata
+
+Legacy `/api/stats/boxscore` includes player rows and metadata the Query Tool **does not** provide:
+
+- `status`
+- `notPlayingReason`, `notPlayingDescription`
+- `order` / rotation order
+- `jerseyNum`
+- `oncourt`, `played`
+
+Also: Query Tool `/game/player MeasureType=Base` tends to return **fewer players** (played players only), so it can’t fully reproduce “full roster incl. DNP” semantics without additional sources.
+
+### No Query Tool equivalent
+
+These remain legacy forever:
+
+- Play-by-play: `/api/stats/pbp`
+- Players-on-court: `/api/stats/poc`
+- Hustle: XML feeds (`/api/hustlestats/*`)
+
+---
+
+## Empirical constraints (must design around)
+
+### 10,000 row hard cap + silent truncation
+
+- `MaxRowsReturned > 10000` → `400`
+- `MaxRowsReturned=10000` can still truncate silently.
+- The only reliable signal is `meta.rowsReturned == 10000` (or “suspiciously close”, e.g. `>= 9900`).
+
+### URI length (414)
+
+- Very large comma-separated `GameId` lists can hit `414 URI Too Long`.
+- Observed failures around **320+ game IDs** in a single request.
+
+### Timeouts / 504
+
+- Some endpoints are expensive at scale.
+- In practice, `/game/lineups MeasureType=Advanced` is **timeout-sensitive** with large batches.
+
+---
+
+## Guardrails (required for *every* Query Tool use)
+
+- Always set `MaxRowsReturned` explicitly.
+- Always read `meta.rowsReturned` and compare to your expected range.
+- Treat `rowsReturned >= 9900` as truncation risk → **split batch and retry**.
+- On `414` → **split batch and retry**.
+- On `429` → backoff 10–15s and retry.
+- On `504`/timeouts → retry; if it persists, **split batch**.
+- Log: endpoint, `MeasureType`/`Measures`, batch size (#games), and `rowsReturned`.
+
+---
+
+## Batch-size policy (starting points, then tune)
+
+These are “safe defaults” from live testing (not theoretical maxima):
+
+- `/event/player` FieldGoals (`SumScope=Event`): **50 games/batch**
+  - 80 games hit the 10k cap in tests.
+- `/game/player` Tracking: **50–100 games/batch**
+  - Watch for 414; split as needed.
+- `/game/lineups` Base: **50–200 games/batch**
+- `/game/lineups` Advanced: **25–50 games/batch**
+  - 100+ games/batch caused `504` in tests.
+
+`MaxRowsReturned` defaults:
+- Use **10000** for any batched `/event/*` or `/game/*` calls.
+- Avoid leaving older constants like 5000 in place once batching is introduced (that becomes caller-imposed truncation).
 
 ---
 
 ## Implementation plan
 
-## Phase 1 — High priority
+### Phase 1 — immediate wins (no boxscore semantic changes)
 
-- [ ] **Batch tracking backfill/refresh in `game_data.inline_script.py`**
-  - Move `/game/player?MeasureType=Tracking` from per-game calls to batched
-    `GameId` calls.
-  - Start with batch size 100 (or 50), then tune.
-  - Add split/retry for truncation and 414.
+- [x] **Batch tracking stats in `import_nba_data.flow/game_data.inline_script.py`**
+  - Changed `/game/player?MeasureType=Tracking` from per-game calls to batched `GameId` calls.
+  - Uses `MaxRowsReturned=10000`.
+  - Initial batch size is **100**.
+  - Added adaptive split/retry for truncation (`rowsReturned>=9900`) and 414.
 
-- [ ] **Batch game lineups in `aggregates.inline_script.py`**
-  - Move `/game/lineups` from per-game loops to batched `GameId` calls.
-  - Start with Base=100–200, Advanced=100–150.
-  - Add split/retry for truncation and 414.
+- [x] **Batch game lineups in `import_nba_data.flow/aggregates.inline_script.py`**
+  - Changed `/game/lineups` from per-game loops to batched `GameId` calls.
+  - Increased `MaxRowsReturned` to **10000** for batched pulls.
+  - Initial batch sizes:
+    - Base: **150**
+    - Advanced: **120**
+  - Added adaptive split/retry for truncation and 414.
 
-- [ ] **Fix season lineup truncation risk**
-  - Audit `/season/lineups` strategy (team-scoped pulls vs league-wide).
-  - Avoid relying on `MaxRowsReturned=5000` as a steady-state cap.
-  - Add explicit truncation checks (`meta.rowsReturned` and row length).
+- [x] **Reduce season lineup truncation risk in `aggregates`**
+  - `LINEUP_MAX_ROWS` increased to 10000.
+  - Added explicit truncation warnings using `meta.rowsReturned` and row count checks.
+  - Removed league-wide fallback for `/season/lineups`; now team-scoped IDs are required.
+  - Added TeamId batching (`LINEUP_SEASON_TEAM_BATCH_SIZE=10`) so season pulls run in ~3 calls per combo instead of 30.
 
-## Phase 2 — Medium priority
+- [ ] **Stop `aggregates` refresh from doing full-season work by default**
+  - Today `aggregates.inline_script.py` will run `/season/lineups` whenever `season_label` is set (and the flow always sets it), which makes refresh runs slow.
+  - Pick one approach:
+    - (A) Only run season lineups in `season_backfill` mode; OR
+    - (B) Move season lineups to a separate flow; OR
+    - (C) Add an explicit flow input flag (e.g. `include_season_lineups`).
 
-- [ ] **Evaluate optional Query Tool use for season aggregates**
-  - Keep current `/api/stats/player` + `/api/stats/team` by default (faster in
-    current tests).
-  - Revisit only if schema simplification or incremental behavior justifies it.
+### Phase 2 — optional / careful migrations
 
-- [ ] **Evaluate game/player + game/team Base/Advanced migration for boxscore stats**
-  - Only proceed if we can preserve `boxscores_*` semantics or explicitly accept
-    schema behavior changes.
+- [ ] **Boxscore migration (optional; only if we preserve semantics)**
+  - Keep legacy `/api/stats/boxscore` as the “semantic truth” for roster/DNP metadata.
+  - If we batch Query Tool for numeric stat lines (`/game/player`, `/game/team`), keep a legacy call for metadata *or* explicitly change table meaning.
 
-## Out of scope (no known Query Tool replacement)
-
-- [ ] Keep existing sources for:
-  - Play-by-play (`/api/stats/pbp`)
-  - Players-on-court (`/api/stats/poc`)
-  - Hustle XML feeds (`/api/hustlestats/*`)
-
----
-
-## Guardrails to implement everywhere Query Tool is used
-
-- [ ] Always set explicit `MaxRowsReturned`.
-- [ ] Treat `meta.rowsReturned` at/near cap as truncation signal.
-- [ ] Retry on 429/5xx with backoff.
-- [ ] On 414, reduce batch size and retry.
-- [ ] Log request batch size + rows returned for observability.
+- [ ] **Season aggregates (optional)**
+  - Keep legacy `/api/stats/player` + `/api/stats/team` by default (fast + stable).
+  - If revisiting Query Tool:
+    - Use `Measures=Base,Advanced,Misc,Scoring(,Opponent)` (comma-separated `MeasureType` is invalid).
+    - Benchmark performance + compare columns before switching.
 
 ---
 
-## Suggested assertions to add
+## Assertions to add (to prevent “fast but incomplete”)
 
-- [ ] `tracking_stats` coverage vs final games (distinct `game_id` ratio).
-- [ ] `lineup_stats_game` coverage vs final games.
-- [ ] Truncation sentinel checks (unexpectedly frequent `rowsReturned==cap`).
-
----
-
-## Expected impact
-
-Hybrid migration (batching game-level Query Tool paths) should significantly
-reduce wall-clock backfill/refresh time without sacrificing legacy boxscore
-metadata fidelity.
+- [ ] `tracking_stats` coverage: `COUNT(DISTINCT game_id)` vs final games.
+- [ ] `lineup_stats_game` coverage: `COUNT(DISTINCT game_id)` vs final games.
+- [ ] Truncation sentinels: flag runs where `rowsReturned == 10000` occurs frequently.
+- [ ] (If season lineups remain) sanity checks:
+  - team-scoped `/season/lineups?TeamId=...` returns only one `teamId` in payload
+  - league-wide pulls without `TeamId` are expected to truncate (and should be treated as “top-N”, not exhaustive)

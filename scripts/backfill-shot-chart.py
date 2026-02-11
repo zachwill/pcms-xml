@@ -34,6 +34,17 @@ import psycopg
 QUERY_TOOL_URL = "https://api.nba.com/v0/api/querytool"
 BATCH_SIZE = 50  # ~180 shots/game × 50 = ~9000, safely under 10k API limit
 
+TRACKING_SHOT_FLAG_MAP = {
+    "SHOT_AFTER_SCREENS": "tracking_shot_after_screens",
+    "SHOT_CATCH_AND_SHOOT": "tracking_shot_catch_and_shoot",
+    "SHOT_LOB": "tracking_shot_lob",
+    "SHOT_LONG_HEAVE": "tracking_shot_long_heave",
+    "SHOT_PULL_UP": "tracking_shot_pull_up",
+    "SHOT_TIP_IN": "tracking_shot_tip_in",
+    "SHOT_TRAILING_THREE": "tracking_shot_trailing_three",
+    "SHOT_TRANSITION": "tracking_shot_transition",
+}
+
 
 def now_utc():
     return datetime.now(timezone.utc)
@@ -99,6 +110,17 @@ def derive_shot_type(stats: dict) -> str | None:
     return None
 
 
+def map_tracking_shot_flags(stats: dict) -> dict:
+    out: dict = {}
+    for key, column in TRACKING_SHOT_FLAG_MAP.items():
+        value = parse_float((stats or {}).get(key))
+        if value is None:
+            out[column] = None
+        else:
+            out[column] = value == 1.0
+    return out
+
+
 def request_json(client, path, params, retries=3):
     headers = {"X-NBA-Api-Key": os.environ["NBA_API_KEY"]}
     url = f"{QUERY_TOOL_URL}{path}"
@@ -130,10 +152,14 @@ def upsert_shot_chart(conn, rows):
         return 0
     cols = [
         "game_id", "event_number", "nba_id", "team_id", "period", "game_clock",
-        "x", "y", "shot_made", "is_three", "shot_type", "shot_zone_area",
-        "shot_zone_range", "assisted_by_id", "assisted_by_name", "player_name",
-        "position", "opponent_name", "game_date", "season_year", "season_label",
-        "season_type", "created_at", "updated_at", "fetched_at",
+        "x", "y", "shot_made", "is_three",
+        "tracking_shot_after_screens", "tracking_shot_catch_and_shoot", "tracking_shot_lob",
+        "tracking_shot_long_heave", "tracking_shot_pull_up", "tracking_shot_tip_in",
+        "tracking_shot_trailing_three", "tracking_shot_transition",
+        "shot_type", "shot_zone_area", "shot_zone_range",
+        "assisted_by_id", "assisted_by_name", "player_name", "position",
+        "opponent_name", "game_date", "season_year", "season_label", "season_type",
+        "created_at", "updated_at", "fetched_at",
     ]
     placeholders = ", ".join(["%s"] * len(cols))
     col_list = ", ".join(cols)
@@ -195,9 +221,10 @@ def parse_shot_rows(players_data: list, fallback_season_label: str, fallback_sea
 
 
 def fetch_shot_chart_batch(client, game_ids: list[str], season_label: str, season_type: str):
-    """Fetch shot chart for multiple games in a single API call."""
+    """Fetch shot chart + TrackingShots enrichment for multiple games."""
     fetched_at = now_utc()
-    params = {
+
+    base_params = {
         "LeagueId": "00",
         "SeasonYear": season_label,
         "SeasonType": season_type,
@@ -205,17 +232,39 @@ def fetch_shot_chart_batch(client, game_ids: list[str], season_label: str, seaso
         "SumScope": "Event",
         "Grouping": "None",
         "TeamGrouping": "Y",
-        "EventType": "FieldGoals",
         "GameId": ",".join(game_ids),
         "MaxRowsReturned": 10000,
     }
-    payload = request_json(client, "/event/player", params)
-    return parse_shot_rows(
-        payload.get("players") or [],
+
+    fg_params = dict(base_params)
+    fg_params["EventType"] = "FieldGoals"
+    fg_payload = request_json(client, "/event/player", fg_params)
+
+    tracking_params = dict(base_params)
+    tracking_params["EventType"] = "TrackingShots"
+    tracking_payload = request_json(client, "/event/player", tracking_params)
+
+    tracking_flags_by_key: dict[tuple[str, int], dict] = {}
+    for row in tracking_payload.get("players") or []:
+        game_id = row.get("gameId")
+        event_number = parse_int(row.get("eventNumber"))
+        if not game_id or event_number is None:
+            continue
+        tracking_flags_by_key[(game_id, event_number)] = map_tracking_shot_flags(row.get("stats") or {})
+
+    shots = parse_shot_rows(
+        fg_payload.get("players") or [],
         fallback_season_label=season_label,
         fallback_season_type=season_type,
         fetched_at=fetched_at,
     )
+
+    for shot in shots:
+        key = (shot.get("game_id"), shot.get("event_number"))
+        if key in tracking_flags_by_key:
+            shot.update(tracking_flags_by_key[key])
+
+    return shots
 
 
 def main():
@@ -236,12 +285,16 @@ def main():
             SELECT g.game_id, g.season_label, g.season_type
             FROM nba.games g
             LEFT JOIN (
-                SELECT DISTINCT game_id FROM nba.shot_chart
+                SELECT
+                    game_id,
+                    bool_or(tracking_shot_after_screens IS NOT NULL) AS has_tracking_shots
+                FROM nba.shot_chart
+                GROUP BY game_id
             ) sc ON sc.game_id = g.game_id
             WHERE g.game_status = 3
               AND g.season_label = %s
               AND g.season_type = %s
-              AND sc.game_id IS NULL
+              AND COALESCE(sc.has_tracking_shots, false) = false
             ORDER BY g.game_date, g.game_id
         """, (args.season_label, args.season_type))
         games = cur.fetchall()
@@ -249,7 +302,7 @@ def main():
     if args.limit > 0:
         games = games[:args.limit]
 
-    print(f"Found {len(games)} final games without shot chart data")
+    print(f"Found {len(games)} final games missing shot chart tracking enrichment")
     if not games:
         conn.close()
         return
