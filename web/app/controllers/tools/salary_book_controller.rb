@@ -575,6 +575,18 @@ module Tools
           WHERE team_code = #{team_sql}
             AND draft_year BETWEEN #{draft_from_year_sql} AND #{draft_to_year_sql}
         ),
+        two_way_contract_counts AS (
+          SELECT
+            sby.team_code,
+            sby.salary_year,
+            COUNT(DISTINCT sby.player_id) FILTER (
+              WHERE COALESCE(sby.is_two_way, false)
+                AND (sby.cap_amount IS NOT NULL OR sby.tax_amount IS NOT NULL OR sby.apron_amount IS NOT NULL)
+            )::int AS two_way_row_count
+          FROM pcms.salary_book_yearly sby
+          WHERE sby.salary_year BETWEEN 2025 AND 2030
+          GROUP BY sby.team_code, sby.salary_year
+        ),
         team_summaries_ranked AS (
           SELECT
             tsw.team_code,
@@ -588,7 +600,7 @@ module Tools
             tsw.tax_total,
             tsw.apron_total,
             tsw.roster_row_count,
-            tsw.two_way_row_count,
+            COALESCE(twc.two_way_row_count, 0)::int AS two_way_row_count,
             tsw.salary_cap_amount,
             tsw.tax_level_amount,
             tsw.tax_apron_amount,
@@ -614,6 +626,9 @@ module Tools
             tsw.apron_level_lk,
             tsw.refreshed_at
           FROM pcms.team_salary_warehouse tsw
+          LEFT JOIN two_way_contract_counts twc
+            ON twc.team_code = tsw.team_code
+           AND twc.salary_year = tsw.salary_year
           WHERE tsw.salary_year BETWEEN 2025 AND 2030
         ),
         team_summaries AS (
@@ -773,7 +788,19 @@ module Tools
       in_list = team_codes.map { |c| conn.quote(c) }.join(",")
 
       rows = conn.exec_query(<<~SQL).to_a
-        WITH ranked AS (
+        WITH two_way_contract_counts AS (
+          SELECT
+            sby.team_code,
+            sby.salary_year,
+            COUNT(DISTINCT sby.player_id) FILTER (
+              WHERE COALESCE(sby.is_two_way, false)
+                AND (sby.cap_amount IS NOT NULL OR sby.tax_amount IS NOT NULL OR sby.apron_amount IS NOT NULL)
+            )::int AS two_way_row_count
+          FROM pcms.salary_book_yearly sby
+          WHERE sby.salary_year BETWEEN 2025 AND 2030
+          GROUP BY sby.team_code, sby.salary_year
+        ),
+        ranked AS (
           SELECT
             tsw.team_code,
             tsw.salary_year,
@@ -786,7 +813,7 @@ module Tools
             tsw.tax_total,
             tsw.apron_total,
             tsw.roster_row_count,
-            tsw.two_way_row_count,
+            COALESCE(twc.two_way_row_count, 0)::int AS two_way_row_count,
             tsw.salary_cap_amount,
             tsw.tax_level_amount,
             tsw.tax_apron_amount,
@@ -812,6 +839,9 @@ module Tools
             tsw.apron_level_lk,
             tsw.refreshed_at
           FROM pcms.team_salary_warehouse tsw
+          LEFT JOIN two_way_contract_counts twc
+            ON twc.team_code = tsw.team_code
+           AND twc.salary_year = tsw.salary_year
           WHERE tsw.salary_year BETWEEN 2025 AND 2030
         )
         SELECT *
