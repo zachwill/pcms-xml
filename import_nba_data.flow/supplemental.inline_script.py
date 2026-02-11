@@ -269,6 +269,7 @@ def main(
         tables = []
 
         season_year = parse_season_year(season_label)
+        desired_season_type = normalize_season_type(season_type)
 
         # Team roster snapshots (players + coaches)
         roster_player_rows: list[dict] = []
@@ -280,7 +281,7 @@ def main(
                     """
                     SELECT team_id
                     FROM nba.teams
-                    WHERE (%s IS NULL OR league_id = %s)
+                    WHERE (%s::text IS NULL OR league_id = %s)
                     ORDER BY team_id
                     """,
                     (league_id, league_id),
@@ -536,7 +537,6 @@ def main(
         else:
             start_dt, end_dt = resolve_date_range(mode, days_back, start_date, end_date, season_label)
             season_label_filter = season_label or None
-            desired_season_type = normalize_season_type(season_type)
             query = """
                 SELECT game_id, season_type
                 FROM nba.games
@@ -648,10 +648,42 @@ def main(
                 }
             )
 
-        if not dry_run:
-            upsert(conn, "nba.tracking_streams", stream_rows, ["stream_id"], update_exclude=["created_at"])
+        filtered_stream_rows = stream_rows
+        stream_game_ids = list({row.get("game_id") for row in stream_rows if row.get("game_id")})
+        if stream_game_ids:
+            season_label_filter = season_label or None
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT game_id, season_type
+                    FROM nba.games
+                    WHERE game_id = ANY(%s)
+                      AND league_id = %s
+                      AND (%s::text IS NULL OR season_label = %s)
+                    """,
+                    (stream_game_ids, league_id, season_label_filter, season_label_filter),
+                )
+                stream_game_rows = cur.fetchall()
 
-        tables.append({"table": "nba.tracking_streams", "rows": len(stream_rows)})
+            if desired_season_type:
+                allowed_game_ids = {
+                    game_id_value
+                    for game_id_value, game_season_type in stream_game_rows
+                    if normalize_season_type(game_season_type) == desired_season_type
+                }
+            else:
+                allowed_game_ids = {game_id_value for game_id_value, _ in stream_game_rows}
+
+            filtered_stream_rows = [
+                row
+                for row in stream_rows
+                if row.get("game_id") is None or row.get("game_id") in allowed_game_ids
+            ]
+
+        if not dry_run:
+            upsert(conn, "nba.tracking_streams", filtered_stream_rows, ["stream_id"], update_exclude=["created_at"])
+
+        tables.append({"table": "nba.tracking_streams", "rows": len(filtered_stream_rows)})
 
         conn.close()
         return {

@@ -181,7 +181,7 @@ def request_xml(
                 resp.raise_for_status()
             time.sleep(1 + attempt)
             continue
-        if resp.status_code == 404:
+        if resp.status_code in {403, 404}:
             return None
         resp.raise_for_status()
         return resp.text or None
