@@ -131,7 +131,7 @@
 
 ## Cross-cutting concerns
 
-- [ ] Grep all entity/tool views for bare `<th>` elements missing the standard header classes — every `<thead>` should use `bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90` or at minimum `text-muted-foreground`
+- [x] Grep all entity/tool views for bare `<th>` elements missing the standard header classes — every `<thead>` should use `bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90` or at minimum `text-muted-foreground` ✅ **All `<thead>` elements already had correct classes.** Found 11 `<th>` elements in `entities/trades/show.html.erb` (L137-140 trade-group inner table, L327-330 pick details inner table, L364-366 cash details inner table) missing `font-medium` — added to match every other `<th>` in the codebase.
 - [ ] Grep all entity/tool views for `<tr>` in `<tbody>` missing hover treatment — every data row should have `hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75`
 - [ ] Grep for numeric values rendered without `font-mono tabular-nums` (especially `format_salary`, `format_compact_currency`, dates, IDs)
 - [ ] Grep for color classes missing `dark:` variants (e.g., `text-red-600` without `dark:text-red-400`, `bg-green-100` without `dark:bg-green-900/30`)
