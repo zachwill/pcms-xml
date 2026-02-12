@@ -23,7 +23,16 @@
 **EXTSN chip color note (accepted):**
 - EXTSN transaction type was originally `bg-blue-100 text-blue-700` (blue). Mapped to `entity-chip--accent` (purple) because no `entity-chip--info` (blue) variant exists. Acceptable for now — if blue chips are needed across 3+ surfaces, add `entity-chip--info` to `application.css` first.
 
-**Next priority items:** drafts/_results (hover-on-colored-bg verification + tabular-nums), two_way_utility (h-10 clipping verification), team_summary dark mode audit, then system_values table consistency.
+**Next priority items:** team_summary dark mode audit (L289-331 `text-red-500` missing `dark:text-red-400`), then system_values table consistency.
+
+**Sticky column `group-hover` opacity rule (from Salary Book):**
+- Outer row: `hover:bg-yellow-50/70` (with opacity — transparent rows blend with table bg)
+- Sticky column: `group-hover:bg-yellow-50` (NO opacity — opaque to fully cover `bg-background` underneath)
+- The worker had `group-hover:bg-yellow-50/70` on the two_way_utility sticky column; supervisor corrected to `group-hover:bg-yellow-50`.
+
+**`before:` gradient shadow vs JS-toggled overlay:**
+- Salary Book uses a separate `<div data-salarytable-sticky-shadow>` that fades in via JS when scrolled (`opacity-0` default). This is the canonical approach for sticky-column scroll shadows.
+- Several entity pages (e.g., `drafts/_results.html.erb` L63) use always-visible `before:` CSS pseudo-elements instead. These are functional but visually less refined (shadow visible even when not scrolled). Lower-priority cleanup — do NOT break horizontal scroll behavior when removing these.
 
 ---
 
@@ -54,6 +63,7 @@
 
 - [x] `web/app/views/entities/drafts/_results.html.erb` L62-63: the sticky left column uses `group-hover:bg-yellow-50/70 dark:group-hover:bg-yellow-900/10` but the `bg_class` conditional backgrounds (for own picks, traded picks, etc.) may conflict with hover treatment — verify the hover is visible when rows already have colored backgrounds
 - [x] `web/app/views/entities/drafts/_results.html.erb` L142,184: bottom summary table rows have hover but the inner pick-grid `<td>` cells (L75) use `text-[10px]` with `font-mono` but not `tabular-nums`
+- [ ] `web/app/views/entities/drafts/_results.html.erb` L63: sticky column still uses always-visible `before:` gradient shadow pseudo-element — lower-priority cleanup (see supervisor note on `before:` vs JS-toggled overlay pattern)
 
 ## tools/two_way_utility/_player_row.html.erb
 
@@ -63,12 +73,12 @@
 
 ## tools/two_way_utility/_team_section.html.erb
 
-- [ ] `web/app/views/tools/two_way_utility/_team_section.html.erb`: verify that the team header section has the same sticky header shadow treatment as Salary Book (`shadow-[0_1px_3px_0_rgb(0_0_0/0.08),0_1px_2px_-1px_rgb(0_0_0/0.08)]` — confirmed present)
-- [ ] `web/app/views/tools/two_way_utility/_team_section.html.erb` L99: column header sticky cell has same extra `before:` gradient shadow pseudo-element (`before:w-[6px] before:bg-gradient-to-r before:from-[rgba(0,0,0,0.08)]`) that was removed from `_player_row.html.erb` — should be removed for consistency with Salary Book
+- [x] `web/app/views/tools/two_way_utility/_team_section.html.erb`: verify that the team header section has the same sticky header shadow treatment as Salary Book — confirmed present (note: uses `0.08` opacity vs Salary Book's `0.1`, acceptable for this lighter surface)
+- [x] `web/app/views/tools/two_way_utility/_team_section.html.erb` L99: column header sticky cell had extra `before:` gradient shadow pseudo-element — removed by supervisor to match Salary Book (Salary Book uses a separate JS-toggled overlay div, not a CSS pseudo-element)
 
 ## tools/team_summary/show.html.erb
 
-- [ ] `web/app/views/tools/team_summary/show.html.erb`: audit the full file for dark mode coverage on conditional color tints (cap space positive/negative, tax overage colors) — Salary Book uses explicit `dark:text-emerald-400` / `dark:text-red-400` pairs for every semantic color
+- [ ] `web/app/views/tools/team_summary/show.html.erb`: audit the full file for dark mode coverage on conditional color tints — **specific findings:** L289 `text-emerald-600 dark:text-emerald-400` is correct ✅ but the negative branch uses bare `text-red-500` without `dark:text-red-400`; L310, L317, L324, L331 all use `text-red-500` without dark variants. Salary Book reference uses `text-red-600 dark:text-red-400` pairs. Fix all to `text-red-600 dark:text-red-400`.
 
 ## tools/system_values/
 
