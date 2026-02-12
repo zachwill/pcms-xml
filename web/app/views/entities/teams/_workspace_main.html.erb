@@ -1,0 +1,163 @@
+<main id="maincanvas" class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-background">
+  <div id="teams-maincanvas" class="px-4 py-4 space-y-4">
+    <div class="flex items-end justify-between gap-4">
+      <div>
+        <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Teams workspace</div>
+        <h2 class="text-sm font-semibold text-foreground">
+          Cap pressure scan
+          <span class="text-muted-foreground font-medium">· <%= @teams.size %> rows</span>
+        </h2>
+      </div>
+
+      <div class="text-[11px] text-muted-foreground tabular-nums">
+        <span>Luxury tax owed: <%= format_compact_currency(@sidebar_summary[:luxury_tax_total]) %></span>
+      </div>
+    </div>
+
+    <% if @teams.empty? %>
+      <div class="p-6 rounded-lg border border-border bg-muted/20 text-sm text-muted-foreground italic text-center">
+        No teams match these filters.
+      </div>
+    <% else %>
+      <div class="rounded-lg border border-border overflow-hidden">
+        <div class="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm border-b border-border">
+          <div class="flex items-center px-4 h-8 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
+            <div class="w-64 shrink-0">Team</div>
+            <div class="w-24 shrink-0 text-right font-mono tabular-nums">Cap Space</div>
+            <div class="w-24 shrink-0 text-right font-mono tabular-nums">Room Tax</div>
+            <div class="w-24 shrink-0 text-right font-mono tabular-nums">Room A1</div>
+            <div class="w-24 shrink-0 text-right font-mono tabular-nums">Room A2</div>
+            <div class="w-24 shrink-0 text-right font-mono tabular-nums">Tax Owed</div>
+            <div class="w-16 shrink-0 text-right font-mono tabular-nums">Roster</div>
+            <div class="w-16 shrink-0 text-right font-mono tabular-nums">2W</div>
+            <div class="w-32 shrink-0">Pressure</div>
+          </div>
+        </div>
+
+        <div class="divide-y divide-border/50">
+          <% @teams.each do |team| %>
+            <% team_id = team["team_id"] %>
+            <% team_code = team["team_code"].to_s %>
+            <% team_href_value = team_href(team_code: team_code, team_id: team_id) %>
+            <% pressure_bucket = team["pressure_bucket"].to_s %>
+
+            <% pressure_label, pressure_chip_classes = case pressure_bucket
+              when "over_apron2"
+                ["Over Apron 2", "entity-chip entity-chip--danger"]
+              when "over_apron1"
+                ["Over Apron 1", "entity-chip entity-chip--warning"]
+              when "over_tax"
+                ["Over Tax", "entity-chip entity-chip--warning"]
+              when "over_cap"
+                ["Over Cap", "entity-chip entity-chip--muted"]
+              else
+                ["Under Cap", "entity-chip entity-chip--success"]
+              end %>
+
+            <% cap_space = team["cap_space"] %>
+            <% room_tax = team["room_under_tax"] %>
+            <% room_a1 = team["room_under_apron1"] %>
+            <% room_a2 = team["room_under_apron2"] %>
+            <% luxury_tax_owed = team["luxury_tax_owed"] %>
+
+            <% row_click_expr = "$selectedteamid = '#{team_id}'; $overlaytype = 'team'; @get('/teams/sidebar/#{team_id}')" %>
+
+            <div
+              class="group cursor-pointer transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10"
+              role="button"
+              tabindex="0"
+              data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $selectedteamid === '<%= team_id %>' }"
+              data-on:click="<%= row_click_expr %>"
+              data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= row_click_expr %>; }"
+            >
+              <div class="flex items-center px-4 min-h-[48px]">
+                <div class="w-64 shrink-0">
+                  <div class="grid grid-cols-[36px_1fr] grid-rows-[24px_16px]">
+                    <div class="row-span-2 flex items-center justify-start">
+                      <div class="w-8 h-8 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                        <img
+                          src="<%= team_logo_url(team_id) %>"
+                          alt="<%= team_code %>"
+                          class="w-full h-full object-contain"
+                          loading="lazy"
+                          decoding="async"
+                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                        />
+                        <span class="hidden text-[9px] font-mono text-muted-foreground"><%= team_code %></span>
+                      </div>
+                    </div>
+
+                    <div class="h-[24px] flex items-end min-w-0 pl-2">
+                      <a href="<%= team_href_value %>" class="truncate font-medium text-[14px] group-hover:text-primary transition-colors" onclick="event.stopPropagation()"><%= team["team_name"] %></a>
+                    </div>
+
+                    <div class="h-[16px] -mt-px flex items-start gap-2 min-w-0 pl-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
+                      <span class="font-medium"><%= team_code %></span>
+                      <span>·</span>
+                      <span class="truncate"><%= team["conference_name"].presence || "—" %></span>
+                      <% if team["division_name"].present? %>
+                        <span>·</span>
+                        <span class="truncate"><%= team["division_name"] %></span>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="w-24 shrink-0 flex items-center justify-end">
+                  <span class="font-mono tabular-nums text-sm <%= if cap_space.nil?
+                    'text-muted-foreground'
+                  elsif cap_space.to_f < 0
+                    'text-red-600 dark:text-red-400'
+                  else
+                    'text-emerald-600 dark:text-emerald-400'
+                  end %>"><%= cap_space.nil? ? '—' : format_room_amount(cap_space) %></span>
+                </div>
+
+                <div class="w-24 shrink-0 flex items-center justify-end">
+                  <span class="font-mono tabular-nums text-sm <%= room_tax.nil? ? 'text-muted-foreground' : (room_tax.to_f < 0 ? 'text-red-600 dark:text-red-400' : '') %>"><%= room_tax.nil? ? '—' : format_room_amount(room_tax) %></span>
+                </div>
+
+                <div class="w-24 shrink-0 flex items-center justify-end">
+                  <span class="font-mono tabular-nums text-sm <%= room_a1.nil? ? 'text-muted-foreground' : (room_a1.to_f < 0 ? 'text-red-600 dark:text-red-400' : '') %>"><%= room_a1.nil? ? '—' : format_room_amount(room_a1) %></span>
+                </div>
+
+                <div class="w-24 shrink-0 flex items-center justify-end">
+                  <span class="font-mono tabular-nums text-sm <%= room_a2.nil? ? 'text-muted-foreground' : (room_a2.to_f < 0 ? 'text-red-600 dark:text-red-400' : '') %>"><%= room_a2.nil? ? '—' : format_room_amount(room_a2) %></span>
+                </div>
+
+                <div class="w-24 shrink-0 flex items-center justify-end">
+                  <span class="font-mono tabular-nums text-sm <%= luxury_tax_owed.to_f > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground' %>"><%= luxury_tax_owed.to_f > 0 ? format_compact_currency(luxury_tax_owed) : '—' %></span>
+                </div>
+
+                <div class="w-16 shrink-0 flex items-center justify-end">
+                  <span class="font-mono tabular-nums text-sm"><%= team["roster_row_count"].present? ? team["roster_row_count"].to_i : '—' %></span>
+                </div>
+
+                <div class="w-16 shrink-0 flex items-center justify-end">
+                  <span class="font-mono tabular-nums text-sm"><%= team["two_way_row_count"].present? ? team["two_way_row_count"].to_i : '—' %></span>
+                </div>
+
+                <div class="w-32 shrink-0">
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary">
+                      <span class="<%= pressure_chip_classes %>"><%= pressure_label %></span>
+                    </div>
+                    <div class="entity-cell-secondary">
+                      <% if team["is_repeater_taxpayer"] %>
+                        <span class="entity-chip entity-chip--danger">Repeater</span>
+                      <% elsif team["is_taxpayer"] %>
+                        <span class="entity-chip entity-chip--warning">Taxpayer</span>
+                      <% else %>
+                        <span class="text-muted-foreground/70">No tax</span>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</main>

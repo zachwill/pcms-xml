@@ -57,7 +57,9 @@ Rails.application.routes.draw do
     # ---------------------------------------------------------------------
     get "teams", to: "teams#index"
     get "teams/pane", to: "teams#pane"
+    get "teams/sidebar/clear", to: "teams#sidebar_clear", as: :teams_sidebar_clear
     get "teams/sidebar/:id", to: "teams#sidebar", constraints: { id: /\d+/ }
+    get "teams/sse/refresh", to: "teams_sse#refresh", as: :teams_sse_refresh
     get "teams/:slug/sse/bootstrap", to: "teams_sse#bootstrap"
     get "teams/:id", to: "teams#redirect", constraints: { id: /\d+/ }
     get "teams/:slug", to: "teams#show", as: :team, constraints: slug_route_constraint

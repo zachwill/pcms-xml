@@ -96,26 +96,45 @@ A bad task is broad cosmetic churn (for example, repo-wide class sweeps) with no
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /teams (`web/app/views/entities/teams/index.html.erb`) — scan cap-pressure teams and pivot fast
+- [x] [P1] [INDEX] /teams (`web/app/views/entities/teams/index.html.erb`) — scan cap-pressure teams and pivot fast
   - Problem: Team index is mostly identity metadata; cap/tax pressure signals are missing, so users cannot prioritize what matters without opening each team page.
   - Hypothesis: Adding high-signal financial columns + pressure knobs + sidebar drill-in will make Teams index behave like a decision surface instead of a directory.
   - Scope (files):
     - `web/app/views/entities/teams/index.html.erb`
-    - `web/app/controllers/entities/teams_controller.rb`
-    - `web/config/routes.rb`
+    - `web/app/views/entities/teams/_workspace_main.html.erb`
     - `web/app/views/entities/teams/_rightpanel_base.html.erb`
+    - `web/app/views/entities/teams/_rightpanel_overlay_team.html.erb`
+    - `web/app/views/entities/teams/_rightpanel_clear.html.erb`
+    - `web/app/controllers/entities/teams_controller.rb`
+    - `web/app/controllers/entities/teams_sse_controller.rb`
+    - `web/config/routes.rb`
     - `web/test/integration/entities_teams_index_test.rb`
   - Acceptance criteria:
     - Commandbar provides discoverable conference/pressure knobs (cap/tax/apron lenses) with URL-reflected state.
     - Rows include dense financial cells (mono/tabular values) and retain fast scanning ergonomics.
     - Clicking a row opens sidebar drill-in while preserving main list context; drill-in includes obvious pivots to canonical team page and Team Summary tool.
     - Multi-region updates (main + sidebar) are delivered via single SSE patch sequence.
-  - Rubric (before → target):
-    - Scan speed: 2 → 4
-    - Information hierarchy: 2 → 4
-    - Interaction predictability: 3 → 4
-    - Density/readability: 3 → 4
-    - Navigation/pivots: 3 → 4
+  - Completion notes:
+    - What changed:
+      - Rebuilt `/teams` as a full workbench shell (`commandbar + maincanvas + rightpanel base/overlay`) with search + conference + pressure + sort controls bound to URL-synced Datastar signals.
+      - Added dense cap-pressure rows in `entities/teams/_workspace_main.html.erb` with mono/tabular financial cells for cap space, tax room, apron room, tax owed, and roster context.
+      - Implemented sidebar home context in `entities/teams/_rightpanel_base.html.erb` (snapshot KPIs + pressure board) plus a team drill-in overlay in `entities/teams/_rightpanel_overlay_team.html.erb` with pivots to canonical team page and Team Summary.
+      - Implemented team sidebar endpoints (`/teams/sidebar/:id`, `/teams/sidebar/clear`) and one-request SSE refresh (`/teams/sse/refresh`) in `TeamsSseController`, patching `#maincanvas`, `#rightpanel-base`, and clearing `#rightpanel-overlay` in-order.
+      - Added focused integration coverage in `entities_teams_index_test.rb` for commandbar presence, SSE multi-region response shape, and sidebar open/clear behavior.
+    - Why this improves the flow:
+      - Users can immediately isolate pressure cohorts (conference + cap/tax/apron lens), scan the critical financial posture inline, and open team detail without losing list position.
+      - Sidebar drill-ins now provide fast in-context pivots to deeper team analysis tools instead of forcing full-page hops for every row.
+      - Refresh behavior is predictable and atomic across main list + sidebar context because updates ship in one SSE sequence.
+    - Rubric (before → after):
+      - Scan speed: 2 → 4
+      - Information hierarchy: 2 → 4
+      - Interaction predictability: 3 → 4
+      - Density/readability: 3 → 4
+      - Navigation/pivots: 3 → 4
+    - Follow-up tasks discovered:
+      - Preserve an open team overlay across refresh when the selected team remains visible in the filtered result set.
+      - Add a season selector to the Teams index once multi-year index scanning is prioritized (currently fixed to 2025 for pressure triage).
+      - Tighten Team Summary deep-link contract further by supporting explicit `team=` selection state in that tool.
   - Guardrails:
     - Do not modify Salary Book files.
 

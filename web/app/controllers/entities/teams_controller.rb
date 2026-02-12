@@ -1,51 +1,48 @@
 module Entities
   class TeamsController < ApplicationController
+    INDEX_SALARY_YEAR = 2025
+
+    INDEX_CONFERENCE_LENSES = {
+      "ALL" => nil,
+      "Eastern" => "Eastern",
+      "Western" => "Western"
+    }.freeze
+
+    INDEX_PRESSURE_LENSES = %w[all over_cap over_tax over_apron1 over_apron2].freeze
+
+    INDEX_SORT_SQL = {
+      "pressure_desc" => "pressure_rank DESC, COALESCE(tsw.room_under_apron2, 0) ASC, COALESCE(tsw.room_under_apron1, 0) ASC, COALESCE(tsw.room_under_tax, 0) ASC, t.team_code ASC",
+      "cap_space_asc" => "(COALESCE(tsw.salary_cap_amount, 0) - COALESCE(tsw.cap_total_hold, 0)) ASC, t.team_code ASC",
+      "tax_room_asc" => "COALESCE(tsw.room_under_tax, 0) ASC, t.team_code ASC",
+      "team_asc" => "t.team_code ASC"
+    }.freeze
+
     # GET /teams
     def index
-      conn = ActiveRecord::Base.connection
-
-      q = params[:q].to_s.strip
-      @query = q
-
-      if q.present?
-        q_sql = conn.quote("%#{q}%")
-        @teams = conn.exec_query(<<~SQL).to_a
-          SELECT team_id, team_code, team_name, conference_name, division_name
-          FROM pcms.teams
-          WHERE league_lk = 'NBA'
-            AND team_name NOT LIKE 'Non-NBA%'
-            AND (
-              team_code ILIKE #{q_sql}
-              OR team_name ILIKE #{q_sql}
-              OR conference_name ILIKE #{q_sql}
-            )
-          ORDER BY team_code
-        SQL
-      else
-        @teams = conn.exec_query(<<~SQL).to_a
-          SELECT team_id, team_code, team_name, conference_name, division_name
-          FROM pcms.teams
-          WHERE league_lk = 'NBA'
-            AND team_name NOT LIKE 'Non-NBA%'
-          ORDER BY team_code
-        SQL
-      end
-
+      load_index_workspace_state!
       render :index
     end
 
     # GET /teams/pane
-    # Reserved for Datastar index-pane updates (phase 4).
     def pane
-      head :not_implemented
+      load_index_workspace_state!
+      render partial: "entities/teams/workspace_main"
     end
 
     # GET /teams/sidebar/:id
-    # Reserved for rightpanel overlay patches (phase 5).
     def sidebar
-      head :not_implemented
+      team_id = Integer(params[:id])
+      load_index_team_row!(team_id)
+
+      render partial: "entities/teams/rightpanel_overlay_team", locals: { team_row: @sidebar_team_row }
+    rescue ArgumentError
+      raise ActiveRecord::RecordNotFound
     end
 
+    # GET /teams/sidebar/clear
+    def sidebar_clear
+      render partial: "entities/teams/rightpanel_clear"
+    end
 
     # GET /teams/:slug
     # Canonical route.
@@ -106,6 +103,217 @@ module Entities
 
     private
 
+    def load_index_workspace_state!
+      setup_index_filters!
+      load_index_teams!
+      build_index_sidebar_summary!
+    end
+
+    def setup_index_filters!
+      requested_conference = params[:conference].to_s.strip
+      @conference_lens = INDEX_CONFERENCE_LENSES.key?(requested_conference) ? requested_conference : "ALL"
+
+      requested_pressure = params[:pressure].to_s.strip
+      @pressure_lens = INDEX_PRESSURE_LENSES.include?(requested_pressure) ? requested_pressure : "all"
+
+      requested_sort = params[:sort].to_s.strip
+      @sort_lens = INDEX_SORT_SQL.key?(requested_sort) ? requested_sort : "pressure_desc"
+
+      @query = params[:q].to_s.strip
+    end
+
+    def load_index_teams!
+      conn = ActiveRecord::Base.connection
+      year_sql = conn.quote(INDEX_SALARY_YEAR)
+      where_clauses = [
+        "t.league_lk = 'NBA'",
+        "t.team_name NOT LIKE 'Non-NBA%'"
+      ]
+
+      conference_name = INDEX_CONFERENCE_LENSES.fetch(@conference_lens)
+      where_clauses << "t.conference_name = #{conn.quote(conference_name)}" if conference_name.present?
+
+      if @query.present?
+        query_sql = conn.quote("%#{@query}%")
+        where_clauses << <<~SQL.squish
+          (
+            t.team_code ILIKE #{query_sql}
+            OR t.team_name ILIKE #{query_sql}
+            OR t.city ILIKE #{query_sql}
+            OR t.conference_name ILIKE #{query_sql}
+            OR t.division_name ILIKE #{query_sql}
+          )
+        SQL
+      end
+
+      case @pressure_lens
+      when "over_cap"
+        where_clauses << "(COALESCE(tsw.salary_cap_amount, 0) - COALESCE(tsw.cap_total_hold, 0)) < 0"
+      when "over_tax"
+        where_clauses << "COALESCE(tsw.room_under_tax, 0) < 0"
+      when "over_apron1"
+        where_clauses << "COALESCE(tsw.room_under_apron1, 0) < 0"
+      when "over_apron2"
+        where_clauses << "COALESCE(tsw.room_under_apron2, 0) < 0"
+      end
+
+      order_sql = INDEX_SORT_SQL.fetch(@sort_lens)
+
+      @teams = conn.exec_query(<<~SQL).to_a
+        SELECT
+          t.team_id,
+          t.team_code,
+          t.team_name,
+          t.city,
+          t.conference_name,
+          t.division_name,
+          tsw.salary_year,
+          tsw.cap_total,
+          tsw.cap_total_hold,
+          tsw.tax_total,
+          tsw.apron_total,
+          tsw.salary_cap_amount,
+          tsw.tax_level_amount,
+          tsw.tax_apron_amount,
+          tsw.tax_apron2_amount,
+          (COALESCE(tsw.salary_cap_amount, 0) - COALESCE(tsw.cap_total_hold, 0))::numeric AS cap_space,
+          tsw.room_under_tax,
+          tsw.room_under_apron1,
+          tsw.room_under_apron2,
+          COALESCE(tsw.is_taxpayer, false) AS is_taxpayer,
+          COALESCE(tsw.is_repeater_taxpayer, false) AS is_repeater_taxpayer,
+          COALESCE(tsw.is_subject_to_apron, false) AS is_subject_to_apron,
+          tsw.apron_level_lk,
+          tsw.roster_row_count,
+          tsw.two_way_row_count,
+          COALESCE(tax_calc.luxury_tax_owed, 0)::numeric AS luxury_tax_owed,
+          CASE
+            WHEN COALESCE(tsw.room_under_apron2, 0) < 0 THEN 'over_apron2'
+            WHEN COALESCE(tsw.room_under_apron1, 0) < 0 THEN 'over_apron1'
+            WHEN COALESCE(tsw.room_under_tax, 0) < 0 THEN 'over_tax'
+            WHEN (COALESCE(tsw.salary_cap_amount, 0) - COALESCE(tsw.cap_total_hold, 0)) < 0 THEN 'over_cap'
+            ELSE 'under_cap'
+          END AS pressure_bucket,
+          CASE
+            WHEN COALESCE(tsw.room_under_apron2, 0) < 0 THEN 4
+            WHEN COALESCE(tsw.room_under_apron1, 0) < 0 THEN 3
+            WHEN COALESCE(tsw.room_under_tax, 0) < 0 THEN 2
+            WHEN (COALESCE(tsw.salary_cap_amount, 0) - COALESCE(tsw.cap_total_hold, 0)) < 0 THEN 1
+            ELSE 0
+          END AS pressure_rank
+        FROM pcms.teams t
+        LEFT JOIN pcms.team_salary_warehouse tsw
+          ON tsw.team_code = t.team_code
+         AND tsw.salary_year = #{year_sql}
+        LEFT JOIN LATERAL pcms.fn_team_luxury_tax(t.team_code, #{year_sql}) tax_calc
+          ON true
+        WHERE #{where_clauses.join(" AND ")}
+        ORDER BY #{order_sql}
+      SQL
+    end
+
+    def build_index_sidebar_summary!
+      rows = Array(@teams)
+      active_filters = []
+      active_filters << %(Search: "#{@query}") if @query.present?
+      active_filters << "Conference: #{@conference_lens}" unless @conference_lens == "ALL"
+      active_filters << "Pressure: #{pressure_lens_label(@pressure_lens)}" unless @pressure_lens == "all"
+      active_filters << "Sort: #{sort_lens_label(@sort_lens)}" unless @sort_lens == "pressure_desc"
+
+      @sidebar_summary = {
+        row_count: rows.size,
+        eastern_count: rows.count { |row| row["conference_name"] == "Eastern" },
+        western_count: rows.count { |row| row["conference_name"] == "Western" },
+        over_cap_count: rows.count { |row| row["pressure_bucket"] == "over_cap" },
+        over_tax_count: rows.count { |row| row["pressure_bucket"] == "over_tax" || row["pressure_bucket"] == "over_apron1" || row["pressure_bucket"] == "over_apron2" },
+        over_apron1_count: rows.count { |row| row["pressure_bucket"] == "over_apron1" || row["pressure_bucket"] == "over_apron2" },
+        over_apron2_count: rows.count { |row| row["pressure_bucket"] == "over_apron2" },
+        luxury_tax_total: rows.sum { |row| row["luxury_tax_owed"].to_f },
+        filters: active_filters,
+        top_rows: rows.first(14)
+      }
+    end
+
+    def load_index_team_row!(team_id)
+      conn = ActiveRecord::Base.connection
+      year_sql = conn.quote(INDEX_SALARY_YEAR)
+      id_sql = conn.quote(team_id)
+
+      @sidebar_team_row = conn.exec_query(<<~SQL).first
+        SELECT
+          t.team_id,
+          t.team_code,
+          t.team_name,
+          t.city,
+          t.conference_name,
+          t.division_name,
+          tsw.salary_year,
+          tsw.cap_total,
+          tsw.cap_total_hold,
+          tsw.tax_total,
+          tsw.apron_total,
+          tsw.salary_cap_amount,
+          tsw.tax_level_amount,
+          tsw.tax_apron_amount,
+          tsw.tax_apron2_amount,
+          (COALESCE(tsw.salary_cap_amount, 0) - COALESCE(tsw.cap_total_hold, 0))::numeric AS cap_space,
+          tsw.room_under_tax,
+          tsw.room_under_apron1,
+          tsw.room_under_apron2,
+          COALESCE(tsw.is_taxpayer, false) AS is_taxpayer,
+          COALESCE(tsw.is_repeater_taxpayer, false) AS is_repeater_taxpayer,
+          COALESCE(tsw.is_subject_to_apron, false) AS is_subject_to_apron,
+          tsw.apron_level_lk,
+          tsw.roster_row_count,
+          tsw.two_way_row_count,
+          COALESCE(tax_calc.luxury_tax_owed, 0)::numeric AS luxury_tax_owed,
+          CASE
+            WHEN COALESCE(tsw.room_under_apron2, 0) < 0 THEN 'over_apron2'
+            WHEN COALESCE(tsw.room_under_apron1, 0) < 0 THEN 'over_apron1'
+            WHEN COALESCE(tsw.room_under_tax, 0) < 0 THEN 'over_tax'
+            WHEN (COALESCE(tsw.salary_cap_amount, 0) - COALESCE(tsw.cap_total_hold, 0)) < 0 THEN 'over_cap'
+            ELSE 'under_cap'
+          END AS pressure_bucket,
+          CASE
+            WHEN COALESCE(tsw.room_under_apron2, 0) < 0 THEN 4
+            WHEN COALESCE(tsw.room_under_apron1, 0) < 0 THEN 3
+            WHEN COALESCE(tsw.room_under_tax, 0) < 0 THEN 2
+            WHEN (COALESCE(tsw.salary_cap_amount, 0) - COALESCE(tsw.cap_total_hold, 0)) < 0 THEN 1
+            ELSE 0
+          END AS pressure_rank
+        FROM pcms.teams t
+        LEFT JOIN pcms.team_salary_warehouse tsw
+          ON tsw.team_code = t.team_code
+         AND tsw.salary_year = #{year_sql}
+        LEFT JOIN LATERAL pcms.fn_team_luxury_tax(t.team_code, #{year_sql}) tax_calc
+          ON true
+        WHERE t.team_id = #{id_sql}
+          AND t.league_lk = 'NBA'
+          AND t.team_name NOT LIKE 'Non-NBA%'
+        LIMIT 1
+      SQL
+
+      raise ActiveRecord::RecordNotFound unless @sidebar_team_row
+    end
+
+    def pressure_lens_label(lens)
+      case lens
+      when "over_cap" then "Over cap"
+      when "over_tax" then "Over tax"
+      when "over_apron1" then "Over Apron 1"
+      when "over_apron2" then "Over Apron 2"
+      else "All teams"
+      end
+    end
+
+    def sort_lens_label(lens)
+      case lens
+      when "cap_space_asc" then "Cap space (tightest first)"
+      when "tax_room_asc" then "Tax room (tightest first)"
+      when "team_asc" then "Team A→Z"
+      else "Pressure first"
+      end
+    end
 
     def resolve_team_from_slug!(raw_slug, redirect_on_canonical_miss: true)
       slug = raw_slug.to_s.strip.downcase
