@@ -446,6 +446,8 @@ module Tools
             sbw.player_id,
             sbw.player_name,
             sbw.team_code,
+            t.team_id,
+            t.team_name,
             sbw.agent_name,
             sbw.agent_id,
             sbw.age,
@@ -529,6 +531,9 @@ module Tools
           FROM pcms.salary_book_warehouse sbw
           LEFT JOIN pcms.people p
             ON p.person_id = sbw.player_id
+          LEFT JOIN pcms.teams t
+            ON t.team_code = sbw.team_code
+           AND t.league_lk = 'NBA'
           LEFT JOIN LATERAL (
             SELECT
               e.season,

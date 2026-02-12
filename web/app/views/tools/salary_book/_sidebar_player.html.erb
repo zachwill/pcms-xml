@@ -9,13 +9,41 @@
 
 <% player_id = player["player_id"] %>
 <% player_name = player["player_name"] %>
-<% team_code = player["team_code"] || "—" %>
+<% team_code = player["team_code"].presence || "—" %>
+<% team_id = player["team_id"] %>
+<% team_name = player["team_name"].presence || team_code %>
+<% team_logo = team_logo_url(team_id) %>
 <% agent_name = player["agent_name"] %>
 <% agent_id = player["agent_id"] %>
 <% age_yos = player_age_yos_display(player) %>
 <% is_two_way = player["is_two_way"] %>
 
 <%
+  team_switchable = team_code.match?(/\A[A-Z]{3}\z/)
+  team_combo_chip_classes = "cursor-pointer inline-flex items-center gap-0.5 px-1.5 rounded border border-border bg-background hover:border-foreground/20"
+  team_combo_chip_style = "width: 78px; height: 24px;"
+  team_combo_logo_wrap_classes = "inline-flex items-center justify-center w-4 h-4 overflow-hidden rounded-[3px] bg-muted/20"
+  team_combo_logo_image_classes = "w-full h-full object-cover object-center scale-[1.12]"
+  team_combo_code_classes = "flex-1 text-xs font-semibold tabular-nums leading-none text-center"
+
+  team_row_onclick = if team_switchable
+    "const teamcode = '#{team_code}'; " \
+      "const effectiveyear = String($sidebarcapyearloaded || '#{salary_years.first}'); " \
+      "const overlay = document.getElementById('rightpanel-overlay'); if (overlay) { overlay.innerHTML = ''; } " \
+      "if ($activeteam !== teamcode) { " \
+        "$activeteam = teamcode; " \
+        "$seasonlocked = false; " \
+        "$selectedseason = ''; " \
+        "$sidebarteamloaded = teamcode; " \
+        "$sidebarcapyearloaded = effectiveyear; " \
+        "$sidebardraftloaded = false; " \
+        "$sidebardraftyearloaded = ''; " \
+        "$sidebarrightsloaded = false; " \
+        "@get('#{tools_salary_book_sse_switch_team_path}?team=' + teamcode + '&year=' + encodeURIComponent(effectiveyear)); " \
+        "window.history.replaceState({}, '', '#{root_path}?team=' + teamcode + '&year=' + encodeURIComponent(effectiveyear)); " \
+      "}"
+  end
+
   years_data = salary_years.map do |y|
     salary = player["cap_#{y}"]
     option = normalize_contract_option(player["option_#{y}"])
@@ -96,6 +124,25 @@
     "muted"
   else
     "muted"
+  end
+
+  header_contract_label = if next_option.present?
+    "#{next_option[:option]} #{format_year_label(next_option[:year])}"
+  elsif fa_year.present?
+    "FA #{format_year_label(fa_year + 1)}"
+  elsif is_two_way
+    "2W"
+  end
+
+  header_contract_classes = case next_decision_variant
+  when "option_po"
+    "text-blue-600 dark:text-blue-400"
+  when "option_to"
+    "text-purple-600 dark:text-purple-400"
+  when "option_eto"
+    "text-orange-600 dark:text-orange-400"
+  else
+    "text-muted-foreground"
   end
 %>
 
@@ -180,21 +227,58 @@
   <div class="px-4 pb-4 pt-4 space-y-5">
     <%# Header %>
     <div class="flex items-center gap-3">
-      <div class="w-14 h-14 rounded border border-border bg-background overflow-hidden shrink-0">
-        <img
-          src="<%= player_headshot_url(player_id) %>"
-          alt="<%= player_name %>"
-          class="w-full h-full object-cover object-top bg-muted"
-          onerror="if (this.src !== '<%= fallback_headshot_data_uri %>') { this.src = '<%= fallback_headshot_data_uri %>'; }"
-        />
+      <div class="flex items-center gap-1.5 shrink-0">
+        <div
+          class="w-10 h-10 rounded-full border border-border bg-background overflow-hidden flex items-center justify-center"
+          title="<%= team_name %>"
+          aria-label="<%= team_name %>"
+        >
+          <% if team_logo.present? %>
+            <img
+              src="<%= team_logo %>"
+              alt="<%= team_name %> logo"
+              class="w-full h-full object-contain p-0.5"
+              loading="lazy"
+              decoding="async"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+            />
+            <span class="hidden text-[10px] font-semibold text-muted-foreground"><%= team_code %></span>
+          <% else %>
+            <span class="text-[10px] font-semibold text-muted-foreground"><%= team_code %></span>
+          <% end %>
+        </div>
+
+        <div class="w-14 h-14 rounded border border-border bg-background overflow-hidden">
+          <img
+            src="<%= player_headshot_url(player_id) %>"
+            alt="<%= player_name %>"
+            class="w-full h-full object-cover object-top bg-muted"
+            loading="lazy"
+            decoding="async"
+            onerror="if (this.src !== '<%= fallback_headshot_data_uri %>') { this.src = '<%= fallback_headshot_data_uri %>'; }"
+          />
+        </div>
       </div>
 
       <div class="min-w-0 space-y-0.5">
         <h2 class="text-lg font-semibold text-foreground truncate"><%= player_name %></h2>
-        <div class="text-sm text-muted-foreground truncate"><%= team_code %></div>
-        <% if age_yos.present? %>
-          <div class="text-xs text-muted-foreground/80 tabular-nums"><%= age_yos %></div>
-        <% end %>
+
+        <div class="text-xs text-muted-foreground/80 tabular-nums flex items-center gap-1 min-w-0 overflow-hidden whitespace-nowrap">
+          <% if age_yos.present? || header_contract_label.present? %>
+            <% if age_yos.present? %>
+              <span class="truncate"><%= age_yos %></span>
+            <% end %>
+
+            <% if header_contract_label.present? %>
+              <% if age_yos.present? %>
+                <span class="text-muted-foreground/50">·</span>
+              <% end %>
+              <span class="shrink-0 font-medium <%= header_contract_classes %>"><%= header_contract_label %></span>
+            <% end %>
+          <% else %>
+            <span class="text-muted-foreground/50">—</span>
+          <% end %>
+        </div>
       </div>
     </div>
 
@@ -287,9 +371,33 @@
       >
         <div class="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1.5">Contract details</div>
 
-        <div class="flex items-center justify-between py-1.5">
+        <div class="flex items-center justify-between py-1.5 gap-3">
           <span class="text-sm text-muted-foreground">Team</span>
-          <span class="text-sm font-medium tabular-nums"><%= team_code %></span>
+
+          <% if team_row_onclick.present? %>
+            <button
+              type="button"
+              class="<%= team_combo_chip_classes %>"
+              style="<%= team_combo_chip_style %>"
+              title="<%= team_name %>"
+              data-on:click="<%= team_row_onclick %>"
+            >
+              <span class="<%= team_combo_logo_wrap_classes %>">
+                <% if team_logo.present? %>
+                  <img
+                    src="<%= team_logo %>"
+                    alt="<%= team_code %> logo"
+                    class="<%= team_combo_logo_image_classes %>"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                <% end %>
+              </span>
+              <span class="<%= team_combo_code_classes %>"><%= team_code %></span>
+            </button>
+          <% else %>
+            <span class="text-sm font-medium tabular-nums"><%= team_code %></span>
+          <% end %>
         </div>
 
         <% if agent_name.present? %>
