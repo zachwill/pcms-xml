@@ -134,4 +134,32 @@
 - [x] Grep all entity/tool views for bare `<th>` elements missing the standard header classes — every `<thead>` should use `bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90` or at minimum `text-muted-foreground` ✅ **All `<thead>` elements already had correct classes.** Found 11 `<th>` elements in `entities/trades/show.html.erb` (L137-140 trade-group inner table, L327-330 pick details inner table, L364-366 cash details inner table) missing `font-medium` — added to match every other `<th>` in the codebase.
 - [x] Grep all entity/tool views for `<tr>` in `<tbody>` missing hover treatment — every data row should have `hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75` ✅ **All data rows already have hover treatment.** Comprehensive audit of all 50 `<tbody>` blocks across entities/ and tools/ (excluding salary_book/). Every `<tr>` data row inside `<tbody>` already has `hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75`. The only bare `<tr>` elements found are 3 "…and X more" overflow indicator rows in `_roster_breakdown.html.erb` (L185, L213, L246) — these are non-interactive informational markers, not data rows, so hover treatment is intentionally omitted. Tools views (two_way_utility, system_values, team_summary) use `<div>` rows instead of `<tr>`, and their hover patterns were already fixed in prior audit passes.
 - [x] Grep for numeric values rendered without `font-mono tabular-nums` (especially `format_salary`, `format_compact_currency`, dates, IDs) ✅ **Fixed 7 instances across 6 files:** (1) `trades/show.html.erb` L46: trade date KPI card value missing `font-mono tabular-nums` — added. (2) `players/_section_contract.html.erb` L37: GTD salary amount subtitle missing `font-mono tabular-nums` — added. (3) `transactions/_results.html.erb` L40: `<code>` wrapping transaction_id missing `font-mono tabular-nums` — added. (4) `trades/show.html.erb` L292, L461: player_id in `entity-cell-secondary` missing `font-mono tabular-nums` — added to both. (5) `teams/_roster_breakdown.html.erb` L64: player_id text missing `font-mono tabular-nums` — added. (6) `players/index.html.erb` L125: agent_id text missing `font-mono tabular-nums` — added. (7) `drafts/_results.html.erb` L198: `<code>` wrapping player_id missing `font-mono tabular-nums` — added. All `format_salary`/`format_compact_currency`/`format_room_amount` calls passed to `kpi_cell` partials are already covered (kpi_cell renders with `tabular-nums`). All `format_salary`/`format_compact_currency` calls inside `<td class="... font-mono tabular-nums">` cells are already covered. Chip labels and header meta strings rendered in `tabular-nums` spans are already covered.
-- [ ] Grep for color classes missing `dark:` variants (e.g., `text-red-600` without `dark:text-red-400`, `bg-green-100` without `dark:bg-green-900/30`)
+- [x] Grep for color classes missing `dark:` variants (e.g., `text-red-600` without `dark:text-red-400`, `bg-green-100` without `dark:bg-green-900/30`) ✅ **All clean.** Comprehensive grep across all entity/ and tools/ views (excluding salary_book/) for bare `text-*` and `bg-*` color classes without corresponding `dark:` variants found zero issues. Every specific-color class has a dark mode pair. Shared partials and helpers also verified clean.
+
+---
+
+## Supervisor review — batch f944ed2..HEAD (2026-02-12)
+
+**Verdict: All changes approved. No regressions. Audit complete.**
+
+### Reviewed commits (HEAD~4)
+1. `75f985b` — draft_picks `font-mono tabular-nums` on dates/IDs ✅
+2. `d25a420` — draft_selections `font-mono tabular-nums` on numeric IDs/dates ✅
+3. `b5b14d4` — `font-medium` on bare `<th>` elements in trades/show ✅
+4. `f944ed2` — cross-cutting `font-mono tabular-nums` sweep across 6 files ✅
+
+### Supervisor checks
+- [x] **Salary Book patterns matched, not invented:** All changes add `font-mono tabular-nums` to numeric values (dates, IDs, salary amounts) — this is exactly the design guide's "Number, chip, and typography conventions" rule.
+- [x] **Dark mode variants present:** No new color classes added in this batch. All existing color classes verified to have `dark:` pairs (final cross-cutting grep confirmed zero bare color classes).
+- [x] **Fixes are surgical:** Each change is a targeted class addition to an existing element. No files rewritten. Average ~2 lines changed per file.
+- [x] **Completed items genuinely complete:** All 4 cross-cutting items verified by independent grep — results match audit claims.
+- [x] **Salary Book not modified:** Confirmed `git diff HEAD~4 --name-only -- web/app/views/tools/salary_book/` returns empty.
+- [x] **ERB integrity:** All 8 modified files checked for balanced `<%`/`%>` tags — all pass.
+- [x] **Hover transitions consistent:** No hover changes in this batch. Previous audit passes already normalized to `duration-75` on `<tr>` rows; sidebar list items correctly use `transition-colors` without `duration-75` per Salary Book reference.
+- [x] **No client-side JS added:** All changes are server HTML class additions.
+
+### Note on `<th>` font-medium redundancy
+The `<thead>` elements in `trades/show.html.erb` already carry `font-medium`, so adding it to individual `<th>` elements is technically redundant (CSS `font-weight` is inherited). However, the codebase convention is overwhelmingly `font-medium` on individual `<th>` (234 instances) vs on `<thead>` (3 instances — all in the same file). The worker's fix correctly aligns with the dominant pattern. No action needed.
+
+### Audit status
+**All items complete.** Every entity page, tool page, and cross-cutting concern has been audited and fixed to match Salary Book design patterns. The design consistency audit is finished.
