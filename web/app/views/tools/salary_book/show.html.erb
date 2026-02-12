@@ -1,4 +1,5 @@
 <% initial_team = @initial_team.to_s %>
+<% initial_view = @initial_view.to_s %>
 
 <%# Build team_id lookup for back button logos %>
 <% team_id_map = @team_meta_by_code.transform_values { |meta| meta["team_id"] }.to_json %>
@@ -13,11 +14,9 @@
   class="h-screen w-screen flex flex-col overflow-hidden bg-background"
   data-signals="{
     activeteam: '<%= initial_team %>',
+    activeview: '<%= initial_view %>',
     selectedseason: '',
     seasonlocked: false,
-    sidebarview: 'teamview',
-    overlaytype: 'none',
-    overlayid: '',
     sidebarteamloaded: '<%= initial_team %>',
     sidebarcapyearloaded: '<%= @salary_year %>',
     sidebardraftloaded: false,
@@ -29,7 +28,7 @@
     displayctg: false,
     displayplayercapholds: <%= salary_book_default_display_player_cap_holds? %>,
     displaycashvscap: false,
-    displayluxurytax: false
+    displayluxurytax: true
   }"
   data-on:salarybook-switch-team="
     const rawteam = (evt.detail && evt.detail.team) ? String(evt.detail.team) : '';
@@ -51,8 +50,29 @@
     $sidebardraftyearloaded = '';
     $sidebarrightsloaded = false;
 
-    @get('/tools/salary-book/sse/switch-team?team=' + teamcode + '&year=' + encodeURIComponent(effectiveyear));
-    window.history.replaceState({}, '', '<%= salary_book_base_path %>?team=' + teamcode + '&year=' + encodeURIComponent(effectiveyear));
+    const effectiveview = ($activeview === 'tankathon') ? 'tankathon' : 'salary-book';
+
+    @get('/tools/salary-book/sse/switch-team?team=' + teamcode + '&year=' + encodeURIComponent(effectiveyear) + '&view=' + encodeURIComponent(effectiveview));
+    window.history.replaceState({}, '', '<%= salary_book_base_path %>?team=' + teamcode + '&year=' + encodeURIComponent(effectiveyear) + '&view=' + encodeURIComponent(effectiveview));
+  "
+  data-on:salarybook-switch-view="
+    const rawview = (evt.detail && evt.detail.view) ? String(evt.detail.view) : '';
+    const nextview = rawview.trim().toLowerCase();
+    if (!['salary-book', 'tankathon'].includes(nextview)) { return; }
+
+    const fallbackteam = String($activeteam || '<%= initial_team %>').trim().toUpperCase();
+    const requestedteam = (evt.detail && evt.detail.team) ? String(evt.detail.team).trim().toUpperCase() : fallbackteam;
+    if (!requestedteam.match(/^[A-Z]{3}$/)) { return; }
+
+    const rawyear = (evt.detail && evt.detail.year) ? String(evt.detail.year) : '';
+    const requestedyear = rawyear.trim();
+    const effectiveyear = requestedyear.match(/^\d{4}$/) ? requestedyear : '<%= @salary_year %>';
+
+    if ($activeview === nextview) { return; }
+
+    $activeview = nextview;
+    @get('/tools/salary-book/frame?view=' + encodeURIComponent(nextview) + '&team=' + requestedteam + '&year=' + encodeURIComponent(effectiveyear));
+    window.history.replaceState({}, '', '<%= salary_book_base_path %>?team=' + requestedteam + '&year=' + encodeURIComponent(effectiveyear) + '&view=' + encodeURIComponent(nextview));
   "
 >
   <div id="flash"></div>
@@ -105,8 +125,8 @@
       <%# Divider %>
       <div class="h-20 w-px bg-border self-center"></div>
 
-      <%# Views (Salary Book is currently the only enabled view) %>
-      <div class="min-w-[5.5rem] space-y-1" role="radiogroup" aria-label="Views">
+      <%# Views %>
+      <div class="min-w-[6.5rem] space-y-1" role="radiogroup" aria-label="Views">
         <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Views</div>
         <div class="space-y-1">
           <label class="flex items-center gap-1.5 cursor-not-allowed opacity-60">
@@ -140,21 +160,29 @@
               name="salarybook-view"
               value="salary-book"
               class="size-3.5 accent-primary"
-              checked
+              <%= "checked" if initial_view == "salary-book" %>
+              data-on:change="if (el.checked) { el.dispatchEvent(new CustomEvent('salarybook-switch-view', { bubbles: true, detail: { view: 'salary-book', team: $activeteam, year: '<%= @salary_year %>' } })); }"
             />
-            <span class="text-[11px] leading-none select-none text-foreground font-semibold">Salary Book</span>
+            <span
+              class="text-[11px] leading-none select-none transition-colors"
+              data-class="{ 'text-foreground font-semibold': $activeview === 'salary-book', 'text-muted-foreground': $activeview !== 'salary-book' }"
+            >Salary Book</span>
           </label>
 
-          <label class="flex items-center gap-1.5 cursor-not-allowed opacity-60">
+          <label class="flex items-center gap-1.5 cursor-pointer">
             <input
               type="radio"
               id="view-tankathon"
               name="salarybook-view"
               value="tankathon"
               class="size-3.5 accent-primary"
-              disabled
+              <%= "checked" if initial_view == "tankathon" %>
+              data-on:change="if (el.checked) { el.dispatchEvent(new CustomEvent('salarybook-switch-view', { bubbles: true, detail: { view: 'tankathon', team: $activeteam, year: '<%= @salary_year %>' } })); }"
             />
-            <span class="text-[11px] leading-none select-none text-muted-foreground">Tankathon</span>
+            <span
+              class="text-[11px] leading-none select-none transition-colors"
+              data-class="{ 'text-foreground font-semibold': $activeview === 'tankathon', 'text-muted-foreground': $activeview !== 'tankathon' }"
+            >Tankathon</span>
           </label>
         </div>
       </div>
@@ -241,6 +269,7 @@
                 class="size-3.5 accent-primary"
                 data-bind="displayluxurytax"
                 data-on:change="window.__salaryBookPreserveContext?.()"
+                checked
               />
               <label for="filter-luxurytax" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Tax Payment</label>
             </div>
@@ -267,6 +296,7 @@
       boot_error: @boot_error,
       salary_year: @salary_year,
       salary_years: @salary_years,
+      initial_view: @initial_view,
       initial_team: @initial_team,
       initial_players: @initial_players,
       initial_cap_holds: @initial_cap_holds,
@@ -274,7 +304,9 @@
       initial_dead_money: @initial_dead_money,
       initial_picks: @initial_picks,
       initial_team_summaries: @initial_team_summaries_by_year,
-      initial_team_meta: @initial_team_meta
+      initial_team_meta: @initial_team_meta,
+      initial_team_codes: @team_codes,
+      initial_team_meta_by_code: @team_meta_by_code
     } %>
 
     <%# Right panel %>

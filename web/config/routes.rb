@@ -11,6 +11,7 @@ Rails.application.routes.draw do
     get "team-summary", to: "team_summary#show"
 
     # Datastar HTML fragment endpoints (patch targets)
+    get "salary-book/frame", to: "salary_book#frame", as: :salary_book_frame
     get "salary-book/sidebar/team", to: "salary_book#sidebar_team", as: :salary_book_sidebar_team
     get "salary-book/sidebar/team/cap", to: "salary_book#sidebar_team_cap", as: :salary_book_sidebar_team_cap
     get "salary-book/sidebar/team/draft", to: "salary_book#sidebar_team_draft", as: :salary_book_sidebar_team_draft

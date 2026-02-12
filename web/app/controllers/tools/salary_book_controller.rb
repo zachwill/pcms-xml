@@ -5,11 +5,14 @@ module Tools
     CURRENT_SALARY_YEAR = 2025
     # Canonical year horizon for the salary book (keep in sync with SalaryBookHelper::SALARY_YEARS).
     SALARY_YEARS = (2025..2030).to_a.freeze
+    AVAILABLE_VIEWS = %w[salary-book tankathon].freeze
+    DEFAULT_VIEW = "salary-book"
 
     # GET /tools/salary-book
     def show
       @salary_year = salary_year_param
       @salary_years = SALARY_YEARS
+      @initial_view = salary_book_view_param
 
       team_rows = fetch_team_index_rows(@salary_year)
       @team_codes = team_rows.map { |row| row["team_code"] }.compact
@@ -52,6 +55,7 @@ module Tools
       @boot_error = e.message
       @salary_year = salary_year_param
       @salary_years = SALARY_YEARS
+      @initial_view = salary_book_view_param
       @team_codes = []
       @teams_by_conference = { "Eastern" => [], "Western" => [] }
       @team_meta_by_code = {}
@@ -64,6 +68,72 @@ module Tools
       @initial_exceptions = []
       @initial_dead_money = []
       @initial_picks = []
+    end
+
+    # GET /tools/salary-book/frame?view=tankathon&team=BOS&year=2025
+    # Patchable main frame used by view switches.
+    def frame
+      team_code = normalize_team_code(params[:team])
+      year = salary_year_param
+      view = salary_book_view_param
+
+      if view == "tankathon"
+        team_rows = fetch_team_index_rows(year)
+        team_codes = team_rows.map { |row| row["team_code"] }.compact
+        _, team_meta_by_code = build_team_maps(team_rows)
+
+        render partial: "tools/salary_book/maincanvas_tankathon_frame", locals: {
+          team_code:,
+          team_codes:,
+          team_meta_by_code:,
+          year:,
+          error_message: nil
+        }, layout: false
+        return
+      end
+
+      players = fetch_team_players(team_code)
+      payload = fetch_team_support_payload(team_code, base_year: year)
+
+      render partial: "tools/salary_book/maincanvas_team_frame", locals: {
+        boot_error: nil,
+        team_code:,
+        players:,
+        cap_holds: payload[:cap_holds],
+        exceptions: payload[:exceptions],
+        dead_money: payload[:dead_money],
+        picks: payload[:picks],
+        team_summaries: payload[:team_summaries],
+        team_meta: payload[:team_meta],
+        year:,
+        salary_years: SALARY_YEARS,
+        empty_message: nil
+      }, layout: false
+    rescue ActiveRecord::StatementInvalid => e
+      if view == "tankathon"
+        render partial: "tools/salary_book/maincanvas_tankathon_frame", locals: {
+          team_code:,
+          team_codes: [],
+          team_meta_by_code: {},
+          year:,
+          error_message: e.message
+        }, layout: false
+      else
+        render partial: "tools/salary_book/maincanvas_team_frame", locals: {
+          boot_error: e.message,
+          team_code: nil,
+          players: [],
+          cap_holds: [],
+          exceptions: [],
+          dead_money: [],
+          picks: [],
+          team_summaries: {},
+          team_meta: {},
+          year:,
+          salary_years: SALARY_YEARS,
+          empty_message: nil
+        }, layout: false
+      end
     end
 
     # GET /tools/salary-book/sidebar/team?team=BOS
@@ -251,6 +321,11 @@ module Tools
       SALARY_YEARS.include?(year) ? year : CURRENT_SALARY_YEAR
     rescue ArgumentError, TypeError
       CURRENT_SALARY_YEAR
+    end
+
+    def salary_book_view_param
+      raw = params[:view].to_s.strip.downcase
+      AVAILABLE_VIEWS.include?(raw) ? raw : DEFAULT_VIEW
     end
 
     def valid_team_code?(raw)

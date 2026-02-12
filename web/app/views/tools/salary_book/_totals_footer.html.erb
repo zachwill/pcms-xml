@@ -51,11 +51,7 @@
     >
       <div class="grid grid-cols-[40px_1fr] items-center h-full">
         <div class="flex items-center justify-start text-zinc-400 dark:text-muted-foreground">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8"/>
-            <path d="M12 18V6"/>
-          </svg>
+          <%= lucide_icon("circle-dollar-sign", class: "w-4 h-4", "aria-hidden": true) %>
         </div>
         <div class="pl-1 min-w-0 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-muted-foreground">Roster Cost</div>
       </div>
@@ -92,10 +88,7 @@
     >
       <div class="grid grid-cols-[40px_1fr] items-center h-full">
         <div class="flex items-center justify-start text-zinc-400 dark:text-muted-foreground">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/>
-            <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>
-          </svg>
+          <%= lucide_icon("wallet", class: "w-4 h-4", "aria-hidden": true) %>
         </div>
         <div class="pl-1 min-w-0 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-muted-foreground">Cap Space</div>
       </div>
@@ -132,10 +125,7 @@
     >
       <div class="grid grid-cols-[40px_1fr] items-center h-full">
         <div class="flex items-center justify-start text-zinc-400 dark:text-muted-foreground">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
-            <path d="M12 8v4"/><path d="M12 16h.01"/>
-          </svg>
+          <%= lucide_icon("shield-alert", class: "w-4 h-4", "aria-hidden": true) %>
         </div>
         <div class="pl-1 min-w-0 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-muted-foreground">Tax Status</div>
       </div>
@@ -171,10 +161,7 @@
     >
       <div class="grid grid-cols-[40px_1fr] items-center h-full">
         <div class="flex items-center justify-start text-zinc-400 dark:text-muted-foreground">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3 3v18h18"/>
-            <path d="M7 13h3v5H7z"/><path d="M11 9h3v9h-3z"/><path d="M15 6h3v12h-3z"/>
-          </svg>
+          <%= lucide_icon("chart-column", class: "w-4 h-4", "aria-hidden": true) %>
         </div>
         <div class="pl-1 min-w-0 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-muted-foreground">Luxury Tax</div>
       </div>
@@ -192,7 +179,7 @@
       >
         <%= render partial: "tools/salary_book/kpi_cell", locals: {
           label: format_year_label(y),
-          value: luxury_tax.nil? ? "—" : format_compact_currency(luxury_tax),
+          value: luxury_tax.to_f > 0 ? format_compact_currency(luxury_tax) : "—",
           variant:,
           dark: true
         } %>

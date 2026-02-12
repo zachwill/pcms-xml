@@ -135,6 +135,7 @@ data: elements </div>
 - Team switch event-bus contract: `web/docs/contracts/salary_book_team_switch_events.md`
 - HTML bootstrap (entities): `web/app/controllers/entities/players_sse_controller.rb`, `teams_sse_controller.rb`
 - Routes:
+  - `GET /tools/salary-book/frame` (single-region HTML: patches `#salarybook-team-frame` for view switches)
   - `GET /tools/salary-book/sse/switch-team` (multi-region SSE: patches `#salarybook-team-frame` + `#rightpanel-base`)
   - `GET /players/:slug/sse/bootstrap` (text/html, morph-by-id)
   - `GET /teams/:slug/sse/bootstrap` (text/html, morph-by-id)
@@ -145,7 +146,8 @@ Note: Salary Book **does not use an SSE bootstrap**. The initial team is server-
 
 | Endpoint | Response type | Primary patch target(s) |
 |---|---|---|
-| `GET /tools/salary-book/sse/switch-team` | `text/event-stream` | `#salarybook-team-frame`, `#rightpanel-base` |
+| `GET /tools/salary-book/frame?view=...&team=...&year=...` | `text/html` | `#salarybook-team-frame` |
+| `GET /tools/salary-book/sse/switch-team?team=...&year=...&view=...` | `text/event-stream` | `#salarybook-team-frame`, `#rightpanel-base` |
 | `GET /tools/salary-book/sidebar/team?team=...&year=...` | `text/html` | `#rightpanel-base` |
 | `GET /tools/salary-book/sidebar/team/cap?team=...&year=...` | `text/html` | `#sidebar-team-tab-cap` |
 | `GET /tools/salary-book/sidebar/team/draft?team=...&year=...` | `text/html` | `#sidebar-team-tab-draft` |

@@ -113,6 +113,7 @@ Key columns (high-signal for tools):
   - `option_20xx` is a **pending-option surface**; exercised decisions clear the option flag while `option_decision_20xx` is retained for audit/history.
 - Trade math primitives (base-year): `outgoing_buildup_2025`, `incoming_salary_2025`, `incoming_tax_2025`, `incoming_apron_2025`
 - Trade add-ons: `is_poison_pill`, `poison_pill_amount`, `is_trade_bonus`, `trade_bonus_percent`, `trade_kicker_display`
+- `is_two_way` — two-way flag reconciled to the latest current-year `team_budget_snapshots` budget group (`2WAY`) when snapshot rows exist; otherwise falls back to contract-type derivation.
 - Trade restrictions & consent:
   - `is_no_trade`
   - `player_consent_lk`, `player_consent_end_date`, `is_trade_consent_required_now`, `is_trade_preconsented`

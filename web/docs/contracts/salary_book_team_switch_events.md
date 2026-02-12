@@ -43,9 +43,10 @@ Root behavior:
    - `sidebardraftloaded`
    - `sidebardraftyearloaded`
    - `sidebarrightsloaded`
-5. Fire one request:
-   - `GET /tools/salary-book/sse/switch-team?team=...&year=...`
-6. Update URL via `history.replaceState`
+5. Resolve active view (`salary-book` / `tankathon`) from root signal state.
+6. Fire one request:
+   - `GET /tools/salary-book/sse/switch-team?team=...&year=...&view=...`
+7. Update URL via `history.replaceState` (`team`, `year`, `view` query params)
 
 ## Emitters (current)
 

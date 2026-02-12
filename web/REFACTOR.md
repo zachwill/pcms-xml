@@ -94,9 +94,6 @@ So this is a **moderate refactor** of orchestration/state/partials, not a DB mat
 
 Defined in root `data-signals`, but not functionally used end-to-end:
 
-- `sidebarview`
-- `overlaytype`
-- `overlayid`
 - `displaycashvscap`
 - `displayctg`
 

@@ -94,14 +94,7 @@
       <% if corner_badge_title.present? %>title="<%= corner_badge_title %>"<% end %>
     >
       <% if corner_badge_icon == "repeat" %>
-        <svg viewBox="0 0 20 20" class="size-2.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M6.2 6.2A5.5 5.5 0 0 1 15 8"></path>
-          <path d="M15 8V5.8"></path>
-          <path d="M15 8h-2.2"></path>
-          <path d="M13.8 13.8A5.5 5.5 0 0 1 5 12"></path>
-          <path d="M5 12v2.2"></path>
-          <path d="M5 12h2.2"></path>
-        </svg>
+        <%= lucide_icon("repeat-2", class: "size-2.5", "aria-hidden": true) %>
       <% else %>
         <span class="text-[8px] font-semibold"><%= corner_badge_text %></span>
       <% end %>
