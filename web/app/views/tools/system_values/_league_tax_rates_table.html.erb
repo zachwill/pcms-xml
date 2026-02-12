@@ -28,7 +28,7 @@
           <% rows.each do |row| %>
             <% highlighted = row["salary_year"].to_i == selected_year.to_i %>
             <% row_bg = highlighted ? "bg-yellow-100/70 dark:bg-yellow-900/20" : "" %>
-            <% sticky_bg = highlighted ? "bg-yellow-100/70 dark:bg-yellow-900/20 group-hover:bg-yellow-100/70 dark:group-hover:bg-yellow-900/20" : "bg-background group-hover:bg-yellow-50/70 dark:group-hover:bg-yellow-900/10" %>
+            <% sticky_bg = highlighted ? "bg-yellow-100/70 dark:bg-yellow-900/20 group-hover:bg-yellow-100/70 dark:group-hover:bg-yellow-900/20" : "bg-background group-hover:bg-yellow-50 dark:group-hover:bg-yellow-900/25" %>
             <% lower_label = format_compact_currency(row["lower_limit"]) %>
             <% upper_label = row["upper_limit"].present? ? format_compact_currency(row["upper_limit"]) : "∞" %>
 
