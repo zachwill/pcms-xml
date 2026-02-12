@@ -109,7 +109,8 @@ Key columns (high-signal for tools):
 - `likely_bonus_20xx`, `unlikely_bonus_20xx` — incentive detail
 - `guaranteed_amount_20xx` + `is_fully_guaranteed_20xx` / `is_partially_guaranteed_20xx` / `is_non_guaranteed_20xx`
   - Derived from `pcms.contract_protections`
-- `option_20xx`, `option_decision_20xx` — option types/decisions (normalized, `NULL` means no option)
+- `option_20xx`, `option_decision_20xx` — option types/decisions (normalized).
+  - `option_20xx` is a **pending-option surface**; exercised decisions clear the option flag while `option_decision_20xx` is retained for audit/history.
 - Trade math primitives (base-year): `outgoing_buildup_2025`, `incoming_salary_2025`, `incoming_tax_2025`, `incoming_apron_2025`
 - Trade add-ons: `is_poison_pill`, `poison_pill_amount`, `is_trade_bonus`, `trade_bonus_percent`, `trade_kicker_display`
 - Trade restrictions & consent:
