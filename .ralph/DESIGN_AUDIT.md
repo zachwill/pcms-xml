@@ -23,7 +23,13 @@
 **EXTSN chip color note (accepted):**
 - EXTSN transaction type was originally `bg-blue-100 text-blue-700` (blue). Mapped to `entity-chip--accent` (purple) because no `entity-chip--info` (blue) variant exists. Acceptable for now — if blue chips are needed across 3+ surfaces, add `entity-chip--info` to `application.css` first.
 
-**Next priority items:** team_summary dark mode audit (L289-331 `text-red-500` missing `dark:text-red-400`), then system_values table consistency.
+**Red text dark mode variants — context matters:**
+- `_kpi_cell.html.erb` uses bare `text-red-500` for negative values (KPI card context). The dark footer variant uses `text-red-400 dark:text-red-500` (inverted).
+- `_player_row.html.erb` uses `text-red-600 dark:text-red-400` for inline status tokens (table-row context).
+- Team summary table cells (entity-cell-two-line in `<div>` rows) follow the table-row context → `text-red-600 dark:text-red-400` is correct.
+- `design_guide.md` currently says bare `text-red-500` — this is a simplification. Future cleanup: update the guide to document both contexts.
+
+**Next priority items:** rookie_scale_amounts audit (done ✅), then sticky-column opacity fix (lower-priority), then players/teams/agents entity page audits.
 
 **Sticky column `group-hover` opacity rule (from Salary Book):**
 - Outer row: `hover:bg-yellow-50/70` (with opacity — transparent rows blend with table bg)
@@ -85,7 +91,7 @@
 - [x] `web/app/views/tools/system_values/_league_system_values_table.html.erb`: well-polished (uses Salary Book-style sticky column, shadow, group-hover, entity-cell-two-line) — confirmed other system values partials now match (added missing `overflow-x-auto` + `min-w-[X]` wrapper to `_league_salary_scales_table` and `_rookie_scale_amounts_table`; `_league_tax_rates_table` already matched)
 - [x] `web/app/views/tools/system_values/_league_tax_rates_table.html.erb`: audit for consistent header treatment and hover patterns matching `_league_system_values_table.html.erb` ✅ Audited: header treatment (h-9 title bar, h-8 column headers), hover patterns (`hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10`), sticky column (`group-hover`, `transition-colors duration-75`, `before:`/`after:` pseudo-elements), highlight treatment, empty state, and dark mode variants all already match `_league_system_values_table.html.erb` — no changes needed
 - [x] `web/app/views/tools/system_values/_league_salary_scales_table.html.erb`: same audit ✅ Audited: header treatment (h-9 title bar, h-8 column headers), hover patterns (`hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10`), sticky column (`group-hover`, `transition-colors duration-75`, `before:`/`after:` pseudo-elements), `entity-cell-two-line` in sticky column, `font-mono tabular-nums` on all data cells, highlight treatment, empty state, and dark mode variants all already match `_league_system_values_table.html.erb` — no changes needed
-- [ ] `web/app/views/tools/system_values/_rookie_scale_amounts_table.html.erb`: same audit
+- [x] `web/app/views/tools/system_values/_rookie_scale_amounts_table.html.erb`: same audit ✅ Audited by supervisor: header treatment (h-9 title bar, h-8 column headers), hover patterns (`hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10`), sticky column (`group-hover`, `transition-colors duration-75`, `before:`/`after:` pseudo-elements), `entity-cell-two-line` in sticky column, `font-mono tabular-nums` on all data cells, highlight treatment, empty state, and dark mode variants all already match `_league_system_values_table.html.erb` — no changes needed
 - [ ] `web/app/views/tools/system_values/_league_tax_rates_table.html.erb` L35, `_league_system_values_table.html.erb` L38: sticky column uses `group-hover:bg-yellow-50/70` (with opacity) — per supervisor note, sticky columns should use `group-hover:bg-yellow-50` (NO opacity) to fully cover `bg-background` underneath. Applies to all four system_values table partials. Lower-priority since all four are internally consistent.
 
 ## entities/players/ (index + show)
