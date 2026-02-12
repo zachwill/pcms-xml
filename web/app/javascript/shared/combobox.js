@@ -1,4 +1,4 @@
-const COMBOBOX_SELECTOR = "[data-combobox-cmdk] #sbplayercb-input";
+const PALETTE_SELECTOR = "#sbplayercmdk";
 
 const isEditableElement = (element) => {
   if (!element) return false;
@@ -9,29 +9,46 @@ const isEditableElement = (element) => {
   return element.isContentEditable === true;
 };
 
-const focusPrimaryCombobox = () => {
-  const input = document.querySelector(COMBOBOX_SELECTOR);
-  if (!input) return false;
+const paletteRoot = () => document.querySelector(PALETTE_SELECTOR);
 
-  input.focus({ preventScroll: true });
-  if (typeof input.select === "function") input.select();
+const dispatchPaletteEvent = (eventName) => {
+  const root = paletteRoot();
+  if (!root) return false;
+
+  root.dispatchEvent(new CustomEvent(eventName, { bubbles: true }));
   return true;
 };
 
+const isPaletteOpen = () => {
+  const root = paletteRoot();
+  if (!root) return false;
+
+  return root.dataset.open === "true";
+};
+
 const onGlobalKeydown = (event) => {
-  const isShortcut = (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "k";
-  if (!isShortcut) return;
+  const key = (event.key || "").toLowerCase();
+  const isShortcut = (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && key === "k";
 
-  const target = event.target;
-  const targetIsComboboxInput = target && target.id === "sbplayercb-input";
+  if (isShortcut) {
+    const target = event.target;
+    const targetIsPaletteInput = target && target.id === "sbplayercb-input";
 
-  if (isEditableElement(target) && !targetIsComboboxInput) {
+    if (isEditableElement(target) && !targetIsPaletteInput) {
+      return;
+    }
+
+    if (!dispatchPaletteEvent("salarybook-cmdk-open")) return;
+
+    event.preventDefault();
     return;
   }
 
-  if (!focusPrimaryCombobox()) return;
+  if (event.key === "Escape" && isPaletteOpen()) {
+    if (!dispatchPaletteEvent("salarybook-cmdk-close")) return;
 
-  event.preventDefault();
+    event.preventDefault();
+  }
 };
 
 let initialized = false;

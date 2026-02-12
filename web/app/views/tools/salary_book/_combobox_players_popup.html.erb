@@ -14,7 +14,7 @@
 
 <div
   id="sbplayercb-popup"
-  class="absolute left-0 top-[calc(100%+4px)] z-50 w-full overflow-hidden rounded-md border border-border bg-background shadow-lg"
+  class="w-full overflow-hidden rounded-md border border-border bg-background shadow-sm"
   data-show="$_sbplayercbopen"
   style="display: none;"
   data-seq="<%= seq %>"
@@ -46,7 +46,7 @@
     <% end %>
 
     <span class="font-mono tabular-nums text-[10px] text-muted-foreground/70" data-show="!$_sbplayercbloading && <%= players.any? %>" style="display: none;">
-      <%= query.present? ? "query: #{query.first(24)}" : "team scope" %>
+      <%= query.present? ? "query: #{query.first(24)}" : "all players" %>
     </span>
   </div>
 

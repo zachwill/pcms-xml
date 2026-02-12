@@ -1,14 +1,14 @@
-# Contract — Salary Book player combobox (v1)
+# Contract — Salary Book player command palette (v1)
 
 Status: implemented
 
-Scope: team-scoped player search in Salary Book command bar.
+Scope: global player search (across `pcms.salary_book_warehouse`) opened via `Cmd/Ctrl + K`.
 
 ## Patch + DOM contract
 
 Stable IDs:
 
-- `#sbplayercb-root`
+- `#sbplayercmdk` (palette root/backdrop)
 - `#sbplayercb-input`
 - `#sbplayercb-loader`
 - `#sbplayercb-popup`
@@ -19,8 +19,9 @@ Search requests patch a **single region**: `#sbplayercb-popup` (`text/html`).
 
 ## Signal contract
 
-Local-only signals on `#sbplayercb-root`:
+Local-only signals on `#sbplayercmdk`:
 
+- `$_sbplayercmdkopen`
 - `$_sbplayercbopen`
 - `$_sbplayercbquery`
 - `$_sbplayercbactiveindex`
@@ -33,7 +34,7 @@ Local-only signals on `#sbplayercb-root`:
 
 Global signal dependency:
 
-- `$activeteam` (search scope)
+- none
 
 ## Endpoint contract
 
@@ -43,7 +44,7 @@ Global signal dependency:
 
 Params:
 
-- `team` (optional, NBA team code)
+- `team` (optional, NBA team code; supported but not used by default palette wiring)
 - `q` (query string)
 - `limit` (max 50; defaults to 12)
 - `seq` (client request sequence echo)
@@ -62,22 +63,18 @@ Ranking:
 
 ## Interaction contract (v1)
 
-- Focus input opens popup and dispatches search.
+- `Cmd/Ctrl + K` opens command palette with backdrop and focuses input.
 - Typing dispatches debounced search (120ms).
 - IME composition suppresses mid-composition dispatch.
 - ArrowUp/ArrowDown moves active option.
-- Enter commits active option.
-- Escape closes popup; second Escape clears query.
-- Tab closes popup.
-- Option click patches `#rightpanel-overlay` via existing endpoint:
+- Enter commits active option (or first option if no explicit active index yet).
+- Escape closes palette.
+- Backdrop click closes palette.
+- Option click closes palette and patches `#rightpanel-overlay` via:
   - `GET /tools/salary-book/sidebar/player/:id`
+- Selection does **not** switch active team in v1.
 
 ## Cancellation guardrail
 
 Search dispatches from dedicated `#sbplayercb-loader` element.
-Datastar cancellation remains per-element, so combobox search does not share cancellation with team switch SSE requests.
-
-## Future hooks
-
-- `Cmd/Ctrl + K` focuses `#sbplayercb-input` (shared JS glue in `app/javascript/shared/combobox.js`).
-- Multi-region commit (`team switch + overlay`) can be added as SSE endpoint in a later phase.
+Datastar cancellation remains per-element, so palette search does not collide with team switch SSE requests.

@@ -293,7 +293,7 @@ Combobox option rows should be information-dense and scannable (name + team/meta
 ## 14) Implementation plan (phased)
 
 ## Phase 1 — One concrete production instance
-Target: salary-book player search/selection where current Select is limiting.
+Target: salary-book player search/selection in a Cmd+K-style command palette.
 
 Deliverables:
 - [x] controller endpoint for search (HTML)

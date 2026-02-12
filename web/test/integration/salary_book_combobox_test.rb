@@ -42,10 +42,9 @@ class SalaryBookComboboxTest < ActionDispatch::IntegrationTest
     host! "localhost"
   end
 
-  test "player combobox search returns popup fragment" do
+  test "player combobox search returns popup fragment for global search" do
     with_fake_connection do
       get "/tools/salary-book/combobox/players/search", params: {
-        team: "POR",
         q: "sim",
         limit: "12",
         seq: "7"
@@ -75,6 +74,14 @@ class SalaryBookComboboxTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="sbplayercb-popup"'
       assert_includes response.body, "No players found"
     end
+  end
+
+  test "salary book page includes command palette root" do
+    get "/tools/salary-book", headers: modern_headers
+
+    assert_response :success
+    assert_includes response.body, 'id="sbplayercmdk"'
+    assert_includes response.body, 'data-combobox-cmdk'
   end
 
   private
