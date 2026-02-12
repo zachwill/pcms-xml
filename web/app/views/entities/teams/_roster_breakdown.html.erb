@@ -30,7 +30,7 @@
     <% else %>
       <div class="overflow-x-auto">
         <table class="entity-table min-w-full text-xs">
-          <thead class="bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
             <tr>
               <th class="text-left px-3 py-2 font-medium w-48">Player</th>
               <th class="text-left px-3 py-2 font-medium w-40">Agent</th>
@@ -72,7 +72,7 @@
                   <% end %>
                 </td>
                 <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(p["cap_2025"]) %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(p["total_salary_from_2025"]) %></td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums font-medium"><%= format_salary(p["total_salary_from_2025"]) %></td>
                 <td class="px-3 py-2 text-muted-foreground">
                   <div class="flex gap-1">
                     <% if p["is_min_contract"] %><span class="entity-chip entity-chip--muted">MIN</span><% end %>
@@ -105,7 +105,7 @@
       </div>
       <div class="overflow-x-auto">
         <table class="entity-table min-w-full text-xs">
-          <thead class="bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
             <tr>
               <th class="text-left px-3 py-2 font-medium w-48">Player</th>
               <th class="text-left px-3 py-2 font-medium w-40">Agent</th>
@@ -170,7 +170,7 @@
           <table class="entity-table min-w-full text-xs">
             <tbody class="divide-y divide-border/60">
               <% cap_holds.first(8).each do |r| %>
-                <tr class="hover:bg-muted/20">
+                <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
                   <td class="px-3 py-1.5">
                     <% if r["player_id"].present? %>
                       <a href="<%= player_href(r['player_id']) %>" class="hover:underline truncate block max-w-[120px]"><%= r["player_name"] %></a>
@@ -203,10 +203,10 @@
           <table class="entity-table min-w-full text-xs">
             <tbody class="divide-y divide-border/60">
               <% exceptions.first(8).each do |r| %>
-                <tr class="hover:bg-muted/20">
+                <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
                   <td class="px-3 py-1.5 truncate max-w-[120px]"><%= exception_label(r) %></td>
                   <td class="px-3 py-1.5 text-right font-mono tabular-nums"><%= format_salary(r["remaining_2025"]) %></td>
-                  <td class="px-3 py-1.5 text-xs text-muted-foreground"><%= format_plain_date(r["expiration_date"]) %></td>
+                  <td class="px-3 py-1.5 text-xs text-muted-foreground font-mono tabular-nums"><%= format_plain_date(r["expiration_date"]) %></td>
                 </tr>
               <% end %>
               <% if exceptions.size > 8 %>
@@ -231,7 +231,7 @@
           <table class="entity-table min-w-full text-xs">
             <tbody class="divide-y divide-border/60">
               <% dead_money.first(8).each do |r| %>
-                <tr class="hover:bg-muted/20">
+                <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
                   <td class="px-3 py-1.5">
                     <% if r["player_id"].present? %>
                       <a href="<%= player_href(r['player_id']) %>" class="hover:underline truncate block max-w-[120px]"><%= r["player_name"] %></a>

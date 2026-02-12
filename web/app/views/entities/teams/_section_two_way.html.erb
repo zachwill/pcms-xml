@@ -60,7 +60,7 @@
                   <td class="px-3 py-2 text-right font-mono tabular-nums"><%= r["games_on_active_list"].presence || "—" %></td>
                   <td class="px-3 py-2 text-right font-mono tabular-nums"><%= r["active_list_games_limit"].presence || "—" %></td>
                   <td class="px-3 py-2 text-right font-mono tabular-nums"><%= r["remaining_games"].presence || "—" %></td>
-                  <td class="px-3 py-2 text-xs text-muted-foreground"><%= r["game_date_est"] || "—" %></td>
+                  <td class="px-3 py-2 text-xs text-muted-foreground font-mono tabular-nums"><%= r["game_date_est"] || "—" %></td>
                 </tr>
               <% end %>
             </tbody>

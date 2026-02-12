@@ -29,13 +29,13 @@
                   <td class="px-3 py-2 text-muted-foreground"><%= r["subject_to_apron_reason_lk"].presence || "—" %></td>
                   <td class="px-3 py-2 text-xs">
                     <% if r["apron1_transaction_id"].present? %>
-                      <a href="<%= transaction_href(r['apron1_transaction_id']) %>" class="hover:underline font-mono">A1 #<%= r["apron1_transaction_id"] %></a>
+                      <a href="<%= transaction_href(r['apron1_transaction_id']) %>" class="hover:underline font-mono tabular-nums">A1 #<%= r["apron1_transaction_id"] %></a>
                     <% else %>
                       <span class="text-muted-foreground">A1 —</span>
                     <% end %>
                     <span class="mx-1 text-muted-foreground">·</span>
                     <% if r["apron2_transaction_id"].present? %>
-                      <a href="<%= transaction_href(r['apron2_transaction_id']) %>" class="hover:underline font-mono">A2 #<%= r["apron2_transaction_id"] %></a>
+                      <a href="<%= transaction_href(r['apron2_transaction_id']) %>" class="hover:underline font-mono tabular-nums">A2 #<%= r["apron2_transaction_id"] %></a>
                     <% else %>
                       <span class="text-muted-foreground">A2 —</span>
                     <% end %>

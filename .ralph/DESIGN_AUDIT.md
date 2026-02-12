@@ -102,7 +102,7 @@
 
 ## entities/teams/ (index + show)
 
-- [ ] `web/app/views/entities/teams/show.html.erb`: audit section modules for table header consistency, hover treatment, and numeric formatting
+- [x] `web/app/views/entities/teams/show.html.erb`: audit section modules for table header consistency, hover treatment, and numeric formatting — **Findings:** (1) `_roster_breakdown.html.erb`: standard contracts & two-way contracts `<thead>` used `bg-muted/30` instead of `bg-muted/40` — fixed. Cap holds / exceptions / dead money mini-tables used `hover:bg-muted/20` instead of `hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75` — fixed. Exception expiration_date `<td>` missing `font-mono tabular-nums` — fixed. Standard contracts Total column missing `font-medium` — fixed. (2) `_section_two_way.html.erb`: game_date_est column missing `font-mono tabular-nums` — fixed. (3) `_section_apron_provenance.html.erb`: transaction ID links had `font-mono` but missing `tabular-nums` — fixed. All other section partials (cap_horizon, activity, vitals, constraints, draft_assets) already matched design guide.
 - [ ] `web/app/views/entities/teams/`: audit all partials for dark mode coverage
 
 ## entities/agents/ (index + show + directory)
