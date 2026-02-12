@@ -97,7 +97,7 @@
 
 ## entities/players/ (index + show)
 
-- [ ] `web/app/views/entities/players/show.html.erb`: audit all section module partials for consistent table header treatment, row hover, and font-mono on numeric values
+- [x] `web/app/views/entities/players/show.html.erb`: audit all section module partials for consistent table header treatment, row hover, and font-mono on numeric values — **Findings:** All 9 section partials audited. Table headers (`bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90`) and row hover (`hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75`) were already correct in all tables. Fixed `font-mono tabular-nums` missing on: (1) `_section_contract_history` signing dates/years in chronology table, start_salary_year/contract_length in version table; (2) `_section_guarantees` earned_date in protection conditions table, payment date window in payment schedule table.
 - [ ] `web/app/views/entities/players/`: audit all partials in this directory for dark mode coverage
 
 ## entities/teams/ (index + show)

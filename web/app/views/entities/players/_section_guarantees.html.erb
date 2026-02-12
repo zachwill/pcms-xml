@@ -75,7 +75,7 @@
                 <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
                   <td class="px-3 py-2 font-mono tabular-nums"><%= r["salary_year"] || "—" %></td>
                   <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["amount"]) %></td>
-                  <td class="px-3 py-2 text-muted-foreground"><%= r["earned_type_lk"].presence || "—" %> · <%= format_plain_date(r["earned_date"]) %></td>
+                  <td class="px-3 py-2 text-muted-foreground"><%= r["earned_type_lk"].presence || "—" %> · <span class="font-mono tabular-nums"><%= format_plain_date(r["earned_date"]) %></span></td>
                   <td class="px-3 py-2"><%= r["clause_name"].presence || r["criteria_description"].presence || "—" %></td>
                 </tr>
               <% end %>
@@ -101,7 +101,7 @@
                   <td class="px-3 py-2 font-mono tabular-nums"><%= r["salary_year"] %></td>
                   <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["payment_amount"]) %></td>
                   <td class="px-3 py-2 text-muted-foreground"><%= [r["schedule_type_lk"], r["payment_type_lk"]].compact.reject(&:blank?).join(" · ").presence || "—" %></td>
-                  <td class="px-3 py-2 text-muted-foreground"><%= format_plain_date(r["first_payment_date"]) %> → <%= format_plain_date(r["last_payment_date"]) %></td>
+                  <td class="px-3 py-2 text-muted-foreground font-mono tabular-nums"><%= format_plain_date(r["first_payment_date"]) %> → <%= format_plain_date(r["last_payment_date"]) %></td>
                 </tr>
               <% end %>
             </tbody>
