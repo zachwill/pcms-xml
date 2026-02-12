@@ -190,7 +190,7 @@
                         —
                       <% end %>
                     </td>
-                    <td class="px-3 py-2 text-muted-foreground"><%= row["trade_date"] || "—" %></td>
+                    <td class="px-3 py-2 font-mono tabular-nums text-muted-foreground"><%= row["trade_date"] || "—" %></td>
                     <td class="px-3 py-2 text-muted-foreground"><%= row["from_team_code"] || "—" %></td>
                     <td class="px-3 py-2 text-muted-foreground"><%= row["to_team_code"] || "—" %></td>
                     <td class="px-3 py-2 text-muted-foreground"><%= row["original_team_code"] || "—" %></td>
@@ -244,13 +244,13 @@
             <div class="mt-3 space-y-2">
               <% @endnotes.each do |n| %>
                 <article id="endnote-<%= n['endnote_id'] %>" class="rounded border border-border/60 p-2">
-                  <div class="text-sm font-mono">#<%= n["endnote_id"] %></div>
+                  <div class="text-sm font-mono tabular-nums">#<%= n["endnote_id"] %></div>
                   <div class="text-xs text-muted-foreground mt-1">
                     <% if n["trade_id"].present? %>
-                      Trade <a href="<%= trade_href(n['trade_id']) %>" class="hover:underline">#<%= n["trade_id"] %></a>
+                      Trade <a href="<%= trade_href(n['trade_id']) %>" class="hover:underline font-mono tabular-nums">#<%= n["trade_id"] %></a>
                     <% end %>
                     <% if n["trade_date"].present? %>
-                      · <%= n["trade_date"] %>
+                      · <span class="font-mono tabular-nums"><%= n["trade_date"] %></span>
                     <% end %>
                   </div>
                   <div class="mt-2 text-sm whitespace-pre-line"><%= n["explanation"].presence || n["conveyance_text"].presence || "—" %></div>
