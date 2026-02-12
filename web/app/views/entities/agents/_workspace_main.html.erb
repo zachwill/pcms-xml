@@ -134,9 +134,9 @@
                     <span class="text-muted-foreground">—</span>
                   <% end %>
                 </td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= a["expiring_in_window"].to_i > 0 ? a["expiring_in_window"] : "—" %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= restrictions_count > 0 ? restrictions_count : "—" %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= options_count > 0 ? options_count : "—" %></td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= a["expiring_in_window"].to_i > 0 ? a["expiring_in_window"] : content_tag(:span, "—", class: "text-muted-foreground") %></td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= restrictions_count > 0 ? restrictions_count : content_tag(:span, "—", class: "text-muted-foreground") %></td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= options_count > 0 ? options_count : content_tag(:span, "—", class: "text-muted-foreground") %></td>
               </tr>
             <% end %>
           </tbody>
@@ -211,7 +211,7 @@
                     <span class="text-muted-foreground">—</span>
                   <% end %>
                 </td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= a["team_count"].to_i > 0 ? a["team_count"] : "—" %></td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= a["team_count"].to_i > 0 ? a["team_count"] : content_tag(:span, "—", class: "text-muted-foreground") %></td>
                 <td class="px-3 py-2 text-right font-mono tabular-nums">
                   <% if a["book_total"].to_i > 0 %>
                     <div class="space-y-0.5">
@@ -236,9 +236,9 @@
                     <span class="text-muted-foreground">—</span>
                   <% end %>
                 </td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= a["expiring_in_window"].to_i > 0 ? a["expiring_in_window"] : "—" %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= restrictions_count > 0 ? restrictions_count : "—" %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= options_count > 0 ? options_count : "—" %></td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= a["expiring_in_window"].to_i > 0 ? a["expiring_in_window"] : content_tag(:span, "—", class: "text-muted-foreground") %></td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= restrictions_count > 0 ? restrictions_count : content_tag(:span, "—", class: "text-muted-foreground") %></td>
+                <td class="px-3 py-2 text-right font-mono tabular-nums"><%= options_count > 0 ? options_count : content_tag(:span, "—", class: "text-muted-foreground") %></td>
               </tr>
             <% end %>
           </tbody>
