@@ -63,7 +63,7 @@
 
 - [x] `web/app/views/entities/drafts/_results.html.erb` L62-63: the sticky left column uses `group-hover:bg-yellow-50/70 dark:group-hover:bg-yellow-900/10` but the `bg_class` conditional backgrounds (for own picks, traded picks, etc.) may conflict with hover treatment — verify the hover is visible when rows already have colored backgrounds
 - [x] `web/app/views/entities/drafts/_results.html.erb` L142,184: bottom summary table rows have hover but the inner pick-grid `<td>` cells (L75) use `text-[10px]` with `font-mono` but not `tabular-nums`
-- [ ] `web/app/views/entities/drafts/_results.html.erb` L63: sticky column still uses always-visible `before:` gradient shadow pseudo-element — lower-priority cleanup (see supervisor note on `before:` vs JS-toggled overlay pattern)
+- [x] `web/app/views/entities/drafts/_results.html.erb` L63: sticky column still uses always-visible `before:` gradient shadow pseudo-element — lower-priority cleanup (see supervisor note on `before:` vs JS-toggled overlay pattern)
 
 ## tools/two_way_utility/_player_row.html.erb
 
