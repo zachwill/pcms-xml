@@ -286,7 +286,7 @@
 
                 <div class="w-24 shrink-0 h-10 px-3 flex items-center">
                   <div class="entity-cell-two-line w-full">
-                    <div class="entity-cell-primary justify-end font-mono tabular-nums <%= cap_space >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500' %>"><%= format_room_amount(cap_space) %></div>
+                    <div class="entity-cell-primary justify-end font-mono tabular-nums <%= cap_space >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' %>"><%= format_room_amount(cap_space) %></div>
                     <div class="entity-cell-secondary justify-end font-mono tabular-nums"><%= cap_space >= 0 ? 'under cap' : 'over cap' %></div>
                   </div>
                 </div>
@@ -307,28 +307,28 @@
 
                 <div class="w-24 shrink-0 h-10 px-3 flex items-center">
                   <div class="entity-cell-two-line w-full">
-                    <div class="entity-cell-primary justify-end font-mono tabular-nums <%= tax_overage > 0 ? 'text-red-500' : 'text-muted-foreground' %>"><%= tax_overage > 0 ? format_compact_currency(tax_overage) : "—" %></div>
+                    <div class="entity-cell-primary justify-end font-mono tabular-nums <%= tax_overage > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground' %>"><%= tax_overage > 0 ? format_compact_currency(tax_overage) : "—" %></div>
                     <div class="entity-cell-secondary justify-end font-mono tabular-nums"><%= tax_overage > 0 ? 'over line' : 'under line' %></div>
                   </div>
                 </div>
 
                 <div class="w-24 shrink-0 h-10 px-3 flex items-center">
                   <div class="entity-cell-two-line w-full">
-                    <div class="entity-cell-primary justify-end font-mono tabular-nums <%= room_tax && room_tax < 0 ? 'text-red-500' : '' %>"><%= room_tax.nil? ? "—" : format_room_amount(room_tax) %></div>
+                    <div class="entity-cell-primary justify-end font-mono tabular-nums <%= room_tax && room_tax < 0 ? 'text-red-600 dark:text-red-400' : '' %>"><%= room_tax.nil? ? "—" : format_room_amount(room_tax) %></div>
                     <div class="entity-cell-secondary justify-end font-mono tabular-nums"><%= room_tax.nil? ? '—' : (room_tax < 0 ? 'over tax' : 'under tax') %></div>
                   </div>
                 </div>
 
                 <div class="w-24 shrink-0 h-10 px-3 flex items-center">
                   <div class="entity-cell-two-line w-full">
-                    <div class="entity-cell-primary justify-end font-mono tabular-nums <%= room_a1 && room_a1 < 0 ? 'text-red-500' : '' %>"><%= room_a1.nil? ? "—" : format_room_amount(room_a1) %></div>
+                    <div class="entity-cell-primary justify-end font-mono tabular-nums <%= room_a1 && room_a1 < 0 ? 'text-red-600 dark:text-red-400' : '' %>"><%= room_a1.nil? ? "—" : format_room_amount(room_a1) %></div>
                     <div class="entity-cell-secondary justify-end font-mono tabular-nums"><%= room_a1.nil? ? '—' : (room_a1 < 0 ? 'over A1' : 'under A1') %></div>
                   </div>
                 </div>
 
                 <div class="w-24 shrink-0 h-10 px-3 flex items-center">
                   <div class="entity-cell-two-line w-full">
-                    <div class="entity-cell-primary justify-end font-mono tabular-nums <%= room_a2 && room_a2 < 0 ? 'text-red-500' : '' %>"><%= room_a2.nil? ? "—" : format_room_amount(room_a2) %></div>
+                    <div class="entity-cell-primary justify-end font-mono tabular-nums <%= room_a2 && room_a2 < 0 ? 'text-red-600 dark:text-red-400' : '' %>"><%= room_a2.nil? ? "—" : format_room_amount(room_a2) %></div>
                     <div class="entity-cell-secondary justify-end font-mono tabular-nums"><%= room_a2.nil? ? '—' : (room_a2 < 0 ? 'over A2' : 'under A2') %></div>
                   </div>
                 </div>

@@ -78,7 +78,7 @@
 
 ## tools/team_summary/show.html.erb
 
-- [ ] `web/app/views/tools/team_summary/show.html.erb`: audit the full file for dark mode coverage on conditional color tints — **specific findings:** L289 `text-emerald-600 dark:text-emerald-400` is correct ✅ but the negative branch uses bare `text-red-500` without `dark:text-red-400`; L310, L317, L324, L331 all use `text-red-500` without dark variants. Salary Book reference uses `text-red-600 dark:text-red-400` pairs. Fix all to `text-red-600 dark:text-red-400`.
+- [x] `web/app/views/tools/team_summary/show.html.erb`: audit the full file for dark mode coverage on conditional color tints — **specific findings:** L289 `text-emerald-600 dark:text-emerald-400` is correct ✅ but the negative branch uses bare `text-red-500` without `dark:text-red-400`; L310, L317, L324, L331 all use `text-red-500` without dark variants. Salary Book reference uses `text-red-600 dark:text-red-400` pairs. Fix all to `text-red-600 dark:text-red-400`.
 
 ## tools/system_values/
 
