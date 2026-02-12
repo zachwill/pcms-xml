@@ -105,15 +105,15 @@
       <%# Divider %>
       <div class="h-20 w-px bg-border self-center"></div>
 
-      <%# Apps (placeholder radios; Salaries is the only active app today) %>
-      <div class="min-w-[5.5rem] space-y-1" role="radiogroup" aria-label="Apps">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Apps</div>
+      <%# Views (Salary Book is currently the only enabled view) %>
+      <div class="min-w-[5.5rem] space-y-1" role="radiogroup" aria-label="Views">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Views</div>
         <div class="space-y-1">
           <label class="flex items-center gap-1.5 cursor-not-allowed opacity-60">
             <input
               type="radio"
-              id="app-injuries"
-              name="salarybook-app"
+              id="view-injuries"
+              name="salarybook-view"
               value="injuries"
               class="size-3.5 accent-primary"
               disabled
@@ -121,23 +121,35 @@
             <span class="text-[11px] leading-none select-none text-muted-foreground">Injuries</span>
           </label>
 
+          <label class="flex items-center gap-1.5 cursor-not-allowed opacity-60">
+            <input
+              type="radio"
+              id="view-rotation"
+              name="salarybook-view"
+              value="rotation"
+              class="size-3.5 accent-primary"
+              disabled
+            />
+            <span class="text-[11px] leading-none select-none text-muted-foreground">Rotation</span>
+          </label>
+
           <label class="flex items-center gap-1.5 cursor-pointer">
             <input
               type="radio"
-              id="app-salaries"
-              name="salarybook-app"
-              value="salaries"
+              id="view-salary-book"
+              name="salarybook-view"
+              value="salary-book"
               class="size-3.5 accent-primary"
               checked
             />
-            <span class="text-[11px] leading-none select-none text-foreground font-semibold">Salaries</span>
+            <span class="text-[11px] leading-none select-none text-foreground font-semibold">Salary Book</span>
           </label>
 
           <label class="flex items-center gap-1.5 cursor-not-allowed opacity-60">
             <input
               type="radio"
-              id="app-tankathon"
-              name="salarybook-app"
+              id="view-tankathon"
+              name="salarybook-view"
               value="tankathon"
               class="size-3.5 accent-primary"
               disabled

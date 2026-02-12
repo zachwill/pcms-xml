@@ -200,7 +200,7 @@
             <%# Under-salary row (B): MINIMUM or pct-cap + blocks %>
             <div class="h-[16px] -mt-px flex items-start justify-center">
               <% if player["is_min_contract"] %>
-                <span class="text-[10px] leading-none tabular-nums whitespace-nowrap text-muted-foreground/80">MINIMUM</span>
+                <span class="text-[10px] leading-none tabular-nums whitespace-nowrap <%= salary_text_class || 'text-zinc-700 dark:text-zinc-300' %>">MINIMUM</span>
               <% elsif pct %>
                 <span class="text-[10px] leading-none tabular-nums whitespace-nowrap <%= salary_text_class || 'text-zinc-700 dark:text-zinc-300' %>">
                   <%= pct[:label] %>
