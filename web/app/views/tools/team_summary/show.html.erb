@@ -35,7 +35,7 @@
   team_summary_table_min_width_px = sticky_team_column_px + (metric_column_px * 9) + flags_column_px + (mini_metric_column_px * 2)
 %>
 
-<div class="h-screen w-screen flex flex-col overflow-hidden bg-background">
+<div class="h-screen w-full flex flex-col overflow-hidden bg-background" style="height: 100dvh;">
   <header id="commandbar" class="shrink-0 z-40 border-b border-border bg-background h-[130px] px-4 pt-3 flex items-start gap-4 select-none">
     <form method="get" action="<%= tools_team_summary_path %>" class="flex items-start gap-3 min-w-0 flex-1" role="group" aria-label="Team Summary controls">
       <div class="min-w-[9rem] space-y-1">
