@@ -7,6 +7,7 @@
   - badges: [{ label:, variant: }] or Array[String]
   - meta: Array[String]
   - links: [[label, href], ...]
+  - posture_chips: [{ label:, variant: }]
   - agency_name
   - client_count
   - team_count
@@ -44,6 +45,19 @@
       href = (entry[:href] || entry["href"]).to_s.strip
       next if label.blank? || href.blank?
       [label, href]
+    end
+  end
+
+  posture_chips = Array(local_assigns[:posture_chips]).filter_map do |chip|
+    if chip.is_a?(Hash)
+      label = (chip[:label] || chip["label"]).to_s.strip
+      variant = (chip[:variant] || chip["variant"]).to_s.strip.presence || "muted"
+      next if label.blank?
+      { label: label, variant: variant }
+    else
+      label = chip.to_s.strip
+      next if label.blank?
+      { label: label, variant: "muted" }
     end
   end
 
@@ -90,6 +104,21 @@
         </div>
       </div>
     </div>
+
+    <% if posture_chips.any? %>
+      <div class="hidden 2xl:flex items-center gap-1 shrink-0">
+        <% posture_chips.first(4).each do |chip| %>
+          <% chip_variant = case chip[:variant]
+            when "danger" then "entity-chip--danger"
+            when "warning" then "entity-chip--warning"
+            when "success" then "entity-chip--success"
+            when "accent" then "entity-chip--accent"
+            else "entity-chip--muted"
+          end %>
+          <span class="entity-chip <%= chip_variant %>"><%= chip[:label] %></span>
+        <% end %>
+      </div>
+    <% end %>
 
     <% if links.any? %>
       <div class="hidden lg:flex items-center gap-3 shrink-0 text-[11px]">

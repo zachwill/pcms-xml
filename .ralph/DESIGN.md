@@ -99,23 +99,35 @@ Rubric (1-5):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [ENTITY] /agents/:slug — convert table/card mix into sectioned flex workbench with client cohorts
+- [x] [P1] [ENTITY] /agents/:slug — convert table/card mix into sectioned flex workbench with client cohorts
   - Problem: Agent page mixes cards and multiple tables, making large client books hard to triage quickly.
   - Hypothesis: Cohort-based flex lanes (max-level, expiring, restricted, two-way) will speed portfolio reading.
   - Scope (files):
     - web/app/views/entities/agents/show.html.erb
     - web/app/views/entities/agents/_sticky_header.html.erb
     - web/test/integration/entities_agents_show_test.rb
+  - What changed (files):
+    - Rebuilt `web/app/views/entities/agents/show.html.erb` into sectioned lane grammar: posture + book horizon + new `#client-cohorts` + lane-based team footprint + lane-based full client roster + lane-based historical trend (replacing prior table/card-heavy primary flow).
+    - Added reusable dense row partial `web/app/views/entities/agents/_client_lane.html.erb` to keep cohort and full-roster rows consistent (identity + cap/decision metrics + status chips + direct player/team pivots).
+    - Updated `web/app/views/entities/agents/_sticky_header.html.erb` to support compact `posture_chips` so risk/posture cues (max/expiring/restricted/options) stay visible while scanning.
+    - Added focused integration coverage in `web/test/integration/entities_agents_show_test.rb` that stubs the workspace payload and asserts cohort sections, lane rendering, pivot-link presence, and absence of `<table>` markup in key client sections.
+  - Why this improves the flow:
+    - Portfolio triage now starts from explicit cohorts (max-level, expiring, restricted, two-way) instead of forcing users to scan a single mixed roster table.
+    - Cohort headers surface count + cap rollups immediately, so users can prioritize where negotiation/risk work is concentrated.
+    - A single dense lane grammar across cohorts + full roster + team footprint reduces mode switching and preserves one-click pivots to player/team pages.
   - Acceptance criteria:
     - Key client sections use flex-row lanes instead of table markup.
     - Cohort headers show counts + cap rollups and preserve direct player/team pivots.
     - Header/posture chips remain dense and immediately legible.
-  - Rubric (before → target):
+  - Rubric (before → after):
     - Scan speed: 3 → 5
     - Information hierarchy: 3 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 3 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Add cohort filters/toggles (`show overlap`, `hide empty cohorts`) with URL-persisted state for faster repeat workflows.
+    - Add cohort-level pivot actions (open cohort in Salary Book for active team/year lens) to tighten workbench→tool handoff.
   - Guardrails:
     - Do not modify Salary Book files.
 

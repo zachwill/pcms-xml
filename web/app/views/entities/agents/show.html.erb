@@ -22,8 +22,10 @@
 <% expiring_2025 = r["expiring_2025"].to_i %>
 <% expiring_2026 = r["expiring_2026"].to_i %>
 <% expiring_2027 = r["expiring_2027"].to_i %>
+<% expiring_window_count = expiring_2025 + expiring_2026 + expiring_2027 %>
 <% player_option_count = r["player_option_count"].to_i %>
 <% team_option_count = r["team_option_count"].to_i %>
+<% option_window_count = player_option_count + team_option_count %>
 
 <% book_2025_percentile = r["cap_2025_total_percentile"] %>
 <% client_count_percentile = r["client_count_percentile"] %>
@@ -41,6 +43,12 @@
 <% header_meta << "Book '25: #{format_salary(r['cap_2025_total'])}" if r['cap_2025_total'] %>
 <% header_meta << agency_name if agency_name.present? %>
 
+<% posture_chips = [] %>
+<% posture_chips << { label: "#{max_contract_count} max", variant: "accent" } if max_contract_count > 0 %>
+<% posture_chips << { label: "#{expiring_window_count} expiring ≤27", variant: "warning" } if expiring_window_count > 0 %>
+<% posture_chips << { label: "#{restricted_count} restricted", variant: "danger" } if restricted_count > 0 %>
+<% posture_chips << { label: "#{option_window_count} options", variant: "accent" } if option_window_count > 0 %>
+
 <% salary_book_href = "/tools/salary-book" %>
 
 <%# Header links %>
@@ -50,6 +58,140 @@
   <% header_links << ["Agency page", agency_href(@agent['agency_id'])] %>
 <% end %>
 <% header_links << ["Browse Agents", "/agents"] %>
+
+<%
+  client_rows = @clients.map do |client|
+    age_str = client["age"].present? ? "#{client['age'].to_i}y" : nil
+    yos_str = client["years_of_service"].present? ? "#{client['years_of_service'].to_i} YOS" : nil
+
+    next_option = nil
+    (2026..2028).each do |year|
+      normalized = normalize_contract_option(client["option_#{year}"])
+      next if normalized.blank?
+
+      option_classes = case normalized
+      when "PO"
+        "text-blue-600 dark:text-blue-400"
+      when "TO"
+        "text-purple-600 dark:text-purple-400"
+      else
+        "text-orange-600 dark:text-orange-400"
+      end
+
+      option_chip_classes = case normalized
+      when "PO"
+        "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300"
+      when "TO"
+        "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300"
+      else
+        "bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300"
+      end
+
+      next_option = {
+        year: year,
+        label: "#{normalized} #{format_year_label(year)}",
+        chip_label: "#{normalized} '#{format_year_label(year).split('-').first}",
+        decision_classes: option_classes,
+        chip_classes: option_chip_classes
+      }
+      break
+    end
+
+    fa_year = nil
+    (2025..2029).each do |year|
+      if client["cap_#{year}"].to_f > 0 && client["cap_#{year + 1}"].to_f == 0
+        fa_year = year
+        break
+      end
+    end
+
+    is_max_level = !client["is_two_way"] && client["pct_cap_2025"].to_f >= 0.25
+    is_restricted = client["is_no_trade"] || client["is_trade_bonus"] || client["is_trade_restricted_now"]
+    is_expiring_window = fa_year.present? && fa_year <= 2027
+
+    chips = []
+    chips << { label: "2W", classes: neutral_badge_classes } if client["is_two_way"]
+    chips << { label: "Max", classes: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" } if is_max_level
+    chips << { label: "Rook", classes: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" } if client["years_of_service"].to_i <= 3 && !client["is_two_way"]
+    chips << { label: "Min", classes: neutral_badge_classes } if client["is_min_contract"]
+    chips << { label: "NTC", classes: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300" } if client["is_no_trade"]
+
+    if client["is_trade_bonus"]
+      pct = client["trade_bonus_percent"]
+      kicker_label = if pct.present? && pct.to_f > 0
+        pct_value = pct.to_f
+        pct_str = pct_value % 1 == 0 ? pct_value.to_i.to_s : pct_value.to_s
+        "TK #{pct_str}%"
+      else
+        "TK"
+      end
+      chips << { label: kicker_label, classes: "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300" }
+    end
+
+    chips << { label: "Restricted", classes: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300" } if client["is_trade_restricted_now"]
+    chips << { label: next_option[:chip_label], classes: next_option[:chip_classes] } if next_option.present?
+    chips << { label: "FA '#{format_year_label(fa_year).split('-').first}", classes: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" } if is_expiring_window
+
+    decision_label = if next_option.present?
+      next_option[:label]
+    elsif fa_year.present?
+      "FA #{format_year_label(fa_year)}"
+    elsif client["is_two_way"]
+      "Two-Way"
+    else
+      "—"
+    end
+
+    detail_parts = [age_str, yos_str, client["contract_type_code"].presence].compact
+
+    {
+      player_id: client["player_id"],
+      player_name: client["player_name"],
+      team_code: client["team_code"],
+      team_id: client["team_id"],
+      team_name: client["team_name"],
+      cap_2025: client["cap_2025"],
+      total_salary_from_2025: client["total_salary_from_2025"],
+      decision_label: decision_label,
+      decision_classes: (next_option&.dig(:decision_classes) || "text-muted-foreground"),
+      detail_line: detail_parts.join(" · "),
+      chips: chips,
+      is_two_way: client["is_two_way"],
+      is_max_level: is_max_level,
+      is_restricted: is_restricted,
+      is_expiring_window: is_expiring_window
+    }
+  end
+
+  sorted_client_rows = client_rows.sort_by { |row| [-(row[:cap_2025].to_f), row[:player_name].to_s] }
+
+  client_cohorts = [
+    {
+      id: "cohort-max",
+      title: "Max-level anchors",
+      subtitle: "Largest leverage contracts in this book.",
+      rows: sorted_client_rows.select { |row| row[:is_max_level] }
+    },
+    {
+      id: "cohort-expiring",
+      title: "Expiring through 2027",
+      subtitle: "Near-term free agency windows requiring negotiation sequencing.",
+      rows: sorted_client_rows.select { |row| row[:is_expiring_window] }
+    },
+    {
+      id: "cohort-restricted",
+      title: "Restricted / no-trade / kicker",
+      subtitle: "Movement constraints and transaction-sensitive clients.",
+      rows: sorted_client_rows.select { |row| row[:is_restricted] }
+    },
+    {
+      id: "cohort-two-way",
+      title: "Two-way clients",
+      subtitle: "Conversion and roster-slot watchlist.",
+      rows: sorted_client_rows.select { |row| row[:is_two_way] }
+    }
+  ]
+%>
 
 <div id="agent-show" class="min-h-screen w-full bg-background">
   <%= render partial: "entities/shared/commandbar", locals: {
@@ -63,6 +205,7 @@
       badges: header_badges,
       meta: header_meta,
       links: header_links,
+      posture_chips: posture_chips,
       agency_name: agency_name,
       client_count: client_count,
       team_count: team_count,
@@ -73,44 +216,51 @@
     <div class="lg:flex lg:gap-8">
       <div class="min-w-0 flex-1 space-y-8">
 
-        <%# ═══════════════════════════════════════════════════════════════════
-            SECTION: At-a-Glance
-        ═══════════════════════════════════════════════════════════════════ %>
-        <section id="at-a-glance" class="space-y-3">
-          <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">At a glance</h2>
+        <section id="at-a-glance" class="scroll-mt-24 space-y-3">
+          <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Portfolio posture</h2>
 
-          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div class="rounded-lg border border-border bg-background p-3">
-              <div class="text-xs text-muted-foreground">Book '<%= format_year_label(2025).split("-").first %></div>
-              <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= format_salary(r["cap_2025_total"]) %></div>
-              <% if representation_percentile_label(book_2025_percentile).present? %>
-                <div class="mt-1 flex items-center justify-between gap-2 text-[10px] leading-none <%= representation_percentile_color_class(book_2025_percentile) %>">
-                  <span><%= representation_percentile_label(book_2025_percentile) %></span>
-                  <span class="font-mono tabular-nums"><%= representation_percentile_blocks(book_2025_percentile) %></span>
+          <div class="rounded-lg border border-border overflow-hidden">
+            <div class="divide-y divide-border/60">
+              <div class="flex items-center justify-between gap-3 px-3 py-2">
+                <div class="text-xs text-muted-foreground uppercase tracking-wide">Book '<%= format_year_label(2025).split("-").first %></div>
+                <div class="text-right">
+                  <div class="text-sm font-semibold font-mono tabular-nums"><%= format_salary(r["cap_2025_total"]) %></div>
+                  <% if representation_percentile_label(book_2025_percentile).present? %>
+                    <div class="text-[10px] tabular-nums <%= representation_percentile_color_class(book_2025_percentile) %>">
+                      <%= representation_percentile_label(book_2025_percentile) %>
+                      ·
+                      <%= representation_percentile_blocks(book_2025_percentile) %>
+                    </div>
+                  <% end %>
                 </div>
-              <% end %>
-            </div>
-            <div class="rounded-lg border border-border bg-background p-3">
-              <div class="text-xs text-muted-foreground">Clients</div>
-              <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= standard_count %><% if two_way_count > 0 %><span class="text-sm text-muted-foreground ml-1">+ <%= two_way_count %> 2W</span><% end %></div>
-              <% if representation_percentile_label(client_count_percentile).present? %>
-                <div class="mt-1 flex items-center justify-between gap-2 text-[10px] leading-none <%= representation_percentile_color_class(client_count_percentile) %>">
-                  <span><%= representation_percentile_label(client_count_percentile) %></span>
-                  <span class="font-mono tabular-nums"><%= representation_percentile_blocks(client_count_percentile) %></span>
+              </div>
+
+              <div class="flex items-center justify-between gap-3 px-3 py-2">
+                <div class="text-xs text-muted-foreground uppercase tracking-wide">Clients</div>
+                <div class="text-right">
+                  <div class="text-sm font-semibold font-mono tabular-nums"><%= standard_count %><% if two_way_count > 0 %><span class="text-muted-foreground/80"> + <%= two_way_count %> 2W</span><% end %></div>
+                  <% if representation_percentile_label(client_count_percentile).present? %>
+                    <div class="text-[10px] tabular-nums <%= representation_percentile_color_class(client_count_percentile) %>">
+                      <%= representation_percentile_label(client_count_percentile) %>
+                      ·
+                      <%= representation_percentile_blocks(client_count_percentile) %>
+                    </div>
+                  <% end %>
                 </div>
-              <% end %>
-            </div>
-            <div class="rounded-lg border border-border bg-background p-3">
-              <div class="text-xs text-muted-foreground">Teams</div>
-              <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= team_count %></div>
-            </div>
-            <div class="rounded-lg border border-border bg-background p-3">
-              <div class="text-xs text-muted-foreground">Total committed</div>
-              <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= format_salary(r["total_salary_from_2025"]) %></div>
+              </div>
+
+              <div class="flex items-center justify-between gap-3 px-3 py-2">
+                <div class="text-xs text-muted-foreground uppercase tracking-wide">Teams</div>
+                <div class="text-sm font-semibold font-mono tabular-nums"><%= team_count %></div>
+              </div>
+
+              <div class="flex items-center justify-between gap-3 px-3 py-2">
+                <div class="text-xs text-muted-foreground uppercase tracking-wide">Total committed</div>
+                <div class="text-sm font-semibold font-mono tabular-nums"><%= format_salary(r["total_salary_from_2025"]) %></div>
+              </div>
             </div>
           </div>
 
-          <%# Composition chips %>
           <div class="flex flex-wrap gap-1.5 text-[10px]">
             <% if max_contract_count > 0 %>
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
@@ -135,13 +285,13 @@
             <% if restricted_count > 0 %>
               <span class="inline-flex items-center px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"><%= restricted_count %> Trade Restricted</span>
             <% end %>
+            <% if expiring_window_count > 0 %>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"><%= expiring_window_count %> Expiring ≤ 27</span>
+            <% end %>
           </div>
         </section>
 
-        <%# ═══════════════════════════════════════════════════════════════════
-            SECTION: Book Horizon (visual year-by-year strip)
-        ═══════════════════════════════════════════════════════════════════ %>
-        <section id="book-horizon" class="space-y-3">
+        <section id="book-horizon" class="scroll-mt-24 space-y-3">
           <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Book horizon</h2>
           <% if @book_by_year.any? %>
             <%
@@ -158,7 +308,6 @@
                     bar_pct = max_book > 0 ? (cap_total.to_f / max_book * 100).round(1) : 0
                   %>
                   <div class="min-w-24 flex-1 border-r border-border p-3 text-center last:border-r-0 relative overflow-hidden">
-                    <%# Background bar %>
                     <div class="absolute inset-x-0 bottom-0 bg-violet-100/60 dark:bg-violet-900/20 transition-all" style="height: <%= bar_pct %>%"></div>
                     <div class="relative">
                       <div class="text-[10px] text-muted-foreground uppercase tracking-wide font-medium"><%= format_year_label(year) %></div>
@@ -178,157 +327,51 @@
           <% end %>
         </section>
 
-        <%# ═══════════════════════════════════════════════════════════════════
-            SECTION: Upcoming Negotiations
-        ═══════════════════════════════════════════════════════════════════ %>
-        <%
-          # Group clients by their next negotiation event
-          upcoming_fa = {}
-          upcoming_options = []
+        <section id="client-cohorts" class="scroll-mt-24 space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Client cohorts</h2>
+            <span class="text-[10px] text-muted-foreground tabular-nums">4 cohorts · <%= client_count %> clients</span>
+          </div>
 
-          @clients.each do |c|
-            next if c["is_two_way"]
+          <div class="space-y-4">
+            <% client_cohorts.each do |cohort| %>
+              <% cohort_cap_total = cohort[:rows].sum { |row| row[:cap_2025].to_f } %>
+              <% cohort_salary_total = cohort[:rows].sum { |row| row[:total_salary_from_2025].to_f } %>
 
-            # Check for upcoming FA
-            fa_year = nil
-            (2025..2029).each do |y|
-              if c["cap_#{y}"].to_f > 0 && c["cap_#{y + 1}"].to_f == 0
-                fa_year = y
-                break
-              end
-            end
-            if fa_year && fa_year <= 2027
-              upcoming_fa[fa_year] ||= []
-              upcoming_fa[fa_year] << c
-            end
-
-            # Check for option decisions
-            (2026..2028).each do |y|
-              opt = c["option_#{y}"]
-              next unless opt.present?
-              opt_type = case opt
-                when "PLYR", "PLYTF" then "Player"
-                when "TEAM" then "Team"
-                when "ETO" then "Early Termination"
-                else nil
-              end
-              if opt_type
-                upcoming_options << { client: c, year: y, type: opt_type, code: opt }
-                break # Only show nearest option
-              end
-            end
-          end
-        %>
-        <% if upcoming_fa.any? || upcoming_options.any? %>
-          <section id="negotiations" class="space-y-3">
-            <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Upcoming negotiations</h2>
-
-            <% if upcoming_fa.any? %>
-              <% upcoming_fa.keys.sort.each do |fa_year| %>
-                <% fa_clients = upcoming_fa[fa_year].sort_by { |c| -(c["cap_#{fa_year}"].to_f) } %>
-                <div class="space-y-1.5">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-medium text-orange-600 dark:text-orange-400">Free agents after <%= format_year_label(fa_year) %></span>
-                    <span class="text-[10px] text-muted-foreground font-mono tabular-nums"><%= fa_clients.size %> client<%= fa_clients.size != 1 ? "s" : "" %></span>
+              <article id="<%= cohort[:id] %>" class="rounded-lg border border-border overflow-hidden">
+                <header class="px-3 py-2 border-b border-border/60 bg-muted/20">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h3 class="text-[11px] font-semibold uppercase tracking-wide text-foreground"><%= cohort[:title] %></h3>
+                      <p class="text-[10px] text-muted-foreground/80"><%= cohort[:subtitle] %></p>
+                    </div>
+                    <div class="text-right tabular-nums">
+                      <div class="text-xs font-semibold"><%= cohort[:rows].size %> client<%= cohort[:rows].size == 1 ? "" : "s" %></div>
+                      <div class="text-[10px] text-muted-foreground">
+                        <span class="font-mono"><%= cohort_cap_total.positive? ? format_salary(cohort_cap_total) : "—" %></span>
+                        ·
+                        <span class="font-mono"><%= cohort_salary_total.positive? ? format_salary(cohort_salary_total) : "—" %> total</span>
+                      </div>
+                    </div>
                   </div>
-                  <div class="overflow-x-auto rounded-lg border border-border">
-                    <table class="entity-table min-w-full text-xs">
-                      <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-                        <tr>
-                          <th class="text-left px-3 py-1.5 font-medium">Player</th>
-                          <th class="text-left px-3 py-1.5 font-medium">Team</th>
-                          <th class="text-right px-3 py-1.5 font-medium">Final year salary</th>
-                          <th class="text-left px-3 py-1.5 font-medium">Type</th>
-                        </tr>
-                      </thead>
-                      <tbody class="divide-y divide-border">
-                        <% fa_clients.each do |c| %>
-                          <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                            <td class="px-3 py-1.5">
-                              <a href="<%= player_href(c['player_id']) %>" class="font-medium hover:underline"><%= c["player_name"] %></a>
-                            </td>
-                            <td class="px-3 py-1.5">
-                              <% if c["team_code"].present? %>
-                                <a href="<%= team_href(team_code: c['team_code'], team_id: c['team_id']) %>" class="font-medium hover:underline"><%= c["team_code"] %></a>
-                              <% else %>
-                                <span class="text-muted-foreground">—</span>
-                              <% end %>
-                            </td>
-                            <td class="px-3 py-1.5 text-right font-mono tabular-nums"><%= format_salary(c["cap_#{fa_year}"]) %></td>
-                            <td class="px-3 py-1.5">
-                              <% if c["contract_type_lookup_value"].present? %>
-                                <span class="text-muted-foreground"><%= c["contract_type_lookup_value"] %></span>
-                              <% else %>
-                                <span class="text-muted-foreground">—</span>
-                              <% end %>
-                            </td>
-                          </tr>
-                        <% end %>
-                      </tbody>
-                    </table>
+                </header>
+
+                <% if cohort[:rows].any? %>
+                  <div class="divide-y divide-border/50">
+                    <% cohort[:rows].each do |client_row| %>
+                      <%= render partial: "entities/agents/client_lane", locals: { client_row: client_row } %>
+                    <% end %>
                   </div>
-                </div>
-              <% end %>
+                <% else %>
+                  <div class="px-3 py-3 text-[11px] text-muted-foreground italic">No clients currently in this cohort.</div>
+                <% end %>
+              </article>
             <% end %>
+          </div>
+        </section>
 
-            <% if upcoming_options.any? %>
-              <div class="space-y-1.5">
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-medium text-blue-600 dark:text-blue-400">Option decisions</span>
-                  <span class="text-[10px] text-muted-foreground font-mono tabular-nums"><%= upcoming_options.size %> client<%= upcoming_options.size != 1 ? "s" : "" %></span>
-                </div>
-                <div class="overflow-x-auto rounded-lg border border-border">
-                  <table class="entity-table min-w-full text-xs">
-                    <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-                      <tr>
-                        <th class="text-left px-3 py-1.5 font-medium">Player</th>
-                        <th class="text-left px-3 py-1.5 font-medium">Team</th>
-                        <th class="text-left px-3 py-1.5 font-medium">Option</th>
-                        <th class="text-left px-3 py-1.5 font-medium">Season</th>
-                        <th class="text-right px-3 py-1.5 font-medium">Salary</th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
-                      <% upcoming_options.sort_by { |o| [o[:year], -(o[:client]["cap_2025"].to_f)] }.each do |opt| %>
-                        <% c = opt[:client] %>
-                        <%
-                          opt_color = case opt[:code]
-                            when "PLYR", "PLYTF" then "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
-                            when "TEAM" then "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300"
-                            else "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300"
-                          end
-                        %>
-                        <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                          <td class="px-3 py-1.5">
-                            <a href="<%= player_href(c['player_id']) %>" class="font-medium hover:underline"><%= c["player_name"] %></a>
-                          </td>
-                          <td class="px-3 py-1.5">
-                            <% if c["team_code"].present? %>
-                              <a href="<%= team_href(team_code: c['team_code'], team_id: c['team_id']) %>" class="font-medium hover:underline"><%= c["team_code"] %></a>
-                            <% else %>
-                              <span class="text-muted-foreground">—</span>
-                            <% end %>
-                          </td>
-                          <td class="px-3 py-1.5">
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide leading-none <%= opt_color %>"><%= opt[:type] %></span>
-                          </td>
-                          <td class="px-3 py-1.5 font-mono tabular-nums"><%= format_year_label(opt[:year]) %></td>
-                          <td class="px-3 py-1.5 text-right font-mono tabular-nums"><%= format_salary(c["cap_#{opt[:year]}"]) %></td>
-                        </tr>
-                      <% end %>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            <% end %>
-          </section>
-        <% end %>
-
-        <%# ═══════════════════════════════════════════════════════════════════
-            SECTION: Team Distribution
-        ═══════════════════════════════════════════════════════════════════ %>
-        <section id="team-distribution" class="space-y-3">
-          <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Team distribution</h2>
+        <section id="team-distribution" class="scroll-mt-24 space-y-3">
+          <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Team footprint</h2>
 
           <% if @team_distribution.empty? %>
             <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No team distribution data.</div>
@@ -337,176 +380,92 @@
               max_team_book = @team_distribution.map { |t| t["cap_2025_total"].to_i }.max
               max_team_book = [max_team_book, 1].max
             %>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <% @team_distribution.each do |t| %>
-                <%
-                  team_book = t["cap_2025_total"].to_i
-                  bar_pct = (team_book.to_f / max_team_book * 100).round(1)
-                  logo_url = team_logo_url(t["team_id"])
-                %>
-                <div class="relative rounded-lg border border-border bg-background overflow-hidden hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                  <%# Background bar %>
-                  <div class="absolute inset-y-0 left-0 bg-violet-100/40 dark:bg-violet-900/15 transition-all" style="width: <%= bar_pct %>%"></div>
-                  <div class="relative flex items-center gap-2.5 px-3 py-2">
-                    <% if logo_url.present? %>
-                      <div class="w-6 h-6 rounded border border-border bg-background overflow-hidden flex items-center justify-center shrink-0">
-                        <img src="<%= logo_url %>" alt="<%= t['team_code'] %>" class="w-full h-full object-contain p-0.5" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                        <span class="hidden text-[9px] font-mono text-muted-foreground"><%= t["team_code"] %></span>
-                      </div>
-                    <% end %>
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-baseline justify-between gap-2">
-                        <a href="<%= team_href(team_code: t['team_code'], team_id: t['team_id']) %>" class="font-medium text-sm hover:underline truncate"><%= t["team_code"] %></a>
-                        <span class="text-xs font-mono tabular-nums shrink-0"><%= format_salary(team_book) %></span>
-                      </div>
-                      <div class="text-[10px] text-muted-foreground/80">
-                        <%= t["client_count"] %> client<%= t["client_count"].to_i != 1 ? "s" : "" %>
-                        <% if t["team_name"].present? %>
-                          · <span class="truncate"><%= t["team_name"] %></span>
+            <div class="rounded-lg border border-border overflow-hidden">
+              <div class="bg-muted/20 border-b border-border/60">
+                <div class="flex items-center px-3 h-7 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
+                  <div class="min-w-0 flex-1">Team</div>
+                  <div class="w-16 shrink-0 text-right font-mono tabular-nums">Clients</div>
+                  <div class="w-24 shrink-0 text-right font-mono tabular-nums">Cap '25</div>
+                  <div class="w-24 shrink-0 text-right font-mono tabular-nums">Cap '26</div>
+                </div>
+              </div>
+
+              <div class="divide-y divide-border/50">
+                <% @team_distribution.each do |team| %>
+                  <%
+                    team_book = team["cap_2025_total"].to_i
+                    bar_pct = (team_book.to_f / max_team_book * 100).round(1)
+                  %>
+                  <div class="group relative overflow-hidden transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10">
+                    <div class="absolute inset-y-0 left-0 bg-violet-100/40 dark:bg-violet-900/15" style="width: <%= bar_pct %>%"></div>
+                    <div class="relative flex items-center px-3 py-1.5 text-xs">
+                      <div class="min-w-0 flex-1">
+                        <% if team["team_code"].present? %>
+                          <a href="<%= team_href(team_code: team['team_code'], team_id: team['team_id']) %>" class="font-medium hover:underline"><%= team["team_code"] %></a>
+                          <% if team["team_name"].present? %>
+                            <span class="text-[10px] text-muted-foreground/70"> · <%= team["team_name"] %></span>
+                          <% end %>
+                        <% else %>
+                          <span class="text-muted-foreground">—</span>
                         <% end %>
                       </div>
+
+                      <div class="w-16 shrink-0 text-right font-mono tabular-nums"><%= team["client_count"].to_i %></div>
+                      <div class="w-24 shrink-0 text-right font-mono tabular-nums"><%= team_book.positive? ? format_salary(team_book) : "—" %></div>
+                      <div class="w-24 shrink-0 text-right font-mono tabular-nums"><%= team["cap_2026_total"].to_i.positive? ? format_salary(team["cap_2026_total"]) : "—" %></div>
                     </div>
                   </div>
-                </div>
-              <% end %>
+                <% end %>
+              </div>
             </div>
           <% end %>
         </section>
 
-        <%# ═══════════════════════════════════════════════════════════════════
-            SECTION: Client Roster (full list)
-        ═══════════════════════════════════════════════════════════════════ %>
-        <section id="clients" class="space-y-3">
+        <section id="clients" class="scroll-mt-24 space-y-3">
           <div class="flex items-center justify-between">
-            <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Client roster</h2>
+            <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">All clients</h2>
             <span class="text-[10px] text-muted-foreground tabular-nums"><%= client_count %> player<%= client_count != 1 ? "s" : "" %></span>
           </div>
 
-          <% if @clients.empty? %>
+          <% if sorted_client_rows.empty? %>
             <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No clients found.</div>
           <% else %>
-            <div class="overflow-x-auto rounded-lg border border-border">
-              <table class="entity-table min-w-full text-xs">
-                <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-                  <tr>
-                    <th class="text-left px-3 py-2 font-medium">Player</th>
-                    <th class="text-left px-3 py-2 font-medium">Team</th>
-                    <th class="text-right px-3 py-2 font-medium">Cap '<%= format_year_label(2025).split("-").first %></th>
-                    <th class="text-right px-3 py-2 font-medium">Total</th>
-                    <th class="text-left px-3 py-2 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-border">
-                  <% @clients.each do |c| %>
-                    <%
-                      yos = c["years_of_service"].to_i
-                      is_rookie = yos <= 3 && !c["is_two_way"]
-                      age_str = c["age"].present? ? "#{c['age'].to_i}y" : nil
-                      yos_str = c["years_of_service"].present? ? "#{yos} YOS" : nil
-                      detail_parts = [age_str, yos_str].compact
+            <div class="rounded-lg border border-border overflow-hidden">
+              <div class="bg-muted/20 border-b border-border/60">
+                <div class="flex items-center px-3 h-7 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
+                  <div class="min-w-0 flex-[1.3]">Player</div>
+                  <div class="w-14 shrink-0">Team</div>
+                  <div class="w-24 shrink-0 text-right font-mono tabular-nums">Cap '25</div>
+                  <div class="w-24 shrink-0 text-right font-mono tabular-nums">Next</div>
+                  <div class="min-w-0 flex-1 text-right">Flags</div>
+                </div>
+              </div>
 
-                      # Determine status badges
-                      status_chips = []
-                      if c["is_two_way"]
-                        status_chips << { label: "2W", classes: neutral_badge_classes }
-                      end
-                      if is_rookie
-                        status_chips << { label: "Rook", classes: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" }
-                      end
-                      if c["is_min_contract"]
-                        status_chips << { label: "Min", classes: neutral_badge_classes }
-                      end
-                      if c["is_no_trade"]
-                        status_chips << { label: "NTC", classes: "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300" }
-                      end
-                      if c["is_trade_bonus"]
-                        pct = c["trade_bonus_percent"]
-                        kicker_label = pct.present? && pct.to_f > 0 ? "TK #{pct.to_f % 1 == 0 ? pct.to_i : pct}%" : "TK"
-                        status_chips << { label: kicker_label, classes: "bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300" }
-                      end
-                      if c["is_trade_restricted_now"]
-                        status_chips << { label: "Restricted", classes: "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300" }
-                      end
-
-                      # Next option
-                      (2026..2028).each do |y|
-                        opt = c["option_#{y}"]
-                        next unless opt.present?
-                        opt_label = case opt
-                          when "PLYR", "PLYTF" then "PO"
-                          when "TEAM" then "TO"
-                          when "ETO" then "ETO"
-                          else nil
-                        end
-                        if opt_label
-                          opt_cls = case opt
-                            when "PLYR", "PLYTF" then "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300"
-                            when "TEAM" then "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300"
-                            else "bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300"
-                          end
-                          status_chips << { label: "#{opt_label} '#{format_year_label(y).split("-").first}", classes: opt_cls }
-                          break
-                        end
-                      end
-                    %>
-                    <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                      <td class="px-3 py-2">
-                        <div class="entity-cell-two-line">
-                          <div class="entity-cell-primary">
-                            <a href="<%= player_href(c['player_id']) %>" class="font-medium truncate hover:underline"><%= c["player_name"] %></a>
-                          </div>
-                          <div class="entity-cell-secondary tabular-nums">
-                            <%= detail_parts.any? ? detail_parts.join(" · ") : "—" %>
-                          </div>
-                        </div>
-                      </td>
-                      <td class="px-3 py-2">
-                        <% if c["team_code"].present? %>
-                          <a href="<%= team_href(team_code: c['team_code'], team_id: c['team_id']) %>" class="font-medium hover:underline"><%= c["team_code"] %></a>
-                        <% else %>
-                          <span class="text-muted-foreground">—</span>
-                        <% end %>
-                      </td>
-                      <td class="px-3 py-2 text-right font-mono tabular-nums"><%= c["cap_2025"].present? ? format_salary(c["cap_2025"]) : "—" %></td>
-                      <td class="px-3 py-2 text-right font-mono tabular-nums"><%= c["total_salary_from_2025"].present? ? format_salary(c["total_salary_from_2025"]) : "—" %></td>
-                      <td class="px-3 py-2">
-                        <% if status_chips.any? %>
-                          <div class="flex flex-wrap gap-1">
-                            <% status_chips.each do |chip| %>
-                              <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide leading-none <%= chip[:classes] %>"><%= chip[:label] %></span>
-                            <% end %>
-                          </div>
-                        <% else %>
-                          <span class="text-muted-foreground">—</span>
-                        <% end %>
-                      </td>
-                    </tr>
-                  <% end %>
-                </tbody>
-              </table>
+              <div class="divide-y divide-border/50">
+                <% sorted_client_rows.each do |client_row| %>
+                  <%= render partial: "entities/agents/client_lane", locals: { client_row: client_row } %>
+                <% end %>
+              </div>
             </div>
           <% end %>
         </section>
 
-        <%# ═══════════════════════════════════════════════════════════════════
-            SECTION: Connections
-        ═══════════════════════════════════════════════════════════════════ %>
-        <section id="connections" class="space-y-3">
+        <section id="connections" class="scroll-mt-24 space-y-3">
           <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connections</h2>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div class="rounded-lg border border-border bg-background p-4">
-              <div class="text-[10px] uppercase tracking-wide text-muted-foreground">Agency</div>
+          <div class="rounded-lg border border-border overflow-hidden divide-y divide-border/60">
+            <div class="flex items-center justify-between gap-3 px-3 py-2">
+              <span class="text-xs uppercase tracking-wide text-muted-foreground">Agency</span>
               <% if @agent["agency_id"].present? && agency_name.present? %>
-                <a href="<%= agency_href(@agent['agency_id']) %>" class="mt-1 block font-medium hover:underline"><%= agency_name %></a>
+                <a href="<%= agency_href(@agent['agency_id']) %>" class="font-medium text-sm hover:underline"><%= agency_name %></a>
               <% else %>
-                <div class="mt-1 text-sm text-muted-foreground italic"><%= agency_name.presence || "Unknown" %></div>
+                <span class="text-sm text-muted-foreground italic"><%= agency_name.presence || "Unknown" %></span>
               <% end %>
             </div>
 
-            <div class="rounded-lg border border-border bg-background p-4">
-              <div class="text-[10px] uppercase tracking-wide text-muted-foreground">Status</div>
-              <div class="mt-1 flex flex-wrap gap-2">
+            <div class="flex items-center justify-between gap-3 px-3 py-2">
+              <span class="text-xs uppercase tracking-wide text-muted-foreground">Status</span>
+              <div class="flex flex-wrap items-center justify-end gap-1.5">
                 <span class="entity-chip <%= @agent['is_active'] == false ? 'entity-chip--muted' : 'entity-chip--success' %>">
                   <%= @agent['is_active'] == false ? 'Inactive' : 'Active' %>
                 </span>
@@ -518,32 +477,29 @@
           </div>
         </section>
 
-        <%# ═══════════════════════════════════════════════════════════════════
-            SECTION: Historical Footprint
-        ═══════════════════════════════════════════════════════════════════ %>
-        <section id="historical" class="space-y-3">
+        <section id="historical" class="scroll-mt-24 space-y-3">
           <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Historical footprint</h2>
 
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div class="rounded-lg border border-border bg-background p-3">
-              <div class="text-xs text-muted-foreground">Historical clients</div>
-              <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= @historical_footprint_rollup["historical_client_count"] || 0 %></div>
+          <div class="rounded-lg border border-border overflow-hidden divide-y divide-border/60">
+            <div class="flex items-center justify-between gap-3 px-3 py-2">
+              <span class="text-xs uppercase tracking-wide text-muted-foreground">Historical clients</span>
+              <span class="text-sm font-semibold font-mono tabular-nums"><%= @historical_footprint_rollup["historical_client_count"] || 0 %></span>
             </div>
-            <div class="rounded-lg border border-border bg-background p-3">
-              <div class="text-xs text-muted-foreground">Contracts</div>
-              <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= @historical_footprint_rollup["contract_count"] || 0 %></div>
+            <div class="flex items-center justify-between gap-3 px-3 py-2">
+              <span class="text-xs uppercase tracking-wide text-muted-foreground">Contracts</span>
+              <span class="text-sm font-semibold font-mono tabular-nums"><%= @historical_footprint_rollup["contract_count"] || 0 %></span>
             </div>
-            <div class="rounded-lg border border-border bg-background p-3">
-              <div class="text-xs text-muted-foreground">Versions</div>
-              <div class="mt-1 text-lg font-semibold font-mono tabular-nums"><%= @historical_footprint_rollup["version_count"] || 0 %></div>
+            <div class="flex items-center justify-between gap-3 px-3 py-2">
+              <span class="text-xs uppercase tracking-wide text-muted-foreground">Versions</span>
+              <span class="text-sm font-semibold font-mono tabular-nums"><%= @historical_footprint_rollup["version_count"] || 0 %></span>
             </div>
-            <div class="rounded-lg border border-border bg-background p-3">
-              <div class="text-xs text-muted-foreground">First signing</div>
-              <div class="mt-1 text-sm font-medium font-mono tabular-nums"><%= format_plain_date(@historical_footprint_rollup["first_signing_date"]) %></div>
+            <div class="flex items-center justify-between gap-3 px-3 py-2">
+              <span class="text-xs uppercase tracking-wide text-muted-foreground">First signing</span>
+              <span class="text-sm font-medium font-mono tabular-nums"><%= format_plain_date(@historical_footprint_rollup["first_signing_date"]) %></span>
             </div>
-            <div class="rounded-lg border border-border bg-background p-3">
-              <div class="text-xs text-muted-foreground">Last signing</div>
-              <div class="mt-1 text-sm font-medium font-mono tabular-nums"><%= format_plain_date(@historical_footprint_rollup["last_signing_date"]) %></div>
+            <div class="flex items-center justify-between gap-3 px-3 py-2">
+              <span class="text-xs uppercase tracking-wide text-muted-foreground">Last signing</span>
+              <span class="text-sm font-medium font-mono tabular-nums"><%= format_plain_date(@historical_footprint_rollup["last_signing_date"]) %></span>
             </div>
           </div>
 
@@ -555,27 +511,26 @@
           <% end %>
 
           <% if @historical_signing_trend.any? %>
-            <div class="overflow-x-auto rounded-lg border border-border">
-              <table class="entity-table min-w-full text-xs">
-                <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-                  <tr>
-                    <th class="text-left px-3 py-2 font-medium">Year</th>
-                    <th class="text-right px-3 py-2 font-medium">Clients</th>
-                    <th class="text-right px-3 py-2 font-medium">Contracts</th>
-                    <th class="text-right px-3 py-2 font-medium">Versions</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-border">
-                  <% @historical_signing_trend.each do |t| %>
-                    <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                      <td class="px-3 py-2 font-mono tabular-nums"><%= t["signing_year"] %></td>
-                      <td class="px-3 py-2 text-right font-mono tabular-nums"><%= t["distinct_clients"] %></td>
-                      <td class="px-3 py-2 text-right font-mono tabular-nums"><%= t["contract_count"] %></td>
-                      <td class="px-3 py-2 text-right font-mono tabular-nums"><%= t["version_count"] %></td>
-                    </tr>
-                  <% end %>
-                </tbody>
-              </table>
+            <div class="rounded-lg border border-border overflow-hidden">
+              <div class="bg-muted/20 border-b border-border/60">
+                <div class="flex items-center px-3 h-7 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
+                  <div class="w-16 shrink-0">Year</div>
+                  <div class="w-20 shrink-0 text-right font-mono tabular-nums">Clients</div>
+                  <div class="w-20 shrink-0 text-right font-mono tabular-nums">Contracts</div>
+                  <div class="w-20 shrink-0 text-right font-mono tabular-nums">Versions</div>
+                </div>
+              </div>
+
+              <div class="divide-y divide-border/50">
+                <% @historical_signing_trend.each do |trend| %>
+                  <div class="flex items-center px-3 py-1.5 text-xs transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10">
+                    <div class="w-16 shrink-0 font-mono tabular-nums"><%= trend["signing_year"] %></div>
+                    <div class="w-20 shrink-0 text-right font-mono tabular-nums"><%= trend["distinct_clients"] %></div>
+                    <div class="w-20 shrink-0 text-right font-mono tabular-nums"><%= trend["contract_count"] %></div>
+                    <div class="w-20 shrink-0 text-right font-mono tabular-nums"><%= trend["version_count"] %></div>
+                  </div>
+                <% end %>
+              </div>
             </div>
           <% end %>
         </section>
@@ -585,11 +540,11 @@
       <%= render partial: "entities/shared/local_nav", locals: {
         sticky_top_class: "top-[196px]",
         sections: [
-          ["at-a-glance", "At a glance"],
+          ["at-a-glance", "Posture"],
           ["book-horizon", "Book horizon"],
-          ["negotiations", "Negotiations"],
+          ["client-cohorts", "Cohorts"],
           ["team-distribution", "Teams"],
-          ["clients", "Client roster"],
+          ["clients", "All clients"],
           ["connections", "Connections"],
           ["historical", "Historical"]
         ]
