@@ -1,0 +1,110 @@
+<div class="flex-1 min-w-0 space-y-3">
+  <div>
+    <h1 class="text-sm font-semibold tracking-wide uppercase">System Values</h1>
+    <p class="text-[11px] text-muted-foreground">League constants, tax brackets, salary scales, rookie scale grid</p>
+  </div>
+
+  <form
+    method="get"
+    action="<%= tools_system_values_path %>"
+    class="flex flex-wrap items-end gap-3"
+    role="group"
+    aria-label="System Values controls"
+    data-on:submit="evt.preventDefault(); @get('<%= tools_system_values_sse_refresh_path %>?' + (<%= overlay_query_expr %>));"
+  >
+    <div class="space-y-1">
+      <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-year-select">Season</label>
+      <select
+        id="system-values-year-select"
+        name="year"
+        class="h-7 rounded border border-border bg-muted/50 px-2 text-xs"
+        data-bind="svyear"
+      >
+        <% @available_years.each do |candidate_year| %>
+          <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @selected_year %>><%= format_year_label(candidate_year) %></option>
+        <% end %>
+      </select>
+    </div>
+
+    <div class="space-y-1">
+      <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-baseline-year-select">Baseline</label>
+      <select
+        id="system-values-baseline-year-select"
+        name="baseline_year"
+        class="h-7 rounded border border-border bg-muted/50 px-2 text-xs"
+        data-bind="svbaseline"
+      >
+        <% @available_years.each do |candidate_year| %>
+          <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @baseline_year %>><%= format_year_label(candidate_year) %></option>
+        <% end %>
+      </select>
+    </div>
+
+    <div class="space-y-1">
+      <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-from-year-select">From</label>
+      <select
+        id="system-values-from-year-select"
+        name="from_year"
+        class="h-7 rounded border border-border bg-muted/50 px-2 text-xs font-mono tabular-nums"
+        data-bind="svfrom"
+      >
+        <% @available_years.each do |candidate_year| %>
+          <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @from_year %>><%= candidate_year %></option>
+        <% end %>
+      </select>
+    </div>
+
+    <div class="space-y-1">
+      <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-to-year-select">To</label>
+      <select
+        id="system-values-to-year-select"
+        name="to_year"
+        class="h-7 rounded border border-border bg-muted/50 px-2 text-xs font-mono tabular-nums"
+        data-bind="svto"
+      >
+        <% @available_years.each do |candidate_year| %>
+          <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @to_year %>><%= candidate_year %></option>
+        <% end %>
+      </select>
+    </div>
+
+    <button type="submit" class="h-7 px-2 rounded border border-border bg-muted/50 text-xs font-medium hover:bg-muted">Apply</button>
+
+    <button
+      type="button"
+      class="h-7 px-2 rounded border border-border bg-background text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted"
+      data-show="$svoverlaysection !== ''"
+      style="display: none;"
+      data-on:click="$svoverlaysection=''; $svoverlaymetric=''; $svoverlayyear=''; $svoverlaylower=''; $svoverlayupper=''; @get('<%= tools_system_values_sidebar_clear_path %>')"
+    >Clear drill-in</button>
+
+    <div class="h-7 w-px bg-border self-end mx-1"></div>
+
+    <div class="space-y-1">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Visible sections</div>
+      <div class="flex flex-wrap items-center gap-3">
+        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80">
+          <input type="checkbox" class="size-3.5 accent-primary" data-bind="showsystemvalues" />
+          System
+        </label>
+        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80">
+          <input type="checkbox" class="size-3.5 accent-primary" data-bind="showtaxrates" />
+          Tax Rates
+        </label>
+        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80">
+          <input type="checkbox" class="size-3.5 accent-primary" data-bind="showsalaryscales" />
+          Minimum Salary
+        </label>
+        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80">
+          <input type="checkbox" class="size-3.5 accent-primary" data-bind="showrookiescales" />
+          Rookie Scale
+        </label>
+      </div>
+    </div>
+
+    <div class="text-[10px] font-medium text-muted-foreground/80 self-end pb-1"><%= @comparison_label %></div>
+  </form>
+</div>
+
+<div class="h-20 w-px bg-border self-center ml-auto shrink-0"></div>
+<%= render partial: "shared/commandbar_navigation", locals: { active_destination: "system_values" } %>

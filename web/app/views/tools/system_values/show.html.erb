@@ -1,217 +1,109 @@
 <% content_for :title, "System Values" %>
 
-<% comparison_label = "Comparing #{format_year_label(@selected_year)} against #{format_year_label(@baseline_year)} baseline" %>
+<%
+  state_query_expr = "'year=' + encodeURIComponent($svyear) +
+    '&baseline_year=' + encodeURIComponent($svbaseline) +
+    '&from_year=' + encodeURIComponent($svfrom) +
+    '&to_year=' + encodeURIComponent($svto)"
+
+  overlay_query_expr = "(#{state_query_expr}) +
+    '&overlay_section=' + encodeURIComponent($svoverlaysection || '') +
+    '&overlay_metric=' + encodeURIComponent($svoverlaymetric || '') +
+    '&overlay_year=' + encodeURIComponent($svoverlayyear || '') +
+    '&overlay_lower=' + encodeURIComponent($svoverlaylower || '') +
+    '&overlay_upper=' + encodeURIComponent($svoverlayupper || '')"
+
+  sync_url_expr = "const nextUrl = '#{tools_system_values_path}?' + (#{overlay_query_expr}); if ((window.location.pathname + window.location.search) !== nextUrl) { window.history.replaceState({}, '', nextUrl); }"
+
+  signals_literal = {
+    showsystemvalues: true,
+    showtaxrates: true,
+    showsalaryscales: true,
+    showrookiescales: true,
+    activesection: "system",
+    svyear: @selected_year.to_s,
+    svbaseline: @baseline_year.to_s,
+    svfrom: @from_year.to_s,
+    svto: @to_year.to_s,
+    svoverlaysection: @overlay_signals.fetch(:section, ""),
+    svoverlaymetric: @overlay_signals.fetch(:metric, ""),
+    svoverlayyear: @overlay_signals.fetch(:year, ""),
+    svoverlaylower: @overlay_signals.fetch(:lower, ""),
+    svoverlayupper: @overlay_signals.fetch(:upper, "")
+  }.to_json
+%>
 
 <div
   id="system-values"
   class="h-screen w-full flex flex-col overflow-hidden bg-background"
   style="height: 100dvh;"
-  data-signals="{ showsystemvalues: true, showtaxrates: true, showsalaryscales: true, showrookiescales: true, activesection: 'system' }"
+  data-signals='<%= signals_literal %>'
+  data-effect="<%= sync_url_expr %>"
 >
+  <div id="flash"></div>
+
   <header id="commandbar" class="shrink-0 border-b border-border bg-background h-[130px] px-4 pt-3 flex items-start gap-4 select-none">
-    <div class="flex-1 min-w-0 space-y-3">
-      <div>
-        <h1 class="text-sm font-semibold tracking-wide uppercase">System Values</h1>
-        <p class="text-[11px] text-muted-foreground">League constants, tax brackets, salary scales, rookie scale grid</p>
-      </div>
-
-      <form method="get" action="<%= tools_system_values_path %>" class="flex flex-wrap items-end gap-3" role="group" aria-label="System Values controls">
-        <div class="space-y-1">
-          <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-year-select">Season</label>
-          <select id="system-values-year-select" name="year" class="h-7 rounded border border-border bg-muted/50 px-2 text-xs">
-            <% @available_years.each do |candidate_year| %>
-              <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @selected_year %>><%= format_year_label(candidate_year) %></option>
-            <% end %>
-          </select>
-        </div>
-
-        <div class="space-y-1">
-          <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-baseline-year-select">Baseline</label>
-          <select id="system-values-baseline-year-select" name="baseline_year" class="h-7 rounded border border-border bg-muted/50 px-2 text-xs">
-            <% @available_years.each do |candidate_year| %>
-              <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @baseline_year %>><%= format_year_label(candidate_year) %></option>
-            <% end %>
-          </select>
-        </div>
-
-        <div class="space-y-1">
-          <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-from-year-select">From</label>
-          <select id="system-values-from-year-select" name="from_year" class="h-7 rounded border border-border bg-muted/50 px-2 text-xs font-mono tabular-nums">
-            <% @available_years.each do |candidate_year| %>
-              <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @from_year %>><%= candidate_year %></option>
-            <% end %>
-          </select>
-        </div>
-
-        <div class="space-y-1">
-          <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-to-year-select">To</label>
-          <select id="system-values-to-year-select" name="to_year" class="h-7 rounded border border-border bg-muted/50 px-2 text-xs font-mono tabular-nums">
-            <% @available_years.each do |candidate_year| %>
-              <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @to_year %>><%= candidate_year %></option>
-            <% end %>
-          </select>
-        </div>
-
-        <button type="submit" class="h-7 px-2 rounded border border-border bg-muted/50 text-xs font-medium hover:bg-muted">Apply</button>
-
-        <div class="h-7 w-px bg-border self-end mx-1"></div>
-
-        <div class="space-y-1">
-          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Visible sections</div>
-          <div class="flex flex-wrap items-center gap-3">
-            <label class="flex items-center gap-1.5 text-[11px] text-foreground/80">
-              <input type="checkbox" class="size-3.5 accent-primary" data-bind="showsystemvalues" />
-              System
-            </label>
-            <label class="flex items-center gap-1.5 text-[11px] text-foreground/80">
-              <input type="checkbox" class="size-3.5 accent-primary" data-bind="showtaxrates" />
-              Tax Rates
-            </label>
-            <label class="flex items-center gap-1.5 text-[11px] text-foreground/80">
-              <input type="checkbox" class="size-3.5 accent-primary" data-bind="showsalaryscales" />
-              Minimum Salary
-            </label>
-            <label class="flex items-center gap-1.5 text-[11px] text-foreground/80">
-              <input type="checkbox" class="size-3.5 accent-primary" data-bind="showrookiescales" />
-              Rookie Scale
-            </label>
-          </div>
-        </div>
-
-        <div class="text-[10px] font-medium text-muted-foreground/80 self-end pb-1"><%= comparison_label %></div>
-      </form>
-    </div>
-
-    <div class="h-20 w-px bg-border self-center ml-auto shrink-0"></div>
-    <%= render partial: "shared/commandbar_navigation", locals: { active_destination: "system_values" } %>
+    <%= render partial: "tools/system_values/commandbar", locals: {
+      state_query_expr:,
+      overlay_query_expr:
+    } %>
   </header>
 
-  <% section_meta = [
-    { key: "system", label: "System", target: "section-system", visibility: "$showsystemvalues" },
-    { key: "tax", label: "Tax", target: "section-tax", visibility: "$showtaxrates" },
-    { key: "minimum", label: "Minimum", target: "section-minimum", visibility: "$showsalaryscales" },
-    { key: "rookie", label: "Rookie", target: "section-rookie", visibility: "$showrookiescales" }
-  ] %>
+  <div id="viewport" class="flex flex-1 overflow-hidden relative">
+    <main
+      id="maincanvas"
+      class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-8"
+      data-on:scroll="
+        const sections = [
+          { key: 'system', id: 'section-system', visible: $showsystemvalues },
+          { key: 'tax', id: 'section-tax', visible: $showtaxrates },
+          { key: 'minimum', id: 'section-minimum', visible: $showsalaryscales },
+          { key: 'rookie', id: 'section-rookie', visible: $showrookiescales }
+        ];
 
-  <nav id="system-values-wayfinding" class="shrink-0 h-10 border-b border-border bg-muted/20 px-4 flex items-center gap-2">
-    <% section_meta.each do |section| %>
-      <button
-        type="button"
-        class="cursor-pointer h-6 px-2 rounded border border-transparent text-[10px] uppercase tracking-wide font-medium transition-colors"
-        data-show="<%= section[:visibility] %>"
-        data-class="{
-          'border-border bg-background text-foreground': $activesection === '<%= section[:key] %>',
-          'text-muted-foreground hover:text-foreground hover:border-border/70': $activesection !== '<%= section[:key] %>'
-        }"
-        data-on:click="
-          const target = document.getElementById('<%= section[:target] %>');
-          const scroller = document.getElementById('maincanvas');
-          if (target && scroller) {
-            scroller.scrollTo({ top: Math.max(target.offsetTop - 8, 0), behavior: 'smooth' });
-            $activesection = '<%= section[:key] %>';
+        let active = '';
+        for (const section of sections) {
+          if (!section.visible) { continue; }
+          const node = document.getElementById(section.id);
+          if (!node || node.offsetParent === null) { continue; }
+          if (el.scrollTop + 28 >= node.offsetTop) {
+            active = section.key;
           }
-        "
-      ><%= section[:label] %></button>
-    <% end %>
-
-    <div class="ml-auto flex items-center gap-1.5">
-      <% @section_shift_cards.each do |card| %>
-        <% card_class = case card[:variant]
-        when "positive"
-          "text-emerald-700 dark:text-emerald-300 border-emerald-300/70 dark:border-emerald-500/40 bg-emerald-50/60 dark:bg-emerald-900/20"
-        when "negative"
-          "text-red-700 dark:text-red-300 border-red-300/70 dark:border-red-500/40 bg-red-50/60 dark:bg-red-900/20"
-        when "neutral"
-          "text-foreground border-border/80 bg-background"
-        else
-          "text-muted-foreground border-border/70 bg-background"
-        end %>
-
-        <% visibility_signal = section_meta.find { |section| section[:key] == card[:key] }&.dig(:visibility) || "true" %>
-        <div data-show="<%= visibility_signal %>" class="h-6 px-2 rounded border text-[10px] font-mono tabular-nums inline-flex items-center gap-1 <%= card_class %>">
-          <span class="font-semibold"><%= card[:label] %></span>
-          <span><%= card[:metric_label] %> <%= card[:delta_label] %></span>
-        </div>
-      <% end %>
-    </div>
-  </nav>
-
-  <main
-    id="maincanvas"
-    class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-8"
-    data-on:scroll="
-      const sections = [
-        { key: 'system', id: 'section-system', visible: $showsystemvalues },
-        { key: 'tax', id: 'section-tax', visible: $showtaxrates },
-        { key: 'minimum', id: 'section-minimum', visible: $showsalaryscales },
-        { key: 'rookie', id: 'section-rookie', visible: $showrookiescales }
-      ];
-
-      let active = '';
-      for (const section of sections) {
-        if (!section.visible) { continue; }
-        const node = document.getElementById(section.id);
-        if (!node || node.offsetParent === null) { continue; }
-        if (el.scrollTop + 28 >= node.offsetTop) {
-          active = section.key;
         }
-      }
 
-      if (active === '') {
-        const firstVisible = sections.find((section) => section.visible);
-        active = firstVisible ? firstVisible.key : '';
-      }
+        if (active === '') {
+          const firstVisible = sections.find((section) => section.visible);
+          active = firstVisible ? firstVisible.key : '';
+        }
 
-      if ($activesection !== active) {
-        $activesection = active;
-      }
-    "
-  >
-    <% if @boot_error %>
-      <div class="p-4">
-        <div class="p-4 rounded-lg border border-border bg-muted/20">
-          <div class="text-sm font-medium text-destructive">Warehouse query failed</div>
-          <pre class="mt-2 text-xs text-muted-foreground overflow-x-auto"><%= @boot_error %></pre>
-        </div>
+        if ($activesection !== active) {
+          $activesection = active;
+        }
+      "
+    >
+      <%= render partial: "tools/system_values/workspace_main", locals: {
+        overlay_query_expr:
+      } %>
+    </main>
+
+    <aside
+      id="rightpanel"
+      class="w-[30%] min-w-[320px] max-w-[480px] border-l border-border bg-background overflow-hidden relative"
+    >
+      <div
+        id="rightpanel-base-layer"
+        class="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-y-contain scroll-touch pt-2 px-4 pb-4"
+      >
+        <%= render partial: "tools/system_values/rightpanel_base", locals: {
+          overlay_query_expr:
+        } %>
       </div>
-    <% else %>
-      <div class="divide-y divide-border/60">
-        <div id="section-system" class="scroll-mt-2">
-          <%= render partial: "tools/system_values/league_system_values_table", locals: {
-            rows: @league_system_values,
-            selected_year: @selected_year,
-            baseline_year: @baseline_year,
-            baseline_row: @baseline_system_values_row
-          } %>
-        </div>
 
-        <div id="section-tax" class="scroll-mt-2">
-          <%= render partial: "tools/system_values/league_tax_rates_table", locals: {
-            rows: @league_tax_rates,
-            selected_year: @selected_year,
-            baseline_year: @baseline_year,
-            baseline_rows: @baseline_tax_rate_rows
-          } %>
-        </div>
-
-        <div id="section-minimum" class="scroll-mt-2">
-          <%= render partial: "tools/system_values/league_salary_scales_table", locals: {
-            rows: @league_salary_scales,
-            selected_year: @selected_year,
-            baseline_year: @baseline_year,
-            baseline_rows: @baseline_salary_scale_rows
-          } %>
-        </div>
-
-        <div id="section-rookie" class="scroll-mt-2">
-          <%= render partial: "tools/system_values/rookie_scale_amounts_table", locals: {
-            rows: @rookie_scale_amounts,
-            selected_year: @selected_year,
-            baseline_year: @baseline_year,
-            baseline_rows: @baseline_rookie_scale_rows
-          } %>
-        </div>
-      </div>
-    <% end %>
-  </main>
+      <% if @overlay_payload.present? %>
+        <%= render partial: "tools/system_values/rightpanel_overlay_metric" %>
+      <% else %>
+        <%= render partial: "tools/system_values/rightpanel_clear" %>
+      <% end %>
+    </aside>
+  </div>
 </div>

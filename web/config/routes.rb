@@ -11,6 +11,9 @@ Rails.application.routes.draw do
     get "two-way-utility/sidebar/:id", to: "two_way_utility#sidebar", as: :two_way_utility_sidebar, constraints: { id: /\d+/ }
     get "two-way-utility/sse/refresh", to: "two_way_utility#refresh", as: :two_way_utility_sse_refresh
     get "system-values", to: "system_values#show"
+    get "system-values/sidebar/metric", to: "system_values#sidebar_metric", as: :system_values_sidebar_metric
+    get "system-values/sidebar/clear", to: "system_values#sidebar_clear", as: :system_values_sidebar_clear
+    get "system-values/sse/refresh", to: "system_values#refresh", as: :system_values_sse_refresh
     get "team-summary", to: "team_summary#show"
     get "team-summary/sidebar/clear", to: "team_summary#sidebar_clear", as: :team_summary_sidebar_clear
     get "team-summary/sidebar/:team_code", to: "team_summary#sidebar", as: :team_summary_sidebar, constraints: { team_code: /[A-Za-z]{3}/ }

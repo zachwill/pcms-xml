@@ -2,6 +2,8 @@
 <% selected_year ||= nil %>
 <% baseline_year ||= nil %>
 <% baseline_row ||= nil %>
+<% overlay_query_expr ||= "''" %>
+<% sidebar_metric_path ||= tools_system_values_sidebar_metric_path %>
 
 <% baseline_year_i = baseline_year.present? ? baseline_year.to_i : nil %>
 <% baseline_label = baseline_year_i ? format_year_label(baseline_year_i) : "—" %>
@@ -36,7 +38,7 @@ end %>
 <section data-show="$showsystemvalues">
   <div class="overflow-x-auto">
     <div class="min-w-[1420px]">
-      <div class="sticky top-0 z-30 bg-background will-change-transform shadow-[0_1px_3px_0_rgb(0_0_0/0.08),0_1px_2px_-1px_rgb(0_0_0/0.08)]">
+      <div class="sticky top-0 z-20 bg-background will-change-transform shadow-[0_1px_3px_0_rgb(0_0_0/0.08),0_1px_2px_-1px_rgb(0_0_0/0.08)]">
         <div class="h-9 flex items-center border-b border-border bg-muted px-4">
           <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">League System Values</div>
           <div class="ml-auto text-[10px] text-muted-foreground/70 tabular-nums">Δ vs <%= baseline_label %> · <%= rows.length %> seasons</div>
@@ -130,11 +132,19 @@ end %>
                   "text-muted-foreground"
                 end %>
 
-                <div class="w-24 shrink-0 px-3 py-1">
-                  <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= format_compact_currency(value) %></div>
-                    <div class="entity-cell-secondary justify-end font-mono tabular-nums <%= delta_class %>"><%= delta_label %></div>
-                  </div>
+                <% cell_active_expr = "$svoverlaysection === 'system' && $svoverlaymetric === '#{column_name}' && $svoverlayyear === '#{row_year}'" %>
+
+                <div class="w-24 shrink-0 px-3 py-1 transition-colors duration-100" data-class="{ 'bg-amber-100/70 dark:bg-amber-900/20': <%= cell_active_expr %> }">
+                  <button
+                    type="button"
+                    class="cursor-pointer w-full text-left rounded-sm hover:bg-yellow-100/70 dark:hover:bg-yellow-900/20 focus-visible:outline-none"
+                    data-on:click="$svoverlaysection='system'; $svoverlaymetric='<%= column_name %>'; $svoverlayyear='<%= row_year %>'; $svoverlaylower=''; $svoverlayupper=''; @get('<%= sidebar_metric_path %>?' + (<%= overlay_query_expr %>));"
+                  >
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= format_compact_currency(value) %></div>
+                      <div class="entity-cell-secondary justify-end font-mono tabular-nums <%= delta_class %>"><%= delta_label %></div>
+                    </div>
+                  </button>
                 </div>
               <% end %>
             </div>

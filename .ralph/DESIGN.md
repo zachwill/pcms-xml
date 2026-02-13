@@ -352,26 +352,42 @@ Supervisor review — 2026-02-13 (pass 2):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P2] [TOOL] /tools/system-values — add rightpanel drill-ins and SSE state transitions for baseline analysis
-  - Problem: System Values requires full-page apply loops and has no sidebar drill-in for metric provenance/context.
-  - Hypothesis: Converging to workbench shell + SSE updates + metric drill-ins will improve comparison speed and wayfinding.
+- [x] [P2] [TOOL] /tools/system-values — add rightpanel drill-ins and SSE state transitions for baseline analysis
   - Scope (files):
+    - web/config/routes.rb
+    - web/app/controllers/tools/system_values_controller.rb
     - web/app/views/tools/system_values/show.html.erb
+    - web/app/views/tools/system_values/_commandbar.html.erb
+    - web/app/views/tools/system_values/_workspace_main.html.erb
+    - web/app/views/tools/system_values/_rightpanel_base.html.erb
+    - web/app/views/tools/system_values/_rightpanel_overlay_metric.html.erb
+    - web/app/views/tools/system_values/_rightpanel_clear.html.erb
     - web/app/views/tools/system_values/_league_system_values_table.html.erb
     - web/app/views/tools/system_values/_league_tax_rates_table.html.erb
-    - web/app/controllers/tools/system_values_controller.rb
     - web/test/integration/tools_system_values_test.rb
-  - Acceptance criteria:
-    - Surface includes explicit rightpanel base/overlay targets for metric context drill-ins.
-    - Apply/baseline/range changes patch relevant regions in one response path (SSE for multi-region updates).
-    - Clicking a metric row opens rightpanel overlay with selected-vs-baseline explanation and canonical pivots where applicable.
-    - Existing dense table grammar is preserved (no cardification).
-  - Rubric (before → target):
+  - What changed:
+    - Migrated System Values into explicit workbench shell targets with `#maincanvas`, `#rightpanel-base`, and `#rightpanel-overlay`.
+    - Added `/tools/system-values/sse/refresh` multi-region SSE flow; commandbar apply now patches `#commandbar`, `#maincanvas`, `#rightpanel-base`, and `#rightpanel-overlay` in one response while syncing state signals.
+    - Added metric drill-in state (`overlay_section/metric/year/bracket`) with preserve/clear semantics across baseline/range refreshes.
+    - Added clickable metric cells in **League System Values** and **League Tax Rates** tables that open rightpanel overlays (selected vs baseline summary, focused-row context, provenance, pivots).
+    - Added rightpanel base quick-drill cards for high-signal baseline checks (cap, tax, apron, NT MLE, top NR bracket).
+    - Added sidebar endpoints for metric open/clear and integration coverage for new shell targets + SSE patch contract + overlay clear behavior.
+  - Why this improves the flow:
+    - Baseline analysis now stays in a continuous workbench loop (no full-page apply churn).
+    - Users can move from scan → metric drill-in → pivot without leaving System Values.
+    - State transitions are predictable: one refresh path for multi-region updates, deterministic overlay preserve/clear, and URL-backed shareable context.
+  - Verification:
+    - `cd web && bundle exec rails test test/integration/tools_system_values_test.rb` *(fails in this environment: missing gem `lucide-rails-0.7.3`)*
+    - `cd web && ruby -c app/controllers/tools/system_values_controller.rb && ruby -c test/integration/tools_system_values_test.rb && ruby -rerb -e "['app/views/tools/system_values/show.html.erb','app/views/tools/system_values/_commandbar.html.erb','app/views/tools/system_values/_workspace_main.html.erb','app/views/tools/system_values/_rightpanel_base.html.erb','app/views/tools/system_values/_rightpanel_overlay_metric.html.erb','app/views/tools/system_values/_rightpanel_clear.html.erb','app/views/tools/system_values/_league_system_values_table.html.erb','app/views/tools/system_values/_league_tax_rates_table.html.erb'].each { |p| ERB.new(File.read(p)).src }; puts 'ERB OK'"` *(syntax/ERB OK)*
+  - Rubric (before → after):
     - Scan speed: 3 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 3 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 3 → 4
+  - Follow-up tasks discovered:
+    - Extend the same drill-in treatment to Minimum Salary and Rookie Scale sections for full surface parity.
+    - Add explicit in-overlay threshold notes for tax bracket transitions (e.g., incremental bracket step interpretation).
   - Guardrails:
     - Do not modify Salary Book files.
 

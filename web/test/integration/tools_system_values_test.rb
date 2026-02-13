@@ -251,7 +251,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
     host! "localhost"
   end
 
-  test "system values renders baseline controls and section wayfinding" do
+  test "system values renders rightpanel targets and sse apply path" do
     with_fake_connection do
       get "/tools/system-values", params: {
         year: "2026",
@@ -261,31 +261,82 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       }, headers: modern_headers
 
       assert_response :success
-      assert_includes response.body, 'id="system-values-baseline-year-select"'
-      assert_includes response.body, 'id="system-values-wayfinding"'
+      assert_includes response.body, 'id="rightpanel-base"'
+      assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, "/tools/system-values/sse/refresh?"
+      assert_includes response.body, "/tools/system-values/sidebar/metric?"
       assert_includes response.body, "Comparing 26-27 against 24-25 baseline"
-      assert_includes response.body, "Cap +$9.0M"
-      assert_includes response.body, "Top NR +0.50x"
     end
   end
 
-  test "system values shows baseline-aware delta rows across all sections" do
+  test "system values sidebar metric endpoint renders selected vs baseline drill-in" do
     with_fake_connection do
-      get "/tools/system-values", params: {
-        year: "2025",
+      get "/tools/system-values/sidebar/metric", params: {
+        year: "2026",
         baseline_year: "2024",
         from_year: "2024",
-        to_year: "2025"
+        to_year: "2026",
+        overlay_section: "system",
+        overlay_metric: "salary_cap_amount",
+        overlay_year: "2026"
       }, headers: modern_headers
 
       assert_response :success
-      assert_includes response.body, "baseline season"
-      assert_includes response.body, "selected season"
-      assert_includes response.body, "Δ +$1.0M"
-      assert_includes response.body, "Δ +0.25x"
-      assert_includes response.body, "Δ +$80K"
-      assert_includes response.body, "Δ +$600K"
-      assert_includes response.body, "Δ +0.000"
+      assert_equal "text/html", response.media_type
+      assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, "League System Values"
+      assert_includes response.body, "Salary Cap"
+      assert_includes response.body, "Source table: pcms.league_system_values"
+      assert_includes response.body, "Open Team Summary"
+    end
+  end
+
+  test "system values refresh endpoint returns ordered multi-region sse patches" do
+    with_fake_connection do
+      get "/tools/system-values/sse/refresh", params: {
+        year: "2026",
+        baseline_year: "2024",
+        from_year: "2024",
+        to_year: "2026",
+        overlay_section: "tax",
+        overlay_metric: "tax_rate_non_repeater",
+        overlay_year: "2026",
+        overlay_lower: "5000000",
+        overlay_upper: ""
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, "event: datastar-patch-elements"
+      assert_includes response.body, "selector #commandbar"
+      assert_includes response.body, "selector #maincanvas"
+      assert_includes response.body, 'id="rightpanel-base"'
+      assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, "event: datastar-patch-signals"
+      assert_includes response.body, '"svoverlaysection":"tax"'
+      assert_includes response.body, '"svoverlaymetric":"tax_rate_non_repeater"'
+      assert_includes response.body, '"svyear":"2026"'
+    end
+  end
+
+  test "system values refresh clears overlay state when selected metric is out of range" do
+    with_fake_connection do
+      get "/tools/system-values/sse/refresh", params: {
+        year: "2026",
+        baseline_year: "2025",
+        from_year: "2025",
+        to_year: "2026",
+        overlay_section: "system",
+        overlay_metric: "salary_cap_amount",
+        overlay_year: "2024"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="rightpanel-overlay"></div>'
+      assert_includes response.body, '"svoverlaysection":""'
+      assert_includes response.body, '"svoverlaymetric":""'
+      assert_includes response.body, '"svoverlayyear":""'
     end
   end
 
