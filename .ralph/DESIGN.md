@@ -299,22 +299,33 @@ Corrective TODOs for next worker cycle (mandatory):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P2] [ENTITY] /agencies/:slug — de-table roster/distribution/historical sections into flex lanes
-  - Problem: Agency detail remains dominated by traditional tables, slowing cross-agent and cross-team pattern detection.
-  - Hypothesis: Flex-lane sections with compact posture chips will speed “agency footprint” reads.
-  - Scope (files):
+- [x] [P2] [ENTITY] /agencies/:slug — de-table roster/distribution/historical sections into flex lanes
+  - Problem: Agency detail remained table-dominant, which slowed cross-agent + cross-team footprint scanning.
+  - Hypothesis: Dense flex lanes with rollup-aware headers would improve fast triage and preserve pivots.
+  - Scope (implemented files):
     - web/app/views/entities/agencies/show.html.erb
     - web/test/integration/entities_agencies_show_test.rb
-  - Acceptance criteria:
-    - Agent roster, team distribution, and historical subsections no longer rely on table markup for primary rows.
-    - Section headers expose counts/rollups and preserve direct agent/player/team pivots.
-    - Local nav anchors remain stable.
-  - Rubric (before → target):
+  - Patch targets: `#maincanvas` (entity show section stack)
+  - Response type: full-page `text/html` show render (`Entities::AgenciesController#show`)
+  - What changed (files):
+    - Rebuilt `show.html.erb` roster/team/historical primary read paths from `<table>` markup into lane grammar (`entity-cell-two-line` rows + dense flex metric cells) while keeping existing section anchors (`#agent-roster`, `#team-distribution`, `#historical`).
+    - Added rollup-first section headers for each target block (agent counts with active/inactive posture, represented team/client/cap totals, season range + top-client cap totals) so scan starts with concentration signals before row detail.
+    - Converted historical subsections (“Book by season”, “Top clients by cap (2025)”) to lane rows with inline intensity bars and preserved direct player/agent/team pivots.
+    - Added team slug prefetch on agency show to keep team pivots canonical when available.
+    - Added focused integration coverage in `entities_agencies_show_test.rb` asserting lane rendering, absence of `<table>` in target sections, stable anchors, and preserved `/agents` + `/players` + `/teams` links.
+  - Why this improves the flow:
+    - The agency footprint now reads in one vertical lane grammar across roster → distribution → history, reducing table-mode switching.
+    - Rollup headers expose where concentration/risk sits before users drill into row-level details.
+    - Direct pivots stay embedded in every row, so users can jump to agent/player/team context without leaving scan momentum.
+  - Rubric (before → after):
     - Scan speed: 3 → 5
     - Information hierarchy: 3 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 3 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Add optional historical lens toggles (`cap` / `tax` / `apron`) to reduce cognitive load on long season ranges.
+    - Add cohort slices inside agency roster lanes (`max-level`, `expiring`, `restricted`) for faster negotiation-risk triage at agency scope.
   - Guardrails:
     - Do not modify Salary Book files.
 
