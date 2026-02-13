@@ -15,6 +15,28 @@ Rubric (1-5):
 4) Density/readability balance
 5) Navigation/pivots
 
+## Supervisor review — 2026-02-13
+
+Scope reviewed:
+- `git log --oneline -8`
+- `git diff --name-only HEAD~4 -- web/`
+- `web/AGENTS.md`
+- `web/docs/design_guide.md`
+- `web/docs/datastar_sse_playbook.md`
+- `reference/sites/INTERACTION_MODELS.md`
+
+Findings:
+- Last four commits stay in one clear track: **INDEX convergence** (`/agencies`, `/draft-selections`, `/agents`, `/players`).
+- Each commit is tied to an explicit explorer flow (lookup/filter scan + rightpanel drill-in continuity), not broad style churn.
+- Datastar response rules remain aligned: multi-region knob refreshes use one SSE response and patch canonical boundaries (`#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`) with explicit overlay preserve/clear semantics.
+- No forbidden Salary Book files were touched.
+- `.ralph/DESIGN.md` has before/after rubric scoring evidence for each completed item.
+
+Next-loop guardrails (tightened):
+- Keep the next task to **one surface + one user flow** (recommended: `/teams` overlay-preservation flow already in backlog).
+- Avoid shared partial rewrites unless directly required by that flow; prefer page-local changes.
+- Preserve the canonical workbench shell (`commandbar + maincanvas + rightpanel-base + rightpanel-overlay`) and one-request SSE updates for multi-region interactions.
+
 ## Backlog
 
 - [x] [P1] [INDEX] /agencies (`web/app/views/entities/agencies/index.html.erb`) — open agencies as a first-class explorer workbench (not a redirect detour)
