@@ -45,6 +45,7 @@ module Entities
           playerteam: @team_lens.to_s,
           playerstatus: @status_lens.to_s,
           playerconstraint: @constraint_lens.to_s,
+          playerurgency: @urgency_lens.to_s,
           playerhorizon: @cap_horizon.to_s,
           playersort: @sort_lens.to_s,
           comparea: @compare_a_id.to_s,

@@ -4,52 +4,25 @@ module Entities
 
     PLAYER_STATUS_LENSES = %w[all two_way restricted no_trade].freeze
     PLAYER_CONSTRAINT_LENSES = %w[all lock_now options non_guaranteed trade_kicker expiring].freeze
+    PLAYER_URGENCY_LENSES = %w[all urgent upcoming stable].freeze
     PLAYER_SORT_LENSES = %w[cap_desc cap_asc name_asc name_desc].freeze
 
-    PLAYER_SECTION_DEFINITIONS = {
-      "status_two_way" => {
-        title: "Status lens · Two-Way",
-        subtitle: "Rows constrained to active two-way contracts"
+    PLAYER_URGENCY_DEFINITIONS = {
+      "urgent" => {
+        title: "Urgent decisions",
+        subtitle: "Lock-now posture or immediate horizon triggers"
       },
-      "status_restricted" => {
-        title: "Status lens · Restricted",
-        subtitle: "Rows constrained to active trade-restricted players"
+      "upcoming" => {
+        title: "Upcoming pressure",
+        subtitle: "Future options/guarantees or pathway pressure"
       },
-      "status_no_trade" => {
-        title: "Status lens · No-Trade",
-        subtitle: "Rows constrained to active no-trade clauses"
-      },
-      "lock_now" => {
-        title: "Lock now posture",
-        subtitle: "Trade restricted, consent required, or no-trade now"
-      },
-      "options" => {
-        title: "Options ahead",
-        subtitle: "At least one PO/TO/ETO in forward years"
-      },
-      "non_guaranteed" => {
-        title: "Non-guaranteed years",
-        subtitle: "Forward salary years include non-guaranteed treatment"
-      },
-      "trade_kicker" => {
-        title: "Trade kicker exposure",
-        subtitle: "Trade bonus clauses that can inflate outgoing salary"
-      },
-      "expiring" => {
-        title: "Expiring at horizon",
-        subtitle: "Cap value this horizon, then zero next horizon"
-      },
-      "two_way" => {
-        title: "Two-way support rows",
-        subtitle: "Two-way rows outside other constraint buckets"
-      },
-      "baseline" => {
-        title: "Baseline commitments",
-        subtitle: "No active constraint chips in this lens"
+      "stable" => {
+        title: "Stable commitments",
+        subtitle: "No immediate option/expiry pressure"
       }
     }.freeze
 
-    PLAYER_DEFAULT_SECTION_ORDER = %w[lock_now options non_guaranteed trade_kicker expiring two_way baseline].freeze
+    PLAYER_URGENCY_ORDER = %w[urgent upcoming stable].freeze
 
     # GET /players
     def index
@@ -165,6 +138,9 @@ module Entities
       requested_constraint = params[:constraint].to_s.strip
       @constraint_lens = PLAYER_CONSTRAINT_LENSES.include?(requested_constraint) ? requested_constraint : "all"
 
+      requested_urgency = params[:urgency].to_s.strip
+      @urgency_lens = PLAYER_URGENCY_LENSES.include?(requested_urgency) ? requested_urgency : "all"
+
       requested_horizon = normalize_cap_horizon_param(params[:horizon])
       @cap_horizon = requested_horizon || INDEX_CAP_HORIZONS.first
 
@@ -228,6 +204,8 @@ module Entities
       horizon_cap_column = "sbw.cap_#{@cap_horizon}"
       next_horizon_year = @cap_horizon + 1
       next_cap_column = "sbw.cap_#{next_horizon_year}"
+      next_option_sql = "NULLIF(UPPER(COALESCE(sbw.option_#{next_horizon_year}, '')), 'NONE')"
+      next_non_guaranteed_sql = "COALESCE(sbw.is_non_guaranteed_#{next_horizon_year}, false)"
 
       option_presence_sql = (2026..2030).map do |year|
         "NULLIF(UPPER(COALESCE(sbw.option_#{year}, '')), 'NONE') IS NOT NULL"
@@ -304,6 +282,9 @@ module Entities
           sbw.is_trade_bonus,
           (#{option_presence_sql}) AS has_future_option,
           (#{non_guaranteed_presence_sql}) AS has_non_guaranteed,
+          (#{next_option_sql} IS NOT NULL) AS has_next_horizon_option,
+          #{next_option_sql} AS next_horizon_option,
+          (#{next_non_guaranteed_sql}) AS has_next_horizon_non_guaranteed,
           #{lock_now_sql} AS has_lock_now,
           (#{expiring_sql}) AS expires_after_horizon,
           #{horizon_cap_column}::numeric AS cap_lens_value,
@@ -328,6 +309,9 @@ module Entities
         ORDER BY #{sort_sql}
         LIMIT #{limit}
       SQL
+
+      annotate_player_urgency!(rows: @players)
+      apply_urgency_filter!
     end
 
     def build_index_compare_state!
@@ -348,20 +332,25 @@ module Entities
       active_filters << "Team: #{team_lens_label(@team_lens)}" unless @team_lens == "ALL"
       active_filters << "Status: #{status_lens_label(@status_lens)}" unless @status_lens == "all"
       active_filters << "Constraint: #{constraint_lens_label(@constraint_lens)}" unless @constraint_lens == "all"
+      active_filters << "Urgency: #{urgency_lens_label(@urgency_lens)}" unless @urgency_lens == "all"
       active_filters << "Horizon: #{cap_horizon_label(@cap_horizon)}" unless @cap_horizon == INDEX_CAP_HORIZONS.first
       active_filters << "Sort: #{sort_lens_label(@sort_lens)}" unless @sort_lens == "cap_desc"
 
       top_rows = rows
-                 .sort_by { |row| [-(row["cap_lens_value"].to_f), row["player_name"].to_s] }
-                 .first(14)
+                 .sort_by { |row| [urgency_rank(row["urgency_key"]), -(row["cap_lens_value"].to_f), row["player_name"].to_s] }
+                 .first(18)
 
       selected_id = selected_player_id.to_i
       if selected_id.positive?
         selected_row = rows.find { |row| row["player_id"].to_i == selected_id }
         if selected_row.present? && top_rows.none? { |row| row["player_id"].to_i == selected_id }
-          top_rows = [selected_row] + top_rows.first(13)
+          top_rows = (top_rows + [selected_row]).uniq { |row| row["player_id"].to_i }
+            .sort_by { |row| [urgency_rank(row["urgency_key"]), -(row["cap_lens_value"].to_f), row["player_name"].to_s] }
+            .first(18)
         end
       end
+
+      top_row_lanes = build_player_urgency_lanes(rows: top_rows, assign: false, lane_row_limit: 5)
 
       @sidebar_summary = {
         row_count: rows.size,
@@ -370,8 +359,13 @@ module Entities
         restricted_count: rows.count { |row| row["is_trade_restricted_now"] },
         no_trade_count: rows.count { |row| row["is_no_trade"] },
         constrained_count: rows.count { |row| constrained_row?(row) },
+        urgent_count: rows.count { |row| row["urgency_key"].to_s == "urgent" },
+        upcoming_count: rows.count { |row| row["urgency_key"].to_s == "upcoming" },
+        stable_count: rows.count { |row| row["urgency_key"].to_s == "stable" },
         cap_horizon: @cap_horizon,
         cap_horizon_label: cap_horizon_label(@cap_horizon),
+        urgency_lens: @urgency_lens,
+        urgency_lens_label: urgency_lens_label(@urgency_lens),
         constraint_lens: @constraint_lens,
         constraint_lens_label: constraint_lens_label(@constraint_lens),
         constraint_lens_match_key: constraint_lens_match_key(@constraint_lens),
@@ -380,6 +374,7 @@ module Entities
         total_cap: rows.sum { |row| row["cap_lens_value"].to_f },
         filters: active_filters,
         top_rows: top_rows,
+        top_row_lanes: top_row_lanes,
         compare_a_id: @compare_a_id,
         compare_b_id: @compare_b_id,
         compare_a_row: @compare_a_row,
@@ -413,6 +408,15 @@ module Entities
       when "trade_kicker" then "Trade kicker"
       when "expiring" then "Expiring after horizon"
       else "All commitments"
+      end
+    end
+
+    def urgency_lens_label(urgency_lens)
+      case urgency_lens.to_s
+      when "urgent" then "Urgent decisions"
+      when "upcoming" then "Upcoming pressure"
+      when "stable" then "Stable commitments"
+      else "All urgency lanes"
       end
     end
 
@@ -498,101 +502,114 @@ module Entities
     end
 
     def build_index_player_sections!
-      grouped_rows = Hash.new { |hash, key| hash[key] = [] }
+      @player_sections = build_player_urgency_lanes(rows: Array(@players), assign: false)
+    end
 
-      Array(@players).each do |row|
-        grouped_rows[player_section_key_for_row(row)] << row
+    def build_player_urgency_lanes(rows:, assign: true, lane_row_limit: nil)
+      grouped_rows = Hash.new { |hash, key| hash[key] = [] }
+      Array(rows).each do |row|
+        grouped_rows[row["urgency_key"].to_s.presence || "stable"] << row
       end
 
-      @player_sections = index_player_section_order.filter_map do |section_key|
-        rows = grouped_rows[section_key]
-        next if rows.blank?
+      lane_order = @urgency_lens == "all" ? PLAYER_URGENCY_ORDER : [@urgency_lens]
 
-        definition = player_section_definition(section_key)
+      lanes = lane_order.filter_map do |urgency_key|
+        lane_rows = Array(grouped_rows[urgency_key])
+        next if lane_rows.blank?
+
+        lane_rows = lane_rows.first(lane_row_limit) if lane_row_limit.present?
+        definition = PLAYER_URGENCY_DEFINITIONS.fetch(urgency_key.to_s)
 
         {
-          key: section_key,
+          key: urgency_key,
           title: definition[:title],
           subtitle: definition[:subtitle],
-          row_count: rows.size,
-          team_count: rows.map { |row| row["team_code"].presence }.compact.uniq.size,
-          cap_lens_total: rows.sum { |row| row["cap_lens_value"].to_f },
-          cap_next_total: rows.sum { |row| row["cap_next_value"].to_f },
-          total_salary_total: rows.sum { |row| row["total_salary_from_2025"].to_f },
-          rows: rows
+          row_count: lane_rows.size,
+          team_count: lane_rows.map { |row| row["team_code"].presence }.compact.uniq.size,
+          cap_lens_total: lane_rows.sum { |row| row["cap_lens_value"].to_f },
+          cap_next_total: lane_rows.sum { |row| row["cap_next_value"].to_f },
+          total_salary_total: lane_rows.sum { |row| row["total_salary_from_2025"].to_f },
+          rows: lane_rows
         }
       end
+
+      @player_sections = lanes if assign
+      lanes
     end
 
-    def index_player_section_order
-      status_key = resolve_status_section_key(@status_lens)
-      active_constraint_key = constraint_lens_match_key(@constraint_lens)
+    def annotate_player_urgency!(rows:)
+      next_horizon_year = @cap_horizon.to_i + 1
 
-      ordered = []
-      ordered << status_key if status_key.present?
-      ordered << active_constraint_key if active_constraint_key.present?
-      ordered.concat(PLAYER_DEFAULT_SECTION_ORDER)
-      ordered.uniq
-    end
-
-    def player_section_key_for_row(row)
-      status_key = resolve_status_section_key(@status_lens)
-      if status_key.present? && row_matches_section_key?(row, status_key)
-        return status_key
-      end
-
-      active_constraint_key = constraint_lens_match_key(@constraint_lens)
-      if active_constraint_key.present? && row_matches_section_key?(row, active_constraint_key)
-        return active_constraint_key
-      end
-
-      PLAYER_DEFAULT_SECTION_ORDER.find { |section_key| row_matches_section_key?(row, section_key) } || "baseline"
-    end
-
-    def row_matches_section_key?(row, section_key)
-      case section_key.to_s
-      when "status_two_way"
-        row["is_two_way"]
-      when "status_restricted"
-        row["is_trade_restricted_now"]
-      when "status_no_trade"
-        row["is_no_trade"]
-      when "lock_now"
-        row["has_lock_now"]
-      when "options"
-        row["has_future_option"]
-      when "non_guaranteed"
-        row["has_non_guaranteed"]
-      when "trade_kicker"
-        row["is_trade_bonus"]
-      when "expiring"
-        row["expires_after_horizon"]
-      when "two_way"
-        row["is_two_way"]
-      when "baseline"
-        !constrained_row?(row) && !row["is_two_way"]
-      else
-        false
+      Array(rows).each do |row|
+        urgency_key, urgency_reason = player_row_urgency(row, next_horizon_year: next_horizon_year)
+        row["urgency_key"] = urgency_key
+        row["urgency_label"] = urgency_lane_label(urgency_key)
+        row["urgency_reason"] = urgency_reason
+        row["urgency_rank"] = urgency_rank(urgency_key)
       end
     end
 
-    def resolve_status_section_key(status_lens)
-      case status_lens.to_s
-      when "two_way"
-        "status_two_way"
-      when "restricted"
-        "status_restricted"
-      when "no_trade"
-        "status_no_trade"
+    def apply_urgency_filter!
+      return if @urgency_lens == "all"
+
+      @players = Array(@players).select { |row| row["urgency_key"].to_s == @urgency_lens }
+    end
+
+    def player_row_urgency(row, next_horizon_year:)
+      if truthy_row_value?(row["has_lock_now"])
+        return ["urgent", "Lock now posture (TR/consent/no-trade)"]
+      end
+
+      if truthy_row_value?(row["expires_after_horizon"])
+        return ["urgent", "Expires after #{cap_horizon_label(@cap_horizon)}"]
+      end
+
+      if truthy_row_value?(row["has_next_horizon_option"])
+        option_code = row["next_horizon_option"].to_s.presence || "Option"
+        return ["urgent", "#{option_code} decision before #{cap_horizon_label(next_horizon_year)}"]
+      end
+
+      if truthy_row_value?(row["has_next_horizon_non_guaranteed"])
+        return ["urgent", "Non-guaranteed salary in #{cap_horizon_label(next_horizon_year)}"]
+      end
+
+      if truthy_row_value?(row["has_future_option"])
+        return ["upcoming", "Option decision window in forward years"]
+      end
+
+      if truthy_row_value?(row["has_non_guaranteed"])
+        return ["upcoming", "Guarantee pressure in forward years"]
+      end
+
+      if truthy_row_value?(row["is_trade_bonus"])
+        return ["upcoming", "Trade kicker leverage"]
+      end
+
+      if truthy_row_value?(row["is_two_way"])
+        return ["upcoming", "Two-way conversion runway"]
+      end
+
+      ["stable", "No immediate horizon trigger"]
+    end
+
+    def urgency_rank(key)
+      case key.to_s
+      when "urgent" then 0
+      when "upcoming" then 1
+      else 2
       end
     end
 
-    def player_section_definition(section_key)
-      PLAYER_SECTION_DEFINITIONS.fetch(section_key.to_s, PLAYER_SECTION_DEFINITIONS.fetch("baseline"))
+    def urgency_lane_label(key)
+      PLAYER_URGENCY_DEFINITIONS.dig(key.to_s, :title) || PLAYER_URGENCY_DEFINITIONS.dig("stable", :title)
     end
 
     def constrained_row?(row)
-      row["has_lock_now"] || row["is_trade_bonus"] || row["has_future_option"] || row["has_non_guaranteed"]
+      truthy_row_value?(row["has_lock_now"]) || truthy_row_value?(row["is_trade_bonus"]) || truthy_row_value?(row["has_future_option"]) || truthy_row_value?(row["has_non_guaranteed"])
+    end
+
+    def truthy_row_value?(value)
+      value == true || value.to_s == "t" || value.to_s.casecmp("true").zero? || value.to_s == "1"
     end
 
     def normalize_cap_horizon_param(raw)

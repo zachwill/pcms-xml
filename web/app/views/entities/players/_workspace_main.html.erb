@@ -7,6 +7,17 @@
 <% active_constraint_chip_label = @sidebar_summary&.dig(:constraint_lens_match_chip_label).to_s.presence %>
 
 <%
+  urgency_chip_class = lambda do |key|
+    case key.to_s
+    when "urgent"
+      "entity-chip entity-chip--danger"
+    when "upcoming"
+      "entity-chip entity-chip--warning"
+    else
+      "entity-chip entity-chip--muted"
+    end
+  end
+
   compare_slots = [
     { key: "a", label: "Slot A", player_id: @compare_a_id, row: @compare_a_row, tone: "indigo" },
     { key: "b", label: "Slot B", player_id: @compare_b_id, row: @compare_b_row, tone: "emerald" }
@@ -24,6 +35,7 @@
     '&team=' + encodeURIComponent($playerteam) +
     '&status=' + encodeURIComponent($playerstatus) +
     '&constraint=' + encodeURIComponent($playerconstraint) +
+    '&urgency=' + encodeURIComponent($playerurgency) +
     '&horizon=' + encodeURIComponent($playerhorizon) +
     '&sort=' + encodeURIComponent($playersort) +
     '&compare_a=' + encodeURIComponent($comparea) +
@@ -53,7 +65,7 @@
       <div>
         <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Players workspace</div>
         <h2 class="text-sm font-semibold text-foreground">
-          Constraint-first cap scan
+          Contract-horizon urgency scan
           <span class="text-muted-foreground font-medium">· <%= @players.size %> rows</span>
           <% if has_compare %>
             <span class="text-muted-foreground font-medium">· <%= compare_slots.count { |slot| slot[:row].present? } %> pinned</span>
@@ -63,17 +75,24 @@
 
       <div class="text-[11px] text-muted-foreground tabular-nums text-right">
         <span>Cap <%= cap_horizon_label %> total: <%= format_compact_currency(@sidebar_summary[:total_cap]) %></span>
-        <% if @constraint_lens != "all" %>
-          <span class="ml-2">· Why matched: <%= active_constraint_reason || @sidebar_summary[:constraint_lens_label] %></span>
+        <% if active_constraint_reason.present? %>
+          <span class="ml-2">· Constraint match: <%= active_constraint_reason %></span>
         <% end %>
       </div>
+    </div>
+
+    <div class="flex flex-wrap gap-1.5">
+      <span class="<%= urgency_chip_class.call('urgent') %>">Urgent <%= @sidebar_summary[:urgent_count].to_i %></span>
+      <span class="<%= urgency_chip_class.call('upcoming') %>">Upcoming <%= @sidebar_summary[:upcoming_count].to_i %></span>
+      <span class="<%= urgency_chip_class.call('stable') %>">Stable <%= @sidebar_summary[:stable_count].to_i %></span>
+      <span class="entity-chip entity-chip--muted">Horizon <%= cap_horizon_label %></span>
     </div>
 
     <div id="players-compare-strip" class="rounded-lg border border-border bg-muted/20 px-3 py-3 space-y-2">
       <div class="flex items-center justify-between gap-3">
         <div>
           <div class="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/80">Compare board</div>
-          <div class="text-[11px] text-muted-foreground">Pin two players (Pin A / Pin B) while you scan constraint-matched rows.</div>
+          <div class="text-[11px] text-muted-foreground">Pin two players (A/B) while scanning urgency lanes.</div>
         </div>
 
         <% if has_compare %>
@@ -111,7 +130,7 @@
                 data-on:click="$selectedplayerid = '<%= player_id %>'; $overlaytype = 'player'; @get('/players/sidebar/<%= player_id %>')"
               >
                 <div class="text-sm font-medium leading-tight truncate"><%= row["player_name"] %></div>
-                <div class="text-[10px] text-muted-foreground/80 tabular-nums"><%= row["team_code"].presence || "FA" %> · <%= cap_horizon_label %></div>
+                <div class="text-[10px] text-muted-foreground/80 tabular-nums"><%= row["team_code"].presence || "FA" %> · <%= row["urgency_label"] %></div>
                 <div class="mt-1.5 grid grid-cols-3 gap-2 text-[10px] tabular-nums">
                   <div>
                     <div class="text-muted-foreground/70 uppercase tracking-wide">Cap</div>
@@ -154,7 +173,7 @@
           <div class="flex items-center px-4 h-8 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
             <div class="w-64 shrink-0">Player</div>
             <div class="w-32 shrink-0">Team</div>
-            <div class="w-40 shrink-0">Constraint posture</div>
+            <div class="w-52 shrink-0">Urgency trigger</div>
             <div class="w-44 shrink-0">Agent</div>
             <div class="w-24 shrink-0 text-right font-mono tabular-nums">Cap <%= cap_horizon_label %></div>
             <div class="w-24 shrink-0 text-right font-mono tabular-nums">Cap <%= next_horizon_label %></div>
@@ -167,13 +186,13 @@
             <section id="players-section-<%= section[:key] %>" class="border-b border-border/70 last:border-b-0">
               <div class="sticky top-8 z-[6] border-b border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
                 <div class="flex items-center px-4 h-8 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-                  <div class="w-64 shrink-0 min-w-0 pr-2">
-                    <span class="font-semibold text-foreground/90"><%= section[:title] %></span>
+                  <div class="w-64 shrink-0 min-w-0 pr-2 truncate">
+                    <span class="<%= urgency_chip_class.call(section[:key]) %>"><%= section[:title] %></span>
                     <span class="ml-1 normal-case text-muted-foreground/80"><%= section[:subtitle] %></span>
                   </div>
                   <div class="w-32 shrink-0 font-mono tabular-nums text-muted-foreground/80">Rows <%= section[:row_count] %> · Teams <%= section[:team_count] %></div>
-                  <div class="w-40 shrink-0 text-muted-foreground/70">Section cap rollup</div>
-                  <div class="w-44 shrink-0 text-muted-foreground/70">Overlay + compare flow unchanged</div>
+                  <div class="w-52 shrink-0 text-muted-foreground/70">Contract-horizon lane rollup</div>
+                  <div class="w-44 shrink-0 text-muted-foreground/70">Overlay + compare pivots intact</div>
                   <div class="w-24 shrink-0 text-right font-mono tabular-nums text-foreground/85"><%= format_compact_currency(section[:cap_lens_total]) %></div>
                   <div class="w-24 shrink-0 text-right font-mono tabular-nums text-foreground/85"><%= format_compact_currency(section[:cap_next_total]) %></div>
                   <div class="w-24 shrink-0 text-right font-mono tabular-nums text-foreground/85"><%= format_compact_currency(section[:total_salary_total]) %></div>
@@ -182,177 +201,169 @@
 
               <div class="divide-y divide-border/50">
                 <% section[:rows].each do |player| %>
-            <% player_id = player["player_id"] %>
-            <% team_code = player["team_code"].to_s.upcase.presence %>
-            <% team_name = player["team_name"].presence || "Free Agent" %>
-            <% player_path_value = "/players/#{player_id}" %>
-            <% agent_id = player["agent_id"] %>
-            <% agent_path_value = agent_id.present? ? "/agents/#{agent_id}" : nil %>
+                  <% player_id = player["player_id"] %>
+                  <% team_code = player["team_code"].to_s.upcase.presence %>
+                  <% team_name = player["team_name"].presence || "Free Agent" %>
+                  <% player_path_value = "/players/#{player_id}" %>
+                  <% agent_id = player["agent_id"] %>
+                  <% agent_path_value = agent_id.present? ? "/agents/#{agent_id}" : nil %>
 
-            <% status_tokens = [] %>
-            <% status_tokens << { key: "two_way", label: "2W", classes: "entity-chip entity-chip--muted" } if player["is_two_way"] %>
-            <% status_tokens << { key: "restricted", label: "TR", classes: "entity-chip entity-chip--danger" } if player["is_trade_restricted_now"] %>
-            <% status_tokens << { key: "no_trade", label: "NTC", classes: "entity-chip entity-chip--danger" } if player["is_no_trade"] %>
+                  <% status_tokens = [] %>
+                  <% status_tokens << { key: "two_way", label: "2W", classes: "entity-chip entity-chip--muted" } if player["is_two_way"] %>
+                  <% status_tokens << { key: "restricted", label: "TR", classes: "entity-chip entity-chip--danger" } if player["is_trade_restricted_now"] %>
+                  <% status_tokens << { key: "no_trade", label: "NTC", classes: "entity-chip entity-chip--danger" } if player["is_no_trade"] %>
 
-            <% constraint_tokens = [] %>
-            <% constraint_tokens << { key: "lock_now", label: "Lock now", classes: "entity-chip entity-chip--danger" } if player["has_lock_now"] %>
-            <% constraint_tokens << { key: "options", label: "Options", classes: "entity-chip entity-chip--accent" } if player["has_future_option"] %>
-            <% constraint_tokens << { key: "non_guaranteed", label: "Non-Gtd", classes: "entity-chip entity-chip--warning" } if player["has_non_guaranteed"] %>
-            <% constraint_tokens << { key: "trade_kicker", label: "Trade Kicker", classes: "entity-chip entity-chip--warning" } if player["is_trade_bonus"] %>
-            <% if player["expires_after_horizon"] %>
-              <% constraint_tokens << { key: "expiring", label: "Expires #{next_horizon}", classes: "entity-chip entity-chip--muted" } %>
-            <% end %>
+                  <% constraint_tokens = [] %>
+                  <% constraint_tokens << { key: "lock_now", label: "Lock now", classes: "entity-chip entity-chip--danger" } if player["has_lock_now"] %>
+                  <% constraint_tokens << { key: "options", label: "Options", classes: "entity-chip entity-chip--accent" } if player["has_future_option"] %>
+                  <% constraint_tokens << { key: "non_guaranteed", label: "Non-Gtd", classes: "entity-chip entity-chip--warning" } if player["has_non_guaranteed"] %>
+                  <% constraint_tokens << { key: "trade_kicker", label: "Trade Kicker", classes: "entity-chip entity-chip--warning" } if player["is_trade_bonus"] %>
+                  <% if player["expires_after_horizon"] %>
+                    <% constraint_tokens << { key: "expiring", label: "Expires #{next_horizon}", classes: "entity-chip entity-chip--muted" } %>
+                  <% end %>
 
-            <% matched_constraint_chip = active_constraint_key.present? ? constraint_tokens.find { |token| token[:key] == active_constraint_key } : nil %>
+                  <% matched_constraint_chip = active_constraint_key.present? ? constraint_tokens.find { |token| token[:key] == active_constraint_key } : nil %>
 
-            <% row_click_expr = "$selectedplayerid = '#{player_id}'; $overlaytype = 'player'; @get('/players/sidebar/#{player_id}')" %>
-            <% pin_a_expr = "@get('/players/sse/refresh?' + (#{refresh_query_expr}) + '&compare_action=pin&compare_slot=a&player_id=#{player_id}')" %>
-            <% pin_b_expr = "@get('/players/sse/refresh?' + (#{refresh_query_expr}) + '&compare_action=pin&compare_slot=b&player_id=#{player_id}')" %>
-            <% cap_lens_value = player["cap_lens_value"] %>
-            <% cap_next_value = player["cap_next_value"] %>
+                  <% row_click_expr = "$selectedplayerid = '#{player_id}'; $overlaytype = 'player'; @get('/players/sidebar/#{player_id}')" %>
+                  <% pin_a_expr = "@get('/players/sse/refresh?' + (#{refresh_query_expr}) + '&compare_action=pin&compare_slot=a&player_id=#{player_id}')" %>
+                  <% pin_b_expr = "@get('/players/sse/refresh?' + (#{refresh_query_expr}) + '&compare_action=pin&compare_slot=b&player_id=#{player_id}')" %>
+                  <% cap_lens_value = player["cap_lens_value"] %>
+                  <% cap_next_value = player["cap_next_value"] %>
 
-            <div
-              class="group cursor-pointer transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10"
-              role="button"
-              tabindex="0"
-              data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $selectedplayerid === '<%= player_id %>', 'ring-1 ring-inset ring-indigo-500/50': $comparea === '<%= player_id %>', 'ring-1 ring-inset ring-emerald-500/50': $compareb === '<%= player_id %>' }"
-              data-on:click="<%= row_click_expr %>"
-              data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= row_click_expr %>; }"
-            >
-              <div class="flex items-center px-4 min-h-[48px]">
-                <div class="w-64 shrink-0">
-                  <div class="grid grid-cols-[36px_1fr] grid-rows-[24px_16px]">
-                    <div class="row-span-2 flex items-center justify-start">
-                      <div class="w-8 h-8 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
-                        <img
-                          src="<%= player_headshot_url(player_id) %>"
-                          alt="<%= player['player_name'] %>"
-                          class="w-full h-full object-cover object-top bg-muted"
-                          loading="lazy"
-                          decoding="async"
-                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                        />
-                        <span class="hidden text-[9px] font-semibold text-muted-foreground">NBA</span>
-                      </div>
-                    </div>
+                  <div
+                    class="group cursor-pointer transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10"
+                    role="button"
+                    tabindex="0"
+                    data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $selectedplayerid === '<%= player_id %>', 'ring-1 ring-inset ring-indigo-500/50': $comparea === '<%= player_id %>', 'ring-1 ring-inset ring-emerald-500/50': $compareb === '<%= player_id %>' }"
+                    data-on:click="<%= row_click_expr %>"
+                    data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= row_click_expr %>; }"
+                  >
+                    <div class="flex items-center px-4 min-h-[50px]">
+                      <div class="w-64 shrink-0">
+                        <div class="grid grid-cols-[36px_1fr] grid-rows-[24px_16px]">
+                          <div class="row-span-2 flex items-center justify-start">
+                            <div class="w-8 h-8 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                              <img
+                                src="<%= player_headshot_url(player_id) %>"
+                                alt="<%= player['player_name'] %>"
+                                class="w-full h-full object-cover object-top bg-muted"
+                                loading="lazy"
+                                decoding="async"
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                              />
+                              <span class="hidden text-[9px] font-semibold text-muted-foreground">NBA</span>
+                            </div>
+                          </div>
 
-                    <div class="h-[24px] flex items-end min-w-0 pl-2">
-                      <a href="<%= player_path_value %>" class="truncate font-medium text-[14px] group-hover:text-primary transition-colors" onclick="event.stopPropagation()"><%= player["player_name"] %></a>
-                    </div>
+                          <div class="h-[24px] flex items-end min-w-0 pl-2">
+                            <a href="<%= player_path_value %>" class="truncate font-medium text-[14px] group-hover:text-primary transition-colors" onclick="event.stopPropagation()"><%= player["player_name"] %></a>
+                          </div>
 
-                    <div class="h-[16px] -mt-px flex items-start justify-between gap-2 min-w-0 pl-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
-                      <div class="min-w-0 flex items-start gap-1 overflow-hidden whitespace-nowrap">
-                        <span>id: <%= player_id %></span>
-                        <% if player["years_of_service"].present? %><span>· <%= player["years_of_service"].to_i %> YOS</span><% end %>
-                        <span class="inline-flex items-center rounded border border-indigo-500/40 bg-indigo-500/10 px-1 text-[9px] font-semibold text-indigo-700 dark:text-indigo-300" data-show="$comparea === '<%= player_id %>'" style="display: none;">A</span>
-                        <span class="inline-flex items-center rounded border border-emerald-500/40 bg-emerald-500/10 px-1 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300" data-show="$compareb === '<%= player_id %>'" style="display: none;">B</span>
-                      </div>
+                          <div class="h-[16px] -mt-px flex items-start justify-between gap-2 min-w-0 pl-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
+                            <div class="min-w-0 flex items-start gap-1 overflow-hidden whitespace-nowrap">
+                              <span>id: <%= player_id %></span>
+                              <% if player["years_of_service"].present? %><span>· <%= player["years_of_service"].to_i %> YOS</span><% end %>
+                              <span class="inline-flex items-center rounded border border-indigo-500/40 bg-indigo-500/10 px-1 text-[9px] font-semibold text-indigo-700 dark:text-indigo-300" data-show="$comparea === '<%= player_id %>'" style="display: none;">A</span>
+                              <span class="inline-flex items-center rounded border border-emerald-500/40 bg-emerald-500/10 px-1 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300" data-show="$compareb === '<%= player_id %>'" style="display: none;">B</span>
+                            </div>
 
-                      <div class="ml-1 flex items-center gap-1 shrink-0" data-on:click="evt.stopPropagation()" data-on:keydown="evt.stopPropagation()">
-                        <button
-                          type="button"
-                          class="cursor-pointer h-4 px-1 rounded border border-border/70 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-                          aria-label="Pin <%= player['player_name'] %> to compare slot A"
-                          title="Pin to compare slot A"
-                          data-class="{ 'border-indigo-500/60 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300': $comparea === '<%= player_id %>' }"
-                          data-on:click="evt.stopPropagation(); <%= pin_a_expr %>"
-                        >Pin A</button>
+                            <div class="ml-1 flex items-center gap-1 shrink-0" data-on:click="evt.stopPropagation()" data-on:keydown="evt.stopPropagation()">
+                              <button
+                                type="button"
+                                class="cursor-pointer h-4 px-1 rounded border border-border/70 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                                aria-label="Pin <%= player['player_name'] %> to compare slot A"
+                                title="Pin to compare slot A"
+                                data-class="{ 'border-indigo-500/60 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300': $comparea === '<%= player_id %>' }"
+                                data-on:click="evt.stopPropagation(); <%= pin_a_expr %>"
+                              >Pin A</button>
 
-                        <button
-                          type="button"
-                          class="cursor-pointer h-4 px-1 rounded border border-border/70 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-                          aria-label="Pin <%= player['player_name'] %> to compare slot B"
-                          title="Pin to compare slot B"
-                          data-class="{ 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300': $compareb === '<%= player_id %>' }"
-                          data-on:click="evt.stopPropagation(); <%= pin_b_expr %>"
-                        >Pin B</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="w-32 shrink-0">
-                  <% if team_code.present? %>
-                    <div class="grid grid-cols-[28px_1fr] grid-rows-[24px_16px]">
-                      <div class="row-span-2 flex items-center justify-start">
-                        <div class="w-6 h-6 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
-                          <% if player["team_id"].present? %>
-                            <img
-                              src="<%= team_logo_url(player['team_id']) %>"
-                              alt="<%= team_code %>"
-                              class="w-full h-full object-contain"
-                              loading="lazy"
-                              decoding="async"
-                              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                            />
-                            <span class="hidden text-[9px] font-mono text-muted-foreground"><%= team_code %></span>
-                          <% else %>
-                            <span class="text-[9px] font-mono text-muted-foreground"><%= team_code %></span>
-                          <% end %>
+                              <button
+                                type="button"
+                                class="cursor-pointer h-4 px-1 rounded border border-border/70 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                                aria-label="Pin <%= player['player_name'] %> to compare slot B"
+                                title="Pin to compare slot B"
+                                data-class="{ 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300': $compareb === '<%= player_id %>' }"
+                                data-on:click="evt.stopPropagation(); <%= pin_b_expr %>"
+                              >Pin B</button>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <div class="h-[24px] flex items-end min-w-0 pl-1">
-                        <a href="<%= team_href(team_code: team_code, team_id: player['team_id']) %>" class="font-medium text-[13px] hover:underline" onclick="event.stopPropagation()"><%= team_code %></a>
+                      <div class="w-32 shrink-0">
+                        <% if team_code.present? %>
+                          <div class="grid grid-cols-[28px_1fr] grid-rows-[24px_16px]">
+                            <div class="row-span-2 flex items-center justify-start">
+                              <div class="w-6 h-6 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                                <% if player["team_id"].present? %>
+                                  <img
+                                    src="<%= team_logo_url(player['team_id']) %>"
+                                    alt="<%= team_code %>"
+                                    class="w-full h-full object-contain"
+                                    loading="lazy"
+                                    decoding="async"
+                                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                  />
+                                  <span class="hidden text-[9px] font-mono text-muted-foreground"><%= team_code %></span>
+                                <% else %>
+                                  <span class="text-[9px] font-mono text-muted-foreground"><%= team_code %></span>
+                                <% end %>
+                              </div>
+                            </div>
+
+                            <div class="h-[24px] flex items-end min-w-0 pl-1">
+                              <a href="<%= team_href(team_code: team_code, team_id: player['team_id']) %>" class="font-medium text-[13px] hover:underline" onclick="event.stopPropagation()"><%= team_code %></a>
+                            </div>
+
+                            <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1 leading-none text-[10px] text-muted-foreground/80 truncate"><%= team_name %></div>
+                          </div>
+                        <% else %>
+                          <span class="text-[11px] text-muted-foreground">Free Agent</span>
+                        <% end %>
                       </div>
 
-                      <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1 leading-none text-[10px] text-muted-foreground/80 truncate"><%= team_name %></div>
-                    </div>
-                  <% else %>
-                    <span class="text-[11px] text-muted-foreground">Free Agent</span>
-                  <% end %>
-                </div>
+                      <div class="w-52 shrink-0">
+                        <div class="entity-cell-two-line">
+                          <div class="entity-cell-primary justify-start gap-1.5 min-w-0">
+                            <span class="<%= urgency_chip_class.call(player['urgency_key']) %>"><%= player["urgency_label"].presence || "Stable commitments" %></span>
+                            <% if matched_constraint_chip.present? %>
+                              <span class="entity-chip entity-chip--accent ring-1 ring-foreground/35 dark:ring-foreground/45 font-semibold"><%= active_constraint_chip_label || matched_constraint_chip[:label] %></span>
+                            <% end %>
+                          </div>
+                          <div class="entity-cell-secondary justify-start gap-1 truncate">
+                            <span class="truncate" title="<%= player['urgency_reason'] %>"><%= player["urgency_reason"].presence || "No immediate horizon trigger" %></span>
+                          </div>
+                        </div>
+                      </div>
 
-                <div class="w-40 shrink-0">
-                  <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary text-[11px]">
-                      <%= player["player_status_name"].presence || player["player_status_lk"].presence || "—" %>
-                    </div>
-                    <div class="entity-cell-secondary gap-1">
-                      <% chips = constraint_tokens.presence || status_tokens %>
-                      <% if chips.present? %>
-                        <% ordered_chips = chips.sort_by { |chip| chip[:key] == active_constraint_key ? 0 : 1 } %>
-                        <% ordered_chips.first(3).each do |chip| %>
-                          <% is_lens_match = matched_constraint_chip.present? && chip[:key] == matched_constraint_chip[:key] %>
-                          <% chip_classes = [chip[:classes], (is_lens_match ? "ring-1 ring-foreground/35 dark:ring-foreground/45 font-semibold" : nil)].compact.join(" ") %>
-                          <% chip_label = is_lens_match ? (active_constraint_chip_label || chip[:label]) : chip[:label] %>
-                          <span class="<%= chip_classes %>"><%= chip_label %></span>
+                      <div class="w-44 shrink-0">
+                        <% if player["agent_name"].present? && agent_path_value.present? %>
+                          <div class="grid grid-rows-[24px_16px]">
+                            <div class="h-[24px] flex items-end min-w-0">
+                              <a href="<%= agent_path_value %>" class="text-[13px] text-muted-foreground hover:text-foreground hover:underline truncate" onclick="event.stopPropagation()"><%= player["agent_name"] %></a>
+                            </div>
+                            <div class="h-[16px] -mt-px flex items-start min-w-0 leading-none text-[10px] text-muted-foreground/60 truncate font-mono tabular-nums">id: <%= agent_id %></div>
+                          </div>
+                        <% elsif player["agent_name"].present? %>
+                          <span class="text-[13px] text-muted-foreground truncate"><%= player["agent_name"] %></span>
+                        <% else %>
+                          <span class="text-[11px] text-muted-foreground/60">—</span>
                         <% end %>
-                      <% else %>
-                        <span>—</span>
-                      <% end %>
+                      </div>
+
+                      <div class="w-24 shrink-0 flex items-center justify-end">
+                        <span class="font-mono tabular-nums text-sm"><%= cap_lens_value.present? ? format_salary(cap_lens_value) : "—" %></span>
+                      </div>
+
+                      <div class="w-24 shrink-0 flex items-center justify-end">
+                        <span class="font-mono tabular-nums text-sm <%= player['expires_after_horizon'] ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground' %>"><%= cap_next_value.present? ? format_salary(cap_next_value) : "—" %></span>
+                      </div>
+
+                      <div class="w-24 shrink-0 flex items-center justify-end">
+                        <span class="font-mono tabular-nums text-sm text-muted-foreground"><%= player["total_salary_from_2025"].present? ? format_salary(player["total_salary_from_2025"]) : "—" %></span>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div class="w-44 shrink-0">
-                  <% if player["agent_name"].present? && agent_path_value.present? %>
-                    <div class="grid grid-rows-[24px_16px]">
-                      <div class="h-[24px] flex items-end min-w-0">
-                        <a href="<%= agent_path_value %>" class="text-[13px] text-muted-foreground hover:text-foreground hover:underline truncate" onclick="event.stopPropagation()"><%= player["agent_name"] %></a>
-                      </div>
-                      <div class="h-[16px] -mt-px flex items-start min-w-0 leading-none text-[10px] text-muted-foreground/60 truncate font-mono tabular-nums">id: <%= agent_id %></div>
-                    </div>
-                  <% elsif player["agent_name"].present? %>
-                    <span class="text-[13px] text-muted-foreground truncate"><%= player["agent_name"] %></span>
-                  <% else %>
-                    <span class="text-[11px] text-muted-foreground/60">—</span>
-                  <% end %>
-                </div>
-
-                <div class="w-24 shrink-0 flex items-center justify-end">
-                  <span class="font-mono tabular-nums text-sm"><%= cap_lens_value.present? ? format_salary(cap_lens_value) : "—" %></span>
-                </div>
-
-                <div class="w-24 shrink-0 flex items-center justify-end">
-                  <span class="font-mono tabular-nums text-sm <%= player['expires_after_horizon'] ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground' %>"><%= cap_next_value.present? ? format_salary(cap_next_value) : "—" %></span>
-                </div>
-
-                <div class="w-24 shrink-0 flex items-center justify-end">
-                  <span class="font-mono tabular-nums text-sm text-muted-foreground"><%= player["total_salary_from_2025"].present? ? format_salary(player["total_salary_from_2025"]) : "—" %></span>
-                </div>
-              </div>
-            </div>
                 <% end %>
               </div>
             </section>

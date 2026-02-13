@@ -69,7 +69,7 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
       [
         "player_id", "player_name", "team_code", "team_id", "team_name",
         "agent_id", "agent_name", "is_two_way", "is_trade_restricted_now", "is_trade_consent_required_now", "is_no_trade", "is_trade_bonus",
-        "has_future_option", "has_non_guaranteed", "has_lock_now", "expires_after_horizon",
+        "has_future_option", "has_non_guaranteed", "has_next_horizon_option", "next_horizon_option", "has_next_horizon_non_guaranteed", "has_lock_now", "expires_after_horizon",
         "cap_lens_value", "cap_next_value", "cap_2025", "cap_2026", "cap_2027", "total_salary_from_2025",
         "years_of_service", "player_status_lk", "player_status_name"
       ]
@@ -103,6 +103,9 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
           true,
           true,
           true,
+          option_for(1, next_year).present?,
+          option_for(1, next_year),
+          non_guaranteed_for(1, next_year),
           true,
           cap_for(1, horizon_year).to_f > 0 && cap_for(1, next_year).to_f.zero?,
           cap_for(1, horizon_year),
@@ -130,6 +133,9 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
           false,
           false,
           false,
+          option_for(2, next_year).present?,
+          option_for(2, next_year),
+          non_guaranteed_for(2, next_year),
           false,
           cap_for(2, horizon_year).to_f > 0 && cap_for(2, next_year).to_f.zero?,
           cap_for(2, horizon_year),
@@ -154,6 +160,24 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
       player_caps.fetch(player_id, {}).fetch(year, 0)
     end
 
+    def option_for(player_id, year)
+      option_map = {
+        1 => { 2026 => "PO" },
+        2 => {}
+      }
+
+      option_map.fetch(player_id, {}).fetch(year, nil)
+    end
+
+    def non_guaranteed_for(player_id, year)
+      non_guaranteed_map = {
+        1 => { 2027 => true },
+        2 => {}
+      }
+
+      non_guaranteed_map.fetch(player_id, {}).fetch(year, false)
+    end
+
     def overlay_row_alpha
       [1, "Alpha Guard", "POR", 1_610_612_757, "Portland Trail Blazers", 1001, "Rich Agent", false, true, false, 25_000_000, 26_000_000, 27_000_000, 50_000_000, 5, "ACTIVE", "Active"]
     end
@@ -174,14 +198,15 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_includes response.body, 'id="players-search-input"'
       assert_includes response.body, 'id="players-constraint-lens"'
+      assert_includes response.body, 'data-bind="playerurgency"'
       assert_includes response.body, 'id="players-cap-horizon-2026"'
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, 'id="players-compare-strip"'
       assert_includes response.body, 'id="players-compare-url-sync"'
       assert_includes response.body, 'id="players-sections-board"'
-      assert_includes response.body, 'id="players-section-lock_now"'
-      assert_includes response.body, 'id="players-section-two_way"'
-      assert_includes response.body, "Section cap rollup"
+      assert_includes response.body, 'id="players-section-urgent"'
+      assert_includes response.body, 'id="players-section-upcoming"'
+      assert_includes response.body, "Contract-horizon lane rollup"
       assert_includes response.body, "URLSearchParams(window.location.search)"
       assert_includes response.body, "params.set('compare_a', nextCompareA)"
       assert_includes response.body, '>Pin A</button>'
@@ -220,12 +245,14 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "id=\"maincanvas\""
       assert_includes response.body, "id=\"players-compare-strip\""
       assert_includes response.body, "id=\"players-sections-board\""
-      assert_includes response.body, "id=\"players-section-lock_now\""
+      assert_includes response.body, "id=\"players-section-urgent\""
+      assert_includes response.body, "id=\"players-section-upcoming\""
       assert_includes response.body, "sticky top-8"
       assert_includes response.body, "id=\"rightpanel-base\""
       assert_includes response.body, "id=\"rightpanel-overlay\""
       assert_includes response.body, "event: datastar-patch-signals"
       assert_includes response.body, '"playerconstraint":"all"'
+      assert_includes response.body, '"playerurgency":"all"'
       assert_includes response.body, '"playerhorizon":"2025"'
       assert_includes response.body, '"comparea":""'
       assert_includes response.body, '"compareb":""'
@@ -343,15 +370,38 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, "Cap 26-27"
-      assert_includes response.body, "Top cap hits · 26-27"
-      assert_operator response.body.scan("Why matched: Trade kicker clause on file").length, :>=, 2
-      assert_includes response.body, "Match: Trade kicker"
-      assert_includes response.body, 'id="players-section-trade_kicker"'
-      assert_not_includes response.body, 'id="players-section-lock_now"'
+      assert_includes response.body, "Urgency quick feed · 26-27"
+      assert_includes response.body, "Trade kicker clause on file"
+      assert_includes response.body, 'id="players-section-urgent"'
+      assert_not_includes response.body, 'id="players-section-upcoming"'
       assert_includes response.body, "Alpha Guard"
       assert_not_includes response.body, "Beta Wing"
       assert_includes response.body, '"playerconstraint":"trade_kicker"'
+      assert_includes response.body, '"playerurgency":"all"'
       assert_includes response.body, '"playerhorizon":"2026"'
+    end
+  end
+
+  test "players refresh applies urgency lens and keeps URL-state signal in sync" do
+    with_fake_connection do
+      get "/players/sse/refresh", params: {
+        q: "",
+        team: "ALL",
+        status: "all",
+        constraint: "all",
+        urgency: "urgent",
+        horizon: "2025",
+        sort: "cap_desc"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="players-section-urgent"'
+      assert_not_includes response.body, 'id="players-section-upcoming"'
+      assert_includes response.body, "Urgent decisions"
+      assert_includes response.body, '"playerurgency":"urgent"'
+      assert_includes response.body, "Alpha Guard"
+      assert_not_includes response.body, "Beta Wing"
     end
   end
 

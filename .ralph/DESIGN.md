@@ -405,28 +405,42 @@ Corrective TODOs for next worker cycle (mandatory):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /players — contract-horizon knobs + urgency-first scan lanes
-  - Problem: `/players` remains strong as a directory but still under-exposes immediate decision urgency (expiring/options/guarantee pressure) in first-pass scan.
-  - Hypothesis: Adding commandbar urgency knobs + urgency-grouped result lanes + mirrored sidebar quick feed will improve triage speed without leaving index context.
+- [x] [P1] [INDEX] /players — contract-horizon knobs + urgency-first scan lanes
+  - Problem: `/players` remained strong as a directory, but immediate decision pressure (near-horizon options/expirings/guarantees) was still buried behind constraint-heavy grouping.
+  - Hypothesis: Explicit urgency knobs + urgency-lane grouping + mirrored sidebar quick feed would improve triage speed without losing existing compare/overlay workflows.
   - Scope (files):
     - `web/app/controllers/entities/players_controller.rb`
     - `web/app/controllers/entities/players_sse_controller.rb`
     - `web/app/views/entities/players/index.html.erb`
     - `web/app/views/entities/players/_workspace_main.html.erb`
     - `web/app/views/entities/players/_rightpanel_base.html.erb`
+    - `web/app/views/entities/players/_rightpanel_overlay_player.html.erb`
     - `web/test/integration/entities_players_index_test.rb`
   - Patch targets: `#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`
   - Response type: multi-region filter/urgency refresh remains one `text/event-stream` response (`Entities::PlayersSseController#refresh`); single player overlay open remains `text/html`.
-  - Acceptance criteria:
-    - New urgency knobs (`all`, `urgent`, `upcoming`, `stable`) are URL-stable and server-authoritative.
-    - Main results render urgency-first scan lanes with dense row pivots (player/team/agent + quick open overlay).
-    - Sidebar base mirrors urgency counts + quick feed using the same urgency grammar as main lanes.
-  - Rubric (before → target):
+  - What changed (files):
+    - Added URL-stable urgency lens wiring (`all/urgent/upcoming/stable`) in `index.html.erb`, controller filter parsing (`@urgency_lens`), and SSE signal propagation (`playerurgency`) in `players_sse_controller.rb`.
+    - Extended `players_controller.rb` index row derivation with next-horizon option/non-guarantee signals, server-side urgency classification (`urgent/upcoming/stable` + reason text), urgency filtering, and urgency-lane builders reused by both maincanvas and sidebar quick feed.
+    - Rebuilt `players/_workspace_main.html.erb` into urgency-first scan lanes (`#players-section-urgent|upcoming|stable`) while preserving dense row pivots (player/team/agent links), one-click overlay open, and compare slot pinning.
+    - Reworked `players/_rightpanel_base.html.erb` snapshot to surface urgency KPI counts and added mirrored urgency quick feed lanes so sidebar triage grammar matches maincanvas.
+    - Updated `players/_rightpanel_overlay_player.html.erb` refresh query contract to carry `urgency` so compare pin/clear actions preserve current urgency lens state.
+    - Expanded `entities_players_index_test.rb` assertions for urgency knob presence, urgency-lane rendering, SSE `playerurgency` signal propagation, and urgent-lens filtering behavior.
+  - Why this improves the flow:
+    - Triage now starts at urgency level (urgent → upcoming → stable) instead of forcing users to infer urgency from mixed constraint buckets.
+    - Contract horizon and urgency are now explicitly coupled in server-classified row reasons, reducing “open overlay just to understand pressure” steps.
+    - Sidebar quick feed now mirrors maincanvas urgency grammar, making scan-to-drill behavior more predictable.
+  - Verification:
+    - `cd web && bundle exec ruby -Itest test/integration/entities_players_index_test.rb -n '/refresh/'`
+    - `cd web && bundle exec ruby -Itest test/integration/entities_players_index_test.rb -n '/sidebar returns/'`
+  - Rubric (before → after):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Add secondary urgency sub-lenses (`option-only`, `expiring-only`, `non-guaranteed-only`) layered beneath primary urgency lanes.
+    - Consider lane-level sort override (`largest cap at-risk`, `soonest trigger`) while keeping URL-stable and SSE-single-response behavior.
   - Guardrails:
     - Do not modify Salary Book files.
 
