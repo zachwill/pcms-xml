@@ -26,6 +26,12 @@ class EntitiesAgentsIndexTest < ActionDispatch::IntegrationTest
         ActiveRecord::Result.new(agent_overlay_columns, [agent_overlay_row])
       elsif sql.include?("FROM pcms.agents_warehouse w") && sql.include?("WHERE w.agent_id = 99")
         ActiveRecord::Result.new(agent_overlay_columns, [])
+      elsif sql.include?("SELECT agency_id") && sql.include?("FROM pcms.agents_warehouse") && sql.include?("WHERE agent_id = 11")
+        ActiveRecord::Result.new(["agency_id"], [[501]])
+      elsif sql.include?("SELECT agency_id") && sql.include?("FROM pcms.agents_warehouse") && sql.include?("WHERE agent_id = 22")
+        ActiveRecord::Result.new(["agency_id"], [[777]])
+      elsif sql.include?("SELECT agency_id") && sql.include?("FROM pcms.agents_warehouse")
+        ActiveRecord::Result.new(["agency_id"], [])
       elsif sql.include?("FROM pcms.salary_book_warehouse sbw") && sql.include?("WHERE sbw.agent_id = 11")
         ActiveRecord::Result.new(agent_clients_columns, [agent_client_row])
       elsif sql.include?("FROM pcms.agents_warehouse w") && sql.include?("cap_2025_total_percentile") && sql.include?("WHERE w.agency_id = 501")
@@ -239,6 +245,17 @@ class EntitiesAgentsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="agent-directory-kind-agents"'
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, "$overlaytype === 'agent'"
+      assert_includes response.body, "$overlaytype = 'agency'; $overlayid = '501'; @get('/agents/sidebar/agency/501')"
+    end
+  end
+
+  test "agency overlay exposes in-panel top-agent pivots" do
+    with_fake_connection do
+      get "/agents/sidebar/agency/501", headers: modern_headers
+
+      assert_response :success
+      assert_includes response.body, "$overlaytype = 'agent'; $overlayid = '11'; @get('/agents/sidebar/agent/11')"
+      assert_includes response.body, "Open agency page"
     end
   end
 
@@ -264,6 +281,58 @@ class EntitiesAgentsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, 'id="agents-maincanvas"'
       assert_includes response.body, 'id="rightpanel-base"'
+      assert_includes response.body, "Open agent page"
+      assert_includes response.body, '"overlaytype":"agent"'
+      assert_includes response.body, '"overlayid":"11"'
+    end
+  end
+
+  test "agents refresh preserves agency overlay while scanning agents when agency remains represented" do
+    with_fake_connection do
+      get "/agents/sse/refresh", params: {
+        q: "",
+        kind: "agents",
+        active_only: "0",
+        certified_only: "0",
+        with_clients: "0",
+        with_book: "0",
+        with_restrictions: "0",
+        with_expiring: "0",
+        year: "2025",
+        sort: "book",
+        dir: "desc",
+        selected_type: "agency",
+        selected_id: "501"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, "Open agency page"
+      assert_includes response.body, '"overlaytype":"agency"'
+      assert_includes response.body, '"overlayid":"501"'
+    end
+  end
+
+  test "agents refresh preserves agent overlay while scanning agencies when agent remains in-scope" do
+    with_fake_connection do
+      get "/agents/sse/refresh", params: {
+        q: "",
+        kind: "agencies",
+        active_only: "0",
+        certified_only: "0",
+        with_clients: "0",
+        with_book: "0",
+        with_restrictions: "0",
+        with_expiring: "0",
+        year: "2025",
+        sort: "book",
+        dir: "desc",
+        selected_type: "agent",
+        selected_id: "11"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, "Open agent page"
       assert_includes response.body, '"overlaytype":"agent"'
       assert_includes response.body, '"overlayid":"11"'

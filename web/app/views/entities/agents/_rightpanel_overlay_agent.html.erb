@@ -105,9 +105,17 @@
 
       <div class="min-w-0 space-y-0.5">
         <h2 class="text-lg font-semibold text-foreground truncate"><%= name.presence || "Agent" %></h2>
-        <div class="text-sm text-muted-foreground truncate flex items-center gap-2">
+        <div class="text-sm text-muted-foreground flex items-center gap-2 min-w-0">
           <% if agent["agency_id"].present? && agent["agency_name"].present? %>
-            <a href="<%= agency_href(agent['agency_id']) %>" class="hover:underline truncate"><%= agent["agency_name"] %></a>
+            <button
+              type="button"
+              class="cursor-pointer min-w-0 truncate hover:text-foreground hover:underline"
+              data-on:click="$overlaytype = 'agency'; $overlayid = '<%= agent['agency_id'] %>'; @get('/agents/sidebar/agency/<%= agent['agency_id'] %>')"
+            ><%= agent["agency_name"] %></button>
+            <a
+              href="<%= agency_href(agent['agency_id']) %>"
+              class="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground/70 hover:text-foreground hover:underline"
+            >Page</a>
           <% elsif agent["agency_name"].present? %>
             <span class="truncate"><%= agent["agency_name"] %></span>
           <% else %>

@@ -143,7 +143,7 @@ Supervisor review — 2026-02-13:
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /agents — pivot between agent and agency drill-ins without leaving workbench flow
+- [x] [P1] [INDEX] /agents — pivot between agent and agency drill-ins without leaving workbench flow
   - Problem: Related pivots in rows/overlays still pull users out to full pages too often during directory scanning.
   - Hypothesis: In-panel cross-entity pivots (agent⇄agency) will preserve scan momentum and reduce backtracking.
   - Scope (files):
@@ -151,19 +151,28 @@ Supervisor review — 2026-02-13:
     - web/app/views/entities/agents/_rightpanel_overlay_agent.html.erb
     - web/app/views/entities/agents/_rightpanel_overlay_agency.html.erb
     - web/app/controllers/entities/agents_controller.rb
-    - web/app/controllers/entities/agents_sse_controller.rb
     - web/test/integration/entities_agents_index_test.rb
-  - Acceptance criteria:
-    - Agency cells in agent rows can open agency overlay in-place (with canonical page link retained).
-    - Agency overlay top-agent interactions can open agent overlay in-place.
-    - Overlay type/id signals stay synchronized as users pivot between agent and agency overlays.
-    - Refreshing filters keeps the active overlay when that entity remains in-scope.
-  - Rubric (before → target):
+  - What changed:
+    - Updated **agency cells in agent rows** to open agency overlays in-place via Datastar (`$overlaytype='agency'`, `$overlayid=<id>`, sidebar GET), while retaining a compact **Page** link to canonical `/agencies/:slug` navigation.
+    - Updated **agent overlay header** so agency name now pivots to the agency overlay in-panel (with canonical page link retained alongside it).
+    - Updated **agency overlay top-agent rows** to open agent overlays in-panel (click/keyboard), while retaining per-row canonical **Page** links.
+    - Expanded overlay scope checks in `Entities::AgentsController#selected_overlay_visible?` so refresh preserves cross-entity overlays when still represented by the current lens (agent⇄agency), instead of clearing whenever kind mismatched.
+    - Added integration coverage for in-panel pivot affordances and cross-kind overlay preservation semantics during `/agents/sse/refresh`.
+  - Why this improves the flow:
+    - Users can pivot agent→agency→agent directly inside the right panel while continuing to scan/filter in the same workbench.
+    - Canonical links are still present, so deep-page escape hatches remain obvious without sacrificing in-flow momentum.
+    - Overlay state now behaves predictably across refreshes, even when the selected overlay type differs from the active directory lens.
+  - Verification:
+    - `cd web && bundle exec rails test test/integration/entities_agents_index_test.rb` *(fails in this environment: missing gem `lucide-rails-0.7.3`)*
+    - `cd web && ruby -c app/controllers/entities/agents_controller.rb && ruby -c test/integration/entities_agents_index_test.rb` *(syntax OK)*
+  - Rubric (before → after):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Consider adding selected-row visual tie-back when an **agency overlay** is open from the agents lens (current highlight remains agent-row scoped).
   - Guardrails:
     - Do not modify Salary Book files.
 

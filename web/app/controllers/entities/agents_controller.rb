@@ -537,12 +537,50 @@ module Entities
 
       case normalized_type
       when "agent"
-        @directory_kind == "agents" && @agents.any? { |row| row["agent_id"].to_i == normalized_id }
+        agent_overlay_visible_in_scope?(normalized_id)
       when "agency"
-        @directory_kind == "agencies" && @agencies.any? { |row| row["agency_id"].to_i == normalized_id }
+        agency_overlay_visible_in_scope?(normalized_id)
       else
         false
       end
+    end
+
+    def agent_overlay_visible_in_scope?(agent_id)
+      if @directory_kind == "agents"
+        @agents.any? { |row| row["agent_id"].to_i == agent_id }
+      else
+        agency_id = agency_id_for_agent(agent_id)
+        agency_id.present? && visible_agency_ids.include?(agency_id)
+      end
+    end
+
+    def agency_overlay_visible_in_scope?(agency_id)
+      visible_agency_ids.include?(agency_id)
+    end
+
+    def visible_agency_ids
+      @visible_agency_ids ||= begin
+        rows = @directory_kind == "agencies" ? @agencies : @agents
+        rows.map { |row| row["agency_id"].to_i }.select(&:positive?)
+      end
+    end
+
+    def agency_id_for_agent(agent_id)
+      @agency_ids_by_agent_id ||= {}
+      return @agency_ids_by_agent_id[agent_id] if @agency_ids_by_agent_id.key?(agent_id)
+
+      conn = ActiveRecord::Base.connection
+      id_sql = conn.quote(agent_id)
+
+      row = conn.exec_query(<<~SQL).first
+        SELECT agency_id
+        FROM pcms.agents_warehouse
+        WHERE agent_id = #{id_sql}
+        LIMIT 1
+      SQL
+
+      resolved_id = row&.dig("agency_id").to_i
+      @agency_ids_by_agent_id[agent_id] = resolved_id.positive? ? resolved_id : nil
     end
 
     def load_sidebar_agent_payload(agent_id)
