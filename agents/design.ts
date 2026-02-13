@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
-import { loop, work, generate, supervisor } from "./core";
+import { readFileSync } from "node:fs";
+
+import { loop, work, generate, halt, runPi } from "./core";
 
 /**
  * design.ts — Design evolution loop (NOT hygiene sweeps)
@@ -80,16 +82,148 @@ Design evolution rubric (score 1-5, before and after):
 5) Navigation/pivots (can users move to related context with low friction?)
 `.trim();
 
-loop({
-  name: "design",
-  taskFile: TASK_FILE,
-  timeout: "15m",
-  pushEvery: 4,
-  maxIterations: 240,
-  continuous: true,
+const COMMIT_TITLE_SCHEMA = "design: [TRACK] /surface flow-outcome";
+const SUPERVISOR_COMMIT_TITLE = "design: [PROCESS] /supervisor review";
+const GENERATE_COMMIT_TITLE = "design: [PROCESS] /backlog generate evolution backlog";
 
-  supervisor: supervisor(
-    `
+const ENTITY_OVERRIDE_PATTERN =
+  /\[ENTITY-OVERRIDE\]|supervisor\s+override\s*:\s*entity|entity\s+override\s*:\s*allowed/i;
+
+const SALARY_BOOK_FORBIDDEN_EXACT = new Set<string>([
+  "web/app/controllers/tools/salary_book_controller.rb",
+  "web/app/controllers/tools/salary_book_sse_controller.rb",
+  "web/app/helpers/salary_book_helper.rb",
+]);
+
+const LOOP_START_SHA = gitStdout(["rev-parse", "HEAD"]);
+
+type GuardReport = { ok: boolean; errors: string[] };
+type CommitInfo = { hash: string; subject: string };
+
+function gitStdout(args: string[]): string {
+  const result = Bun.spawnSync({ cmd: ["git", ...args], stdout: "pipe", stderr: "pipe" });
+  if (result.exitCode !== 0) return "";
+  return Buffer.from(result.stdout).toString("utf8").trim();
+}
+
+function gitLines(args: string[]): string[] {
+  const out = gitStdout(args);
+  if (!out) return [];
+  return out
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function readTaskFileContent(): string {
+  try {
+    return readFileSync(TASK_FILE, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+function hasEntityOverride(taskContent: string): boolean {
+  return ENTITY_OVERRIDE_PATTERN.test(taskContent);
+}
+
+function workerCommitRegex(allowEntity: boolean): RegExp {
+  const tracks = allowEntity ? "INDEX|TOOL|PROCESS|ENTITY" : "INDEX|TOOL|PROCESS";
+  return new RegExp(`^design: \\[(${tracks})\\] \\/\\S+ .+$`);
+}
+
+function commitsSinceLoopStart(): CommitInfo[] {
+  if (!LOOP_START_SHA) return [];
+
+  return gitLines(["log", "--format=%H%x09%s", `${LOOP_START_SHA}..HEAD`])
+    .map((line) => {
+      const [hash, ...rest] = line.split("\t");
+      return { hash: hash?.trim() ?? "", subject: rest.join("\t").trim() };
+    })
+    .filter((entry) => entry.hash.length > 0);
+}
+
+function commitChangedPaths(hash: string): string[] {
+  if (!hash) return [];
+  return gitLines(["show", "--name-only", "--pretty=format:", "--no-renames", hash]);
+}
+
+function pendingChangedPaths(): string[] {
+  const unstaged = gitLines(["diff", "--name-only"]);
+  const staged = gitLines(["diff", "--cached", "--name-only"]);
+  return Array.from(new Set([...unstaged, ...staged]));
+}
+
+function forbiddenSalaryBookPaths(paths: string[]): string[] {
+  return paths.filter((path) => {
+    if (path.startsWith("web/app/views/tools/salary_book/")) {
+      return !SALARY_BOOK_TANKATHON_ALLOWED.includes(path);
+    }
+
+    if (SALARY_BOOK_FORBIDDEN_EXACT.has(path)) return true;
+    if (path.startsWith("web/test/integration/salary_book")) return true;
+    return false;
+  });
+}
+
+function evaluateDesignGuards(state: { hasTodos: boolean; nextTodo: string | null }): GuardReport {
+  const errors: string[] = [];
+  const taskContent = readTaskFileContent();
+  const entityOverrideEnabled = hasEntityOverride(taskContent);
+
+  if (state.hasTodos && /\[ENTITY\]/i.test(state.nextTodo ?? "") && !entityOverrideEnabled) {
+    errors.push(
+      `Blocked task: ${state.nextTodo}. [ENTITY] tasks require explicit supervisor override marker ` +
+        "([ENTITY-OVERRIDE] or 'supervisor override: ENTITY')."
+    );
+  }
+
+  const pendingForbidden = forbiddenSalaryBookPaths(pendingChangedPaths());
+  if (pendingForbidden.length > 0) {
+    errors.push(
+      `Blocked working diff touches forbidden Salary Book paths: ${pendingForbidden.join(", ")}`
+    );
+  }
+
+  const workerTitlePattern = workerCommitRegex(entityOverrideEnabled);
+  for (const commit of commitsSinceLoopStart()) {
+    const isSupervisorCommit = commit.subject === SUPERVISOR_COMMIT_TITLE;
+
+    if (!isSupervisorCommit) {
+      if (!workerTitlePattern.test(commit.subject)) {
+        errors.push(
+          `Commit title violation (${commit.hash.slice(0, 7)}): "${commit.subject}". ` +
+            `Expected schema: ${COMMIT_TITLE_SCHEMA}`
+        );
+      }
+
+      if (/\[ENTITY\]/i.test(commit.subject) && !entityOverrideEnabled) {
+        errors.push(
+          `Commit track violation (${commit.hash.slice(0, 7)}): [ENTITY] requires explicit supervisor override.`
+        );
+      }
+    }
+
+    const forbiddenPaths = forbiddenSalaryBookPaths(commitChangedPaths(commit.hash));
+    if (forbiddenPaths.length > 0) {
+      errors.push(
+        `Commit path violation (${commit.hash.slice(0, 7)}): touched forbidden Salary Book paths: ${forbiddenPaths.join(", ")}`
+      );
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function logGuardFailure(scope: "loop" | "supervisor", report: GuardReport): void {
+  const prefix = scope === "supervisor" ? "[Supervisor Guard][FAIL]" : "[Design Guard][FAIL]";
+  console.log(prefix);
+  for (const error of report.errors) {
+    console.log(`- ${error}`);
+  }
+}
+
+const SUPERVISOR_PROMPT = `
 You are supervising the design-evolution loop.
 
 PRIMARY OBJECTIVE:
@@ -109,6 +243,11 @@ Forbidden edits include (non-exhaustive):
 - web/app/controllers/tools/salary_book_sse_controller.rb
 - web/app/helpers/salary_book_helper.rb
 - web/test/integration/salary_book*
+
+COMMIT + TRACK GUARD:
+- Worker commit titles must match: ${COMMIT_TITLE_SCHEMA}
+- [ENTITY] task/commit tracks are blocked unless task file contains explicit override marker:
+  [ENTITY-OVERRIDE] (or "supervisor override: ENTITY")
 
 REVIEW INPUTS:
 1) ${TASK_FILE}
@@ -133,18 +272,43 @@ IF DRIFT IS DETECTED:
 
 AFTER REVIEW:
 - Update ${TASK_FILE} if needed
-- git add -A && git commit -m "design: supervisor review"
-    `,
-    {
-      every: 6,
-      provider: "openai-codex",
-      model: "gpt-5.3-codex",
-      thinking: "high",
-      timeout: "15m",
+- git add -A && git commit -m "${SUPERVISOR_COMMIT_TITLE}"
+`.trim();
+
+loop({
+  name: "design",
+  taskFile: TASK_FILE,
+  timeout: "15m",
+  pushEvery: 4,
+  maxIterations: 240,
+  continuous: true,
+
+  supervisor: {
+    every: 6,
+    async run(state) {
+      const report = evaluateDesignGuards(state);
+      if (!report.ok) {
+        logGuardFailure("supervisor", report);
+        throw new Error("Design supervisor guardrail check failed. See errors above.");
+      }
+
+      await runPi(SUPERVISOR_PROMPT, {
+        role: "supervisor",
+        provider: "openai-codex",
+        model: "gpt-5.3-codex",
+        thinking: "high",
+        timeout: "15m",
+      });
     },
-  ),
+  },
 
   run(state) {
+    const report = evaluateDesignGuards(state);
+    if (!report.ok) {
+      logGuardFailure("loop", report);
+      return halt("Design guardrails failed. Resolve violations before continuing the loop.");
+    }
+
     if (state.hasTodos) {
       return work(
         `
@@ -182,6 +346,8 @@ HARD RULES:
 6) You may edit views/controllers/helpers/minimal JS/tests when required.
 7) Keep business/CBA math in SQL (do not reimplement in Ruby/JS).
 8) Keep changes coherent and shippable (avoid sprawling refactors).
+9) Commit titles must follow: ${COMMIT_TITLE_SCHEMA}.
+10) [ENTITY] track is forbidden unless ${TASK_FILE} contains explicit supervisor override marker ([ENTITY-OVERRIDE] or "supervisor override: ENTITY").
 
 ANTI-PATTERNS (avoid):
 - Repo-wide grep/replace for style-only classes
@@ -198,14 +364,14 @@ REQUIRED TASK COMPLETION STEPS:
    - Any follow-up tasks discovered
 4) Check off the task in ${TASK_FILE}.
 5) Commit:
-   git add -A && git commit -m "design: <surface> <flow improvement>"
+   git add -A && git commit -m "design: [TRACK] /surface flow-outcome"
         `,
         {
           provider: "openai-codex",
           model: "gpt-5.3-codex",
           thinking: "high",
           timeout: "12m",
-        },
+        }
       );
     }
 
@@ -292,14 +458,14 @@ Do not create chores like “add class X across N files” unless directly requi
 for the flow outcome.
 
 After generating/updating ${TASK_FILE}:
-- git add -A && git commit -m "design: generate evolution backlog"
+- git add -A && git commit -m "${GENERATE_COMMIT_TITLE}"
       `,
       {
         provider: "openai-codex",
         model: "gpt-5.3-codex",
         thinking: "high",
         timeout: "15m",
-      },
+      }
     );
   },
 });

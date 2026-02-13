@@ -479,7 +479,7 @@ Corrective TODOs for next worker cycle (mandatory):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P3] [PROCESS] design loop hygiene — enforce commit title schema and forbidden Salary Book path guard
+- [x] [P3] [PROCESS] design loop hygiene — enforce commit title schema and forbidden Salary Book path guard
   - Problem: Recent history includes inconsistent commit naming and historical risk of forbidden Salary Book path touches.
   - Hypothesis: Hard checks in loop/supervisor step will reduce drift and cleanup churn.
   - Scope (files):
@@ -487,17 +487,27 @@ Corrective TODOs for next worker cycle (mandatory):
     - web/app/views/tools/salary_book/_maincanvas_tankathon_frame.html.erb (allow-list reference only)
   - Patch targets: N/A (process guardrail task)
   - Response type: N/A
-  - Acceptance criteria:
-    - Commit title schema enforced (`design: [TRACK] /surface flow-outcome`) for worker commits.
-    - Loop rejects diffs touching Salary Book files outside approved Tankathon file.
-    - Loop rejects worker tasks/commits tagged `[ENTITY]` unless explicit supervisor override is present.
-    - Failure mode is explicit and logged in supervision output.
-  - Rubric (before → target):
+  - What changed (files):
+    - Reworked `agents/design.ts` supervisor wiring from prompt-only auditing to hard-gated supervision with deterministic guard checks executed before supervisor prompting.
+    - Added explicit loop guardrail evaluators in `agents/design.ts` for commit-title schema enforcement (`design: [TRACK] /surface flow-outcome`), forbidden Salary Book path detection (with Tankathon allow-list), and `[ENTITY]` task/commit blocking unless explicit override marker is present.
+    - Added explicit failure logging paths (`[Design Guard][FAIL]` / `[Supervisor Guard][FAIL]`) and hard-stop behavior so invalid tasks/commits fail fast instead of silently drifting.
+    - Updated worker/supervisor/generate prompt commit instructions in `agents/design.ts` to align with the enforced schema (`design: [PROCESS] /supervisor review`, `design: [PROCESS] /backlog generate evolution backlog`).
+  - Why this improves the flow:
+    - Guardrails now fail at loop runtime instead of relying on supervisor interpretation alone, reducing cleanup/revert cycles.
+    - Commit hygiene is machine-enforced, so commit history becomes reliably parseable by track/surface outcome.
+    - Salary Book protection is now backed by path-level hard checks, lowering accidental-touch risk.
+    - `[ENTITY]` drift now requires explicit override breadcrumbs in the task file, keeping the queue aligned with INDEX/TOOL priority.
+  - Verification:
+    - `bun agents/design.ts --dry-run --once`
+  - Rubric (before → after):
     - Scan speed: 3 → 3
     - Information hierarchy: 4 → 4
     - Interaction predictability: 3 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 3 → 3
+  - Follow-up tasks discovered:
+    - Consider adding the same guardrail helper pattern to other loops that have strict commit-path contracts.
+    - Consider recording guardrail failure summaries to a persistent log file for supervisor trend audits.
   - Guardrails:
     - Salary Book exception: only edit `web/app/views/tools/salary_book/_maincanvas_tankathon_frame.html.erb`.
     - Do not modify any other Salary Book files/controllers/helpers/tests.
