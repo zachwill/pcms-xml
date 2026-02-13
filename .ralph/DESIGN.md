@@ -37,23 +37,37 @@ Corrective TODOs for next worker cycle (mandatory):
 
 ### Immediate supervisor-gated queue (pick from here next)
 
-- [ ] [P0] [INDEX] /transactions — explorer commandbar knobs + severity-first scan lanes
+- [x] [P0] [INDEX] /transactions — explorer commandbar knobs + severity-first scan lanes
   - User flow: scan latest movement → narrow by impact/type → drill into one transaction in sidebar without leaving index context.
-  - Scope (expected files):
+  - Scope (files):
+    - `web/app/controllers/entities/transactions_controller.rb`
     - `web/app/controllers/entities/transactions_sse_controller.rb`
+    - `web/app/views/entities/transactions/index.html.erb`
     - `web/app/views/entities/transactions/_results.html.erb`
     - `web/app/views/entities/transactions/_rightpanel_base.html.erb`
-    - `web/app/views/entities/transactions/index.html.erb`
-    - `web/test/integration/entities_transactions_index_test.rb` (or nearest coverage file)
-  - Patch targets: `#commandbar`, `#maincanvas`, `#rightpanel-base`, optional `#rightpanel-overlay`
-  - Response rule: multi-region lens/filter updates must stream via one `text/event-stream` response.
-  - Acceptance: faster first-pass scan (impact chips + compact deltas), URL-stable filter knobs, preserved one-click entity pivots.
-  - Rubric (before → target):
+    - `web/test/integration/entities_transactions_index_test.rb`
+  - Patch targets: `#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`
+  - Response type: multi-region filter/lens refresh remains one `text/event-stream` response (`Entities::TransactionsSseController#refresh`).
+  - What changed (files):
+    - Added URL-stable `impact` knob wiring (`all/critical/high/medium/low`) in `index.html.erb` and server state parsing in `transactions_controller.rb`; propagated through SSE signal patching (`txnimpact`) in `transactions_sse_controller.rb`.
+    - Enriched transaction index rows with ledger + artifact rollups (cap/tax/apron deltas, ledger row count, exception/dead-money/budget counts), computed severity tiers server-side, and applied severity-lens filtering before render.
+    - Rebuilt `transactions/_results.html.erb` into severity-first scan lanes (critical → low), with nested date buckets, impact chips, and compact delta lines (`Max Δ`, `Cap`, `Tax`, `Apron`) while preserving one-click pivots to transaction/player/team and sidebar drill-ins.
+    - Reworked `transactions/_rightpanel_base.html.erb` into severity-aware snapshot + quick feed lanes so the sidebar mirrors the same impact grammar as main scan.
+    - Added focused integration coverage in `entities_transactions_index_test.rb` for commandbar impact knob presence, severity lane rendering, single-SSE multi-region refresh behavior, and overlay preserve/clear behavior under impact filtering.
+  - Why this improves the flow:
+    - First-pass triage now starts with impact severity instead of flat date-only scanning, so high-risk movement is visible immediately.
+    - Narrowing by impact + type is now explicit and URL/share-state stable.
+    - Row-level compact delta signatures reduce drill-ins needed to identify meaningful transactions.
+    - Sidebar quick feed uses the same severity grammar, improving predictability between scan and drill-in.
+  - Rubric (before → after):
     - Scan speed: 3 → 5
     - Information hierarchy: 3 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Add optional severity threshold customization (e.g., user-selectable dollar cutoffs) without breaking default canonical lane definitions.
+    - Add lane-level quick toggles (`dead-money only`, `exception-usage only`) as secondary refinements on top of the primary impact lens.
 
 - [ ] [P0] [TOOL] /tools/two-way-utility — keyboard shortlist + one-keystroke overlay open
   - User flow: type intent → pick top match via keyboard → open player overlay while keeping team section context.

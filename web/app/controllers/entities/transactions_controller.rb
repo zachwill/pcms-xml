@@ -362,6 +362,8 @@ module Entities
       @waivers = params[:waivers] != "0"
       @extensions = params[:extensions] != "0"
       @other = params[:other] == "1"
+      @impact = params[:impact].to_s.strip.presence || "all"
+      @impact = "all" unless %w[all critical high medium low].include?(@impact)
       @selected_transaction_id = normalize_selected_transaction_id_param(params[:selected_id])
 
       @team_options = conn.exec_query(<<~SQL).to_a
@@ -452,7 +454,7 @@ module Entities
       end
 
       @transactions = conn.exec_query(<<~SQL).to_a
-        WITH filtered_transactions AS (
+        WITH candidate_transactions AS (
           SELECT
             t.transaction_id,
             t.transaction_date,
@@ -469,7 +471,42 @@ module Entities
           FROM pcms.transactions t
           WHERE #{where_clauses.join(" AND ")}
           ORDER BY t.transaction_date DESC, t.transaction_id DESC
-          LIMIT 200
+          LIMIT 800
+        ),
+        ledger_agg AS (
+          SELECT
+            le.transaction_id,
+            COUNT(*)::integer AS ledger_row_count,
+            SUM(COALESCE(le.cap_change, 0)) AS cap_change_total,
+            SUM(COALESCE(le.tax_change, 0)) AS tax_change_total,
+            SUM(COALESCE(le.apron_change, 0)) AS apron_change_total
+          FROM pcms.ledger_entries le
+          WHERE le.transaction_id IN (SELECT transaction_id FROM candidate_transactions)
+          GROUP BY le.transaction_id
+        ),
+        exception_counts AS (
+          SELECT
+            teu.transaction_id,
+            COUNT(*)::integer AS exception_usage_count
+          FROM pcms.team_exception_usage teu
+          WHERE teu.transaction_id IN (SELECT transaction_id FROM candidate_transactions)
+          GROUP BY teu.transaction_id
+        ),
+        dead_money_counts AS (
+          SELECT
+            twa.transaction_id,
+            COUNT(*)::integer AS dead_money_count
+          FROM pcms.transaction_waiver_amounts twa
+          WHERE twa.transaction_id IN (SELECT transaction_id FROM candidate_transactions)
+          GROUP BY twa.transaction_id
+        ),
+        budget_snapshot_counts AS (
+          SELECT
+            tbs.transaction_id,
+            COUNT(*)::integer AS budget_snapshot_count
+          FROM pcms.team_budget_snapshots tbs
+          WHERE tbs.transaction_id IN (SELECT transaction_id FROM candidate_transactions)
+          GROUP BY tbs.transaction_id
         )
         SELECT
           t.transaction_id,
@@ -490,19 +527,38 @@ module Entities
           t.to_team_code,
           to_team.team_name AS to_team_name,
           t.signed_method_lk,
-          t.contract_type_lk
-        FROM filtered_transactions t
+          t.contract_type_lk,
+          COALESCE(la.ledger_row_count, 0) AS ledger_row_count,
+          COALESCE(la.cap_change_total, 0) AS cap_change_total,
+          COALESCE(la.tax_change_total, 0) AS tax_change_total,
+          COALESCE(la.apron_change_total, 0) AS apron_change_total,
+          COALESCE(ec.exception_usage_count, 0) AS exception_usage_count,
+          COALESCE(dc.dead_money_count, 0) AS dead_money_count,
+          COALESCE(bc.budget_snapshot_count, 0) AS budget_snapshot_count
+        FROM candidate_transactions t
         LEFT JOIN pcms.people p
           ON p.person_id = t.player_id
         LEFT JOIN pcms.teams from_team
           ON from_team.team_id = t.from_team_id
         LEFT JOIN pcms.teams to_team
           ON to_team.team_id = t.to_team_id
+        LEFT JOIN ledger_agg la
+          ON la.transaction_id = t.transaction_id
+        LEFT JOIN exception_counts ec
+          ON ec.transaction_id = t.transaction_id
+        LEFT JOIN dead_money_counts dc
+          ON dc.transaction_id = t.transaction_id
+        LEFT JOIN budget_snapshot_counts bc
+          ON bc.transaction_id = t.transaction_id
         ORDER BY t.transaction_date DESC, t.transaction_id DESC
       SQL
 
       annotate_intent_match_provenance!(query: @query)
+      annotate_transaction_severity!(rows: @transactions)
+      apply_impact_filter!
+      @transactions = Array(@transactions).first(200)
       build_transaction_date_groups!
+      build_transaction_severity_lanes!
       build_sidebar_summary!(selected_transaction_id: @selected_transaction_id)
     end
 
@@ -515,6 +571,13 @@ module Entities
         other: rows.count { |row| transaction_bucket(row["transaction_type_lk"]) == :other }
       }
 
+      severity_counts = {
+        critical: rows.count { |row| row["severity_key"] == "critical" },
+        high: rows.count { |row| row["severity_key"] == "high" },
+        medium: rows.count { |row| row["severity_key"] == "medium" },
+        low: rows.count { |row| row["severity_key"] == "low" }
+      }
+
       active_type_filters = []
       active_type_filters << "Signings" if @signings
       active_type_filters << "Waivers" if @waivers
@@ -525,33 +588,108 @@ module Entities
       filters << "Intent: #{@query}" if @query.present?
       filters << "Team: #{@team}" if @team.present?
       filters << "Types: #{active_type_filters.join(', ')}" if active_type_filters.any?
+      filters << "Impact: #{impact_label(@impact)}" unless @impact == "all"
 
-      top_rows = rows.first(14)
+      top_rows = rows.sort_by do |row|
+        [
+          severity_rank(row["severity_key"]),
+          -(normalize_transaction_date(row["transaction_date"])&.jd || 0),
+          -row["transaction_id"].to_i
+        ]
+      end.first(14)
+
       selected_id = selected_transaction_id.to_i
       if selected_id.positive?
         selected_row = rows.find { |row| row["transaction_id"].to_i == selected_id }
         if selected_row.present? && top_rows.none? { |row| row["transaction_id"].to_i == selected_id }
           top_rows = (top_rows + [selected_row]).uniq { |row| row["transaction_id"].to_i }
-          top_rows = top_rows.sort_by do |row|
-            [normalize_transaction_date(row["transaction_date"]) || Date.new(1900, 1, 1), row["transaction_id"].to_i]
-          end.reverse.first(14)
+            .sort_by do |row|
+              [
+                severity_rank(row["severity_key"]),
+                -(normalize_transaction_date(row["transaction_date"])&.jd || 0),
+                -row["transaction_id"].to_i
+              ]
+            end
+            .first(14)
         end
       end
 
-      top_row_groups = build_transaction_date_groups!(rows: top_rows, assign: false)
+      top_row_lanes = build_transaction_severity_lanes!(rows: top_rows, assign: false)
 
       @sidebar_summary = {
         row_count: rows.size,
         daterange_label: daterange_label(@daterange),
+        impact_label: impact_label(@impact),
         filters:,
         signings_count: bucket_counts[:signings],
         waivers_count: bucket_counts[:waivers],
         extensions_count: bucket_counts[:extensions],
         other_count: bucket_counts[:other],
+        critical_count: severity_counts[:critical],
+        high_count: severity_counts[:high],
+        medium_count: severity_counts[:medium],
+        low_count: severity_counts[:low],
         date_group_count: Array(@transaction_date_groups).size,
+        severity_lane_count: Array(@transaction_severity_lanes).size,
         top_rows:,
-        top_row_groups:
+        top_row_lanes:
       }
+    end
+
+    def annotate_transaction_severity!(rows:)
+      Array(rows).each do |row|
+        cap_abs = row["cap_change_total"].to_f.abs
+        tax_abs = row["tax_change_total"].to_f.abs
+        apron_abs = row["apron_change_total"].to_f.abs
+        max_delta = [cap_abs, tax_abs, apron_abs].max
+
+        exception_count = row["exception_usage_count"].to_i
+        dead_money_count = row["dead_money_count"].to_i
+        budget_snapshot_count = row["budget_snapshot_count"].to_i
+
+        severity_key = if dead_money_count.positive? || max_delta >= 20_000_000 || apron_abs >= 8_000_000
+          "critical"
+        elsif exception_count.positive? || max_delta >= 10_000_000 || apron_abs >= 4_000_000
+          "high"
+        elsif row["ledger_row_count"].to_i.positive? || budget_snapshot_count.positive? || max_delta >= 2_000_000
+          "medium"
+        else
+          "low"
+        end
+
+        row["severity_key"] = severity_key
+        row["severity_rank"] = severity_rank(severity_key)
+        row["severity_label"] = severity_label(severity_key)
+        row["impact_max_delta"] = max_delta
+      end
+    end
+
+    def apply_impact_filter!
+      return if @impact == "all"
+
+      @transactions = Array(@transactions).select do |row|
+        row["severity_key"].to_s == @impact
+      end
+    end
+
+    def build_transaction_severity_lanes!(rows: Array(@transactions), assign: true)
+      grouped = Array(rows).group_by { |row| row["severity_key"].to_s.presence || "low" }
+
+      lanes = %w[critical high medium low].filter_map do |severity_key|
+        lane_rows = Array(grouped[severity_key])
+        next if lane_rows.empty?
+
+        {
+          key: severity_key,
+          headline: severity_label(severity_key),
+          subline: severity_subline(severity_key),
+          row_count: lane_rows.size,
+          date_groups: build_transaction_date_groups!(rows: lane_rows, assign: false)
+        }
+      end
+
+      @transaction_severity_lanes = lanes if assign
+      lanes
     end
 
     def build_transaction_date_groups!(rows: Array(@transactions), assign: true)
@@ -757,6 +895,47 @@ module Entities
       return :extensions if code == "EXTSN"
 
       :other
+    end
+
+    def severity_rank(key)
+      case key.to_s
+      when "critical" then 0
+      when "high" then 1
+      when "medium" then 2
+      else 3
+      end
+    end
+
+    def severity_label(key)
+      case key.to_s
+      when "critical" then "Critical impact"
+      when "high" then "High impact"
+      when "medium" then "Medium impact"
+      else "Low impact"
+      end
+    end
+
+    def severity_subline(key)
+      case key.to_s
+      when "critical"
+        "Dead-money or very large cap/tax/apron deltas"
+      when "high"
+        "Material deltas or exception/deadline artifacts"
+      when "medium"
+        "Visible ledger movement, usually planning-relevant"
+      else
+        "Low/no immediate financial movement"
+      end
+    end
+
+    def impact_label(value)
+      case value.to_s
+      when "critical" then "Critical impact"
+      when "high" then "High impact"
+      when "medium" then "Medium impact"
+      when "low" then "Low impact"
+      else "All impact lanes"
+      end
     end
 
     def daterange_label(value)

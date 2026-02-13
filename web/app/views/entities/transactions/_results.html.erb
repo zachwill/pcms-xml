@@ -1,13 +1,42 @@
-<% date_groups = Array(@transaction_date_groups) %>
-<% if date_groups.empty? && @transactions.any? %>
-  <% date_groups = [{ key: "all", headline: "All dates", subline: nil, relative_label: nil, row_count: @transactions.size, rows: @transactions }] %>
-<% end %>
+<%
+  severity_lanes = Array(@transaction_severity_lanes)
+  if severity_lanes.empty? && @transactions.any?
+    severity_lanes = [{ key: "all", headline: "All impact lanes", subline: nil, row_count: @transactions.size, date_groups: Array(@transaction_date_groups) }]
+  end
+
+  severity_counts = {
+    "critical" => Array(@transactions).count { |row| row["severity_key"] == "critical" },
+    "high" => Array(@transactions).count { |row| row["severity_key"] == "high" },
+    "medium" => Array(@transactions).count { |row| row["severity_key"] == "medium" },
+    "low" => Array(@transactions).count { |row| row["severity_key"] == "low" }
+  }
+
+  severity_chip_class = lambda do |key|
+    case key.to_s
+    when "critical" then "entity-chip entity-chip--danger"
+    when "high" then "entity-chip entity-chip--warning"
+    when "medium" then "entity-chip entity-chip--accent"
+    else "entity-chip entity-chip--muted"
+    end
+  end
+
+  delta_class_for = lambda do |value|
+    amount = value.to_f
+    if amount.positive?
+      "text-emerald-600 dark:text-emerald-400"
+    elsif amount.negative?
+      "text-red-500"
+    else
+      "text-muted-foreground"
+    end
+  end
+%>
 
 <div id="transactions-results" class="space-y-3">
   <div class="flex items-end justify-between gap-4">
     <div>
       <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Transactions feed ·
+        Transactions feed · severity-first lanes ·
         <% case @daterange
            when "today" then %>Today<%
            when "week" then %>This week<%
@@ -17,16 +46,23 @@
            end %>
       </h2>
       <p class="text-[11px] text-muted-foreground mt-1">
-        Scan by day lane first, then open rows in the sidebar for details.
+        Scan critical → low impact first, then open a row in the sidebar without leaving index context.
       </p>
     </div>
 
     <div class="text-right space-y-1">
-      <div class="text-[11px] text-muted-foreground tabular-nums"><span><%= @transactions.size %> rows · <%= date_groups.size %> day lanes</span></div>
+      <div class="text-[11px] text-muted-foreground tabular-nums"><span><%= @transactions.size %> rows · <%= severity_lanes.size %> impact lanes</span></div>
       <% if @query.present? %>
         <div class="text-[10px] text-muted-foreground">Intent: <span class="font-medium text-foreground"><%= @query %></span></div>
       <% end %>
     </div>
+  </div>
+
+  <div class="flex flex-wrap gap-1.5">
+    <span class="entity-chip entity-chip--danger">Critical <%= severity_counts["critical"] %></span>
+    <span class="entity-chip entity-chip--warning">High <%= severity_counts["high"] %></span>
+    <span class="entity-chip entity-chip--accent">Medium <%= severity_counts["medium"] %></span>
+    <span class="entity-chip entity-chip--muted">Low <%= severity_counts["low"] %></span>
   </div>
 
   <% if @transactions.empty? %>
@@ -35,123 +71,166 @@
     </div>
   <% else %>
     <div class="rounded-lg border border-border overflow-x-auto">
-      <div class="min-w-[76rem]">
+      <div class="min-w-[92rem]">
         <div id="transactions-flex-header" class="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm border-b border-border">
           <div class="flex items-center h-8 px-3 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
             <div class="w-32 shrink-0">When</div>
+            <div class="w-36 shrink-0">Severity</div>
             <div class="w-24 shrink-0">Type</div>
-            <div class="w-56 shrink-0">Player</div>
-            <div class="w-48 shrink-0">Route</div>
-            <div class="w-40 shrink-0">Method</div>
-            <div class="w-[26rem] shrink-0">Description / match cue</div>
+            <div class="w-52 shrink-0">Player</div>
+            <div class="w-44 shrink-0">Route</div>
+            <div class="w-56 shrink-0">Impact deltas</div>
+            <div class="w-[20rem] shrink-0">Description / match cue</div>
           </div>
         </div>
 
-        <div id="transactions-date-lanes" class="divide-y divide-border/70">
-          <% date_groups.each do |group| %>
-            <% lane_key = group[:key].to_s.parameterize.presence || "undated" %>
-            <section id="transactions-date-group-<%= lane_key %>" class="border-b border-border/70 last:border-b-0">
-              <div class="sticky top-8 z-[6] border-b border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
-                <div class="flex items-center px-3 h-8 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-                  <div class="w-32 shrink-0 font-semibold text-foreground/90"><%= group[:headline] %></div>
-                  <div class="w-24 shrink-0 text-muted-foreground/80"><%= group[:subline] %></div>
-                  <div class="w-56 shrink-0 text-muted-foreground/80"><%= group[:relative_label] %></div>
-                  <div class="w-48 shrink-0 text-muted-foreground/70">Day bucket</div>
-                  <div class="w-40 shrink-0 text-muted-foreground/70">Rows</div>
-                  <div class="w-[26rem] shrink-0 text-right font-mono tabular-nums text-foreground/85"><%= group[:row_count] %></div>
+        <div id="transactions-severity-lanes" class="divide-y divide-border/70">
+          <% severity_lanes.each do |lane| %>
+            <% lane_key = lane[:key].to_s.parameterize.presence || "all" %>
+            <section id="transactions-severity-lane-<%= lane_key %>" class="border-b border-border/70 last:border-b-0">
+              <div class="sticky top-8 z-[7] border-b border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+                <div class="flex items-center px-3 h-8 text-[10px] uppercase tracking-wide">
+                  <div class="w-32 shrink-0"><span class="<%= severity_chip_class.call(lane[:key]) %>"><%= lane[:headline] %></span></div>
+                  <div class="w-36 shrink-0 text-muted-foreground/80 truncate"><%= lane[:subline] %></div>
+                  <div class="w-24 shrink-0 text-muted-foreground/70">Lane rows</div>
+                  <div class="w-52 shrink-0 text-right font-mono tabular-nums text-foreground/85"><%= lane[:row_count] %></div>
                 </div>
               </div>
 
-              <div class="divide-y divide-border/50">
-                <% Array(group[:rows]).each do |txn| %>
-                  <% row_id = txn["transaction_id"].to_s %>
-                  <% open_expr = "$overlaytype = 'transaction'; $overlayid = '#{row_id}'; @get('/transactions/sidebar/#{row_id}')" %>
-                  <% type_code = txn["transaction_type_lk"].to_s %>
-                  <% type_variant = case type_code
-                     when "SIGN", "RSIGN" then "entity-chip--success"
-                     when "WAIVE", "WAIVR" then "entity-chip--danger"
-                     when "EXTSN" then "entity-chip--accent"
-                     else "entity-chip--muted"
-                     end %>
-                  <% row_date = format_plain_date(txn["transaction_date"]) %>
+              <div class="divide-y divide-border/60">
+                <% Array(lane[:date_groups]).each do |group| %>
+                  <% group_key = group[:key].to_s.parameterize.presence || "undated" %>
+                  <div id="transactions-severity-lane-<%= lane_key %>-group-<%= group_key %>" class="border-b border-border/40 last:border-b-0">
+                    <div class="flex items-center px-3 h-7 text-[10px] uppercase tracking-wide text-muted-foreground/80 bg-muted/20 border-b border-border/40">
+                      <div class="w-32 shrink-0 font-semibold text-foreground/90"><%= group[:headline] %></div>
+                      <div class="w-36 shrink-0"><%= [group[:subline], group[:relative_label]].compact.join(" · ") %></div>
+                      <div class="w-24 shrink-0">Rows</div>
+                      <div class="w-52 shrink-0 text-right font-mono tabular-nums"><%= group[:row_count] %></div>
+                    </div>
 
-                  <div
-                    class="group cursor-pointer hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
-                    role="button"
-                    tabindex="0"
-                    data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'transaction' && $overlayid === '<%= row_id %>' }"
-                    data-on:click="<%= open_expr %>"
-                    data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= open_expr %>; }"
-                  >
-                    <div class="flex items-center min-h-[56px] px-3 text-xs">
-                      <div class="w-32 shrink-0 pr-2">
-                        <div class="entity-cell-two-line">
-                          <div class="entity-cell-primary justify-start">
-                            <a href="<%= transaction_path(txn['transaction_id']) %>" class="font-medium font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">#<%= txn["transaction_id"] %></a>
+                    <div class="divide-y divide-border/40">
+                      <% Array(group[:rows]).each do |txn| %>
+                        <% row_id = txn["transaction_id"].to_s %>
+                        <% open_expr = "$overlaytype = 'transaction'; $overlayid = '#{row_id}'; @get('/transactions/sidebar/#{row_id}')" %>
+                        <% type_code = txn["transaction_type_lk"].to_s %>
+                        <% type_variant = case type_code
+                           when "SIGN", "RSIGN" then "entity-chip--success"
+                           when "WAIVE", "WAIVR" then "entity-chip--danger"
+                           when "EXTSN" then "entity-chip--accent"
+                           else "entity-chip--muted"
+                           end %>
+                        <% row_date = format_plain_date(txn["transaction_date"]) %>
+                        <% artifact_tags = [] %>
+                        <% artifact_tags << "#{txn['dead_money_count'].to_i} dead" if txn["dead_money_count"].to_i.positive? %>
+                        <% artifact_tags << "#{txn['exception_usage_count'].to_i} exc" if txn["exception_usage_count"].to_i.positive? %>
+                        <% artifact_tags << "#{txn['budget_snapshot_count'].to_i} budget" if txn["budget_snapshot_count"].to_i.positive? %>
+                        <% max_delta = txn["impact_max_delta"].to_f %>
+
+                        <div
+                          class="group cursor-pointer hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
+                          role="button"
+                          tabindex="0"
+                          data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'transaction' && $overlayid === '<%= row_id %>' }"
+                          data-on:click="<%= open_expr %>"
+                          data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= open_expr %>; }"
+                        >
+                          <div class="flex items-center min-h-[58px] px-3 text-xs">
+                            <div class="w-32 shrink-0 pr-2">
+                              <div class="entity-cell-two-line">
+                                <div class="entity-cell-primary justify-start">
+                                  <a href="<%= transaction_path(txn['transaction_id']) %>" class="font-medium font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">#<%= txn["transaction_id"] %></a>
+                                </div>
+                                <div class="entity-cell-secondary justify-start font-mono tabular-nums"><%= row_date %></div>
+                              </div>
+                            </div>
+
+                            <div class="w-36 shrink-0 pr-2">
+                              <div class="entity-cell-two-line">
+                                <div class="entity-cell-primary justify-start gap-1.5">
+                                  <span class="<%= severity_chip_class.call(txn['severity_key']) %>"><%= txn["severity_label"].presence || "Low impact" %></span>
+                                </div>
+                                <div class="entity-cell-secondary justify-start truncate">
+                                  <% if artifact_tags.any? %>
+                                    <%= artifact_tags.join(" · ") %>
+                                  <% else %>
+                                    <%= txn["ledger_row_count"].to_i %> ledger row<%= "s" if txn["ledger_row_count"].to_i != 1 %>
+                                  <% end %>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div class="w-24 shrink-0 pr-2">
+                              <div class="entity-cell-two-line">
+                                <div class="entity-cell-primary justify-start"><span class="entity-chip <%= type_variant %>"><%= type_code.presence || "—" %></span></div>
+                                <div class="entity-cell-secondary justify-start"><%= txn["trade_id"].present? ? "trade-linked" : "standalone" %></div>
+                              </div>
+                            </div>
+
+                            <div class="w-52 shrink-0 pr-2">
+                              <div class="entity-cell-two-line">
+                                <div class="entity-cell-primary justify-start">
+                                  <% if txn["player_id"].present? %>
+                                    <a href="<%= player_href(txn['player_id']) %>" class="font-medium truncate hover:underline" onclick="event.stopPropagation()"><%= txn["player_name"] %></a>
+                                  <% else %>
+                                    <span class="text-muted-foreground">—</span>
+                                  <% end %>
+                                </div>
+                                <div class="entity-cell-secondary justify-start">id: <code class="font-mono tabular-nums"><%= txn["player_id"].presence || "—" %></code></div>
+                              </div>
+                            </div>
+
+                            <div class="w-44 shrink-0 pr-2">
+                              <div class="entity-cell-two-line">
+                                <div class="entity-cell-primary justify-start gap-1">
+                                  <% if txn["from_team_code"].present? %>
+                                    <a href="<%= team_href(team_code: txn['from_team_code']) %>" class="font-medium hover:underline" onclick="event.stopPropagation()"><%= txn["from_team_code"] %></a>
+                                  <% else %>
+                                    <span class="text-muted-foreground">—</span>
+                                  <% end %>
+                                  <span class="text-muted-foreground/60">→</span>
+                                  <% if txn["to_team_code"].present? %>
+                                    <a href="<%= team_href(team_code: txn['to_team_code']) %>" class="font-medium hover:underline" onclick="event.stopPropagation()"><%= txn["to_team_code"] %></a>
+                                  <% else %>
+                                    <span class="text-muted-foreground">—</span>
+                                  <% end %>
+                                </div>
+                                <div class="entity-cell-secondary justify-start truncate"><%= [txn["from_team_name"], txn["to_team_name"]].compact.reject(&:blank?).join(" → ").presence || "No team route" %></div>
+                              </div>
+                            </div>
+
+                            <div class="w-56 shrink-0 pr-2">
+                              <div class="entity-cell-two-line">
+                                <div class="entity-cell-primary justify-start gap-1.5 font-mono tabular-nums">
+                                  <span class="<%= delta_class_for.call(max_delta) %>">Max Δ <%= format_salary(max_delta) %></span>
+                                  <span class="text-muted-foreground/60">·</span>
+                                  <span class="text-muted-foreground"><%= txn["ledger_row_count"].to_i %> rows</span>
+                                </div>
+                                <div class="entity-cell-secondary justify-start gap-1.5 font-mono tabular-nums truncate">
+                                  <span class="<%= delta_class_for.call(txn['cap_change_total']) %>">Cap <%= format_salary(txn["cap_change_total"]) %></span>
+                                  <span class="text-muted-foreground/50">·</span>
+                                  <span class="<%= delta_class_for.call(txn['tax_change_total']) %>">Tax <%= format_salary(txn["tax_change_total"]) %></span>
+                                  <span class="text-muted-foreground/50">·</span>
+                                  <span class="<%= delta_class_for.call(txn['apron_change_total']) %>">Apron <%= format_salary(txn["apron_change_total"]) %></span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div class="w-[20rem] shrink-0 pr-1">
+                              <div class="entity-cell-two-line">
+                                <div class="entity-cell-primary justify-start text-[11px] truncate"><%= txn["transaction_description_lk"].presence || "—" %></div>
+                                <div class="entity-cell-secondary justify-start gap-1 truncate">
+                                  <% if @query.present? && txn["intent_match_cue"].present? %>
+                                    <span class="uppercase tracking-wide text-[9px] text-muted-foreground/70">match</span>
+                                    <span class="font-medium text-foreground/90 truncate" title="<%= txn['intent_match_title'] %>"><%= txn["intent_match_cue"] %></span>
+                                  <% else %>
+                                    <span class="text-muted-foreground/60"><%= txn["signed_method_lk"].presence || txn["contract_type_lk"].presence || "No intent cue" %></span>
+                                  <% end %>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <div class="entity-cell-secondary justify-start font-mono tabular-nums"><%= row_date %></div>
                         </div>
-                      </div>
-
-                      <div class="w-24 shrink-0 pr-2">
-                        <div class="entity-cell-two-line">
-                          <div class="entity-cell-primary justify-start"><span class="entity-chip <%= type_variant %>"><%= type_code.presence || "—" %></span></div>
-                          <div class="entity-cell-secondary justify-start"><%= txn["trade_id"].present? ? "trade-linked" : "standalone" %></div>
-                        </div>
-                      </div>
-
-                      <div class="w-56 shrink-0 pr-2">
-                        <div class="entity-cell-two-line">
-                          <div class="entity-cell-primary justify-start">
-                            <% if txn["player_id"].present? %>
-                              <a href="<%= player_href(txn['player_id']) %>" class="font-medium truncate hover:underline" onclick="event.stopPropagation()"><%= txn["player_name"] %></a>
-                            <% else %>
-                              <span class="text-muted-foreground">—</span>
-                            <% end %>
-                          </div>
-                          <div class="entity-cell-secondary justify-start">id: <code class="font-mono tabular-nums"><%= txn["player_id"].presence || "—" %></code></div>
-                        </div>
-                      </div>
-
-                      <div class="w-48 shrink-0 pr-2">
-                        <div class="entity-cell-two-line">
-                          <div class="entity-cell-primary justify-start gap-1">
-                            <% if txn["from_team_code"].present? %>
-                              <a href="<%= team_href(team_code: txn['from_team_code']) %>" class="font-medium hover:underline" onclick="event.stopPropagation()"><%= txn["from_team_code"] %></a>
-                            <% else %>
-                              <span class="text-muted-foreground">—</span>
-                            <% end %>
-                            <span class="text-muted-foreground/60">→</span>
-                            <% if txn["to_team_code"].present? %>
-                              <a href="<%= team_href(team_code: txn['to_team_code']) %>" class="font-medium hover:underline" onclick="event.stopPropagation()"><%= txn["to_team_code"] %></a>
-                            <% else %>
-                              <span class="text-muted-foreground">—</span>
-                            <% end %>
-                          </div>
-                          <div class="entity-cell-secondary justify-start truncate"><%= [txn["from_team_name"], txn["to_team_name"]].compact.reject(&:blank?).join(" → ").presence || "No team route" %></div>
-                        </div>
-                      </div>
-
-                      <div class="w-40 shrink-0 pr-2">
-                        <div class="entity-cell-two-line">
-                          <div class="entity-cell-primary justify-start"><span class="font-mono tabular-nums"><%= txn["signed_method_lk"].presence || "—" %></span></div>
-                          <div class="entity-cell-secondary justify-start truncate"><%= txn["contract_type_lk"].presence || "—" %></div>
-                        </div>
-                      </div>
-
-                      <div class="w-[26rem] shrink-0 pr-1">
-                        <div class="entity-cell-two-line">
-                          <div class="entity-cell-primary justify-start text-[11px] truncate"><%= txn["transaction_description_lk"].presence || "—" %></div>
-                          <div class="entity-cell-secondary justify-start gap-1 truncate">
-                            <% if @query.present? && txn["intent_match_cue"].present? %>
-                              <span class="uppercase tracking-wide text-[9px] text-muted-foreground/70">match</span>
-                              <span class="font-medium text-foreground/90 truncate" title="<%= txn['intent_match_title'] %>"><%= txn["intent_match_cue"] %></span>
-                            <% else %>
-                              <span class="text-muted-foreground/60">No intent cue</span>
-                            <% end %>
-                          </div>
-                        </div>
-                      </div>
+                      <% end %>
                     </div>
                   </div>
                 <% end %>

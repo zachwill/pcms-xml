@@ -38,6 +38,7 @@ module Entities
           txnwaivers: @waivers,
           txnextensions: @extensions,
           txnother: @other,
+          txnimpact: @impact,
           overlaytype: resolved_overlay_type,
           overlayid: resolved_overlay_id
         )
