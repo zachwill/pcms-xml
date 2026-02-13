@@ -358,22 +358,32 @@ Corrective TODOs for next worker cycle (mandatory):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P2] [ENTITY] /draft-picks/:slug — redesign protections + trade chain into rule lanes and chain map
+- [x] [P2] [ENTITY] /draft-picks/:slug — redesign protections + trade chain into rule lanes and chain map
   - Problem: Draft pick detail is thorough but table-heavy and hard to interpret quickly under conditional complexity.
   - Hypothesis: Rule-oriented lanes plus compact chain map will improve comprehension of protections/swaps.
   - Scope (files):
     - web/app/views/entities/draft_picks/show.html.erb
     - web/test/integration/entities_draft_picks_show_test.rb
-  - Acceptance criteria:
-    - Protection details and trade chain sections use lane grammar with explicit conditional/swap flags.
-    - Counterparty/original-owner context is visible without row-by-row table parsing.
-    - Trade/team pivots remain immediate.
-  - Rubric (before → target):
+  - Patch targets: `#maincanvas` (`#protections`, `#trade-chain`, local-nav labels)
+  - Response type: full-page `text/html` show render (`Entities::DraftPicksController#show`)
+  - What changed (files):
+    - Rebuilt `#protections` in `web/app/views/entities/draft_picks/show.html.erb` from table markup into rule lanes (`Conditional protections`, `Swap rights`, `Direct conveyance`, `Forfeiture / review`) with lane rollups, explicit conditional/swap/forfeited/review chips, and dense row grammar (`entity-cell-two-line`).
+    - Added per-rule counterparty route visibility (counterparty, pool, via chain) and inline trade pivots sourced from referenced endnotes so ownership context no longer requires column-by-column table scanning.
+    - Reframed `#trade-chain` into a compact chain map (team-node route + hop depth + original/current owner chips) plus hop lanes (`Conditional`, `Swap`, `Direct`) with `From → To`, original-owner, trade pivot, and flag cells in one scan path.
+    - Added focused integration coverage in `web/test/integration/entities_draft_picks_show_test.rb` to assert no `<table>` markup in `#protections`/`#trade-chain`, presence of rule-lane + chain-map labels, explicit conditional/swap flags, and preserved `/teams/*` + `/trades/*` pivots.
+  - Why this improves the flow:
+    - Protection interpretation now starts from rule intent (conditional vs swap vs direct vs flagged) instead of deciphering a flat asset grid.
+    - Counterparty and original-owner context is surfaced in lane headers and per-row route cells, reducing backtracking across sections.
+    - Chain map + hop lanes gives a quick ownership route summary and still preserves detailed audit pivots in the same vertical scan.
+  - Rubric (before → after):
     - Scan speed: 3 → 5
     - Information hierarchy: 3 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 3 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Add lane filter chips (`all`, `conditional only`, `swap only`, `flagged`) with URL-stable state for long pick-rule payloads.
+    - Add cross-highlight between rule-lane rows and matching hop rows once shared chain identifiers are available in draft pick assets.
   - Guardrails:
     - Do not modify Salary Book files.
 
