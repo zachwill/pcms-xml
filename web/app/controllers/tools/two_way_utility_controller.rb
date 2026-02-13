@@ -51,6 +51,7 @@ module Tools
     # - #rightpanel-overlay (preserved when selected row remains visible)
     def refresh
       load_workspace_state!
+      apply_compare_action!
 
       requested_overlay_id = requested_overlay_id_param
       overlay_html, resolved_overlay_type, resolved_overlay_id = refreshed_overlay_payload(
@@ -74,6 +75,8 @@ module Tools
           twconference: @conference,
           twteam: @team.to_s,
           twrisk: @risk,
+          comparea: @compare_a_id.to_s,
+          compareb: @compare_b_id.to_s,
           overlaytype: resolved_overlay_type,
           overlayid: resolved_overlay_id
         )
@@ -104,6 +107,10 @@ module Tools
       @team_codes = resolve_team_codes(@team_options, @rows_by_team.keys, @team)
 
       @state_query = build_state_query
+      @compare_a_id = normalize_player_id_param(params[:compare_a])
+      @compare_b_id = normalize_player_id_param(params[:compare_b])
+      normalize_compare_slots!
+      hydrate_compare_rows!
       @selected_player_id = normalize_selected_player_id_param(params[:selected_id])
       build_sidebar_summary!(selected_player_id: @selected_player_id)
     end
@@ -121,6 +128,10 @@ module Tools
       @team_options = []
       @team_codes = []
       @state_query = build_state_query
+      @compare_a_id = nil
+      @compare_b_id = nil
+      @compare_a_row = nil
+      @compare_b_row = nil
       @selected_player_id = nil
       build_sidebar_summary!(selected_player_id: @selected_player_id)
     end
@@ -138,6 +149,85 @@ module Tools
     def resolve_risk(value)
       normalized = value.to_s.strip
       RISK_LENSES.include?(normalized) ? normalized : "all"
+    end
+
+    def resolve_compare_action(value)
+      normalized = value.to_s.strip
+      return normalized if %w[pin clear_slot clear_all].include?(normalized)
+
+      nil
+    end
+
+    def resolve_compare_slot(value)
+      normalized = value.to_s.strip.downcase
+      return normalized if %w[a b].include?(normalized)
+
+      nil
+    end
+
+    def normalize_player_id_param(raw)
+      player_id = Integer(raw.to_s.strip, 10)
+      player_id.positive? ? player_id : nil
+    rescue ArgumentError, TypeError
+      nil
+    end
+
+    def normalize_compare_slots!
+      if @compare_a_id.present? && @compare_a_id == @compare_b_id
+        @compare_b_id = nil
+      end
+    end
+
+    def hydrate_compare_rows!
+      @compare_a_row = row_for_compare_slot(@compare_a_id)
+      @compare_b_row = row_for_compare_slot(@compare_b_id)
+
+      @compare_a_id = nil if @compare_a_id.present? && @compare_a_row.blank?
+      @compare_b_id = nil if @compare_b_id.present? && @compare_b_row.blank?
+      normalize_compare_slots!
+
+      @compare_a_row = nil if @compare_a_id.blank?
+      @compare_b_row = nil if @compare_b_id.blank?
+    end
+
+    def row_for_compare_slot(player_id)
+      normalized_id = player_id.to_i
+      return nil if normalized_id <= 0
+
+      @rows.find { |row| row["player_id"].to_i == normalized_id } || fetch_player_row(normalized_id)
+    end
+
+    def apply_compare_action!
+      action = resolve_compare_action(params[:action])
+      slot = resolve_compare_slot(params[:slot])
+      player_id = normalize_player_id_param(params[:player_id])
+
+      case action
+      when "pin"
+        return if slot.blank? || player_id.blank?
+
+        if slot == "a"
+          @compare_a_id = player_id
+          @compare_b_id = nil if @compare_b_id == player_id
+        else
+          @compare_b_id = player_id
+          @compare_a_id = nil if @compare_a_id == player_id
+        end
+      when "clear_slot"
+        return if slot.blank?
+
+        if slot == "a"
+          @compare_a_id = nil
+        else
+          @compare_b_id = nil
+        end
+      when "clear_all"
+        @compare_a_id = nil
+        @compare_b_id = nil
+      end
+
+      normalize_compare_slots!
+      hydrate_compare_rows!
     end
 
     def build_state_query
@@ -460,10 +550,7 @@ module Tools
     end
 
     def normalize_selected_player_id_param(raw)
-      selected_id = Integer(raw.to_s.strip, 10)
-      selected_id.positive? ? selected_id : nil
-    rescue ArgumentError, TypeError
-      nil
+      normalize_player_id_param(raw)
     end
 
     def requested_overlay_id_param

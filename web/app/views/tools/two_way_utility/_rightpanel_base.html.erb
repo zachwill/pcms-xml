@@ -1,5 +1,49 @@
-<% summary = @sidebar_summary || {} %>
-<% quick_rows = Array(summary[:quick_rows]) %>
+<%
+  summary = @sidebar_summary || {}
+  quick_rows = Array(summary[:quick_rows])
+
+  compare_slots = [
+    { key: "a", label: "Slot A", player_id: @compare_a_id, row: @compare_a_row, tone: "indigo" },
+    { key: "b", label: "Slot B", player_id: @compare_b_id, row: @compare_b_row, tone: "emerald" }
+  ]
+
+  compare_ready = @compare_a_row.present? && @compare_b_row.present?
+  used_pct_label = ->(row) do
+    ratio = row["games_used_pct"]&.to_f
+    ratio.present? ? "#{(ratio * 100).round}%" : "—"
+  end
+
+  refresh_base = "/tools/two-way-utility/sse/refresh?#{@state_query}"
+  compare_state_suffix_expr = "'&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '')"
+
+  if compare_ready
+    remaining_delta = @compare_b_row["remaining_active_list_games"].to_i - @compare_a_row["remaining_active_list_games"].to_i
+    used_pct_delta = ((@compare_b_row["games_used_pct"].to_f - @compare_a_row["games_used_pct"].to_f) * 100.0)
+
+    signing_a = format_date_short(@compare_a_row["signing_date"])
+    signing_b = format_date_short(@compare_b_row["signing_date"])
+
+    signing_delta_label = begin
+      if @compare_a_row["signing_date"].present? && @compare_b_row["signing_date"].present?
+        a_date = Date.parse(@compare_a_row["signing_date"].to_s)
+        b_date = Date.parse(@compare_b_row["signing_date"].to_s)
+        diff_days = (b_date - a_date).to_i
+
+        if diff_days.zero?
+          "same signing day"
+        elsif diff_days.positive?
+          "#{diff_days}d later"
+        else
+          "#{diff_days.abs}d earlier"
+        end
+      else
+        "insufficient date context"
+      end
+    rescue ArgumentError
+      "insufficient date context"
+    end
+  end
+%>
 
 <div id="rightpanel-base" class="space-y-4">
   <div class="rounded-lg border border-border bg-background p-3 space-y-3">
@@ -23,6 +67,83 @@
         <% Array(summary[:active_filters]).each do |label| %>
           <span class="entity-chip entity-chip--muted"><%= label %></span>
         <% end %>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="rounded-lg border border-border bg-background p-3 space-y-2">
+    <div class="flex items-center justify-between gap-2">
+      <div>
+        <div class="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/80">Compare board</div>
+        <div class="text-[11px] text-muted-foreground">Pin A / Pin B from rows to hold two at-risk players while you keep scanning.</div>
+      </div>
+
+      <% if @compare_a_id.present? || @compare_b_id.present? %>
+        <button
+          type="button"
+          class="cursor-pointer text-[10px] text-muted-foreground hover:text-foreground hover:underline"
+          data-on:click="@get('<%= refresh_base %>' + (<%= compare_state_suffix_expr %>) + '&action=clear_all')"
+        >Clear all</button>
+      <% end %>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2">
+      <% compare_slots.each do |slot| %>
+        <% row = slot[:row] %>
+        <% slot_code = slot[:player_id].to_s %>
+        <% slot_signal = slot[:key] == "a" ? "$comparea" : "$compareb" %>
+        <% tone_classes = slot[:tone] == "indigo" ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" %>
+
+        <div class="rounded border border-border px-2 py-2 space-y-1.5 min-h-[88px]">
+          <div class="flex items-center justify-between gap-2">
+            <span class="inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide <%= tone_classes %>"><%= slot[:label] %></span>
+            <% if slot[:player_id].present? %>
+              <button
+                type="button"
+                class="cursor-pointer text-[10px] text-muted-foreground hover:text-foreground hover:underline"
+                data-on:click="@get('<%= refresh_base %>' + (<%= compare_state_suffix_expr %>) + '&action=clear_slot&slot=<%= slot[:key] %>')"
+              >Clear</button>
+            <% end %>
+          </div>
+
+          <% if row.present? %>
+            <% row_id = row["player_id"].to_s %>
+            <% open_expr = "$overlaytype = 'player'; $overlayid = '#{row_id}'; @get('/tools/two-way-utility/sidebar/#{row_id}?#{@state_query}')" %>
+            <button
+              type="button"
+              class="cursor-pointer w-full text-left"
+              data-on:click="<%= open_expr %>"
+            >
+              <div class="text-xs font-medium truncate"><%= row["player_name"] %></div>
+              <div class="text-[10px] text-muted-foreground/80 tabular-nums"><%= row["team_code"] %> · <%= row["remaining_active_list_games"].presence || "—" %> left</div>
+              <div class="text-[10px] text-muted-foreground/80 tabular-nums">Used <%= used_pct_label.call(row) %> · Signed <%= format_date_short(row["signing_date"]).presence || "—" %></div>
+              <div class="mt-1">
+                <span class="entity-chip entity-chip--muted" data-show="<%= slot_signal %> === '<%= row_id %>'" style="display: none;">Pinned</span>
+              </div>
+            </button>
+          <% else %>
+            <div class="text-[11px] text-muted-foreground italic">No player pinned.</div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+
+    <% if compare_ready %>
+      <div class="rounded border border-border/60 bg-muted/20 px-2.5 py-2 text-[11px] tabular-nums space-y-1.5">
+        <div class="font-medium text-muted-foreground"><%= @compare_b_row["player_name"] %> vs <%= @compare_a_row["player_name"] %> delta</div>
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-muted-foreground">Remaining games</span>
+          <span class="font-medium <%= remaining_delta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' %>"><%= remaining_delta >= 0 ? '+' : '' %><%= remaining_delta %></span>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-muted-foreground">Used %</span>
+          <span class="font-medium <%= used_pct_delta <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' %>"><%= used_pct_delta.positive? ? '+' : '' %><%= used_pct_delta.round %>pp</span>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-muted-foreground">Signing context</span>
+          <span class="font-medium text-right"><%= signing_delta_label %></span>
+        </div>
+        <div class="text-[10px] text-muted-foreground/80"><%= @compare_a_row["player_name"] %>: <%= signing_a.presence || '—' %> · <%= @compare_b_row["player_name"] %>: <%= signing_b.presence || '—' %></div>
       </div>
     <% end %>
   </div>

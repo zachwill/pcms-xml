@@ -391,26 +391,38 @@ Supervisor review — 2026-02-13 (pass 2):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P2] [TOOL] /tools/two-way-utility — compare two at-risk players without leaving the risk board
+- [x] [P2] [TOOL] /tools/two-way-utility — compare two at-risk players without leaving the risk board
   - Problem: Users can inspect one player deeply, but can’t hold two candidates side-by-side while scanning risk queues.
   - Hypothesis: Inline pin-to-compare for players will accelerate roster-decision workflows.
   - Scope (files):
     - web/app/views/tools/two_way_utility/_player_row.html.erb
     - web/app/views/tools/two_way_utility/_rightpanel_base.html.erb
     - web/app/views/tools/two_way_utility/show.html.erb
+    - web/app/views/tools/two_way_utility/_workspace_main.html.erb
     - web/app/controllers/tools/two_way_utility_controller.rb
     - web/test/integration/tools_two_way_utility_test.rb
-  - Acceptance criteria:
-    - Player rows expose Pin A / Pin B interactions in dense-row format.
-    - Sidebar base shows compare board with key deltas (remaining games, used %, signing context).
-    - Compare updates preserve active player overlay when still visible and avoid full-page reloads.
-    - URL and signals capture compare state for shareable lenses.
-  - Rubric (before → target):
+  - What changed:
+    - Added compare state (`comparea`, `compareb`) to Two-Way Utility signal state, made commandbar refresh requests carry compare params, and added root-level URL sync so compare slots are shareable in `/tools/two-way-utility?…&compare_a=…&compare_b=…`.
+    - Extended `Tools::TwoWayUtilityController` to parse/normalize compare slots, hydrate pinned players (including lookup when filtered out), apply compare actions (`pin`, `clear_slot`, `clear_all`) during `/tools/two-way-utility/sse/refresh`, and patch compare signals in the same SSE response.
+    - Added dense row-level **Pin A / Pin B** controls to `_player_row` (with slot badges and pinned-row emphasis) without changing row-open drill-in behavior.
+    - Rebuilt `_rightpanel_base` to include a compare board with Slot A/Slot B cards, clear controls, focus-back-to-overlay behavior, and compare deltas for remaining games, used %, and signing context.
+    - Updated workspace guidance copy and expanded integration tests for compare URL restore, compare action SSE patching, and overlay-preserve behavior while pinning.
+  - Why this improves the flow:
+    - Users can now hold two at-risk players while continuing to scan/filter the board, instead of oscillating between one-player overlays.
+    - Compare actions stay inside the existing one-request SSE refresh contract, so interaction grammar remains predictable and overlay continuity is preserved.
+    - Shareable URL state now captures active compare slots, making scouting/risk discussions reproducible.
+  - Verification:
+    - `cd web && bundle exec rails test test/integration/tools_two_way_utility_test.rb` *(fails in this environment: missing gem `lucide-rails-0.7.3`)*
+    - `cd web && ruby -c app/controllers/tools/two_way_utility_controller.rb && ruby -c test/integration/tools_two_way_utility_test.rb && ruby -rerb -e "['app/views/tools/two_way_utility/show.html.erb','app/views/tools/two_way_utility/_workspace_main.html.erb','app/views/tools/two_way_utility/_player_row.html.erb','app/views/tools/two_way_utility/_rightpanel_base.html.erb'].each { |p| ERB.new(File.read(p)).src }; puts 'ERB OK'"` *(syntax/ERB OK)*
+  - Rubric (before → after):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 5 → 5
     - Navigation/pivots: 5 → 5
+  - Follow-up tasks discovered:
+    - Add compare-slot pin/unpin affordances inside the player overlay header for parity with row-level controls.
+    - Consider surfacing “why risky” delta hints in compare cards (e.g., estimate-limit vs hard-limit source annotation) to strengthen decision trust.
   - Guardrails:
     - Do not modify Salary Book files.
 

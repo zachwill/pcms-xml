@@ -208,6 +208,21 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, "Compare board"
+      assert_includes response.body, ">Pin A</button>"
+      assert_includes response.body, ">Pin B</button>"
+    end
+  end
+
+  test "two-way utility restores compare board from query state" do
+    with_fake_connection do
+      get "/tools/two-way-utility", params: { compare_a: "1001", compare_b: "1002" }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.body, '"comparea":"1001"'
+      assert_includes response.body, '"compareb":"1002"'
+      assert_includes response.body, "Warning Wing vs Critical Prospect delta"
+      assert_includes response.body, "Signing context"
     end
   end
 
@@ -232,6 +247,9 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_includes response.body, "selected_id="
       assert_includes response.body, "$overlaytype === 'player' ? $overlayid : ''"
+      assert_includes response.body, "compare_a="
+      assert_includes response.body, "compare_b="
+      assert_includes response.body, "window.history.replaceState"
     end
   end
 
@@ -253,8 +271,35 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_includes response.body, '"twconference":"Western"'
       assert_includes response.body, '"twteam":"POR"'
       assert_includes response.body, '"twrisk":"critical"'
+      assert_includes response.body, '"comparea":""'
+      assert_includes response.body, '"compareb":""'
       assert_includes response.body, '"overlaytype":"none"'
       assert_includes response.body, '"overlayid":""'
+    end
+  end
+
+  test "two-way utility compare pin action updates compare slots without losing overlay context" do
+    with_fake_connection do
+      get "/tools/two-way-utility/sse/refresh", params: {
+        conference: "all",
+        team: "",
+        risk: "all",
+        selected_id: "1002",
+        compare_a: "",
+        compare_b: "",
+        action: "pin",
+        slot: "a",
+        player_id: "1001"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="rightpanel-base"'
+      assert_includes response.body, "Critical Prospect"
+      assert_includes response.body, '"comparea":"1001"'
+      assert_includes response.body, '"compareb":""'
+      assert_includes response.body, '"overlaytype":"player"'
+      assert_includes response.body, '"overlayid":"1002"'
     end
   end
 

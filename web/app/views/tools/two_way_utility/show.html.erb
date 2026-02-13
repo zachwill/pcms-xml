@@ -5,15 +5,21 @@
     '&team=' + encodeURIComponent($twteam) +
     '&risk=' + encodeURIComponent($twrisk)"
 
-  selected_overlay_query_expr = "'selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '')"
-  refresh_query_expr = "(#{pane_query_expr}) + '&' + (#{selected_overlay_query_expr})"
+  compare_query_expr = "'compare_a=' + encodeURIComponent($comparea || '') +
+    '&compare_b=' + encodeURIComponent($compareb || '')"
 
-  refresh_expr = "@get('/tools/two-way-utility/sse/refresh?' + (#{refresh_query_expr})); window.history.replaceState({}, '', '/tools/two-way-utility?' + (#{pane_query_expr}))"
+  selected_overlay_query_expr = "'selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '')"
+  refresh_query_expr = "(#{pane_query_expr}) + '&' + (#{compare_query_expr}) + '&' + (#{selected_overlay_query_expr})"
+
+  refresh_expr = "@get('/tools/two-way-utility/sse/refresh?' + (#{refresh_query_expr}))"
+  sync_url_expr = "const nextUrl = '/tools/two-way-utility?' + (#{pane_query_expr}) + '&' + (#{compare_query_expr}); if ((window.location.pathname + window.location.search) !== nextUrl) { window.history.replaceState({}, '', nextUrl); }"
 
   signals_literal = {
     twconference: @conference.to_s,
     twteam: @team.to_s,
     twrisk: @risk.to_s,
+    comparea: @compare_a_id.to_s,
+    compareb: @compare_b_id.to_s,
     overlaytype: "none",
     overlayid: ""
   }.to_json
@@ -26,6 +32,7 @@
   class="h-screen w-full flex flex-col overflow-hidden bg-background"
   style="height: 100dvh;"
   data-signals='<%= signals_literal %>'
+  data-effect="<%= sync_url_expr %>"
 >
   <div id="flash"></div>
 
