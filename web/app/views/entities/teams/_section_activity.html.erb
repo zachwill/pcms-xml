@@ -1,97 +1,175 @@
+<% ledger_rows = Array(@recent_ledger_entries) %>
+<% exception_rows = Array(@exception_usage_rows) %>
+<% ledger_preview = ledger_rows.first(30) %>
+<% exception_preview = exception_rows.first(30) %>
+
+<% delta_tone = lambda do |value|
+  amount = value.to_f
+  if amount > 0
+    "text-emerald-600 dark:text-emerald-400"
+  elsif amount < 0
+    "text-red-600 dark:text-red-400"
+  else
+    "text-muted-foreground"
+  end
+end %>
+
 <section id="activity" class="space-y-3">
   <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Transaction activity</h2>
-  <details class="rounded-lg border border-border bg-background" open>
-    <summary class="cursor-pointer px-4 py-3 text-sm font-medium hover:bg-muted/30">
-      Recent ledger + exception usage
-      <span class="ml-2 text-xs text-muted-foreground">(<%= @recent_ledger_entries.size %> ledger · <%= @exception_usage_rows.size %> exception usage)</span>
+
+  <details class="rounded-lg border border-border bg-background p-3" open>
+    <summary class="cursor-pointer text-sm font-medium">
+      Causal transaction lanes
+      <span class="ml-2 text-xs text-muted-foreground">(<%= ledger_rows.size %> ledger · <%= exception_rows.size %> exception actions)</span>
     </summary>
-    <div class="px-4 pb-4 space-y-4">
-      <div class="mt-3">
-        <div class="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Recent team ledger entries</div>
-        <% if @recent_ledger_entries.empty? %>
-          <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No ledger rows found.</div>
-        <% else %>
-          <div class="overflow-x-auto rounded-lg border border-border">
-            <table class="entity-table min-w-full text-xs">
-              <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-                <tr>
-                  <th class="text-left px-3 py-2 font-medium">Date</th>
-                  <th class="text-left px-3 py-2 font-medium">Player</th>
-                  <th class="text-left px-3 py-2 font-medium">Transaction</th>
-                  <th class="text-left px-3 py-2 font-medium">Type</th>
-                  <th class="text-right px-3 py-2 font-medium">Cap Δ</th>
-                  <th class="text-right px-3 py-2 font-medium">Tax Δ</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-border">
-                <% @recent_ledger_entries.first(30).each do |r| %>
-                  <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                    <td class="px-3 py-2 font-mono tabular-nums"><%= r["ledger_date"] || "—" %></td>
-                    <td class="px-3 py-2">
-                      <% if r["player_id"].present? %>
-                        <a href="<%= player_href(r['player_id']) %>" class="font-medium hover:underline"><%= r["player_name"] %></a>
-                      <% else %>
-                        <span class="text-muted-foreground"><%= r["player_name"] || "—" %></span>
-                      <% end %>
-                    </td>
-                    <td class="px-3 py-2 font-mono tabular-nums">
-                      <% if r["transaction_id"].present? %>
-                        <a href="<%= transaction_href(r['transaction_id']) %>" class="hover:underline">#<%= r["transaction_id"] %></a>
-                        <% if r["trade_id"].present? %>
-                          · <a href="<%= trade_href(r['trade_id']) %>" class="hover:underline">T#<%= r["trade_id"] %></a>
-                        <% end %>
-                      <% else %>
-                        <span class="text-muted-foreground">—</span>
-                      <% end %>
-                    </td>
-                    <td class="px-3 py-2 text-muted-foreground"><%= [r["transaction_type_lk"], r["transaction_description_lk"]].compact.reject(&:blank?).join(" · ").presence || "—" %></td>
-                    <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["cap_change"]) %></td>
-                    <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["tax_change"]) %></td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          </div>
-        <% end %>
+
+    <div class="mt-3 space-y-4">
+      <div class="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground/80">
+        <span>Event → cap/tax/apron consequence lanes</span>
+        <a href="#two-way" class="normal-case tracking-normal hover:underline">Two-way follow-through</a>
+        <span class="text-muted-foreground/50">·</span>
+        <a href="#apron-provenance" class="normal-case tracking-normal hover:underline">Apron provenance</a>
       </div>
 
-      <div>
-        <div class="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Exception usage audit</div>
-        <% if @exception_usage_rows.empty? %>
-          <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No exception usage rows found.</div>
-        <% else %>
-          <div class="overflow-x-auto rounded-lg border border-border">
-            <table class="entity-table min-w-full text-xs">
-              <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-                <tr>
-                  <th class="text-left px-3 py-2 font-medium">Date</th>
-                  <th class="text-left px-3 py-2 font-medium">Exception</th>
-                  <th class="text-left px-3 py-2 font-medium">Player</th>
-                  <th class="text-left px-3 py-2 font-medium">Action</th>
-                  <th class="text-right px-3 py-2 font-medium">Change</th>
-                  <th class="text-right px-3 py-2 font-medium">Remaining</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-border">
-                <% @exception_usage_rows.first(30).each do |r| %>
-                  <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                    <td class="px-3 py-2 font-mono tabular-nums"><%= r["effective_date"] || "—" %></td>
-                    <td class="px-3 py-2 text-muted-foreground"><%= r["exception_type_lk"] || "—" %></td>
-                    <td class="px-3 py-2">
+      <% if ledger_preview.empty? %>
+        <div class="p-3 rounded border border-border/60 text-sm text-muted-foreground italic">No ledger rows found.</div>
+      <% else %>
+        <div class="rounded-lg border border-border divide-y divide-border/60">
+          <% ledger_preview.each do |r| %>
+            <% event_label = [r["transaction_type_lk"], r["transaction_description_lk"]].compact.reject(&:blank?).join(" · ") %>
+            <% player_name = r["player_name"].presence || "—" %>
+
+            <article class="group px-3 py-2 transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10">
+              <div class="flex flex-wrap items-start gap-3">
+                <div class="w-44 shrink-0">
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary font-mono tabular-nums"><%= format_plain_date(r["ledger_date"]) %></div>
+                    <div class="entity-cell-secondary gap-1.5">
                       <% if r["player_id"].present? %>
-                        <a href="<%= player_href(r['player_id']) %>" class="font-medium hover:underline"><%= r["player_name"] %></a>
+                        <a href="<%= player_href(r['player_id']) %>" class="hover:underline truncate"><%= player_name %></a>
                       <% else %>
-                        <span class="text-muted-foreground"><%= r["player_name"] || "—" %></span>
+                        <span class="truncate text-muted-foreground/70"><%= player_name %></span>
                       <% end %>
-                    </td>
-                    <td class="px-3 py-2 text-muted-foreground"><%= [r["exception_action_lk"], r["transaction_type_lk"]].compact.reject(&:blank?).join(" · ").presence || "—" %></td>
-                    <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["change_amount"]) %></td>
-                    <td class="px-3 py-2 text-right font-mono tabular-nums"><%= format_salary(r["remaining_exception_amount"]) %></td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
+
+                      <% if r["trade_id"].present? %>
+                        <span class="entity-chip entity-chip--accent">Trade</span>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="min-w-0 flex-1 grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary gap-1.5 font-mono tabular-nums">
+                      <% if r["transaction_id"].present? %>
+                        <a href="<%= transaction_href(r['transaction_id']) %>" class="hover:underline">Txn #<%= r["transaction_id"] %></a>
+                      <% else %>
+                        <span class="text-muted-foreground/60">Txn —</span>
+                      <% end %>
+
+                      <% if r["trade_id"].present? %>
+                        <a href="<%= trade_href(r['trade_id']) %>" class="hover:underline">Trade #<%= r["trade_id"] %></a>
+                      <% end %>
+                    </div>
+                    <div class="entity-cell-secondary">Ledger source</div>
+                  </div>
+
+                  <div class="entity-cell-two-line xl:col-span-2">
+                    <div class="entity-cell-primary truncate"><%= event_label.presence || "—" %></div>
+                    <div class="entity-cell-secondary">Action context</div>
+                  </div>
+
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary justify-end font-mono tabular-nums <%= delta_tone.call(r['cap_change']) %>"><%= format_room_amount(r["cap_change"]) %></div>
+                    <div class="entity-cell-secondary justify-end font-mono tabular-nums">Cap Δ</div>
+                  </div>
+
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary justify-end font-mono tabular-nums <%= delta_tone.call(r['tax_change']) %>"><%= format_room_amount(r["tax_change"]) %></div>
+                    <div class="entity-cell-secondary justify-end font-mono tabular-nums">Tax Δ</div>
+                  </div>
+
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary justify-end font-mono tabular-nums <%= delta_tone.call(r['apron_change']) %>"><%= format_room_amount(r["apron_change"]) %></div>
+                    <div class="entity-cell-secondary justify-end font-mono tabular-nums">Apron Δ</div>
+                  </div>
+                </div>
+              </div>
+            </article>
+          <% end %>
+        </div>
+
+        <% if ledger_rows.size > ledger_preview.size %>
+          <div class="text-xs text-muted-foreground italic">Showing first <%= ledger_preview.size %> of <%= ledger_rows.size %> ledger rows.</div>
+        <% end %>
+      <% end %>
+
+      <div class="space-y-2">
+        <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Exception mechanism → remaining runway lanes</div>
+
+        <% if exception_preview.empty? %>
+          <div class="p-3 rounded border border-border/60 text-sm text-muted-foreground italic">No exception usage rows found.</div>
+        <% else %>
+          <div class="rounded-lg border border-border divide-y divide-border/60">
+            <% exception_preview.each do |r| %>
+              <% action_label = [r["exception_action_lk"], r["transaction_type_lk"]].compact.reject(&:blank?).join(" · ") %>
+              <% exception_label = r["exception_type_lk"].presence || "Exception" %>
+              <% player_name = r["player_name"].presence || "—" %>
+
+              <article class="group px-3 py-2 transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10">
+                <div class="flex flex-wrap items-start gap-3">
+                  <div class="w-44 shrink-0">
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary font-mono tabular-nums"><%= format_plain_date(r["effective_date"]) %></div>
+                      <div class="entity-cell-secondary gap-1.5">
+                        <span class="entity-chip entity-chip--muted"><%= exception_label %></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="min-w-0 flex-1 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary truncate"><%= action_label.presence || "—" %></div>
+                      <div class="entity-cell-secondary">Action</div>
+                    </div>
+
+                    <div class="entity-cell-two-line xl:col-span-2">
+                      <div class="entity-cell-primary gap-1.5">
+                        <% if r["player_id"].present? %>
+                          <a href="<%= player_href(r['player_id']) %>" class="hover:underline truncate"><%= player_name %></a>
+                        <% else %>
+                          <span class="truncate text-muted-foreground/70"><%= player_name %></span>
+                        <% end %>
+
+                        <% if r["transaction_id"].present? %>
+                          <a href="<%= transaction_href(r['transaction_id']) %>" class="entity-chip entity-chip--warning hover:underline">Txn #<%= r["transaction_id"] %></a>
+                        <% end %>
+
+                        <% if r["trade_id"].present? %>
+                          <a href="<%= trade_href(r['trade_id']) %>" class="entity-chip entity-chip--accent hover:underline">Trade #<%= r["trade_id"] %></a>
+                        <% end %>
+                      </div>
+                      <div class="entity-cell-secondary">Exception touchpoint</div>
+                    </div>
+
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary justify-end font-mono tabular-nums <%= delta_tone.call(r['change_amount']) %>"><%= format_room_amount(r["change_amount"]) %></div>
+                      <div class="entity-cell-secondary justify-end font-mono tabular-nums">Usage Δ</div>
+                    </div>
+
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= format_salary(r["remaining_exception_amount"]) %></div>
+                      <div class="entity-cell-secondary justify-end font-mono tabular-nums">Remaining</div>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            <% end %>
           </div>
+
+          <% if exception_rows.size > exception_preview.size %>
+            <div class="text-xs text-muted-foreground italic">Showing first <%= exception_preview.size %> of <%= exception_rows.size %> exception rows.</div>
+          <% end %>
         <% end %>
       </div>
     </div>

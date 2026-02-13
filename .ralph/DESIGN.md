@@ -131,7 +131,7 @@ Rubric (1-5):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [ENTITY] /teams/:slug — de-table activity, two-way, and apron provenance into causal flow lanes
+- [x] [P1] [ENTITY] /teams/:slug — de-table activity, two-way, and apron provenance into causal flow lanes
   - Problem: Team detail still has table-heavy operational sections that fragment the cap story.
   - Hypothesis: Converting these sections to dense flow lanes will improve “what changed and why” understanding.
   - Scope (files):
@@ -139,17 +139,31 @@ Rubric (1-5):
     - web/app/views/entities/teams/_section_two_way.html.erb
     - web/app/views/entities/teams/_section_apron_provenance.html.erb
     - web/app/views/entities/teams/show.html.erb
+    - web/app/controllers/entities/teams_sse_controller.rb
     - web/test/integration/entities_teams_show_test.rb
+  - What changed (files):
+    - Rebuilt `web/app/views/entities/teams/_section_activity.html.erb` into lane-based “event → consequence” rows for both ledger and exception usage, with direct player / transaction / trade pivots and inline cap/tax/apron deltas.
+    - Rebuilt `web/app/views/entities/teams/_section_two_way.html.erb` into a capacity posture lane + watchlist usage lanes (games used, limit, runway urgency, standard-slot context) and direct handoff link to Two-Way Utility.
+    - Rebuilt `web/app/views/entities/teams/_section_apron_provenance.html.erb` into provenance lanes that surface trigger reason, apron level, A1/A2 transaction lineage, and active constraints in one scan path.
+    - Updated `web/app/views/entities/teams/show.html.erb` and `web/app/controllers/entities/teams_sse_controller.rb` section ordering to keep the operational flow contiguous (`activity` → `two-way` → `apron-provenance`) in both initial render and bootstrap.
+    - Added focused coverage in `web/test/integration/entities_teams_show_test.rb` asserting lane rendering, no table markup in the three target sections, key causal labels, and preserved pivots.
+  - Why this improves the flow:
+    - Team operators can now read each operational row as one causal line (action source + references + cap/tax/apron effect) without horizontal table scanning.
+    - Two-way decisions are tied to explicit runway urgency and immediately connected to downstream tools, reducing context-switch friction.
+    - Apron provenance now reads as a decision chain (reason → level → constraints → triggering tx), making “why this restriction exists” answerable at a glance.
   - Acceptance criteria:
     - No `<table>` markup remains in the three target team section partials.
     - Rows expose event/action → cap/tax/apron consequence in one line of sight.
     - Related pivots (player/transaction/trade) are preserved or improved.
-  - Rubric (before → target):
+  - Rubric (before → after):
     - Scan speed: 3 → 5
     - Information hierarchy: 3 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 3 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Add quick lane filters in activity (`cap only`, `tax only`, `apron only`) to shrink long ledgers without leaving the section.
+    - Add cross-highlighting between apron provenance rows and matching activity transactions (shared transaction ID emphasis) for instant cause tracing.
   - Guardrails:
     - Do not modify Salary Book files.
 

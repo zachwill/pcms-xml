@@ -8,9 +8,9 @@ module Entities
       "entities/teams/section_roster",
       "entities/teams/section_draft_assets",
       "entities/teams/section_cap_horizon",
-      "entities/teams/section_apron_provenance",
+      "entities/teams/section_activity",
       "entities/teams/section_two_way",
-      "entities/teams/section_activity"
+      "entities/teams/section_apron_provenance"
     ].freeze
 
     # GET /teams/sse/refresh

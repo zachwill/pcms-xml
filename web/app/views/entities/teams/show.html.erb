@@ -92,18 +92,18 @@
           <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "roster", title: "Roster", rows: 8 } %>
           <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "draft-assets", title: "Draft assets", rows: 6 } %>
           <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "cap-horizon", title: "Cap horizon", rows: 5 } %>
-          <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "apron-provenance", title: "Apron provenance", rows: 6 } %>
-          <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "two-way", title: "Two-way capacity", rows: 4 } %>
           <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "activity", title: "Transaction activity", rows: 6 } %>
+          <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "two-way", title: "Two-way capacity", rows: 4 } %>
+          <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "apron-provenance", title: "Apron provenance", rows: 6 } %>
         <% else %>
           <%= render partial: "entities/teams/section_vitals" %>
           <%= render partial: "entities/teams/section_constraints" %>
           <%= render partial: "entities/teams/section_roster" %>
           <%= render partial: "entities/teams/section_draft_assets" %>
           <%= render partial: "entities/teams/section_cap_horizon" %>
-          <%= render partial: "entities/teams/section_apron_provenance" %>
-          <%= render partial: "entities/teams/section_two_way" %>
           <%= render partial: "entities/teams/section_activity" %>
+          <%= render partial: "entities/teams/section_two_way" %>
+          <%= render partial: "entities/teams/section_apron_provenance" %>
         <% end %>
       </div>
 
@@ -115,9 +115,9 @@
           ["roster", "Roster"],
           ["draft-assets", "Draft assets"],
           ["cap-horizon", "Cap horizon"],
-          ["apron-provenance", "Apron provenance"],
+          ["activity", "Activity"],
           ["two-way", "Two-way"],
-          ["activity", "Activity"]
+          ["apron-provenance", "Apron provenance"]
         ]
       } %>
     </div>
