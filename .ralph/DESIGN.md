@@ -17,10 +17,10 @@ Rubric (1-5):
 
 ## Backlog
 
-- [ ] [P1] [INDEX] /agencies (`web/app/views/entities/agencies/index.html.erb`) — open agencies as a first-class explorer workbench (not a redirect detour)
+- [x] [P1] [INDEX] /agencies (`web/app/views/entities/agencies/index.html.erb`) — open agencies as a first-class explorer workbench (not a redirect detour)
   - Problem: `/agencies` currently routes users through `/agents?kind=agencies`, which weakens orientation and hides agency-specific scanning context.
   - Hypothesis: A dedicated agencies workbench shell with agency-native knobs + overlay drill-ins will reduce navigation friction and improve agency workflow adoption.
-  - Scope (files):
+  - What changed (files):
     - `web/app/controllers/entities/agencies_controller.rb`
     - `web/app/controllers/entities/agencies_sse_controller.rb`
     - `web/app/views/entities/agencies/index.html.erb`
@@ -30,19 +30,21 @@ Rubric (1-5):
     - `web/app/views/entities/agencies/_rightpanel_clear.html.erb`
     - `web/config/routes.rb`
     - `web/test/integration/entities_agencies_index_test.rb`
-  - Acceptance criteria:
-    - Visiting `/agencies` returns a workbench shell with `#commandbar`, `#maincanvas`, `#rightpanel-base`, and `#rightpanel-overlay`.
-    - Commandbar exposes discoverable agency knobs (at minimum: name search, activity filter, year/sort lens).
-    - Row click opens an agency overlay with clear pivots to canonical agency + agent pages.
-    - Knob changes that affect main + sidebar regions are delivered via one ordered SSE response.
-  - Rubric (before → target):
+    - Removed: `web/test/integration/entities_agencies_entrypoint_test.rb` (redirect-era coverage)
+  - Why this improves the flow:
+    - `/agencies` is now a direct workbench shell (`#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`) instead of a detour redirect.
+    - Commandbar now exposes agency-native knobs: name search, activity lens, year lens, sort key, and sort direction.
+    - Dense agency rows open an in-place overlay with clear canonical pivots (`/agencies/:slug|:id`, `/agents/:slug|:id`, `/players/:slug|:id`).
+    - Multi-region knob refreshes are shipped in one ordered SSE response (main + sidebar base + overlay state/signals).
+  - Rubric (before → after):
     - Scan speed: 2 → 4
     - Information hierarchy: 2 → 4
     - Interaction predictability: 3 → 4
     - Density/readability: 3 → 4
     - Navigation/pivots: 2 → 4
-  - Guardrails:
-    - Do not modify Salary Book files.
+  - Follow-up tasks discovered:
+    - Add explicit “with clients / with restrictions / with expirings” checkbox lenses if agency triage needs tighter pre-filtering.
+    - Consider inline quick actions in agency rows (e.g., open top agent overlay) for even faster shortlist workflows.
 
 - [ ] [P1] [INDEX] /draft-selections (`web/app/views/entities/draft_selections/index.html.erb`) — find and trace draft selections without leaving the index flow
   - Problem: Draft selections discovery is legacy search-only and not workbench-oriented; provenance inspection requires context switching.

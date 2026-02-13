@@ -87,6 +87,11 @@ Rails.application.routes.draw do
     # Agencies
     # ---------------------------------------------------------------------
     get "agencies", to: "agencies#index"
+    get "agencies/pane", to: "agencies#pane"
+    get "agencies/sidebar/base", to: "agencies#sidebar_base", as: :agencies_sidebar_base
+    get "agencies/sidebar/clear", to: "agencies#sidebar_clear", as: :agencies_sidebar_clear
+    get "agencies/sidebar/:id", to: "agencies#sidebar", constraints: { id: /\d+/ }
+    get "agencies/sse/refresh", to: "agencies_sse#refresh", as: :agencies_sse_refresh
     get "agencies/:id", to: "agencies#redirect", constraints: { id: /\d+/ }
     get "agencies/:slug", to: "agencies#show", as: :agency, constraints: slug_route_constraint
 
