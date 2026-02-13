@@ -35,6 +35,7 @@ module Entities
           tradeteam: @team.to_s,
           tradesort: @sort,
           tradelens: @lens,
+          tradecomposition: @composition,
           overlaytype: resolved_overlay_type,
           overlayid: resolved_overlay_id
         )

@@ -132,6 +132,14 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
           ]
         end
 
+        if sql.include?("ranked_trades.player_count >= 2 AND ranked_trades.player_count >= ranked_trades.pick_count + 1")
+          rows = rows.select { |row| row[6].to_i >= 2 && row[6].to_i >= row[7].to_i + 1 }
+        elsif sql.include?("ranked_trades.pick_count >= 2 AND ranked_trades.pick_count >= ranked_trades.player_count + 1")
+          rows = rows.select { |row| row[7].to_i >= 2 && row[7].to_i >= row[6].to_i + 1 }
+        elsif sql.include?("ranked_trades.cash_line_count > 0 OR ranked_trades.tpe_line_count > 0")
+          rows = rows.select { |row| row[8].to_i.positive? || row[9].to_i.positive? }
+        end
+
         ActiveRecord::Result.new(
           [ "trade_id", "trade_date", "trade_finalized_date", "trade_comments", "teams_involved", "team_count", "player_count", "pick_count", "cash_line_count", "tpe_line_count", "complexity_asset_count" ],
           rows
@@ -376,7 +384,7 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "trades index exposes team and complexity controls plus sidebar surfaces" do
+  test "trades index exposes team, complexity, and composition controls plus sidebar surfaces" do
     with_fake_connection do
       get "/trades", params: { daterange: "season", team: "" }, headers: modern_headers
 
@@ -384,18 +392,20 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="trades-team-select"'
       assert_includes response.body, 'id="trades-sort-select"'
       assert_includes response.body, 'id="trades-lens-select"'
+      assert_includes response.body, 'id="trades-composition-select"'
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
     end
   end
 
-  test "trades refresh preserves selected overlay and patches active sort/lens signals" do
+  test "trades refresh preserves selected overlay and patches sort/lens/composition signals" do
     with_fake_connection do
       get "/trades/sse/refresh", params: {
         daterange: "season",
         team: "",
         sort: "most_assets",
         lens: "complex",
+        composition: "player_heavy",
         selected_type: "trade",
         selected_id: "88001"
       }, headers: modern_headers
@@ -407,6 +417,7 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "Trade #88001"
       assert_includes response.body, '"tradesort":"most_assets"'
       assert_includes response.body, '"tradelens":"complex"'
+      assert_includes response.body, '"tradecomposition":"player_heavy"'
       assert_includes response.body, '"overlaytype":"trade"'
       assert_includes response.body, '"overlayid":"88001"'
     end
@@ -424,6 +435,24 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, '<div id="rightpanel-overlay"></div>'
+      assert_includes response.body, '"overlaytype":"none"'
+      assert_includes response.body, '"overlayid":""'
+    end
+  end
+
+  test "trades refresh clears selected overlay when composition filter removes selected row" do
+    with_fake_connection do
+      get "/trades/sse/refresh", params: {
+        daterange: "season",
+        composition: "pick_heavy",
+        selected_type: "trade",
+        selected_id: "88001"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, '<div id="rightpanel-overlay"></div>'
+      assert_includes response.body, '"tradecomposition":"pick_heavy"'
       assert_includes response.body, '"overlaytype":"none"'
       assert_includes response.body, '"overlayid":""'
     end
@@ -584,6 +613,7 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_includes signals, 'tradeteam: ""'
       assert_includes signals, 'tradesort: "newest"'
       assert_includes signals, 'tradelens: "all"'
+      assert_includes signals, 'tradecomposition: "all"'
     end
   end
 

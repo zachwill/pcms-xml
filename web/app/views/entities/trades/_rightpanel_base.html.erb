@@ -18,6 +18,12 @@
       <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Complex", value: summary[:complex_deal_count].to_i.to_s, class_name: "w-full" } %>
     </div>
 
+    <div class="grid grid-cols-3 gap-1.5">
+      <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Player", value: summary[:player_heavy_deal_count].to_i.to_s, class_name: "w-full" } %>
+      <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Pick", value: summary[:pick_heavy_deal_count].to_i.to_s, class_name: "w-full" } %>
+      <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Cash/TPE", value: summary[:cash_tpe_deal_count].to_i.to_s, class_name: "w-full" } %>
+    </div>
+
     <% if Array(summary[:filters]).any? %>
       <div class="pt-1 flex flex-wrap gap-1">
         <% Array(summary[:filters]).each do |label| %>
@@ -34,6 +40,7 @@
         <% top_rows.each do |row| %>
           <% row_id = row["trade_id"].to_s %>
           <% teams_label = row["teams_involved"].presence || "No teams" %>
+          <% composition_labels = Array(row["composition_labels"]) %>
           <% open_expr = "$overlaytype = 'trade'; $overlayid = '#{row_id}'; @get('/trades/sidebar/#{row_id}')" %>
           <button
             type="button"
@@ -46,7 +53,12 @@
                 <span class="font-medium font-mono tabular-nums">#<%= row["trade_id"] %></span>
                 <span class="text-[10px] text-muted-foreground"><%= row["trade_date"].present? ? Date.parse(row["trade_date"].to_s).strftime("%b %d") : "—" %></span>
               </div>
-              <div class="entity-cell-secondary truncate"><%= teams_label %> · <%= row["team_count"].to_i %>T · <%= row["complexity_asset_count"].to_i %> assets</div>
+              <div class="entity-cell-secondary truncate">
+                <%= teams_label %> · <%= row["team_count"].to_i %>T · <%= row["complexity_asset_count"].to_i %> assets
+                <% if composition_labels.any? %>
+                  · <%= composition_labels.join(" + ") %>
+                <% end %>
+              </div>
             </div>
           </button>
         <% end %>

@@ -335,8 +335,12 @@ module Entities
       @lens = params[:lens].to_s.strip.presence || "all"
       @lens = "all" unless %w[all complex mega].include?(@lens)
 
+      @composition = params[:composition].to_s.strip.presence || "all"
+      @composition = "all" unless %w[all player_heavy pick_heavy cash_tpe].include?(@composition)
+
       @sort_label = trades_sort_label(@sort)
       @lens_label = trades_lens_label(@lens)
+      @composition_label = trades_composition_label(@composition)
 
       @team_options = conn.exec_query(<<~SQL).to_a
         SELECT team_code, team_name
@@ -379,6 +383,17 @@ module Entities
         "(ranked_trades.team_count >= 3 OR ranked_trades.complexity_asset_count >= 4)"
       when "mega"
         "(ranked_trades.team_count >= 4 OR ranked_trades.complexity_asset_count >= 6)"
+      else
+        "1=1"
+      end
+
+      composition_sql = case @composition
+      when "player_heavy"
+        "(ranked_trades.player_count >= 2 AND ranked_trades.player_count >= ranked_trades.pick_count + 1)"
+      when "pick_heavy"
+        "(ranked_trades.pick_count >= 2 AND ranked_trades.pick_count >= ranked_trades.player_count + 1)"
+      when "cash_tpe"
+        "(ranked_trades.cash_line_count > 0 OR ranked_trades.tpe_line_count > 0)"
       else
         "1=1"
       end
@@ -464,10 +479,12 @@ module Entities
           ranked_trades.complexity_asset_count
         FROM ranked_trades
         WHERE #{lens_sql}
+          AND #{composition_sql}
         ORDER BY #{order_sql}
         LIMIT 200
       SQL
 
+      annotate_trade_rows!(@trades)
       build_sidebar_summary!
     end
 
@@ -475,7 +492,8 @@ module Entities
       rows = Array(@trades)
       filters = ["Date: #{daterange_label(@daterange)}"]
       filters << "Team: #{@team}" if @team.present?
-      filters << "Lens: #{@lens_label}" unless @lens == "all"
+      filters << "Complexity: #{@lens_label}" unless @lens == "all"
+      filters << "Composition: #{@composition_label}" unless @composition == "all"
       filters << "Sort: #{@sort_label}"
 
       @sidebar_summary = {
@@ -484,9 +502,38 @@ module Entities
         pick_assets_total: rows.sum { |row| row["pick_count"].to_i },
         complexity_asset_total: rows.sum { |row| row["complexity_asset_count"].to_i },
         complex_deal_count: rows.count { |row| row["team_count"].to_i >= 3 || row["complexity_asset_count"].to_i >= 4 },
+        player_heavy_deal_count: rows.count { |row| row["is_player_heavy"] },
+        pick_heavy_deal_count: rows.count { |row| row["is_pick_heavy"] },
+        cash_tpe_deal_count: rows.count { |row| row["is_cash_tpe_involved"] },
         filters:,
         top_rows: rows.first(14)
       }
+    end
+
+    def annotate_trade_rows!(rows)
+      Array(rows).each { |row| annotate_trade_row!(row) }
+    end
+
+    def annotate_trade_row!(row)
+      player_count = row["player_count"].to_i
+      pick_count = row["pick_count"].to_i
+      cash_line_count = row["cash_line_count"].to_i
+      tpe_line_count = row["tpe_line_count"].to_i
+
+      is_player_heavy = player_count >= 2 && player_count >= pick_count + 1
+      is_pick_heavy = pick_count >= 2 && pick_count >= player_count + 1
+      is_cash_tpe_involved = cash_line_count.positive? || tpe_line_count.positive?
+
+      labels = []
+      labels << "Player-heavy" if is_player_heavy
+      labels << "Pick-heavy" if is_pick_heavy
+      labels << "Cash/TPE" if is_cash_tpe_involved
+      labels << "Balanced" if labels.empty?
+
+      row["is_player_heavy"] = is_player_heavy
+      row["is_pick_heavy"] = is_pick_heavy
+      row["is_cash_tpe_involved"] = is_cash_tpe_involved
+      row["composition_labels"] = labels
     end
 
     def load_sidebar_trade_payload(trade_id)
@@ -650,6 +697,15 @@ module Entities
       when "complex" then "3+ teams or 4+ assets"
       when "mega" then "4+ teams or 6+ assets"
       else "All deals"
+      end
+    end
+
+    def trades_composition_label(value)
+      case value.to_s
+      when "player_heavy" then "Player-heavy"
+      when "pick_heavy" then "Pick-heavy"
+      when "cash_tpe" then "Cash/TPE involved"
+      else "All archetypes"
       end
     end
   end

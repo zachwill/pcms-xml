@@ -249,7 +249,7 @@ Supervisor review — 2026-02-13:
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /trades — add composition archetype lenses on top of complexity baseline
+- [x] [P1] [INDEX] /trades — add composition archetype lenses on top of complexity baseline
   - Problem: Complexity sorting/lensing is now in place, but users still can’t quickly isolate by asset-composition intent.
   - Hypothesis: Asset-type composition knobs will complete the “what kind of deal is this?” triage loop.
   - Scope (files):
@@ -259,17 +259,30 @@ Supervisor review — 2026-02-13:
     - web/app/controllers/entities/trades_controller.rb
     - web/app/controllers/entities/trades_sse_controller.rb
     - web/test/integration/entities_pane_endpoints_test.rb
-  - Acceptance criteria:
-    - Commandbar exposes composition filters (player-heavy, pick-heavy, cash/TPE-involved or equivalent clear archetypes).
-    - Results and quick-deals sidebar use the same composition filter semantics.
-    - Filter changes preserve active overlay when visible and clear when no longer in result set.
-    - Canonical pivots from overlay (trade/team/transaction) remain one-click obvious.
-  - Rubric (before → target):
+  - What changed:
+    - Added a commandbar **Composition** control on `/trades` (`all`, `player_heavy`, `pick_heavy`, `cash_tpe`) and wired it into URL-backed Datastar state (`tradecomposition`).
+    - Extended `TradesController#load_index_state!` with composition parsing/labeling and SQL-backed composition filtering layered on top of existing complexity filters.
+    - Added per-row composition annotations (`Player-heavy`, `Pick-heavy`, `Cash/TPE`, fallback `Balanced`) so the table and quick-deals module use the same archetype semantics.
+    - Updated `entities/trades/_results` to render composition chips inline with asset counts for faster “what kind of deal is this?” scan decisions.
+    - Updated `entities/trades/_rightpanel_base` snapshot with composition KPI counts and quick-deals composition labels so sidebar triage matches main list context.
+    - Extended `/trades/sse/refresh` signal patching with `tradecomposition` while preserving existing one-response multi-region overlay preserve/clear behavior.
+    - Expanded integration coverage for composition controls, composition signal patching, and overlay clearing when composition filtering removes the selected row.
+  - Why this improves the flow:
+    - Users can now move from “complexity” to “intent” in one pass (e.g., pick-heavy vs player-heavy vs cash/TPE-involved) without opening overlays row-by-row.
+    - Main list + quick-deals now speak the same composition grammar, reducing scan mismatch between center canvas and sidebar.
+    - Composition changes keep the same predictable SSE interaction contract (single refresh path, URL sync, deterministic overlay preserve/clear).
+  - Verification:
+    - `cd web && bundle exec rails test test/integration/entities_pane_endpoints_test.rb` *(fails in this environment: missing gem `lucide-rails-0.7.3`)*
+    - `cd web && ruby -c app/controllers/entities/trades_controller.rb && ruby -c app/controllers/entities/trades_sse_controller.rb && ruby -c test/integration/entities_pane_endpoints_test.rb && ruby -rerb -e "['app/views/entities/trades/index.html.erb','app/views/entities/trades/_results.html.erb','app/views/entities/trades/_rightpanel_base.html.erb'].each { |p| ERB.new(File.read(p)).src }; puts 'ERB OK'"` *(syntax/ERB OK)*
+  - Rubric (before → after):
     - Scan speed: 4 → 5
     - Information hierarchy: 5 → 5
     - Interaction predictability: 5 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 5 → 5
+  - Follow-up tasks discovered:
+    - Consider adding composition-threshold tooltips (e.g., explicit player-heavy/pick-heavy cut rules) directly in commandbar to improve trust for first-time users.
+    - Consider a combined archetype sort mode (e.g., prioritize cash/TPE + pick-heavy overlaps) for deadline-specific triage.
   - Guardrails:
     - Do not modify Salary Book files.
 

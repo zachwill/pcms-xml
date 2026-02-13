@@ -4,7 +4,8 @@
   pane_query_expr = "'daterange=' + encodeURIComponent($tradedaterange) +
     '&team=' + encodeURIComponent($tradeteam) +
     '&sort=' + encodeURIComponent($tradesort) +
-    '&lens=' + encodeURIComponent($tradelens)"
+    '&lens=' + encodeURIComponent($tradelens) +
+    '&composition=' + encodeURIComponent($tradecomposition)"
 
   refresh_query_expr = "(#{pane_query_expr}) +
     '&selected_type=' + encodeURIComponent($overlaytype) +
@@ -12,7 +13,7 @@
 
   refresh_expr = "@get('/trades/sse/refresh?' + (#{refresh_query_expr})); window.history.replaceState({}, '', '/trades?' + (#{pane_query_expr}))"
 
-  signals_literal = "{ tradedaterange: #{@daterange.to_json}, tradeteam: #{(@team || '').to_json}, tradesort: #{@sort.to_json}, tradelens: #{@lens.to_json}, overlaytype: 'none', overlayid: '' }"
+  signals_literal = "{ tradedaterange: #{@daterange.to_json}, tradeteam: #{(@team || '').to_json}, tradesort: #{@sort.to_json}, tradelens: #{@lens.to_json}, tradecomposition: #{@composition.to_json}, overlaytype: 'none', overlayid: '' }"
 %>
 
 <div id="trades-workspace" class="h-screen w-screen flex flex-col overflow-hidden bg-background" data-signals="<%= signals_literal %>">
@@ -98,6 +99,21 @@
           <option value="all" <%= "selected" if @lens == "all" %>>All deals</option>
           <option value="complex" <%= "selected" if @lens == "complex" %>>3+ teams or 4+ assets</option>
           <option value="mega" <%= "selected" if @lens == "mega" %>>4+ teams or 6+ assets</option>
+        </select>
+      </div>
+
+      <div class="min-w-[12rem] space-y-1">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Composition</div>
+        <select
+          id="trades-composition-select"
+          class="h-7 w-52 rounded border border-border bg-background px-2 text-xs text-foreground"
+          data-bind="tradecomposition"
+          data-on:change="<%= refresh_expr %>"
+        >
+          <option value="all" <%= "selected" if @composition == "all" %>>All archetypes</option>
+          <option value="player_heavy" <%= "selected" if @composition == "player_heavy" %>>Player-heavy deals</option>
+          <option value="pick_heavy" <%= "selected" if @composition == "pick_heavy" %>>Pick-heavy deals</option>
+          <option value="cash_tpe" <%= "selected" if @composition == "cash_tpe" %>>Cash / TPE involved</option>
         </select>
       </div>
     </div>

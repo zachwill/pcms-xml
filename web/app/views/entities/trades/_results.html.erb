@@ -14,8 +14,13 @@
       </h2>
       <p class="text-[11px] text-muted-foreground mt-1">
         Click a trade row to inspect team-in/team-out anatomy and assets without leaving the list.
-        <% if @lens != "all" %>
-          <span class="font-medium text-foreground">Lens: <%= @lens_label %></span>
+        <% if @lens != "all" || @composition != "all" %>
+          <span class="font-medium text-foreground">
+            <% active_lenses = [] %>
+            <% active_lenses << "Complexity: #{@lens_label}" unless @lens == "all" %>
+            <% active_lenses << "Composition: #{@composition_label}" unless @composition == "all" %>
+            <%= active_lenses.join(" · ") %>
+          </span>
         <% end %>
       </p>
     </div>
@@ -88,10 +93,20 @@
               </td>
 
               <td class="px-3 py-2 align-top">
+                <% composition_labels = Array(trade["composition_labels"]) %>
                 <div class="entity-cell-two-line">
                   <div class="entity-cell-primary gap-1.5">
                     <span class="entity-chip entity-chip--success"><%= trade["player_count"].to_i %> players</span>
                     <span class="entity-chip entity-chip--accent"><%= trade["pick_count"].to_i %> picks</span>
+                    <% composition_labels.each do |label| %>
+                      <% chip_class = case label
+                         when "Player-heavy" then "entity-chip entity-chip--success"
+                         when "Pick-heavy" then "entity-chip entity-chip--accent"
+                         when "Cash/TPE" then "entity-chip entity-chip--warning"
+                         else "entity-chip entity-chip--muted"
+                         end %>
+                      <span class="<%= chip_class %>"><%= label %></span>
+                    <% end %>
                   </div>
                   <div class="entity-cell-secondary">
                     <%= trade["cash_line_count"].to_i %> cash lines · <%= trade["tpe_line_count"].to_i %> TPE · <span class="font-mono tabular-nums text-foreground"><%= trade["complexity_asset_count"].to_i %></span> total assets
