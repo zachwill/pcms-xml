@@ -15,20 +15,32 @@ class EntitiesPlayersShowTest < ActionDispatch::IntegrationTest
 
       assert_response :success
 
+      next_decisions = section_fragment(response.body, "next-decisions")
       contract_history = section_fragment(response.body, "contract-history")
       guarantees = section_fragment(response.body, "guarantees")
       incentives = section_fragment(response.body, "incentives")
       ledger = section_fragment(response.body, "ledger")
 
+      assert next_decisions.present?
       assert contract_history.present?
       assert guarantees.present?
       assert incentives.present?
       assert ledger.present?
 
+      assert_no_match(/<table/i, next_decisions)
       assert_no_match(/<table/i, contract_history)
       assert_no_match(/<table/i, guarantees)
       assert_no_match(/<table/i, incentives)
       assert_no_match(/<table/i, ledger)
+
+      assert_includes next_decisions, "Next decisions"
+      assert_includes next_decisions, "PO decision window"
+      assert_includes next_decisions, "Potential free-agency branch"
+      assert_includes next_decisions, "Partial guarantee trigger"
+      assert_includes next_decisions, "Midseason guarantee"
+      assert_includes next_decisions, "Team LAL"
+      assert_includes next_decisions, "Txn #5001"
+      assert_includes next_decisions, "Trade #901"
 
       assert_includes contract_history, "Contract chronology lanes"
       assert_includes contract_history, "No-Trade"
@@ -48,6 +60,8 @@ class EntitiesPlayersShowTest < ActionDispatch::IntegrationTest
       assert_includes ledger, "Tax Δ"
       assert_includes ledger, "Apron Δ"
 
+      assert_includes response.body, "Jump to next decisions"
+      assert_includes response.body, "Decision rail"
       assert_includes response.body, "entity-cell-two-line"
     end
   end

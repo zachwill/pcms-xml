@@ -64,7 +64,7 @@ Rubric (1-5):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [ENTITY] /players/:slug — add “next decisions” rail (options, expirings, guarantee triggers)
+- [x] [P1] [ENTITY] /players/:slug — add “next decisions” rail (options, expirings, guarantee triggers)
   - Problem: The page surfaces lots of history but does not foreground immediate decision points.
   - Hypothesis: A compact decision rail near header/constraints will improve planning speed and downstream pivots.
   - Scope (files):
@@ -73,16 +73,29 @@ Rubric (1-5):
     - web/app/views/entities/players/_section_contract.html.erb
     - web/app/views/entities/players/_rightpanel_base.html.erb
     - web/test/integration/entities_players_show_test.rb
+  - What changed (files):
+    - Added a new top-level section rail at `web/app/views/entities/players/_section_next_decisions.html.erb`, wired into `show.html.erb` (full + deferred skeleton + local nav) and bootstrap rendering via `web/app/controllers/entities/players_sse_controller.rb`.
+    - Added a shared decision-item builder in `web/app/helpers/entities_helper.rb` (`player_next_decision_items`) that composes option windows, expirings, partial/non-guarantee branches, and protection-condition triggers with urgency labels.
+    - Updated `web/app/views/entities/players/_section_constraints.html.erb` and `_section_contract.html.erb` to expose rail handoff cues (“Jump to next decisions” + decision counts) so planning flow starts near posture and contract horizon.
+    - Updated `web/app/views/entities/players/_rightpanel_base.html.erb` (player-show branch) to add a compact decision shortlist with direct team / transaction / trade pivots.
+    - Expanded `web/test/integration/entities_players_show_test.rb` to assert the new `#next-decisions` section, no table markup, decision labels/urgency cues, and pivot-link presence.
+  - Why this improves the flow:
+    - Immediate decisions are now first-class and scanable by season + urgency instead of buried across contract, guarantees, and ledger sections.
+    - Users can jump from constraints → decision rail → deep section anchors without losing context, reducing backtracking.
+    - Every decision lane now carries direct pivots (team + transaction/trade where available), tightening analysis-to-action flow.
   - Acceptance criteria:
     - Decision rail lists upcoming option/expiry/trigger items with season labels and urgency cues.
     - Each decision item has direct pivot links (team, transaction/trade where available).
     - Local nav + decision rail maintain stable anchors for fast jump/read.
-  - Rubric (before → target):
+  - Rubric (before → after):
     - Scan speed: 3 → 5
     - Information hierarchy: 3 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Add rail-level filters (`Urgent`, `Upcoming`, `Later`) and persist lens state in URL hash/query.
+    - Replace fallback ledger linking for some trigger rows with explicit source linkage when contract trigger → transaction mapping becomes available in warehouse.
   - Guardrails:
     - Do not modify Salary Book files.
 

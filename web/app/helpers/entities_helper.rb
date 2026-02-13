@@ -111,4 +111,184 @@ module EntitiesHelper
 
     team_href(team_code: team_code)
   end
+
+  # Decision rail model for player entity pages.
+  #
+  # Outputs dense, link-ready items used by:
+  # - /players/:slug main "next decisions" rail
+  # - /players/:slug right panel quick rail
+  def player_next_decision_items(salary_book_row:, protection_condition_rows:, ledger_entries:, horizon_years: SalaryBookHelper::SALARY_YEARS)
+    salary_row = salary_book_row.presence || {}
+    years = Array(horizon_years).map(&:to_i).select(&:positive?).uniq.sort
+    return [] if years.empty?
+
+    ledger_rows = Array(ledger_entries)
+    ledger_by_year = ledger_rows.group_by { |entry| entry["salary_year"].to_i }
+    fallback_ledger = ledger_rows.find { |entry| entry["transaction_id"].present? || entry["trade_id"].present? }
+
+    team_code = salary_row["team_code"].to_s.strip.presence
+    team_id = salary_row["team_id"].presence
+
+    active_years = years.select { |year| salary_row["cap_#{year}"].to_f.positive? }
+    base_year = active_years.first || years.first
+
+    items = []
+
+    years.drop(1).each do |year|
+      option = normalize_contract_option(salary_row["option_#{year}"])
+      next if option.blank?
+
+      cap_amount = salary_row["cap_#{year}"]
+      ledger_ref = decision_ledger_reference(ledger_by_year[year], fallback: fallback_ledger)
+
+      items << {
+        key: "option-#{year}-#{option}",
+        kind: "option",
+        priority: 20,
+        year: year,
+        season_label: format_year_label(year),
+        category_label: option,
+        category_variant: "accent",
+        urgency: decision_urgency_for_year(year: year, base_year: base_year, kind: "option"),
+        headline: "#{option} decision window",
+        detail: cap_amount.to_f.positive? ? "#{format_year_label(year)} salary #{format_salary(cap_amount)}" : "#{format_year_label(year)} option season",
+        value_label: cap_amount.to_f.positive? ? format_salary(cap_amount) : "—",
+        team_code: team_code,
+        team_id: team_id,
+        transaction_id: ledger_ref&.fetch("transaction_id", nil),
+        trade_id: ledger_ref&.fetch("trade_id", nil),
+        source_anchor: "contract"
+      }
+    end
+
+    years.each_cons(2) do |year, next_year|
+      current_cap = salary_row["cap_#{year}"].to_f
+      next_cap = salary_row["cap_#{next_year}"].to_f
+      next unless current_cap.positive? && next_cap.zero?
+
+      ledger_ref = decision_ledger_reference(ledger_by_year[year], fallback: fallback_ledger)
+
+      items << {
+        key: "expiry-#{next_year}",
+        kind: "expiring",
+        priority: 40,
+        year: next_year,
+        season_label: format_year_label(next_year),
+        category_label: "EXP",
+        category_variant: "warning",
+        urgency: decision_urgency_for_year(year: next_year, base_year: base_year, kind: "expiring"),
+        headline: "Potential free-agency branch",
+        detail: "Cap drops from #{format_salary(current_cap)} to — entering #{format_year_label(next_year)}",
+        value_label: format_salary(current_cap),
+        team_code: team_code,
+        team_id: team_id,
+        transaction_id: ledger_ref&.fetch("transaction_id", nil),
+        trade_id: ledger_ref&.fetch("trade_id", nil),
+        source_anchor: "contract"
+      }
+
+      break
+    end
+
+    years.each do |year|
+      cap_amount = salary_row["cap_#{year}"].to_f
+      next unless cap_amount.positive?
+
+      is_partial = salary_row["is_partially_guaranteed_#{year}"]
+      is_non_guaranteed = salary_row["is_non_guaranteed_#{year}"]
+      next unless is_partial || is_non_guaranteed
+
+      guaranteed_amount = salary_row["guaranteed_amount_#{year}"]
+      ledger_ref = decision_ledger_reference(ledger_by_year[year], fallback: fallback_ledger)
+
+      detail = if is_partial
+        "Guaranteed #{format_salary(guaranteed_amount)} of #{format_salary(cap_amount)}"
+      else
+        "Non-guaranteed season with #{format_salary(cap_amount)} cap exposure"
+      end
+
+      items << {
+        key: "guarantee-#{year}-#{is_partial ? 'partial' : 'non'}",
+        kind: "guarantee",
+        priority: 30,
+        year: year,
+        season_label: format_year_label(year),
+        category_label: is_partial ? "PARTIAL" : "NON",
+        category_variant: is_partial ? "warning" : "danger",
+        urgency: decision_urgency_for_year(year: year, base_year: base_year, kind: "guarantee"),
+        headline: is_partial ? "Partial guarantee trigger" : "Non-guaranteed decision",
+        detail: detail,
+        value_label: is_partial ? format_salary(guaranteed_amount) : format_salary(cap_amount),
+        team_code: team_code,
+        team_id: team_id,
+        transaction_id: ledger_ref&.fetch("transaction_id", nil),
+        trade_id: ledger_ref&.fetch("trade_id", nil),
+        source_anchor: "guarantees"
+      }
+    end
+
+    Array(protection_condition_rows).each do |row|
+      year = row["salary_year"].to_i
+      next unless year.positive?
+
+      clause_label = row["clause_name"].presence || row["criteria_description"].presence || "Guarantee condition"
+      earned_text = format_plain_date(row["earned_date"]) if row["earned_date"].present?
+      trigger_type = row["earned_type_lk"].presence
+      detail_tokens = []
+      detail_tokens << "Trigger #{earned_text}" if earned_text.present?
+      detail_tokens << trigger_type if trigger_type.present?
+
+      ledger_ref = decision_ledger_reference(ledger_by_year[year], fallback: fallback_ledger)
+
+      items << {
+        key: "condition-#{row['condition_id'] || "row"}-#{year}",
+        kind: "guarantee",
+        priority: 10,
+        year: year,
+        season_label: format_year_label(year),
+        category_label: "TRIGGER",
+        category_variant: "danger",
+        urgency: decision_urgency_for_year(year: year, base_year: base_year, kind: "guarantee"),
+        headline: clause_label,
+        detail: detail_tokens.presence&.join(" · ") || "Guarantee condition on file",
+        value_label: format_salary(row["amount"]),
+        team_code: team_code,
+        team_id: team_id,
+        transaction_id: ledger_ref&.fetch("transaction_id", nil),
+        trade_id: ledger_ref&.fetch("trade_id", nil),
+        source_anchor: "guarantees"
+      }
+    end
+
+    items
+      .group_by { |item| item[:key] }
+      .values
+      .map(&:first)
+      .sort_by { |item| [item[:year].to_i, item[:priority].to_i, item[:headline].to_s] }
+      .first(18)
+  end
+
+  private
+
+  def decision_ledger_reference(candidates, fallback:)
+    Array(candidates).find { |entry| entry["transaction_id"].present? || entry["trade_id"].present? } || fallback
+  end
+
+  def decision_urgency_for_year(year:, base_year:, kind:)
+    distance = year.to_i - base_year.to_i
+
+    if distance <= 1
+      if kind.to_s == "option"
+        return { label: "Next", variant: "warning" }
+      end
+
+      return { label: "Urgent", variant: "danger" }
+    end
+
+    if distance == 2
+      return { label: "Upcoming", variant: "accent" }
+    end
+
+    { label: "Later", variant: "muted" }
+  end
 end

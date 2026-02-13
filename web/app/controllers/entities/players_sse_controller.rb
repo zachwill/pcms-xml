@@ -5,6 +5,7 @@ module Entities
     SECTION_PARTIALS = [
       "entities/players/section_vitals",
       "entities/players/section_constraints",
+      "entities/players/section_next_decisions",
       "entities/players/section_connections",
       "entities/players/section_contract",
       "entities/players/section_contract_history",

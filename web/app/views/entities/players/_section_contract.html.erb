@@ -1,7 +1,25 @@
 <% horizon_years = (2025..2030).to_a %>
+<%
+  decision_items = player_next_decision_items(
+    salary_book_row: @salary_book_row,
+    protection_condition_rows: @protection_condition_rows,
+    ledger_entries: @ledger_entries
+  )
+  option_items = decision_items.count { |item| item[:kind] == "option" }
+  guarantee_items = decision_items.count { |item| item[:kind] == "guarantee" }
+%>
 
 <section id="contract" class="space-y-3">
-  <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract horizon</h2>
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract horizon</h2>
+    <% if decision_items.any? %>
+      <div class="text-[11px] text-muted-foreground">
+        <a href="#next-decisions" class="hover:text-foreground hover:underline">Decision rail</a>
+        <span>· <%= option_items %> option</span>
+        <span>· <%= guarantee_items %> guarantee</span>
+      </div>
+    <% end %>
+  </div>
   <% if @salary_book_row.present? %>
     <div class="overflow-x-auto rounded-lg border border-border">
       <div class="flex min-w-max">

@@ -4,6 +4,17 @@
   next if option.blank?
   "#{option} #{year}"
 end %>
+<%
+  decision_items = player_next_decision_items(
+    salary_book_row: @salary_book_row,
+    protection_condition_rows: @protection_condition_rows,
+    ledger_entries: @ledger_entries
+  )
+  option_count = decision_items.count { |item| item[:kind] == "option" }
+  expiring_count = decision_items.count { |item| item[:kind] == "expiring" }
+  guarantee_count = decision_items.count { |item| item[:kind] == "guarantee" }
+  urgent_count = decision_items.count { |item| item.dig(:urgency, :variant) == "danger" }
+%>
 
 <section id="constraints" class="space-y-3">
   <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Constraint posture</h2>
@@ -43,4 +54,20 @@ end %>
       <% end %>
     <% end %>
   </div>
+
+  <% if decision_items.any? %>
+    <div class="rounded-lg border border-border bg-background px-3 py-2">
+      <div class="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+        <span class="font-medium text-foreground">Decision rail coverage</span>
+        <a href="#next-decisions" class="text-muted-foreground hover:text-foreground hover:underline">Jump to next decisions</a>
+      </div>
+
+      <div class="mt-2 flex flex-wrap gap-1.5">
+        <% if option_count.positive? %><span class="entity-chip entity-chip--accent"><%= option_count %> option</span><% end %>
+        <% if expiring_count.positive? %><span class="entity-chip entity-chip--warning"><%= expiring_count %> expiring</span><% end %>
+        <% if guarantee_count.positive? %><span class="entity-chip entity-chip--danger"><%= guarantee_count %> guarantee trigger</span><% end %>
+        <% if urgent_count.positive? %><span class="entity-chip entity-chip--danger"><%= urgent_count %> urgent</span><% end %>
+      </div>
+    </div>
+  <% end %>
 </section>

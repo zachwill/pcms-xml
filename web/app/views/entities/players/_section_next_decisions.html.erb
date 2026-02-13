@@ -1,0 +1,86 @@
+<%
+  decision_items = player_next_decision_items(
+    salary_book_row: @salary_book_row,
+    protection_condition_rows: @protection_condition_rows,
+    ledger_entries: @ledger_entries
+  )
+
+  chip_class_for = lambda do |variant|
+    case variant.to_s
+    when "danger"
+      "entity-chip entity-chip--danger"
+    when "warning"
+      "entity-chip entity-chip--warning"
+    when "success"
+      "entity-chip entity-chip--success"
+    when "accent"
+      "entity-chip entity-chip--accent"
+    else
+      "entity-chip entity-chip--muted"
+    end
+  end
+%>
+
+<section id="next-decisions" class="space-y-3">
+  <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Next decisions</h2>
+
+  <% if decision_items.empty? %>
+    <div class="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground italic">
+      No option / expiry / guarantee triggers detected in the active horizon.
+    </div>
+  <% else %>
+    <div class="rounded-lg border border-border divide-y divide-border/60">
+      <% decision_items.first(10).each do |item| %>
+        <% urgency = item[:urgency] || {} %>
+
+        <article class="group px-3 py-2 transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10">
+          <div class="flex flex-wrap items-start gap-3">
+            <div class="w-40 shrink-0">
+              <div class="entity-cell-two-line">
+                <div class="entity-cell-primary font-mono tabular-nums"><%= item[:season_label] %></div>
+                <div class="entity-cell-secondary gap-1.5">
+                  <span class="<%= chip_class_for.call(item[:category_variant]) %>"><%= item[:category_label] %></span>
+                  <span class="<%= chip_class_for.call(urgency[:variant]) %>"><%= urgency[:label] %></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="min-w-0 flex-1 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+              <div class="entity-cell-two-line xl:col-span-2">
+                <div class="entity-cell-primary truncate"><%= item[:headline] %></div>
+                <div class="entity-cell-secondary truncate"><%= item[:detail].presence || "Decision details not available" %></div>
+              </div>
+
+              <div class="entity-cell-two-line">
+                <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= item[:value_label].presence || "—" %></div>
+                <div class="entity-cell-secondary justify-end">Decision value</div>
+              </div>
+
+              <div class="entity-cell-two-line xl:col-span-2">
+                <div class="entity-cell-primary gap-1.5 flex-wrap">
+                  <% if item[:team_code].present? %>
+                    <a href="<%= team_href(team_code: item[:team_code], team_id: item[:team_id]) %>" class="entity-chip entity-chip--muted hover:underline">Team <%= item[:team_code] %></a>
+                  <% else %>
+                    <span class="entity-chip entity-chip--muted">No team</span>
+                  <% end %>
+
+                  <% if item[:transaction_id].present? %>
+                    <a href="<%= transaction_href(item[:transaction_id]) %>" class="entity-chip entity-chip--warning hover:underline">Txn #<%= item[:transaction_id] %></a>
+                  <% end %>
+
+                  <% if item[:trade_id].present? %>
+                    <a href="<%= trade_href(item[:trade_id]) %>" class="entity-chip entity-chip--accent hover:underline">Trade #<%= item[:trade_id] %></a>
+                  <% end %>
+                </div>
+
+                <div class="entity-cell-secondary gap-2">
+                  <a href="#<%= item[:source_anchor] %>" class="hover:underline">Open <%= item[:source_anchor] == "guarantees" ? "guarantees" : "contract horizon" %></a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      <% end %>
+    </div>
+  <% end %>
+</section>

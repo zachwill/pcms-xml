@@ -88,6 +88,7 @@
         <% if @defer_heavy_load %>
           <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "vitals", title: "Vitals", rows: 4 } %>
           <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "constraints", title: "Constraint posture", rows: 3 } %>
+          <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "next-decisions", title: "Next decisions", rows: 5 } %>
           <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "connections", title: "Connections", rows: 5 } %>
           <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "contract", title: "Contract horizon", rows: 4 } %>
           <%= render partial: "entities/shared/section_skeleton", locals: { section_id: "contract-history", title: "Contract history", rows: 6 } %>
@@ -98,6 +99,7 @@
         <% else %>
           <%= render partial: "entities/players/section_vitals" %>
           <%= render partial: "entities/players/section_constraints" %>
+          <%= render partial: "entities/players/section_next_decisions" %>
           <%= render partial: "entities/players/section_connections" %>
           <%= render partial: "entities/players/section_contract" %>
           <%= render partial: "entities/players/section_contract_history" %>
@@ -113,6 +115,7 @@
         sections: [
           ["vitals", "Vitals"],
           ["constraints", "Constraint posture"],
+          ["next-decisions", "Next decisions"],
           ["connections", "Connections"],
           ["contract", "Contract horizon"],
           ["contract-history", "Contract history"],
