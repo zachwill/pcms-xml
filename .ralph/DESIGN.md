@@ -167,22 +167,34 @@ Rubric (1-5):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [ENTITY] /transactions/:id — redesign from static record view to causal transaction timeline
+- [x] [P1] [ENTITY] /transactions/:id — redesign from static record view to causal transaction timeline
   - Problem: Transaction detail is comprehensive but hard to parse causally (parties, ledger effects, artifacts are separated and table-dense).
   - Hypothesis: Timeline-style lanes with explicit cause/effect chips will make transaction interpretation much faster.
   - Scope (files):
     - web/app/views/entities/transactions/show.html.erb
     - web/test/integration/entities_transactions_show_test.rb
+  - What changed (files):
+    - Rebuilt `web/app/views/entities/transactions/show.html.erb` into a single causal timeline section that reads in ordered phases (`1 · Transaction facts` → `2 · Parties + routing` → `3 · Ledger deltas` → `4 · Cap artifacts`) using dense lane rows instead of table blocks.
+    - Added per-lane cause/effect metric cells (`Cap Δ`, `Tax Δ`, `Apron Δ`, `MTS Δ`) and surfaced direct pivots (team/player/transaction/trade) inside each lane so users can move from interpretation to drill-in without context loss.
+    - Reworked trade context and endnotes into lane grammar to keep the same scan model throughout the page rather than falling back to nested tables.
+    - Added focused integration coverage in `web/test/integration/entities_transactions_show_test.rb` asserting timeline phase labels, no `<table>` markup in primary timeline/trade sections, and presence of team/player/trade/transaction pivots.
+  - Why this improves the flow:
+    - Users now follow one explicit narrative path from “what happened” to “who it touched” to “financial consequences” to “cap artifacts,” reducing section-jumping and mental stitching.
+    - Every lane now carries immediate related pivots, so the transaction page behaves like a decision dossier instead of a static audit dump.
+    - Dense lane grammar preserves information density while making chronology and causality legible in one vertical scan.
   - Acceptance criteria:
     - Page presents chronological/causal lane from transaction facts → parties → ledger deltas → cap artifacts.
     - Core sections avoid large table blocks for primary read path.
     - “Open related trade/player/team” pivots are visible in each lane.
-  - Rubric (before → target):
+  - Rubric (before → after):
     - Scan speed: 2 → 5
     - Information hierarchy: 3 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 3 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Add timeline lane filters (`facts`, `parties`, `ledger`, `artifacts`) with URL-persisted state for very large transactions.
+    - Add optional “show raw warehouse rows” expansion beneath each phase for audit/debug workflows without polluting the default primary scan path.
   - Guardrails:
     - Do not modify Salary Book files.
 
