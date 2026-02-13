@@ -262,6 +262,8 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, "Cap 26-27"
       assert_includes response.body, "Top cap hits · 26-27"
+      assert_operator response.body.scan("Why matched: Trade kicker clause on file").length, :>=, 2
+      assert_includes response.body, "Match: Trade kicker"
       assert_includes response.body, "Alpha Guard"
       assert_not_includes response.body, "Beta Wing"
       assert_includes response.body, '"playerconstraint":"trade_kicker"'

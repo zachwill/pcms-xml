@@ -112,25 +112,31 @@ Audit reset — 2026-02-13:
   - Follow-up tasks discovered:
     - Stabilize full-file `entities_agents_index_test.rb` runs in environments missing compiled `tailwind.css` (layout asset-path drift); SSE-focused coverage for this flow passes and remains the current verification guardrail.
 
-- [ ] [P2] [INDEX] /players — surface “why matched” emphasis for active constraint lens
-  - Problem: Constraint chips are present, but active lens reason is not visually prioritized, making filtered states less self-explanatory.
-  - Hypothesis: Lens-matched chip emphasis will improve trust and reduce second-guessing when scanning filtered player lists.
-  - Scope (files):
+- [x] [P2] [INDEX] /players — surface “why matched” emphasis for active constraint lens
+  - What changed (files):
+    - web/app/controllers/entities/players_controller.rb
+      - Added summary-level active-constraint context fields (`constraint_lens_match_key`, `constraint_lens_match_chip_label`, `constraint_lens_match_reason`) derived from existing server lens state.
+      - Kept all filtering/business logic in SQL and Ruby controller state wiring (no client business logic added).
     - web/app/views/entities/players/_workspace_main.html.erb
+      - Added a shared “Why matched” line in the workspace cap-total header when a non-`all` constraint lens is active.
+      - Switched constraint/status chips to keyed token structs, then prioritized and visually emphasized the chip that matches the active constraint lens (ring + stronger weight + match label) without changing row height.
     - web/app/views/entities/players/_rightpanel_base.html.erb
+      - Added the same “Why matched” explanation language to sidebar snapshot helper copy and the Top cap hits module header.
+      - Added active-lens match emphasis in Top cap hits row metadata via a compact match chip using the same server-provided label.
     - web/test/integration/entities_players_index_test.rb
-  - Acceptance criteria:
-    - Active constraint lens has a clear in-row match emphasis without increasing row height.
-    - Sidebar quick/snapshot modules use the same lens explanation language.
-    - No business logic is moved to JS; emphasis is rendered from existing server state.
-  - Rubric (before → target):
+      - Expanded trade-kicker refresh assertions to verify shared “Why matched” copy appears across refreshed regions and that match-chip emphasis text is rendered.
+  - Why this improves the flow:
+    - Filtered player lists now state *why* each row qualifies under the active constraint lens, instead of only showing generic posture chips.
+    - Main-canvas rows and sidebar modules now use one shared explanation grammar, reducing interpretation drift between scan and validation contexts.
+    - Active-lens match emphasis remains compact and dense, preserving existing row height/readability.
+  - Rubric (before → after):
     - Scan speed: 5 → 5
     - Information hierarchy: 5 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 5 → 5
     - Navigation/pivots: 5 → 5
-  - Guardrails:
-    - Do not modify Salary Book files.
+  - Follow-up tasks discovered:
+    - Stabilize full-file `entities_players_index_test.rb` runs in environments without compiled `tailwind.css`; SSE-focused coverage for this flow remains passing and is the current verification guardrail.
 
 - [ ] [P2] [INDEX] /transactions — show intent-search match provenance in rows
   - Problem: Intent search filters rows, but users can’t quickly tell whether the match came from player name, team, transaction type, or description.

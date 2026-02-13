@@ -2,6 +2,9 @@
 <% cap_horizon_label = format_year_label(cap_horizon) %>
 <% next_horizon = cap_horizon + 1 %>
 <% next_horizon_label = format_year_label(next_horizon) %>
+<% active_constraint_key = @sidebar_summary&.dig(:constraint_lens_match_key).to_s.presence %>
+<% active_constraint_reason = @sidebar_summary&.dig(:constraint_lens_match_reason).to_s.presence %>
+<% active_constraint_chip_label = @sidebar_summary&.dig(:constraint_lens_match_chip_label).to_s.presence %>
 
 <main id="maincanvas" class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-background">
   <div id="players-maincanvas" class="px-4 py-4 space-y-4">
@@ -17,7 +20,7 @@
       <div class="text-[11px] text-muted-foreground tabular-nums text-right">
         <span>Cap <%= cap_horizon_label %> total: <%= format_compact_currency(@sidebar_summary[:total_cap]) %></span>
         <% if @constraint_lens != "all" %>
-          <span class="ml-2">· <%= @sidebar_summary[:constraint_lens_label] %></span>
+          <span class="ml-2">· Why matched: <%= active_constraint_reason || @sidebar_summary[:constraint_lens_label] %></span>
         <% end %>
       </div>
     </div>
@@ -50,18 +53,20 @@
             <% agent_path_value = agent_id.present? ? "/agents/#{agent_id}" : nil %>
 
             <% status_tokens = [] %>
-            <% status_tokens << ["2W", "entity-chip entity-chip--muted"] if player["is_two_way"] %>
-            <% status_tokens << ["TR", "entity-chip entity-chip--danger"] if player["is_trade_restricted_now"] %>
-            <% status_tokens << ["NTC", "entity-chip entity-chip--danger"] if player["is_no_trade"] %>
+            <% status_tokens << { key: "two_way", label: "2W", classes: "entity-chip entity-chip--muted" } if player["is_two_way"] %>
+            <% status_tokens << { key: "restricted", label: "TR", classes: "entity-chip entity-chip--danger" } if player["is_trade_restricted_now"] %>
+            <% status_tokens << { key: "no_trade", label: "NTC", classes: "entity-chip entity-chip--danger" } if player["is_no_trade"] %>
 
             <% constraint_tokens = [] %>
-            <% constraint_tokens << ["Lock now", "entity-chip entity-chip--danger"] if player["has_lock_now"] %>
-            <% constraint_tokens << ["Options", "entity-chip entity-chip--accent"] if player["has_future_option"] %>
-            <% constraint_tokens << ["Non-Gtd", "entity-chip entity-chip--warning"] if player["has_non_guaranteed"] %>
-            <% constraint_tokens << ["Trade Kicker", "entity-chip entity-chip--warning"] if player["is_trade_bonus"] %>
+            <% constraint_tokens << { key: "lock_now", label: "Lock now", classes: "entity-chip entity-chip--danger" } if player["has_lock_now"] %>
+            <% constraint_tokens << { key: "options", label: "Options", classes: "entity-chip entity-chip--accent" } if player["has_future_option"] %>
+            <% constraint_tokens << { key: "non_guaranteed", label: "Non-Gtd", classes: "entity-chip entity-chip--warning" } if player["has_non_guaranteed"] %>
+            <% constraint_tokens << { key: "trade_kicker", label: "Trade Kicker", classes: "entity-chip entity-chip--warning" } if player["is_trade_bonus"] %>
             <% if player["expires_after_horizon"] %>
-              <% constraint_tokens << ["Expires #{next_horizon}", "entity-chip entity-chip--muted"] %>
+              <% constraint_tokens << { key: "expiring", label: "Expires #{next_horizon}", classes: "entity-chip entity-chip--muted" } %>
             <% end %>
+
+            <% matched_constraint_chip = active_constraint_key.present? ? constraint_tokens.find { |token| token[:key] == active_constraint_key } : nil %>
 
             <% row_click_expr = "$selectedplayerid = '#{player_id}'; $overlaytype = 'player'; @get('/players/sidebar/#{player_id}')" %>
             <% cap_lens_value = player["cap_lens_value"] %>
@@ -143,8 +148,12 @@
                     <div class="entity-cell-secondary gap-1">
                       <% chips = constraint_tokens.presence || status_tokens %>
                       <% if chips.present? %>
-                        <% chips.first(3).each do |label, classes| %>
-                          <span class="<%= classes %>"><%= label %></span>
+                        <% ordered_chips = chips.sort_by { |chip| chip[:key] == active_constraint_key ? 0 : 1 } %>
+                        <% ordered_chips.first(3).each do |chip| %>
+                          <% is_lens_match = matched_constraint_chip.present? && chip[:key] == matched_constraint_chip[:key] %>
+                          <% chip_classes = [chip[:classes], (is_lens_match ? "ring-1 ring-foreground/35 dark:ring-foreground/45 font-semibold" : nil)].compact.join(" ") %>
+                          <% chip_label = is_lens_match ? (active_constraint_chip_label || chip[:label]) : chip[:label] %>
+                          <span class="<%= chip_classes %>"><%= chip_label %></span>
                         <% end %>
                       <% else %>
                         <span>—</span>

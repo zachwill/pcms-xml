@@ -2,6 +2,9 @@
   <% summary = @sidebar_summary %>
   <% cap_horizon = summary[:cap_horizon].to_i %>
   <% cap_horizon_label = summary[:cap_horizon_label].presence || format_year_label(cap_horizon) %>
+  <% active_constraint_key = summary[:constraint_lens_match_key].to_s.presence %>
+  <% active_constraint_reason = summary[:constraint_lens_match_reason].to_s.presence %>
+  <% active_constraint_chip_label = summary[:constraint_lens_match_chip_label].to_s.presence %>
 
   <div id="rightpanel-base" class="space-y-4">
     <div class="rounded-lg border border-border bg-background p-3 space-y-3">
@@ -61,13 +64,19 @@
           <% end %>
         </div>
       <% end %>
+
+      <% if active_constraint_reason.present? %>
+        <div class="rounded border border-border/60 bg-muted/20 px-2 py-1.5 text-[10px] leading-tight text-muted-foreground">
+          <span class="text-foreground/90">Why matched</span>: <%= active_constraint_reason %>
+        </div>
+      <% end %>
     </div>
 
     <div class="rounded-lg border border-border bg-background">
       <div class="px-3 py-2 border-b border-border">
         <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Top cap hits · <%= cap_horizon_label %></div>
-        <% if summary[:constraint_lens].to_s != "all" %>
-          <div class="text-[10px] text-muted-foreground/70"><%= summary[:constraint_lens_label] %></div>
+        <% if active_constraint_reason.present? %>
+          <div class="text-[10px] text-muted-foreground/70">Why matched: <%= active_constraint_reason %></div>
         <% end %>
       </div>
 
@@ -81,11 +90,13 @@
             <% open_expr = "$selectedplayerid = '#{player_id}'; $overlaytype = 'player'; @get('/players/sidebar/#{player_id}')" %>
 
             <% row_tags = [] %>
-            <% row_tags << "Lock" if row["has_lock_now"] %>
-            <% row_tags << "Option" if row["has_future_option"] %>
-            <% row_tags << "NG" if row["has_non_guaranteed"] %>
-            <% row_tags << "TK" if row["is_trade_bonus"] %>
-            <% row_tags << "Exp" if row["expires_after_horizon"] %>
+            <% row_tags << { key: "lock_now", label: "Lock" } if row["has_lock_now"] %>
+            <% row_tags << { key: "options", label: "Option" } if row["has_future_option"] %>
+            <% row_tags << { key: "non_guaranteed", label: "NG" } if row["has_non_guaranteed"] %>
+            <% row_tags << { key: "trade_kicker", label: "TK" } if row["is_trade_bonus"] %>
+            <% row_tags << { key: "expiring", label: "Exp" } if row["expires_after_horizon"] %>
+            <% matched_tag = active_constraint_key.present? ? row_tags.find { |tag| tag[:key] == active_constraint_key } : nil %>
+            <% row_tag_text = row_tags.map { |tag| tag[:label] }.join(" · ") %>
 
             <button
               type="button"
@@ -99,10 +110,15 @@
                   <span class="font-mono tabular-nums text-[11px] shrink-0"><%= row["cap_lens_value"].present? ? format_compact_currency(row["cap_lens_value"]) : "—" %></span>
                 </div>
                 <div class="entity-cell-secondary justify-between gap-2">
-                  <span class="truncate"><%= row["team_code"].presence || "Free Agent" %> · <%= row_tags.presence&.join(" · ") || "No active constraints" %></span>
-                  <% if row["is_two_way"] %>
-                    <span class="entity-chip entity-chip--muted">2W</span>
-                  <% end %>
+                  <span class="truncate"><%= row["team_code"].presence || "Free Agent" %> · <%= row_tag_text.presence || "No active constraints" %></span>
+                  <span class="flex items-center gap-1 shrink-0">
+                    <% if matched_tag.present? %>
+                      <span class="entity-chip entity-chip--accent ring-1 ring-foreground/35 dark:ring-foreground/45 font-semibold"><%= active_constraint_chip_label || matched_tag[:label] %></span>
+                    <% end %>
+                    <% if row["is_two_way"] %>
+                      <span class="entity-chip entity-chip--muted">2W</span>
+                    <% end %>
+                  </span>
                 </div>
               </div>
             </button>

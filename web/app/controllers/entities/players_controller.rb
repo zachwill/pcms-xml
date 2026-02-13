@@ -280,6 +280,9 @@ module Entities
         cap_horizon_label: cap_horizon_label(@cap_horizon),
         constraint_lens: @constraint_lens,
         constraint_lens_label: constraint_lens_label(@constraint_lens),
+        constraint_lens_match_key: constraint_lens_match_key(@constraint_lens),
+        constraint_lens_match_chip_label: constraint_lens_match_chip_label(@constraint_lens, cap_horizon: @cap_horizon),
+        constraint_lens_match_reason: constraint_lens_match_reason(@constraint_lens, cap_horizon: @cap_horizon),
         total_cap: rows.sum { |row| row["cap_lens_value"].to_f },
         filters: active_filters,
         top_rows: top_rows
@@ -312,6 +315,37 @@ module Entities
       when "trade_kicker" then "Trade kicker"
       when "expiring" then "Expiring after horizon"
       else "All commitments"
+      end
+    end
+
+    def constraint_lens_match_key(constraint_lens)
+      return nil if constraint_lens.to_s == "all"
+
+      PLAYER_CONSTRAINT_LENSES.include?(constraint_lens.to_s) ? constraint_lens.to_s : nil
+    end
+
+    def constraint_lens_match_chip_label(constraint_lens, cap_horizon:)
+      case constraint_lens.to_s
+      when "lock_now" then "Match: Lock now"
+      when "options" then "Match: Options ahead"
+      when "non_guaranteed" then "Match: Non-Gtd"
+      when "trade_kicker" then "Match: Trade kicker"
+      when "expiring" then "Match: Expires #{cap_horizon.to_i + 1}"
+      end
+    end
+
+    def constraint_lens_match_reason(constraint_lens, cap_horizon:)
+      case constraint_lens.to_s
+      when "lock_now"
+        "Lock now posture (TR/NTC/consent required)"
+      when "options"
+        "Options ahead (PO/TO/ETO)"
+      when "non_guaranteed"
+        "Non-guaranteed years on file"
+      when "trade_kicker"
+        "Trade kicker clause on file"
+      when "expiring"
+        "Cap #{cap_horizon_label(cap_horizon)} > 0 and Cap #{cap_horizon_label(cap_horizon.to_i + 1)} = 0"
       end
     end
 
