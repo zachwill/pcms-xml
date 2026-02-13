@@ -120,7 +120,7 @@ module Entities
         "1=1"
       end
 
-      @results = conn.exec_query(<<~SQL).to_a
+      rows = conn.exec_query(<<~SQL).to_a
         WITH picks AS (
           SELECT
             v.draft_year,
@@ -215,6 +215,14 @@ module Entities
           AND #{picks_lens_sql(alias_name: "ranked_picks")}
         ORDER BY #{picks_order_sql}
       SQL
+
+      @results = rows.map do |row|
+        risk_tier = picks_risk_tier(row)
+        row.merge(
+          "risk_tier" => risk_tier,
+          "risk_tier_label" => risk_tier_label(risk_tier)
+        )
+      end
     end
 
     def load_selections(conn)
@@ -224,7 +232,7 @@ module Entities
       where_clauses << "ds.draft_round = #{conn.quote(@round.to_i)}" if @round.present? && @round != "all"
       where_clauses << "ds.drafting_team_code = #{conn.quote(@team)}" if @team.present?
 
-      @results = conn.exec_query(<<~SQL).to_a
+      rows = conn.exec_query(<<~SQL).to_a
         WITH selection_rows AS (
           SELECT
             ds.transaction_id,
@@ -275,6 +283,14 @@ module Entities
         WHERE #{selections_lens_sql(alias_name: "selection_rows")}
         ORDER BY #{selections_order_sql}
       SQL
+
+      @results = rows.map do |row|
+        risk_tier = selections_risk_tier(row)
+        row.merge(
+          "risk_tier" => risk_tier,
+          "risk_tier_label" => risk_tier_label(risk_tier)
+        )
+      end
     end
 
     def load_grid(conn)
@@ -364,6 +380,8 @@ module Entities
       case @view
       when "picks"
         rows = Array(@results)
+        severity_counts = risk_tier_counts(rows) { |row| picks_risk_tier(row) }
+
         @sidebar_summary = {
           view: "picks",
           sort_label: @sort_label,
@@ -373,14 +391,18 @@ module Entities
           conditional_count: rows.count { |row| truthy?(row["has_conditional"]) },
           swap_count: rows.count { |row| truthy?(row["is_swap"]) },
           forfeited_count: rows.count { |row| truthy?(row["has_forfeited"]) },
-          at_risk_count: rows.count { |row| picks_row_at_risk?(row) },
-          critical_count: rows.count { |row| picks_row_critical?(row) },
+          at_risk_count: severity_counts["at_risk"],
+          critical_count: severity_counts["critical"],
+          normal_count: severity_counts["normal"],
+          severity_counts:,
           provenance_trade_total: rows.sum { |row| row["provenance_trade_count"].to_i },
           filters:,
           top_rows: rows.first(12)
         }
       when "selections"
         rows = Array(@results)
+        severity_counts = risk_tier_counts(rows) { |row| selections_risk_tier(row) }
+
         @sidebar_summary = {
           view: "selections",
           sort_label: @sort_label,
@@ -389,8 +411,10 @@ module Entities
           first_round_count: rows.count { |row| row["draft_round"].to_i == 1 },
           with_trade_count: rows.count { |row| row["trade_id"].present? },
           with_player_count: rows.count { |row| row["player_id"].present? },
-          at_risk_count: rows.count { |row| selections_row_at_risk?(row) },
-          critical_count: rows.count { |row| selections_row_critical?(row) },
+          at_risk_count: severity_counts["at_risk"],
+          critical_count: severity_counts["critical"],
+          normal_count: severity_counts["normal"],
+          severity_counts:,
           provenance_trade_total: rows.sum { |row| row["provenance_trade_count"].to_i },
           filters:,
           top_rows: rows.first(12)
@@ -685,6 +709,10 @@ module Entities
     end
 
     def grid_risk_tier_label(tier)
+      risk_tier_label(tier)
+    end
+
+    def risk_tier_label(tier)
       case tier.to_s
       when "critical"
         "Critical"
@@ -696,6 +724,10 @@ module Entities
     end
 
     def grid_risk_counts(rows)
+      risk_tier_counts(rows) { |row| grid_risk_tier(row) }
+    end
+
+    def risk_tier_counts(rows)
       counts = {
         "normal" => 0,
         "at_risk" => 0,
@@ -703,7 +735,7 @@ module Entities
       }
 
       rows.each do |row|
-        counts[grid_risk_tier(row)] += 1
+        counts[yield(row)] += 1
       end
 
       counts
@@ -717,12 +749,26 @@ module Entities
       truthy?(row["has_forfeited"]) || truthy?(row["has_conditional"]) || row["provenance_trade_count"].to_i >= 2
     end
 
+    def picks_risk_tier(row)
+      return "critical" if picks_row_critical?(row)
+      return "at_risk" if picks_row_at_risk?(row)
+
+      "normal"
+    end
+
     def selections_row_at_risk?(row)
       row["provenance_trade_count"].to_i.positive? || row["trade_id"].present?
     end
 
     def selections_row_critical?(row)
       row["provenance_trade_count"].to_i >= 2
+    end
+
+    def selections_risk_tier(row)
+      return "critical" if selections_row_critical?(row)
+      return "at_risk" if selections_row_at_risk?(row)
+
+      "normal"
     end
 
     def grid_cell_risk_score(row)

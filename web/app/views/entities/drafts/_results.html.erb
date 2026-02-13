@@ -1,3 +1,43 @@
+<%
+  sidebar_summary = @sidebar_summary || {}
+  severity_counts = sidebar_summary[:severity_counts] || {}
+
+  normal_count = severity_counts.fetch("normal", sidebar_summary[:normal_count].to_i)
+  at_risk_count = severity_counts.fetch("at_risk", sidebar_summary[:at_risk_count].to_i)
+  critical_count = severity_counts.fetch("critical", sidebar_summary[:critical_count].to_i)
+
+  risk_chip_class = lambda do |tier|
+    case tier.to_s
+    when "critical"
+      "entity-chip entity-chip--danger"
+    when "at_risk"
+      "entity-chip entity-chip--warning"
+    else
+      "entity-chip entity-chip--muted"
+    end
+  end
+
+  risk_container_class = lambda do |tier|
+    case tier.to_s
+    when "critical"
+      "border-red-300/70 bg-red-50/70 dark:border-red-800/60 dark:bg-red-950/25"
+    when "at_risk"
+      "border-amber-300/70 bg-amber-50/70 dark:border-amber-800/60 dark:bg-amber-950/20"
+    else
+      "border-border/60 bg-background"
+    end
+  end
+
+  risk_rubric_text = case @view
+  when "selections"
+    "Critical = 2+ provenance trades. At risk = trade-linked or provenance-active selection context."
+  when "picks"
+    "Critical = conditional/forfeited/2+ provenance. At risk = traded, swap, or provenance-active ownership."
+  else
+    "Critical = conditional/forfeited/2+ provenance. At risk = swap/outgoing/provenance-active ownership."
+  end
+%>
+
 <div id="drafts-results" class="space-y-3">
   <div class="flex items-end justify-between gap-4">
     <div>
@@ -13,11 +53,11 @@
       </h2>
       <p class="text-[11px] text-muted-foreground mt-1">
         <% if @view == "grid" %>
-          Click a cell to inspect protections and trade provenance without leaving the grid.
+          Scan severity-tagged ownership cells, then open only contested slots for full protections/provenance detail.
         <% elsif @view == "picks" %>
-          Click a pick row to inspect ownership chain, protections, and pivots.
+          Scan severity-tagged ownership rows, then open picks with the highest contention signal.
         <% else %>
-          Click a selection row to trace pre-draft provenance and linked transactions.
+          Scan severity-tagged selection provenance, then open contested transaction chains.
         <% end %>
         <% if @lens != "all" %>
           <span class="font-medium text-foreground">Lens: <%= @lens_label %></span>
@@ -34,19 +74,17 @@
     </div>
   </div>
 
-  <% if @view == "grid" %>
-    <% grid_severity_counts = (@sidebar_summary || {})[:severity_counts] || {} %>
-
-    <div class="rounded-lg border border-border/60 bg-muted/10 px-3 py-2">
-      <div class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">Ownership risk legend</div>
-      <div class="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-        <span class="entity-chip entity-chip--muted">Normal · <span class="font-mono tabular-nums"><%= grid_severity_counts.fetch("normal", 0) %></span></span>
-        <span class="entity-chip entity-chip--warning">At risk · <span class="font-mono tabular-nums"><%= grid_severity_counts.fetch("at_risk", 0) %></span></span>
-        <span class="entity-chip entity-chip--danger">Critical · <span class="font-mono tabular-nums"><%= grid_severity_counts.fetch("critical", 0) %></span></span>
-        <span>Critical = conditional/forfeited/2+ provenance; At risk = swap/outgoing/provenance.</span>
-      </div>
+  <div class="rounded-lg border border-border/60 bg-muted/10 px-3 py-2">
+    <div class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">Ownership risk legend</div>
+    <div class="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+      <span class="entity-chip entity-chip--muted">Normal · <span class="font-mono tabular-nums"><%= normal_count %></span></span>
+      <span class="entity-chip entity-chip--warning">At risk · <span class="font-mono tabular-nums"><%= at_risk_count %></span></span>
+      <span class="entity-chip entity-chip--danger">Critical · <span class="font-mono tabular-nums"><%= critical_count %></span></span>
+      <span><%= risk_rubric_text %></span>
     </div>
+  </div>
 
+  <% if @view == "grid" %>
     <% if @grid_teams.empty? %>
       <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">
         No draft pick data available for this grid window.
@@ -54,113 +92,101 @@
     <% else %>
       <% show_rounds = (@round.present? && @round != "all") ? [@round.to_i] : [1, 2] %>
 
-      <div class="overflow-x-auto rounded-lg border border-border">
-        <table class="min-w-full text-xs border-collapse">
-          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-            <tr>
-              <th class="text-left px-2 py-2 font-medium sticky left-0 z-10 bg-muted/40 border-r border-border min-w-[4rem]">Team</th>
-              <th class="text-center px-1 py-2 font-medium min-w-[2rem]">Rd</th>
+      <div class="rounded-lg border border-border overflow-x-auto">
+        <div class="min-w-max">
+          <div id="draft-grid-flex-header" class="sticky top-0 z-20 bg-muted/70 backdrop-blur-sm border-b border-border">
+            <div class="flex items-center h-8 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
+              <div class="w-28 shrink-0 sticky left-0 z-30 bg-muted/70 border-r border-border px-2">Team</div>
+              <div class="w-12 shrink-0 text-center border-r border-border">Rd</div>
               <% @grid_years.each do |year| %>
-                <th class="text-left px-2 py-2 font-medium font-mono tabular-nums min-w-[8rem]"><%= year %></th>
+                <div class="w-44 shrink-0 px-2 font-mono tabular-nums"><%= year %></div>
               <% end %>
-            </tr>
-          </thead>
-          <tbody>
+            </div>
+          </div>
+
+          <div class="divide-y divide-border/70">
             <% @grid_teams.each_with_index do |(team_code, team_name), team_idx| %>
               <% show_rounds.each_with_index do |round, round_idx| %>
-                <%
-                  is_first_round_row = round_idx == 0
-                  is_last_round_row = round_idx == show_rounds.size - 1
-                  border_class = is_last_round_row ? "border-b border-border" : ""
-                  bg_class = team_idx.even? ? "bg-background" : "bg-muted/20"
-                %>
-                <tr class="group hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 transition-colors duration-75 <%= border_class %> <%= bg_class %>">
-                  <td class="px-2 py-1 sticky left-0 z-10 border-r border-border <%= bg_class %> group-hover:bg-yellow-50 dark:group-hover:bg-yellow-900/25 transition-colors duration-75">
-                    <% if is_first_round_row %>
-                      <div class="entity-cell-two-line">
-                        <div class="text-[11px] font-medium">
-                          <a href="<%= team_href(team_code: team_code) %>" class="hover:underline"><%= team_code %></a>
+                <% is_first_round_row = round_idx.zero? %>
+                <% zebra_class = team_idx.even? ? "bg-background" : "bg-muted/20" %>
+
+                <div class="group transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 <%= zebra_class %>">
+                  <div class="flex items-stretch min-h-[68px] text-xs">
+                    <div class="w-28 shrink-0 sticky left-0 z-10 border-r border-border px-2 py-1.5 transition-colors duration-75 <%= zebra_class %> group-hover:bg-yellow-50 dark:group-hover:bg-yellow-900/25">
+                      <% if is_first_round_row %>
+                        <div class="entity-cell-two-line">
+                          <div class="entity-cell-primary justify-start">
+                            <a href="<%= team_href(team_code: team_code) %>" class="font-medium hover:underline"><%= team_code %></a>
+                          </div>
+                          <div class="entity-cell-secondary justify-start truncate max-w-[6rem]"><%= team_name %></div>
                         </div>
-                        <% if show_rounds.size > 1 %>
-                          <div class="text-[9px] text-muted-foreground truncate max-w-[5rem]"><%= team_name %></div>
+                      <% else %>
+                        <div class="h-full flex items-center text-[10px] text-muted-foreground/50 font-mono tabular-nums">↳</div>
+                      <% end %>
+                    </div>
+
+                    <div class="w-12 shrink-0 border-r border-border/70 px-1 py-1.5 text-center text-[10px] text-muted-foreground font-mono tabular-nums flex items-center justify-center">
+                      R<%= round %>
+                    </div>
+
+                    <% @grid_years.each do |year| %>
+                      <%
+                        cell = @grid_data.dig(team_code, round, year)
+                        cell_text = cell ? cell[:text].to_s : "—"
+                        cell_key = "grid-#{team_code}-#{year}-#{round}"
+                        cell_open_expr = "$overlaytype = 'pick'; $overlaykey = '#{cell_key}'; @get('/drafts/sidebar/pick?team=#{team_code}&year=#{year}&round=#{round}')"
+                      %>
+
+                      <div
+                        class="w-44 shrink-0 border-l border-border/50 px-2 py-1.5 transition-colors duration-75"
+                        data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'pick' && $overlaykey === '<%= cell_key %>' }"
+                      >
+                        <% if cell.present? %>
+                          <%
+                            risk_tier = cell[:risk_tier].to_s.presence || "normal"
+                            risk_label = cell[:risk_tier_label].to_s.presence || "Normal"
+                            risk_score = cell[:ownership_risk_score].to_i
+                          %>
+
+                          <button
+                            type="button"
+                            class="cursor-pointer w-full text-left rounded border px-1.5 py-1 transition-colors duration-75 hover:border-foreground/30 focus-visible:underline <%= risk_container_class.call(risk_tier) %>"
+                            data-on:click="<%= cell_open_expr %>"
+                            title="<%= cell_text %>"
+                          >
+                            <div class="flex items-center justify-between gap-1">
+                              <span class="<%= risk_chip_class.call(risk_tier) %>"><%= risk_label %></span>
+                              <span class="font-mono tabular-nums text-[10px] text-muted-foreground">R<%= risk_score %></span>
+                            </div>
+
+                            <div class="mt-1 flex flex-wrap items-center gap-0.5">
+                              <% if cell[:has_swap] %>
+                                <span class="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">S</span>
+                              <% end %>
+                              <% if cell[:has_conditional] %>
+                                <span class="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">C</span>
+                              <% end %>
+                              <% if cell[:has_forfeited] %>
+                                <span class="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">F</span>
+                              <% end %>
+                              <% if cell[:provenance_trade_count].to_i.positive? %>
+                                <span class="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">P<%= cell[:provenance_trade_count].to_i %></span>
+                              <% end %>
+                            </div>
+
+                            <div class="mt-1 text-[10px] leading-snug <%= cell[:has_conditional] ? 'italic' : '' %> <%= cell[:has_forfeited] ? 'line-through text-muted-foreground/60' : (cell[:has_outgoing] ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground') %>"><%= truncate(cell_text, length: 54) %></div>
+                          </button>
+                        <% else %>
+                          <div class="h-full flex items-center text-muted-foreground/60">—</div>
                         <% end %>
                       </div>
                     <% end %>
-                  </td>
-                  <td class="px-1 py-1 text-center text-[10px] text-muted-foreground font-mono tabular-nums"><%= round %></td>
-
-                  <% @grid_years.each do |year| %>
-                    <%
-                      cell = @grid_data.dig(team_code, round, year)
-                      cell_text = cell ? cell[:text].to_s : "—"
-                      cell_key = "grid-#{team_code}-#{year}-#{round}"
-                      cell_open_expr = "$overlaytype = 'pick'; $overlaykey = '#{cell_key}'; @get('/drafts/sidebar/pick?team=#{team_code}&year=#{year}&round=#{round}')"
-                    %>
-                    <td
-                      class="px-2 py-1 text-[11px] leading-snug max-w-[12rem] transition-colors duration-75"
-                      data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'pick' && $overlaykey === '<%= cell_key %>' }"
-                    >
-                      <% if cell.present? %>
-                        <%
-                          risk_tier = cell[:risk_tier].to_s.presence || "normal"
-                          risk_label = cell[:risk_tier_label].to_s.presence || "Normal"
-                          risk_score = cell[:ownership_risk_score].to_i
-                          risk_chip_class = case risk_tier
-                          when "critical"
-                            "entity-chip entity-chip--danger"
-                          when "at_risk"
-                            "entity-chip entity-chip--warning"
-                          else
-                            "entity-chip entity-chip--muted"
-                          end
-                          risk_container_class = case risk_tier
-                          when "critical"
-                            "border-red-300/70 bg-red-50/70 dark:border-red-800/60 dark:bg-red-950/25"
-                          when "at_risk"
-                            "border-amber-300/70 bg-amber-50/70 dark:border-amber-800/60 dark:bg-amber-950/20"
-                          else
-                            "border-border/60 bg-background"
-                          end
-                        %>
-
-                        <button
-                          type="button"
-                          class="cursor-pointer w-full text-left rounded border px-1.5 py-1 transition-colors duration-75 hover:border-foreground/30 focus-visible:underline <%= risk_container_class %>"
-                          data-on:click="<%= cell_open_expr %>"
-                          title="<%= cell_text %>"
-                        >
-                          <div class="flex items-center justify-between gap-1">
-                            <span class="<%= risk_chip_class %>"><%= risk_label %></span>
-                            <span class="font-mono tabular-nums text-[10px] text-muted-foreground">R<%= risk_score %></span>
-                          </div>
-
-                          <div class="mt-1 flex flex-wrap items-center gap-0.5">
-                            <% if cell[:has_swap] %>
-                              <span class="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">S</span>
-                            <% end %>
-                            <% if cell[:has_conditional] %>
-                              <span class="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">C</span>
-                            <% end %>
-                            <% if cell[:has_forfeited] %>
-                              <span class="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">F</span>
-                            <% end %>
-                            <% if cell[:provenance_trade_count].to_i.positive? %>
-                              <span class="inline-flex items-center px-1 py-0 rounded text-[9px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">P<%= cell[:provenance_trade_count].to_i %></span>
-                            <% end %>
-                          </div>
-
-                          <div class="mt-1 text-[10px] leading-snug <%= cell[:has_conditional] ? 'italic' : '' %> <%= cell[:has_forfeited] ? 'line-through text-muted-foreground/60' : (cell[:has_outgoing] ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground') %>"><%= truncate(cell_text, length: 44) %></div>
-                        </button>
-                      <% else %>
-                        <span class="text-muted-foreground/60">—</span>
-                      <% end %>
-                    </td>
-                  <% end %>
-                </tr>
+                  </div>
+                </div>
               <% end %>
             <% end %>
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
     <% end %>
 
@@ -169,67 +195,67 @@
       No <%= @view == "picks" ? "draft picks" : "draft selections" %> found for this filter set.
     </div>
 
-  <% else %>
-    <div class="overflow-x-auto rounded-lg border border-border">
-      <table class="entity-table min-w-full text-xs">
-        <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-          <% if @view == "picks" %>
-            <tr>
-              <th class="text-left px-3 py-2 font-medium">Pick</th>
-              <th class="text-left px-3 py-2 font-medium">Original</th>
-              <th class="text-left px-3 py-2 font-medium">Current owner</th>
-              <th class="text-left px-3 py-2 font-medium">Status</th>
-              <th class="text-left px-3 py-2 font-medium">Protections</th>
-              <th class="text-right px-3 py-2 font-medium">Complexity</th>
-            </tr>
-          <% else %>
-            <tr>
-              <th class="text-center px-3 py-2 font-medium">Pick</th>
-              <th class="text-left px-3 py-2 font-medium">Player</th>
-              <th class="text-left px-3 py-2 font-medium">Drafting team</th>
-              <th class="text-left px-3 py-2 font-medium">Transaction</th>
-              <th class="text-right px-3 py-2 font-medium">Provenance</th>
-            </tr>
-          <% end %>
-        </thead>
-        <tbody class="divide-y divide-border">
-          <% if @view == "picks" %>
-            <% @results.each do |pick| %>
-              <%
-                row_key = "pick-#{pick['original_team_code']}-#{pick['draft_year']}-#{pick['draft_round']}"
-                open_expr = "$overlaytype = 'pick'; $overlaykey = '#{row_key}'; @get('/drafts/sidebar/pick?team=#{pick['original_team_code']}&year=#{pick['draft_year']}&round=#{pick['draft_round']}')"
-                status_text = pick["pick_status"].presence || "Own"
-              %>
-              <tr
-                class="group cursor-pointer hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
-                data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'pick' && $overlaykey === '<%= row_key %>' }"
-                data-on:click="<%= open_expr %>"
-              >
-                <td class="px-3 py-2 font-mono tabular-nums">
+  <% elsif @view == "picks" %>
+    <div class="rounded-lg border border-border overflow-x-auto">
+      <div class="min-w-[78rem]">
+        <div id="draft-picks-flex-header" class="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm border-b border-border">
+          <div class="flex items-center h-8 px-3 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
+            <div class="w-28 shrink-0">Pick</div>
+            <div class="w-40 shrink-0">Original</div>
+            <div class="w-44 shrink-0">Current owner</div>
+            <div class="w-44 shrink-0">Status</div>
+            <div class="w-[24rem] shrink-0">Protections</div>
+            <div class="w-32 shrink-0 text-right">Risk</div>
+          </div>
+        </div>
+
+        <div class="divide-y divide-border/50">
+          <% @results.each do |pick| %>
+            <%
+              row_key = "pick-#{pick['original_team_code']}-#{pick['draft_year']}-#{pick['draft_round']}"
+              open_expr = "$overlaytype = 'pick'; $overlaykey = '#{row_key}'; @get('/drafts/sidebar/pick?team=#{pick['original_team_code']}&year=#{pick['draft_year']}&round=#{pick['draft_round']}')"
+              status_text = pick["pick_status"].presence || "Own"
+              risk_tier = pick["risk_tier"].to_s.presence || "normal"
+              risk_label = pick["risk_tier_label"].to_s.presence || "Normal"
+            %>
+
+            <div
+              class="group cursor-pointer hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
+              role="button"
+              tabindex="0"
+              data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'pick' && $overlaykey === '<%= row_key %>' }"
+              data-on:click="<%= open_expr %>"
+              data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= open_expr %>; }"
+            >
+              <div class="flex items-center min-h-[56px] px-3 text-xs">
+                <div class="w-28 shrink-0 font-mono tabular-nums">
                   <a href="<%= draft_pick_path(team_code: pick['original_team_code'], year: pick['draft_year'], round: pick['draft_round']) %>" class="hover:underline" onclick="event.stopPropagation()">R<%= pick["draft_round"] %> · <%= pick["draft_year"] %></a>
-                </td>
-                <td class="px-3 py-2">
+                </div>
+
+                <div class="w-40 shrink-0 pr-2">
                   <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary">
+                    <div class="entity-cell-primary justify-start">
                       <a href="<%= team_href(team_code: pick['original_team_code']) %>" class="font-medium hover:underline" onclick="event.stopPropagation()"><%= pick["original_team_code"] %></a>
                     </div>
-                    <div class="entity-cell-secondary truncate"><%= pick["original_team_name"].presence || "—" %></div>
+                    <div class="entity-cell-secondary justify-start truncate"><%= pick["original_team_name"].presence || "—" %></div>
                   </div>
-                </td>
-                <td class="px-3 py-2">
+                </div>
+
+                <div class="w-44 shrink-0 pr-2">
                   <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary">
+                    <div class="entity-cell-primary justify-start">
                       <% if pick["current_team_code"].present? %>
                         <a href="<%= team_href(team_code: pick['current_team_code']) %>" class="font-medium hover:underline <%= pick['current_team_code'] != pick['original_team_code'] ? 'text-amber-600 dark:text-amber-400' : '' %>" onclick="event.stopPropagation()"><%= pick["current_team_code"] %></a>
                       <% else %>
                         <span class="text-muted-foreground">—</span>
                       <% end %>
                     </div>
-                    <div class="entity-cell-secondary truncate"><%= pick["current_team_name"].presence || "—" %></div>
+                    <div class="entity-cell-secondary justify-start truncate"><%= pick["current_team_name"].presence || "—" %></div>
                   </div>
-                </td>
-                <td class="px-3 py-2">
-                  <div class="flex items-center gap-1.5">
+                </div>
+
+                <div class="w-44 shrink-0 pr-2">
+                  <div class="flex flex-wrap items-center gap-1">
                     <% if pick["is_swap"] %>
                       <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">Swap</span>
                     <% end %>
@@ -243,84 +269,109 @@
                       <span class="text-muted-foreground text-[11px]"><%= status_text %></span>
                     <% end %>
                   </div>
-                </td>
-                <td class="px-3 py-2 text-muted-foreground text-[11px] max-w-xs truncate"><%= pick["protections_summary"].presence || "—" %></td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums">
-                  <% risk_score = pick["ownership_risk_score"].to_i %>
-                  <% provenance_count = pick["provenance_trade_count"].to_i %>
-                  <div class="space-y-0.5">
-                    <div class="font-medium"><%= risk_score %></div>
-                    <div class="text-[10px] leading-none text-muted-foreground">P<%= provenance_count %> · <%= pick["asset_line_count"].to_i %> lines</div>
+                </div>
+
+                <div class="w-[24rem] shrink-0 pr-2">
+                  <div class="text-[11px] leading-snug text-muted-foreground truncate"><%= pick["protections_summary"].presence || "—" %></div>
+                </div>
+
+                <div class="w-32 shrink-0 text-right">
+                  <div class="inline-flex flex-col items-end rounded border px-1.5 py-1 <%= risk_container_class.call(risk_tier) %>">
+                    <span class="<%= risk_chip_class.call(risk_tier) %>"><%= risk_label %></span>
+                    <span class="mt-1 text-[10px] font-mono tabular-nums text-muted-foreground">R<%= pick["ownership_risk_score"].to_i %> · P<%= pick["provenance_trade_count"].to_i %></span>
                   </div>
-                </td>
-              </tr>
-            <% end %>
-          <% else %>
-            <% @results.each do |sel| %>
-              <%
-                row_key = "selection-#{sel['transaction_id']}"
-                open_expr = "$overlaytype = 'selection'; $overlaykey = '#{row_key}'; @get('/drafts/sidebar/selection/#{sel['transaction_id']}')"
-              %>
-              <tr
-                class="group cursor-pointer hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
-                data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'selection' && $overlaykey === '<%= row_key %>' }"
-                data-on:click="<%= open_expr %>"
-              >
-                <td class="px-3 py-2 text-center font-mono tabular-nums">
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+  <% else %>
+    <div class="rounded-lg border border-border overflow-x-auto">
+      <div class="min-w-[72rem]">
+        <div id="draft-selections-flex-header" class="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm border-b border-border">
+          <div class="flex items-center h-8 px-3 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
+            <div class="w-24 shrink-0 text-center">Pick</div>
+            <div class="w-60 shrink-0">Player</div>
+            <div class="w-44 shrink-0">Drafting team</div>
+            <div class="w-52 shrink-0">Transaction</div>
+            <div class="w-32 shrink-0 text-right">Risk</div>
+          </div>
+        </div>
+
+        <div class="divide-y divide-border/50">
+          <% @results.each do |sel| %>
+            <%
+              row_key = "selection-#{sel['transaction_id']}"
+              open_expr = "$overlaytype = 'selection'; $overlaykey = '#{row_key}'; @get('/drafts/sidebar/selection/#{sel['transaction_id']}')"
+              provenance_count = sel["provenance_trade_count"].to_i
+              risk_tier = sel["risk_tier"].to_s.presence || "normal"
+              risk_label = sel["risk_tier_label"].to_s.presence || "Normal"
+              tx_date = sel["transaction_date"].present? ? Date.parse(sel["transaction_date"].to_s).strftime("%b %d, %Y") : "—"
+            %>
+
+            <div
+              class="group cursor-pointer hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
+              role="button"
+              tabindex="0"
+              data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'selection' && $overlaykey === '<%= row_key %>' }"
+              data-on:click="<%= open_expr %>"
+              data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= open_expr %>; }"
+            >
+              <div class="flex items-center min-h-[56px] px-3 text-xs">
+                <div class="w-24 shrink-0 text-center font-mono tabular-nums">
                   <div class="text-sm font-medium"><%= sel["pick_number"] %></div>
                   <div class="text-[10px] text-muted-foreground">R<%= sel["draft_round"] %> · <%= sel["draft_year"] %></div>
-                </td>
-                <td class="px-3 py-2">
+                </div>
+
+                <div class="w-60 shrink-0 pr-2">
                   <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary">
+                    <div class="entity-cell-primary justify-start">
                       <% if sel["player_id"].present? %>
                         <a href="<%= player_href(sel['player_id']) %>" class="font-medium truncate hover:underline" onclick="event.stopPropagation()"><%= sel["player_name"] %></a>
                       <% else %>
                         <span class="text-muted-foreground">—</span>
                       <% end %>
                     </div>
-                    <div class="entity-cell-secondary">id: <code class="font-mono tabular-nums"><%= sel["player_id"].presence || "—" %></code></div>
+                    <div class="entity-cell-secondary justify-start">id: <code class="font-mono tabular-nums"><%= sel["player_id"].presence || "—" %></code></div>
                   </div>
-                </td>
-                <td class="px-3 py-2">
+                </div>
+
+                <div class="w-44 shrink-0 pr-2">
                   <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary">
+                    <div class="entity-cell-primary justify-start">
                       <a href="<%= team_href(team_code: sel['drafting_team_code']) %>" class="font-medium hover:underline" onclick="event.stopPropagation()"><%= sel["drafting_team_code"] %></a>
                     </div>
-                    <div class="entity-cell-secondary truncate"><%= sel["drafting_team_name"].presence || "—" %></div>
+                    <div class="entity-cell-secondary justify-start truncate"><%= sel["drafting_team_name"].presence || "—" %></div>
                   </div>
-                </td>
-                <td class="px-3 py-2 text-muted-foreground">
+                </div>
+
+                <div class="w-52 shrink-0 pr-2 text-muted-foreground">
                   <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary">
+                    <div class="entity-cell-primary justify-start">
                       <a href="<%= transaction_href(sel['transaction_id']) %>" class="font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">#<%= sel["transaction_id"] %></a>
-                    </div>
-                    <div class="entity-cell-secondary">
-                      <%= sel["transaction_date"].present? ? Date.parse(sel["transaction_date"].to_s).strftime("%b %d, %Y") : "—" %>
                       <% if sel["trade_id"].present? %>
                         <span class="px-1 text-muted-foreground/50">·</span>
                         <a href="<%= trade_href(sel['trade_id']) %>" class="font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">T#<%= sel["trade_id"] %></a>
                       <% end %>
                     </div>
+                    <div class="entity-cell-secondary justify-start"><%= tx_date %></div>
                   </div>
-                </td>
-                <td class="px-3 py-2 text-right font-mono tabular-nums">
-                  <% provenance_count = sel["provenance_trade_count"].to_i %>
-                  <% risk_score = sel["provenance_risk_score"].to_i %>
-                  <% if provenance_count.positive? || risk_score.positive? %>
-                    <div class="space-y-0.5">
-                      <div class="font-medium"><%= provenance_count %></div>
-                      <div class="text-[10px] leading-none text-muted-foreground">risk <%= risk_score %></div>
-                    </div>
-                  <% else %>
-                    <span class="text-muted-foreground">—</span>
-                  <% end %>
-                </td>
-              </tr>
-            <% end %>
+                </div>
+
+                <div class="w-32 shrink-0 text-right">
+                  <div class="inline-flex flex-col items-end rounded border px-1.5 py-1 <%= risk_container_class.call(risk_tier) %>">
+                    <span class="<%= risk_chip_class.call(risk_tier) %>"><%= risk_label %></span>
+                    <span class="mt-1 text-[10px] font-mono tabular-nums text-muted-foreground">P<%= provenance_count %> · R<%= sel["provenance_risk_score"].to_i %></span>
+                  </div>
+                </div>
+              </div>
+            </div>
           <% end %>
-        </tbody>
-      </table>
+        </div>
+      </div>
     </div>
   <% end %>
 </div>

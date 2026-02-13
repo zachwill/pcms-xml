@@ -255,6 +255,8 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_includes response.body, 'id="drafts-results"'
+      assert_includes response.body, 'id="draft-picks-flex-header"'
+      assert_not_includes response.body, "<table"
       assert_not_includes response.body, "DoubleRenderError"
     end
   end
@@ -279,6 +281,7 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, 'id="drafts-results"'
+      assert_includes response.body, 'id="draft-grid-flex-header"'
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, "Ownership risk legend"
       assert_includes response.body, "Grid risk tiers"
@@ -286,6 +289,7 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "At risk"
       assert_includes response.body, "R8"
       assert_includes response.body, "R3"
+      assert_not_includes response.body, "<table"
     end
   end
 
@@ -297,11 +301,14 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, "event: datastar-patch-elements"
       assert_includes response.body, 'id="drafts-results"'
+      assert_includes response.body, 'id="draft-picks-flex-header"'
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, "Ownership risk legend"
       assert_includes response.body, "event: datastar-patch-signals"
       assert_includes response.body, '"draftsort":"risk"'
       assert_includes response.body, '"draftlens":"critical"'
+      assert_not_includes response.body, "<table"
     end
   end
 
@@ -344,6 +351,7 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="draft-selections-flex-header"'
       assert_includes response.body, "Open canonical draft-selection page"
       assert_includes response.body, '"draftsort":"risk"'
       assert_includes response.body, '"draftlens":"at_risk"'

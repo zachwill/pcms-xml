@@ -49,18 +49,29 @@
         <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Critical", value: summary[:critical_count].to_i.to_s, class_name: "w-full", variant: (summary[:critical_count].to_i.positive? ? "negative" : "muted") } %>
         <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Prov.", value: summary[:provenance_trade_total].to_i.to_s, class_name: "w-full" } %>
       </div>
-
-      <% severity_counts = summary[:severity_counts] || {} %>
-      <div class="rounded-md border border-border/60 bg-muted/10 px-2 py-2 text-[10px] text-muted-foreground space-y-1">
-        <div class="uppercase tracking-wide text-muted-foreground/80">Grid risk tiers</div>
-        <div class="flex flex-wrap items-center gap-1">
-          <span class="entity-chip entity-chip--muted">Normal <span class="ml-0.5 font-mono tabular-nums"><%= severity_counts.fetch("normal", summary[:normal_count].to_i) %></span></span>
-          <span class="entity-chip entity-chip--warning">At risk <span class="ml-0.5 font-mono tabular-nums"><%= severity_counts.fetch("at_risk", summary[:at_risk_count].to_i) %></span></span>
-          <span class="entity-chip entity-chip--danger">Critical <span class="ml-0.5 font-mono tabular-nums"><%= severity_counts.fetch("critical", summary[:critical_count].to_i) %></span></span>
-        </div>
-        <div>Critical matches sidebar rules (conditional, forfeited, or ≥2 provenance trades). At risk covers remaining outgoing/swap/provenance cells.</div>
-      </div>
     <% end %>
+
+    <% severity_counts = summary[:severity_counts] || {} %>
+    <% normal_count = severity_counts.fetch("normal", summary[:normal_count].to_i) %>
+    <% at_risk_count = severity_counts.fetch("at_risk", summary[:at_risk_count].to_i) %>
+    <% critical_count = severity_counts.fetch("critical", summary[:critical_count].to_i) %>
+    <% risk_tier_copy = case view
+    when "selections"
+      "Critical = 2+ provenance trades. At risk = trade-linked or provenance-active selection context."
+    when "picks"
+      "Critical = conditional/forfeited/2+ provenance. At risk = traded, swap, or provenance-active ownership."
+    else
+      "Critical = conditional/forfeited/2+ provenance. At risk = swap/outgoing/provenance-active ownership."
+    end %>
+    <div class="rounded-md border border-border/60 bg-muted/10 px-2 py-2 text-[10px] text-muted-foreground space-y-1">
+      <div class="uppercase tracking-wide text-muted-foreground/80"><%= view == "grid" ? "Grid risk tiers" : "Risk tiers" %></div>
+      <div class="flex flex-wrap items-center gap-1">
+        <span class="entity-chip entity-chip--muted">Normal <span class="ml-0.5 font-mono tabular-nums"><%= normal_count %></span></span>
+        <span class="entity-chip entity-chip--warning">At risk <span class="ml-0.5 font-mono tabular-nums"><%= at_risk_count %></span></span>
+        <span class="entity-chip entity-chip--danger">Critical <span class="ml-0.5 font-mono tabular-nums"><%= critical_count %></span></span>
+      </div>
+      <div><%= risk_tier_copy %></div>
+    </div>
 
     <% if Array(summary[:filters]).any? %>
       <div class="pt-1 flex flex-wrap gap-1">
@@ -129,7 +140,7 @@
     </div>
   <% else %>
     <div class="p-4 rounded-lg border border-border bg-muted/20 text-sm text-muted-foreground">
-      Use the table or grid to open pick/selection provenance in this panel.
+      Use the workspace rows or grid to open pick/selection provenance in this panel.
     </div>
   <% end %>
 </div>
