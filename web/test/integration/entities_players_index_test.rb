@@ -167,7 +167,7 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
     host! "localhost"
   end
 
-  test "players index renders workbench commandbar and sidebar base" do
+  test "players index renders workbench commandbar and compare surfaces" do
     with_fake_connection do
       get "/players", headers: modern_headers
 
@@ -176,7 +176,26 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="players-constraint-lens"'
       assert_includes response.body, 'id="players-cap-horizon-2026"'
       assert_includes response.body, 'id="maincanvas"'
+      assert_includes response.body, 'id="players-compare-strip"'
+      assert_includes response.body, 'id="players-compare-url-sync"'
+      assert_includes response.body, "URLSearchParams(window.location.search)"
+      assert_includes response.body, "params.set('compare_a', nextCompareA)"
+      assert_includes response.body, '>Pin A</button>'
       assert_includes response.body, 'id="rightpanel-base"'
+      assert_includes response.body, "Compare slots"
+    end
+  end
+
+  test "players index restores compare strip from compare params" do
+    with_fake_connection do
+      get "/players", params: {
+        compare_a: "1",
+        compare_b: "2"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.body, 'id="players-compare-strip"'
+      assert_includes response.body, "Beta Wing vs Alpha Guard delta"
     end
   end
 
@@ -195,11 +214,67 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, "event: datastar-patch-elements"
       assert_includes response.body, "id=\"maincanvas\""
+      assert_includes response.body, "id=\"players-compare-strip\""
       assert_includes response.body, "id=\"rightpanel-base\""
       assert_includes response.body, "id=\"rightpanel-overlay\""
       assert_includes response.body, "event: datastar-patch-signals"
       assert_includes response.body, '"playerconstraint":"all"'
       assert_includes response.body, '"playerhorizon":"2025"'
+      assert_includes response.body, '"comparea":""'
+      assert_includes response.body, '"compareb":""'
+    end
+  end
+
+  test "players refresh pin action updates compare slots without forcing overlay selection" do
+    with_fake_connection do
+      get "/players/sse/refresh", params: {
+        q: "",
+        team: "ALL",
+        status: "all",
+        constraint: "all",
+        horizon: "2025",
+        sort: "cap_desc",
+        compare_a: "",
+        compare_b: "",
+        selected_id: "",
+        compare_action: "pin",
+        compare_slot: "a",
+        player_id: "1"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="players-compare-strip"'
+      assert_includes response.body, 'id="players-compare-url-sync"'
+      assert_includes response.body, "Alpha Guard"
+      assert_includes response.body, '"comparea":"1"'
+      assert_includes response.body, '"selectedplayerid":""'
+      assert_includes response.body, 'id="rightpanel-overlay"></div>'
+    end
+  end
+
+  test "players refresh clear-slot action updates compare signals" do
+    with_fake_connection do
+      get "/players/sse/refresh", params: {
+        q: "",
+        team: "ALL",
+        status: "all",
+        constraint: "all",
+        horizon: "2025",
+        sort: "cap_desc",
+        compare_a: "1",
+        compare_b: "2",
+        selected_id: "",
+        compare_action: "clear_slot",
+        compare_slot: "a"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, '"comparea":""'
+      assert_includes response.body, '"compareb":"2"'
+      assert_not_includes response.body, "Beta Wing vs Alpha Guard delta"
+      assert_includes response.body, 'id="players-compare-url-sync"'
     end
   end
 
@@ -271,13 +346,19 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "players sidebar returns overlay and clear endpoint empties overlay" do
+  test "players sidebar returns overlay compare controls and clear endpoint empties overlay" do
     with_fake_connection do
       get "/players/sidebar/1", headers: modern_headers
 
       assert_response :success
       assert_includes response.body, 'id="rightpanel-overlay"'
       assert_includes response.body, "/players/1"
+      assert_includes response.body, ">Pin A</button>"
+      assert_includes response.body, ">Pin B</button>"
+      assert_includes response.body, "compare_action=pin&amp;compare_slot=a&amp;player_id=1"
+      assert_includes response.body, "compare_action=pin&amp;compare_slot=b&amp;player_id=1"
+      assert_includes response.body, "compare_action=clear_slot&amp;compare_slot=a"
+      assert_includes response.body, "compare_action=clear_slot&amp;compare_slot=b"
 
       get "/players/sidebar/clear", headers: modern_headers
 

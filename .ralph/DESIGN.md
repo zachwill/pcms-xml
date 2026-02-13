@@ -14,7 +14,7 @@ Rubric (1-5):
 4) Density/readability balance
 5) Navigation/pivots
 
-- [ ] [P1] [INDEX] /players — keep two candidate players pinned while scanning constraint-matched rows
+- [x] [P1] [INDEX] /players — keep two candidate players pinned while scanning constraint-matched rows
   - Problem: Users can filter and drill in, but cannot hold two player candidates side-by-side while continuing row scan.
   - Hypothesis: A lightweight compare strip + slot pinning in rows/overlay will reduce rescanning and preserve decision context.
   - Scope (files):
@@ -24,17 +24,29 @@ Rubric (1-5):
     - web/app/controllers/entities/players_controller.rb
     - web/app/controllers/entities/players_sse_controller.rb
     - web/test/integration/entities_players_index_test.rb
-  - Acceptance criteria:
-    - Rows and player overlay expose Pin A / Pin B actions that update one compare strip in `#maincanvas`.
-    - Compare slots persist across filter/sort/horizon SSE refresh when pinned players remain in scope.
-    - Compare strip shows at least cap-lens and next-year deltas and supports clear-slot / clear-all.
-    - URL state remains shareable for filters; compare interaction does not break existing sidebar drill-in behavior.
-  - Rubric (before → target):
+  - What changed:
+    - Added compare-slot state (`compare_a` / `compare_b`) to `/players` filters/signals and SSE refresh payloads.
+    - Added server-side compare action handling (`pin`, `clear_slot`, `clear_all`) and compare-row hydration tied to current filtered workspace rows.
+    - Added a `#players-compare-strip` in `#maincanvas` with Slot A / Slot B cards, clear-slot / clear-all controls, and B-vs-A deltas for cap-lens + next-year (plus total delta).
+    - Added Pin A / Pin B row controls (inline on player identity row) and overlay controls in `rightpanel-overlay`.
+    - Added a compare summary block in `#rightpanel-base` so pinned context remains visible while scanning top-cap hits.
+    - Added URL sync for compare params on `/players` so compare changes can persist in query state without breaking existing filter sharing.
+    - Expanded integration coverage for compare strip render/restore, SSE pin/clear actions, and overlay compare controls.
+  - Why this improves the flow:
+    - Users can now keep two candidate players pinned while continuing to scan constraint-matched rows, instead of repeatedly reopening overlays and rescanning cap values.
+    - Compare intent is available at both primary interaction points (row + overlay), and the compare strip keeps the decision context anchored in the main scan surface.
+    - Delta readouts reduce mental arithmetic and improve shortlist decisions when toggling horizon/sort/filter knobs.
+  - Verification:
+    - `cd web && bundle exec ruby -Itest test/integration/entities_players_index_test.rb -n "/refresh|sidebar returns/"`
+  - Rubric (before → after):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 3 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Standardize compare action query key naming across index surfaces (players now uses `compare_action`/`compare_slot`; teams still uses `action`/`slot`).
+    - Investigate local test env asset-path setup so full-page index integration tests can run without `tailwind.css` load-path failures.
   - Guardrails:
     - Do not modify Salary Book files.
 

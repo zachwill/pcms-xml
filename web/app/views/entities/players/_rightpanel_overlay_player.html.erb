@@ -18,6 +18,21 @@
 
   player_path_value = "/players/#{player_id}"
   agent_path_value = agent_id.present? ? "/agents/#{agent_id}" : nil
+
+  refresh_query_expr = "'q=' + encodeURIComponent($playerquery) +
+    '&team=' + encodeURIComponent($playerteam) +
+    '&status=' + encodeURIComponent($playerstatus) +
+    '&constraint=' + encodeURIComponent($playerconstraint) +
+    '&horizon=' + encodeURIComponent($playerhorizon) +
+    '&sort=' + encodeURIComponent($playersort) +
+    '&compare_a=' + encodeURIComponent($comparea) +
+    '&compare_b=' + encodeURIComponent($compareb) +
+    '&selected_id=' + encodeURIComponent('#{player_id}')"
+
+  pin_a_expr = "@get('/players/sse/refresh?' + (#{refresh_query_expr}) + '&compare_action=pin&compare_slot=a&player_id=#{player_id}')"
+  pin_b_expr = "@get('/players/sse/refresh?' + (#{refresh_query_expr}) + '&compare_action=pin&compare_slot=b&player_id=#{player_id}')"
+  clear_a_expr = "@get('/players/sse/refresh?' + (#{refresh_query_expr}) + '&compare_action=clear_slot&compare_slot=a')"
+  clear_b_expr = "@get('/players/sse/refresh?' + (#{refresh_query_expr}) + '&compare_action=clear_slot&compare_slot=b')"
 %>
 
 <div id="rightpanel-overlay" class="h-full">
@@ -47,7 +62,7 @@
         />
       </div>
 
-      <div class="min-w-0 space-y-0.5">
+      <div class="min-w-0 space-y-1">
         <h2 class="text-lg font-semibold text-foreground truncate"><%= player_name %></h2>
         <div class="text-xs text-muted-foreground/80 tabular-nums flex items-center gap-1">
           <span><%= status_label %></span>
@@ -55,6 +70,46 @@
             <span class="text-muted-foreground/50">·</span>
             <span><%= yos_label %></span>
           <% end %>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            aria-label="Pin <%= player_name %> to compare slot A"
+            title="Pin to compare slot A"
+            data-class="{ 'border-indigo-500/60 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300': $comparea === '<%= player_id %>' }"
+            data-on:click="<%= pin_a_expr %>"
+          >Pin A</button>
+
+          <button
+            type="button"
+            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            aria-label="Pin <%= player_name %> to compare slot B"
+            title="Pin to compare slot B"
+            data-class="{ 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300': $compareb === '<%= player_id %>' }"
+            data-on:click="<%= pin_b_expr %>"
+          >Pin B</button>
+
+          <button
+            type="button"
+            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            data-show="$comparea === '<%= player_id %>'"
+            style="display: none;"
+            aria-label="Clear compare slot A"
+            title="Clear compare slot A"
+            data-on:click="<%= clear_a_expr %>"
+          >Clear A</button>
+
+          <button
+            type="button"
+            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            data-show="$compareb === '<%= player_id %>'"
+            style="display: none;"
+            aria-label="Clear compare slot B"
+            title="Clear compare slot B"
+            data-on:click="<%= clear_b_expr %>"
+          >Clear B</button>
         </div>
       </div>
     </div>

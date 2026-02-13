@@ -6,7 +6,9 @@
     '&status=' + encodeURIComponent($playerstatus) +
     '&constraint=' + encodeURIComponent($playerconstraint) +
     '&horizon=' + encodeURIComponent($playerhorizon) +
-    '&sort=' + encodeURIComponent($playersort)"
+    '&sort=' + encodeURIComponent($playersort) +
+    '&compare_a=' + encodeURIComponent($comparea) +
+    '&compare_b=' + encodeURIComponent($compareb)"
 
   selected_overlay_query_expr = "'selected_id=' + encodeURIComponent($overlaytype === 'player' ? $selectedplayerid : '')"
   refresh_query_expr = "(#{pane_query_expr}) + '&' + (#{selected_overlay_query_expr})"
@@ -15,7 +17,7 @@
   submit_search_expr = "evt.preventDefault(); #{refresh_expr}"
   clear_search_expr = "$playerquery = ''; #{refresh_expr}"
 
-  signals_literal = "{ playerquery: #{@query.to_json}, playerteam: #{@team_lens.to_json}, playerstatus: #{@status_lens.to_json}, playerconstraint: #{@constraint_lens.to_json}, playerhorizon: #{@cap_horizon.to_s.to_json}, playersort: #{@sort_lens.to_json}, selectedplayerid: '', overlaytype: 'none' }"
+  signals_literal = "{ playerquery: #{@query.to_json}, playerteam: #{@team_lens.to_json}, playerstatus: #{@status_lens.to_json}, playerconstraint: #{@constraint_lens.to_json}, playerhorizon: #{@cap_horizon.to_s.to_json}, playersort: #{@sort_lens.to_json}, comparea: #{@compare_a_id.to_s.to_json}, compareb: #{@compare_b_id.to_s.to_json}, selectedplayerid: #{@selected_player_id.to_s.to_json}, overlaytype: #{@selected_player_id.present? ? 'player'.to_json : 'none'.to_json} }"
 %>
 
 <div id="players-workspace" class="h-screen w-screen flex flex-col overflow-hidden bg-background" data-signals="<%= signals_literal %>">

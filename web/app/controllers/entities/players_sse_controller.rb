@@ -21,7 +21,7 @@ module Entities
     # - #rightpanel-base
     # - #rightpanel-overlay (preserved when selected row remains visible)
     def refresh
-      load_index_workspace_state!
+      load_index_workspace_state!(apply_compare_action: true)
 
       requested_overlay_id = requested_overlay_id_param
       overlay_html, resolved_overlay_type, resolved_selected_player_id = refreshed_overlay_payload(requested_overlay_id: requested_overlay_id)
@@ -46,6 +46,8 @@ module Entities
           playerconstraint: @constraint_lens.to_s,
           playerhorizon: @cap_horizon.to_s,
           playersort: @sort_lens.to_s,
+          comparea: @compare_a_id.to_s,
+          compareb: @compare_b_id.to_s,
           overlaytype: resolved_overlay_type,
           selectedplayerid: resolved_selected_player_id
         )

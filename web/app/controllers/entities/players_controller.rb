@@ -90,10 +90,12 @@ module Entities
 
     private
 
-    def load_index_workspace_state!
+    def load_index_workspace_state!(apply_compare_action: false)
       setup_index_filters!
+      apply_index_compare_action! if apply_compare_action
       load_player_team_lenses!
       load_index_players!
+      build_index_compare_state!
       build_player_sidebar_summary!(selected_player_id: @selected_player_id)
     end
 
@@ -124,6 +126,41 @@ module Entities
       @sort_lens = PLAYER_SORT_LENSES.include?(requested_sort) ? requested_sort : "cap_desc"
 
       @selected_player_id = normalize_selected_player_id_param(params[:selected_id])
+      @compare_a_id = normalize_selected_player_id_param(params[:compare_a])
+      @compare_b_id = normalize_selected_player_id_param(params[:compare_b])
+      normalize_compare_slots!
+    end
+
+    def apply_index_compare_action!
+      action = resolve_compare_action(params[:compare_action] || params[:action])
+      slot = resolve_compare_slot(params[:compare_slot] || params[:slot])
+      player_id = normalize_selected_player_id_param(params[:player_id])
+
+      case action
+      when "pin"
+        return if slot.blank? || player_id.blank?
+
+        if slot == "a"
+          @compare_a_id = (@compare_a_id == player_id ? nil : player_id)
+          @compare_b_id = nil if @compare_b_id == @compare_a_id
+        else
+          @compare_b_id = (@compare_b_id == player_id ? nil : player_id)
+          @compare_a_id = nil if @compare_a_id == @compare_b_id
+        end
+      when "clear_slot"
+        return if slot.blank?
+
+        if slot == "a"
+          @compare_a_id = nil
+        else
+          @compare_b_id = nil
+        end
+      when "clear_all"
+        @compare_a_id = nil
+        @compare_b_id = nil
+      end
+
+      normalize_compare_slots!
     end
 
     def load_player_team_lenses!
@@ -247,6 +284,17 @@ module Entities
       SQL
     end
 
+    def build_index_compare_state!
+      @players_by_id = Array(@players).index_by { |row| row["player_id"].to_i }
+
+      @compare_a_row = compare_row_from_workspace(@compare_a_id)
+      @compare_b_row = compare_row_from_workspace(@compare_b_id)
+
+      @compare_a_id = nil if @compare_a_id.present? && @compare_a_row.blank?
+      @compare_b_id = nil if @compare_b_id.present? && @compare_b_row.blank?
+      normalize_compare_slots!
+    end
+
     def build_player_sidebar_summary!(selected_player_id: nil)
       rows = Array(@players)
       active_filters = []
@@ -285,7 +333,11 @@ module Entities
         constraint_lens_match_reason: constraint_lens_match_reason(@constraint_lens, cap_horizon: @cap_horizon),
         total_cap: rows.sum { |row| row["cap_lens_value"].to_f },
         filters: active_filters,
-        top_rows: top_rows
+        top_rows: top_rows,
+        compare_a_id: @compare_a_id,
+        compare_b_id: @compare_b_id,
+        compare_a_row: @compare_a_row,
+        compare_b_row: @compare_b_row
       }
     end
 
@@ -360,6 +412,29 @@ module Entities
       when "name_asc" then "Name A→Z"
       when "name_desc" then "Name Z→A"
       else "Cap #{cap_horizon_label(@cap_horizon)} descending"
+      end
+    end
+
+    def compare_row_from_workspace(player_id)
+      normalized_id = player_id.to_i
+      return nil if normalized_id <= 0
+
+      @players_by_id[normalized_id]
+    end
+
+    def resolve_compare_action(raw)
+      action = raw.to_s.strip
+      %w[pin clear_slot clear_all].include?(action) ? action : nil
+    end
+
+    def resolve_compare_slot(raw)
+      slot = raw.to_s.strip.downcase
+      %w[a b].include?(slot) ? slot : nil
+    end
+
+    def normalize_compare_slots!
+      if @compare_a_id.present? && @compare_b_id.present? && @compare_a_id == @compare_b_id
+        @compare_b_id = nil
       end
     end
 

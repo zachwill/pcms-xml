@@ -2,9 +2,33 @@
   <% summary = @sidebar_summary %>
   <% cap_horizon = summary[:cap_horizon].to_i %>
   <% cap_horizon_label = summary[:cap_horizon_label].presence || format_year_label(cap_horizon) %>
+  <% next_horizon_label = format_year_label(cap_horizon + 1) %>
   <% active_constraint_key = summary[:constraint_lens_match_key].to_s.presence %>
   <% active_constraint_reason = summary[:constraint_lens_match_reason].to_s.presence %>
   <% active_constraint_chip_label = summary[:constraint_lens_match_chip_label].to_s.presence %>
+
+  <% compare_a_row = summary[:compare_a_row] %>
+  <% compare_b_row = summary[:compare_b_row] %>
+  <% compare_slots = [
+    { key: "a", label: "Slot A", row: compare_a_row, tone: "indigo" },
+    { key: "b", label: "Slot B", row: compare_b_row, tone: "emerald" }
+  ] %>
+  <% has_compare = compare_slots.any? { |slot| slot[:row].present? } %>
+
+  <% if compare_a_row.present? && compare_b_row.present? %>
+    <% compare_cap_lens_delta = compare_b_row["cap_lens_value"].to_f - compare_a_row["cap_lens_value"].to_f %>
+    <% compare_cap_next_delta = compare_b_row["cap_next_value"].to_f - compare_a_row["cap_next_value"].to_f %>
+  <% end %>
+
+  <% refresh_query_expr = "'q=' + encodeURIComponent($playerquery) +
+    '&team=' + encodeURIComponent($playerteam) +
+    '&status=' + encodeURIComponent($playerstatus) +
+    '&constraint=' + encodeURIComponent($playerconstraint) +
+    '&horizon=' + encodeURIComponent($playerhorizon) +
+    '&sort=' + encodeURIComponent($playersort) +
+    '&compare_a=' + encodeURIComponent($comparea) +
+    '&compare_b=' + encodeURIComponent($compareb) +
+    '&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $selectedplayerid : '')" %>
 
   <div id="rightpanel-base" class="space-y-4">
     <div class="rounded-lg border border-border bg-background p-3 space-y-3">
@@ -68,6 +92,60 @@
       <% if active_constraint_reason.present? %>
         <div class="rounded border border-border/60 bg-muted/20 px-2 py-1.5 text-[10px] leading-tight text-muted-foreground">
           <span class="text-foreground/90">Why matched</span>: <%= active_constraint_reason %>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="rounded-lg border border-border bg-background p-3 space-y-2">
+      <div class="flex items-center justify-between gap-2">
+        <div class="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/80">Compare slots</div>
+        <% if has_compare %>
+          <button
+            type="button"
+            class="cursor-pointer text-[10px] text-muted-foreground hover:text-foreground hover:underline"
+            data-on:click="@get('/players/sse/refresh?' + (<%= refresh_query_expr %>) + '&compare_action=clear_all')"
+          >Clear all</button>
+        <% end %>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-[11px]">
+        <% compare_slots.each do |slot| %>
+          <% row = slot[:row] %>
+          <% slot_badge_class = slot[:tone] == "indigo" ? "text-indigo-700 dark:text-indigo-300 border-indigo-500/40 bg-indigo-500/10" : "text-emerald-700 dark:text-emerald-300 border-emerald-500/40 bg-emerald-500/10" %>
+          <div class="rounded border border-border px-2 py-1.5 space-y-1">
+            <div class="flex items-center justify-between gap-1">
+              <span class="inline-flex items-center rounded border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide <%= slot_badge_class %>"><%= slot[:label] %></span>
+              <% if row.present? %>
+                <button
+                  type="button"
+                  class="cursor-pointer text-[9px] text-muted-foreground hover:text-foreground hover:underline"
+                  data-on:click="@get('/players/sse/refresh?' + (<%= refresh_query_expr %>) + '&compare_action=clear_slot&compare_slot=<%= slot[:key] %>')"
+                >Clear</button>
+              <% end %>
+            </div>
+
+            <% if row.present? %>
+              <% player_id = row["player_id"] %>
+              <button
+                type="button"
+                class="cursor-pointer w-full text-left"
+                data-on:click="$selectedplayerid = '<%= player_id %>'; $overlaytype = 'player'; @get('/players/sidebar/<%= player_id %>')"
+              >
+                <div class="font-medium truncate"><%= row["player_name"] %></div>
+                <div class="mt-0.5 text-[10px] text-muted-foreground/80 tabular-nums"><%= row["team_code"].presence || "FA" %> · <%= row["cap_lens_value"].present? ? format_compact_currency(row["cap_lens_value"]) : "—" %></div>
+              </button>
+            <% else %>
+              <div class="text-[10px] text-muted-foreground italic">No player pinned.</div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+
+      <% if compare_a_row.present? && compare_b_row.present? %>
+        <div class="rounded border border-border/60 bg-muted/20 px-2 py-1.5 text-[10px] tabular-nums flex flex-wrap gap-2">
+          <span class="font-medium text-muted-foreground"><%= compare_b_row["player_name"] %> vs <%= compare_a_row["player_name"] %></span>
+          <span class="<%= compare_cap_lens_delta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' %>">Cap <%= cap_horizon_label %> <%= format_room_amount(compare_cap_lens_delta) %></span>
+          <span class="<%= compare_cap_next_delta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' %>">Cap <%= next_horizon_label %> <%= format_room_amount(compare_cap_next_delta) %></span>
         </div>
       <% end %>
     </div>
