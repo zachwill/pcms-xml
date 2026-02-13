@@ -36,7 +36,7 @@ end %>
     <button
       type="button"
       class="cursor-pointer text-xs text-muted-foreground hover:text-foreground hover:underline"
-      data-on:click="$svoverlaysection=''; $svoverlaymetric=''; $svoverlayyear=''; $svoverlaylower=''; $svoverlayupper=''; @get('<%= tools_system_values_sidebar_clear_path %>')"
+      data-on:click="$svmetricfinder=''; $svoverlaysection=''; $svoverlaymetric=''; $svoverlayyear=''; $svoverlaylower=''; $svoverlayupper=''; @get('<%= tools_system_values_sidebar_clear_path %>')"
     >Close</button>
 
     <a class="text-xs text-muted-foreground hover:text-foreground hover:underline" href="<%= tools_system_values_path(@state_params) %>">Open canonical URL</a>

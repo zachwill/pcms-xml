@@ -96,13 +96,15 @@ end %>
             end %>
 
             <% row_active_expr = "$svoverlaysection === 'minimum' && $svoverlaymetric === 'minimum_salary_amount' && $svoverlayyear === '#{row_year}' && $svoverlaylower === '#{yos_key}'" %>
+            <% minimum_anchor_id = "sv-row-minimum-#{row_year}-yos-#{yos_key}" %>
 
             <div
+              id="<%= minimum_anchor_id %>"
               class="group flex items-stretch text-xs transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 <%= row_bg %> cursor-pointer focus-visible:outline-none"
               role="button"
               tabindex="0"
-              data-on:click="$svoverlaysection='minimum'; $svoverlaymetric='minimum_salary_amount'; $svoverlayyear='<%= row_year %>'; $svoverlaylower='<%= yos_key %>'; $svoverlayupper=''; @get('<%= sidebar_metric_path %>?' + (<%= overlay_query_expr %>));"
-              data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); $svoverlaysection='minimum'; $svoverlaymetric='minimum_salary_amount'; $svoverlayyear='<%= row_year %>'; $svoverlaylower='<%= yos_key %>'; $svoverlayupper=''; @get('<%= sidebar_metric_path %>?' + (<%= overlay_query_expr %>)); }"
+              data-on:click="$svmetricfinder=''; $svoverlaysection='minimum'; $svoverlaymetric='minimum_salary_amount'; $svoverlayyear='<%= row_year %>'; $svoverlaylower='<%= yos_key %>'; $svoverlayupper=''; @get('<%= sidebar_metric_path %>?' + (<%= overlay_query_expr %>));"
+              data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); $svmetricfinder=''; $svoverlaysection='minimum'; $svoverlaymetric='minimum_salary_amount'; $svoverlayyear='<%= row_year %>'; $svoverlaylower='<%= yos_key %>'; $svoverlayupper=''; @get('<%= sidebar_metric_path %>?' + (<%= overlay_query_expr %>)); }"
             >
               <div class="w-36 shrink-0 px-4 py-1.5 sticky left-0 z-20 relative transition-colors duration-75 <%= sticky_bg %> before:absolute before:right-0 before:top-0 before:bottom-0 before:w-[6px] before:bg-gradient-to-r before:from-[rgba(0,0,0,0.08)] before:to-transparent after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/50">
                 <div class="entity-cell-two-line">

@@ -326,26 +326,45 @@ Supervisor review (2026-02-13):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P2] [TOOL] /tools/system-values — jump directly to a metric and open drill-in in one flow
-  - Problem: Users must manually scroll across large tables to reach a known metric/bracket.
-  - Hypothesis: Metric finder + jump-to-row drill-in will accelerate expert workflows while preserving dense table layout.
-  - Scope (files):
-    - web/app/views/tools/system_values/_commandbar.html.erb
-    - web/app/views/tools/system_values/_workspace_main.html.erb
-    - web/app/views/tools/system_values/_rightpanel_base.html.erb
-    - web/app/controllers/tools/system_values_controller.rb
-    - web/test/integration/tools_system_values_test.rb
-  - Acceptance criteria:
-    - Commandbar exposes a metric finder that can target system/tax/minimum/rookie metrics.
-    - Choosing a metric scrolls to the relevant section/row and opens corresponding sidebar drill-in.
-    - Overlay query params remain canonical and survive SSE refresh.
-    - Existing section visibility toggles and scrollspy continue to work.
-  - Rubric (before → target):
+- [x] [P2] [TOOL] /tools/system-values — jump directly to a metric and open drill-in in one flow
+  - Problem: Users had to manually scroll large System/Tax/Minimum/Rookie tables to reach known metrics and then click again to open drill-in.
+  - Hypothesis: A commandbar metric finder that jumps + opens overlay in one action would reduce navigation friction while keeping dense row grammar.
+  - What changed:
+    - Added a commandbar Metric finder in `web/app/views/tools/system_values/_commandbar.html.erb`:
+      - grouped finder options for System / Tax / Minimum / Rookie metrics,
+      - one-flow jump handler (`system-values-jump`) that sets canonical overlay signals, ensures target section visibility, scrolls `#maincanvas` to the anchored row, and opens `#rightpanel-overlay` via `/tools/system-values/sidebar/metric`.
+      - clear/close actions now also reset `svmetricfinder` to avoid stale finder state.
+    - Added stable row anchors in table rows so finder jumps can land precisely:
+      - `web/app/views/tools/system_values/_league_system_values_table.html.erb`
+      - `web/app/views/tools/system_values/_league_tax_rates_table.html.erb`
+      - `web/app/views/tools/system_values/_league_salary_scales_table.html.erb`
+      - `web/app/views/tools/system_values/_rookie_scale_amounts_table.html.erb`
+    - Extended `web/app/controllers/tools/system_values_controller.rb`:
+      - built `@metric_finder_options` from selected-season system/tax/minimum/rookie data,
+      - added anchor-id/value builders so option payloads match row ids,
+      - derived and patched `@active_metric_finder_value`/`@active_metric_finder_option` from overlay state,
+      - included `svmetricfinder` in SSE signal patching,
+      - passed `overlay_query_expr` locals during SSE partial rendering to keep refresh flow canonical and stable.
+    - Updated `web/app/views/tools/system_values/show.html.erb` signal bootstrap to include `svmetricfinder`.
+    - Updated `web/app/views/tools/system_values/_rightpanel_base.html.erb` with metric-finder jump status context.
+    - Updated `web/app/views/tools/system_values/_rightpanel_overlay_metric.html.erb` close behavior to clear finder state.
+    - Expanded integration assertions in `web/test/integration/tools_system_values_test.rb` for finder option payloads, row anchors, and `svmetricfinder` SSE signal behavior.
+  - Why this improves the flow:
+    - Experts can now target a known metric/bracket/pick from the commandbar and complete jump + drill-in in one interaction loop.
+    - Row anchors plus canonical signal payloads keep wayfinding deterministic across sections.
+    - SSE refresh now preserves overlay + finder canonical state together, improving predictability after year/baseline/range changes.
+  - Verification:
+    - `cd web && bundle exec ruby -Itest test/integration/tools_system_values_test.rb -i "/sidebar metric endpoint|tax sidebar|minimum salary sidebar|rookie scale sidebar|refresh endpoint returns ordered multi-region sse patches|refresh preserves minimum overlay|refresh clears minimum overlay|refresh preserves rookie overlay|refresh clears rookie overlay/"`
+    - `cd web && ruby -c app/controllers/tools/system_values_controller.rb`
+  - Rubric (before → after):
     - Scan speed: 3 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Full-page `/tools/system-values` integration assertions that render layout still hit the known `tailwind.css` test asset load-path issue in this environment; keep running focused sidebar/SSE subsets until harness setup is fixed.
+    - Consider adding keyboard-first typeahead ranking (top N) on the finder once URL-persisted section visibility work is scheduled.
   - Guardrails:
     - Do not modify Salary Book files.
 

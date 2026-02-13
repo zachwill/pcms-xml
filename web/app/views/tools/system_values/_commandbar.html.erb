@@ -1,3 +1,7 @@
+<% overlay_query_expr ||= "''" %>
+<% metric_finder_options = Array(@metric_finder_options) %>
+<% metric_finder_groups = metric_finder_options.group_by { |option| option[:section_label] } %>
+
 <div class="flex-1 min-w-0 space-y-3">
   <div>
     <h1 class="text-sm font-semibold tracking-wide uppercase">System Values</h1>
@@ -75,8 +79,74 @@
       class="h-7 px-2 rounded border border-border bg-background text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted"
       data-show="$svoverlaysection !== ''"
       style="display: none;"
-      data-on:click="$svoverlaysection=''; $svoverlaymetric=''; $svoverlayyear=''; $svoverlaylower=''; $svoverlayupper=''; @get('<%= tools_system_values_sidebar_clear_path %>')"
+      data-on:click="$svmetricfinder=''; $svoverlaysection=''; $svoverlaymetric=''; $svoverlayyear=''; $svoverlaylower=''; $svoverlayupper=''; @get('<%= tools_system_values_sidebar_clear_path %>')"
     >Clear drill-in</button>
+
+    <div class="h-7 w-px bg-border self-end mx-1"></div>
+
+    <div
+      class="space-y-1 min-w-[24rem]"
+      data-on:system-values-jump="
+        const raw = (evt.detail && evt.detail.value) ? String(evt.detail.value) : '';
+        if (!raw) { return; }
+
+        const parts = raw.split('|');
+        if (parts.length < 6) { return; }
+
+        const section = parts[0];
+        const metric = parts[1];
+        const year = parts[2];
+        const lower = parts[3] || '';
+        const upper = parts[4] || '';
+        const anchorId = parts[5] || '';
+
+        if (section === 'system') { $showsystemvalues = true; }
+        if (section === 'tax') { $showtaxrates = true; }
+        if (section === 'minimum') { $showsalaryscales = true; }
+        if (section === 'rookie') { $showrookiescales = true; }
+
+        $svmetricfinder = raw;
+        $svoverlaysection = section;
+        $svoverlaymetric = metric;
+        $svoverlayyear = year;
+        $svoverlaylower = lower;
+        $svoverlayupper = upper;
+        $activesection = section;
+
+        const scroller = document.getElementById('maincanvas');
+        const target = anchorId ? document.getElementById(anchorId) : null;
+        if (scroller && target) {
+          scroller.scrollTo({ top: Math.max(target.offsetTop - 52, 0), behavior: 'smooth' });
+        }
+
+        @get('<%= tools_system_values_sidebar_metric_path %>?' + (<%= overlay_query_expr %>));
+      "
+    >
+      <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-metric-finder-select">Metric finder</label>
+      <div class="flex items-center gap-1.5">
+        <select
+          id="system-values-metric-finder-select"
+          class="h-7 min-w-[21rem] rounded border border-border bg-muted/50 px-2 text-xs"
+          data-bind="svmetricfinder"
+          data-on:change="el.dispatchEvent(new CustomEvent('system-values-jump', { bubbles: true, detail: { value: el.value } }));"
+        >
+          <option value="">Jump to metric + open drill-in…</option>
+          <% metric_finder_groups.each do |section_label, options| %>
+            <optgroup label="<%= section_label %>">
+              <% options.each do |option| %>
+                <option value="<%= option[:value] %>"><%= option[:label] %></option>
+              <% end %>
+            </optgroup>
+          <% end %>
+        </select>
+
+        <button
+          type="button"
+          class="h-7 px-2 rounded border border-border bg-background text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted"
+          data-on:click="const finder = document.getElementById('system-values-metric-finder-select'); el.dispatchEvent(new CustomEvent('system-values-jump', { bubbles: true, detail: { value: finder ? finder.value : '' } }));"
+        >Jump</button>
+      </div>
+    </div>
 
     <div class="h-7 w-px bg-border self-end mx-1"></div>
 

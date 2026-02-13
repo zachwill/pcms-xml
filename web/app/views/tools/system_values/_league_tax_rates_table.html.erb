@@ -104,8 +104,9 @@ end %>
 
             <% overlay_lower = row["lower_limit"].present? ? format("%.0f", row["lower_limit"].to_f) : "" %>
             <% overlay_upper = row["upper_limit"].present? ? format("%.0f", row["upper_limit"].to_f) : "" %>
+            <% tax_anchor_id = "sv-row-tax-#{row_year}-#{overlay_lower.presence || '0'}-#{overlay_upper.presence || 'inf'}" %>
 
-            <div class="group flex items-stretch text-xs transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 <%= row_bg %>">
+            <div id="<%= tax_anchor_id %>" class="group flex items-stretch text-xs transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 <%= row_bg %>">
               <div class="w-36 shrink-0 px-4 py-1.5 sticky left-0 z-20 relative transition-colors duration-75 <%= sticky_bg %> before:absolute before:right-0 before:top-0 before:bottom-0 before:w-[6px] before:bg-gradient-to-r before:from-[rgba(0,0,0,0.08)] before:to-transparent after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/50">
                 <div class="entity-cell-two-line">
                   <div class="entity-cell-primary font-mono tabular-nums"><%= format_year_label(row_year) %></div>
@@ -155,7 +156,7 @@ end %>
                   <button
                     type="button"
                     class="cursor-pointer w-full text-left rounded-sm hover:bg-yellow-100/70 dark:hover:bg-yellow-900/20 focus-visible:outline-none"
-                    data-on:click="$svoverlaysection='tax'; $svoverlaymetric='<%= metric_key %>'; $svoverlayyear='<%= row_year %>'; $svoverlaylower='<%= overlay_lower %>'; $svoverlayupper='<%= overlay_upper %>'; @get('<%= sidebar_metric_path %>?' + (<%= overlay_query_expr %>));"
+                    data-on:click="$svmetricfinder=''; $svoverlaysection='tax'; $svoverlaymetric='<%= metric_key %>'; $svoverlayyear='<%= row_year %>'; $svoverlaylower='<%= overlay_lower %>'; $svoverlayupper='<%= overlay_upper %>'; @get('<%= sidebar_metric_path %>?' + (<%= overlay_query_expr %>));"
                   >
                     <div class="entity-cell-two-line">
                       <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= primary_label %></div>

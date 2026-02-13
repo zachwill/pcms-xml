@@ -42,6 +42,13 @@ module Tools
       "option_pct_year_4" => { label: "Option Year 4 %", kind: :percentage }
     }.freeze
 
+    METRIC_FINDER_SECTION_LABELS = {
+      "system" => "System",
+      "tax" => "Tax",
+      "minimum" => "Minimum",
+      "rookie" => "Rookie"
+    }.freeze
+
     # GET /tools/system-values
     def show
       load_workspace_state!
@@ -88,9 +95,28 @@ module Tools
       resolve_overlay_payload!
 
       with_sse_stream do |sse|
-        commandbar_html = render_to_string(partial: "tools/system_values/commandbar", layout: false)
-        main_html = render_to_string(partial: "tools/system_values/workspace_main", layout: false)
-        rightpanel_base_html = render_to_string(partial: "tools/system_values/rightpanel_base", layout: false)
+        commandbar_html = render_to_string(
+          partial: "tools/system_values/commandbar",
+          layout: false,
+          locals: {
+            state_query_expr:,
+            overlay_query_expr:
+          }
+        )
+        main_html = render_to_string(
+          partial: "tools/system_values/workspace_main",
+          layout: false,
+          locals: {
+            overlay_query_expr:
+          }
+        )
+        rightpanel_base_html = render_to_string(
+          partial: "tools/system_values/rightpanel_base",
+          layout: false,
+          locals: {
+            overlay_query_expr:
+          }
+        )
         rightpanel_overlay_html = if @overlay_payload.present?
           render_to_string(partial: "tools/system_values/rightpanel_overlay_metric", layout: false)
         else
@@ -107,6 +133,7 @@ module Tools
           svbaseline: @baseline_year.to_s,
           svfrom: @from_year.to_s,
           svto: @to_year.to_s,
+          svmetricfinder: @active_metric_finder_value.to_s,
           svoverlaysection: @overlay_signals.fetch(:section),
           svoverlaymetric: @overlay_signals.fetch(:metric),
           svoverlayyear: @overlay_signals.fetch(:year),
@@ -124,6 +151,22 @@ module Tools
 
     def conn
       ActiveRecord::Base.connection
+    end
+
+    def state_query_expr
+      "'year=' + encodeURIComponent($svyear) + " \
+        "'&baseline_year=' + encodeURIComponent($svbaseline) + " \
+        "'&from_year=' + encodeURIComponent($svfrom) + " \
+        "'&to_year=' + encodeURIComponent($svto)"
+    end
+
+    def overlay_query_expr
+      "(#{state_query_expr}) + " \
+        "'&overlay_section=' + encodeURIComponent($svoverlaysection || '') + " \
+        "'&overlay_metric=' + encodeURIComponent($svoverlaymetric || '') + " \
+        "'&overlay_year=' + encodeURIComponent($svoverlayyear || '') + " \
+        "'&overlay_lower=' + encodeURIComponent($svoverlaylower || '') + " \
+        "'&overlay_upper=' + encodeURIComponent($svoverlayupper || '')"
     end
 
     def parse_year_param(value)
@@ -327,6 +370,9 @@ module Tools
       @section_shift_cards = build_section_shift_cards
       @comparison_label = "Comparing #{helpers.format_year_label(@selected_year)} against #{helpers.format_year_label(@baseline_year)} baseline"
       @quick_metric_cards = build_quick_metric_cards
+      @metric_finder_options = build_metric_finder_options
+      @active_metric_finder_value = ""
+      @active_metric_finder_option = nil
       @state_params = {
         year: @selected_year,
         baseline_year: @baseline_year,
@@ -356,6 +402,9 @@ module Tools
       @baseline_rookie_scale_rows = []
       @section_shift_cards = []
       @quick_metric_cards = []
+      @metric_finder_options = []
+      @active_metric_finder_value = ""
+      @active_metric_finder_option = nil
       @comparison_label = "Comparing #{helpers.format_year_label(@selected_year)} against #{helpers.format_year_label(@baseline_year)} baseline"
       @overlay_payload = nil
       @overlay_signals = empty_overlay_signals
@@ -400,6 +449,9 @@ module Tools
       else
         empty_overlay_signals
       end
+
+      @active_metric_finder_value = metric_finder_value_for_overlay(@overlay_signals)
+      @active_metric_finder_option = @metric_finder_options.find { |option| option[:value] == @active_metric_finder_value }
     end
 
     def resolve_overlay_section(value)
@@ -697,6 +749,146 @@ module Tools
         lower: "",
         upper: ""
       }
+    end
+
+    def build_metric_finder_options
+      options = []
+      selected_year_label = helpers.format_year_label(@selected_year)
+
+      SYSTEM_METRIC_DEFINITIONS.each do |metric_key, definition|
+        selected_value = @selected_system_values_row&.[](metric_key)
+        options << {
+          section: "system",
+          section_label: METRIC_FINDER_SECTION_LABELS.fetch("system"),
+          value: metric_finder_value(
+            section: "system",
+            metric: metric_key,
+            year: @selected_year,
+            lower: "",
+            upper: "",
+            anchor_id: system_row_anchor(@selected_year)
+          ),
+          label: "#{definition.fetch(:label)} · #{selected_year_label} · #{format_metric_value(selected_value, definition.fetch(:kind))}"
+        }
+      end
+
+      @selected_tax_rate_rows.each do |row|
+        lower = row["lower_limit"]
+        upper = row["upper_limit"]
+        lower_token = lower.present? ? format("%.0f", lower.to_f) : ""
+        upper_token = upper.present? ? format("%.0f", upper.to_f) : ""
+
+        lower_label = helpers.format_compact_currency(lower)
+        upper_label = upper.present? ? helpers.format_compact_currency(upper) : "∞"
+        bracket_label = "#{lower_label}–#{upper_label}"
+
+        TAX_METRIC_DEFINITIONS.each do |metric_key, definition|
+          options << {
+            section: "tax",
+            section_label: METRIC_FINDER_SECTION_LABELS.fetch("tax"),
+            value: metric_finder_value(
+              section: "tax",
+              metric: metric_key,
+              year: @selected_year,
+              lower: lower_token,
+              upper: upper_token,
+              anchor_id: tax_row_anchor(@selected_year, lower: lower_token, upper: upper_token)
+            ),
+            label: "#{definition.fetch(:label)} · #{bracket_label} · #{selected_year_label}"
+          }
+        end
+      end
+
+      @selected_salary_scale_rows.each do |row|
+        yos = row["years_of_service"].to_i
+        value = row["minimum_salary_amount"]
+
+        options << {
+          section: "minimum",
+          section_label: METRIC_FINDER_SECTION_LABELS.fetch("minimum"),
+          value: metric_finder_value(
+            section: "minimum",
+            metric: "minimum_salary_amount",
+            year: @selected_year,
+            lower: yos,
+            upper: "",
+            anchor_id: minimum_row_anchor(@selected_year, yos:)
+          ),
+          label: "YOS #{yos} · #{selected_year_label} · #{format_metric_value(value, :currency)}"
+        }
+      end
+
+      @selected_rookie_scale_rows.each do |row|
+        pick = row["pick_number"].to_i
+
+        ROOKIE_METRIC_DEFINITIONS.each do |metric_key, definition|
+          value = row[metric_key]
+
+          options << {
+            section: "rookie",
+            section_label: METRIC_FINDER_SECTION_LABELS.fetch("rookie"),
+            value: metric_finder_value(
+              section: "rookie",
+              metric: metric_key,
+              year: @selected_year,
+              lower: pick,
+              upper: "",
+              anchor_id: rookie_row_anchor(@selected_year, pick:)
+            ),
+            label: "Pick #{pick} · #{definition.fetch(:label)} · #{selected_year_label} · #{format_metric_value(value, definition.fetch(:kind))}"
+          }
+        end
+      end
+
+      options
+    end
+
+    def metric_finder_value_for_overlay(overlay_signals)
+      section = overlay_signals.fetch(:section, "").to_s
+      metric = overlay_signals.fetch(:metric, "").to_s
+      year = overlay_signals.fetch(:year, "").to_s
+      lower = overlay_signals.fetch(:lower, "").to_s
+      upper = overlay_signals.fetch(:upper, "").to_s
+
+      return "" if section.blank? || metric.blank? || year.blank?
+
+      anchor_id = case section
+      when "system"
+        system_row_anchor(year)
+      when "tax"
+        tax_row_anchor(year, lower:, upper:)
+      when "minimum"
+        minimum_row_anchor(year, yos: lower)
+      when "rookie"
+        rookie_row_anchor(year, pick: lower)
+      end
+
+      return "" if anchor_id.blank?
+
+      candidate = metric_finder_value(section:, metric:, year:, lower:, upper:, anchor_id:)
+      @metric_finder_options.any? { |option| option[:value] == candidate } ? candidate : ""
+    end
+
+    def metric_finder_value(section:, metric:, year:, lower:, upper:, anchor_id:)
+      [ section, metric, year.to_s, lower.to_s, upper.to_s, anchor_id.to_s ].join("|")
+    end
+
+    def system_row_anchor(year)
+      "sv-row-system-#{year.to_i}"
+    end
+
+    def tax_row_anchor(year, lower:, upper:)
+      lower_token = lower.to_s.presence || "0"
+      upper_token = upper.to_s.presence || "inf"
+      "sv-row-tax-#{year.to_i}-#{lower_token}-#{upper_token}"
+    end
+
+    def minimum_row_anchor(year, yos:)
+      "sv-row-minimum-#{year.to_i}-yos-#{yos.to_i}"
+    end
+
+    def rookie_row_anchor(year, pick:)
+      "sv-row-rookie-#{year.to_i}-pick-#{pick.to_i}"
     end
 
     def build_quick_metric_cards

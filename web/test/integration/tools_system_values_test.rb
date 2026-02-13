@@ -266,6 +266,13 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "/tools/system-values/sse/refresh?"
       assert_includes response.body, "/tools/system-values/sidebar/metric?"
       assert_includes response.body, "Comparing 26-27 against 24-25 baseline"
+      assert_includes response.body, 'id="system-values-metric-finder-select"'
+      assert_includes response.body, "Jump to metric + open drill-in"
+      assert_includes response.body, "system|salary_cap_amount|2026|||sv-row-system-2026"
+      assert_includes response.body, "tax|tax_rate_non_repeater|2026|5000000||sv-row-tax-2026-5000000-inf"
+      assert_includes response.body, "minimum|minimum_salary_amount|2026|1||sv-row-minimum-2026-yos-1"
+      assert_includes response.body, "rookie|salary_year_1|2026|1||sv-row-rookie-2026-pick-1"
+      assert_includes response.body, "data-on:system-values-jump"
       assert_includes response.body, "$svoverlaysection='minimum'; $svoverlaymetric='minimum_salary_amount'"
       assert_includes response.body, "$svoverlaylower='0'"
       assert_includes response.body, "$svoverlaysection='rookie'; $svoverlaymetric='salary_year_1'"
@@ -404,6 +411,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       assert_includes response.body, '"svoverlaysection":"tax"'
       assert_includes response.body, '"svoverlaymetric":"tax_rate_non_repeater"'
       assert_includes response.body, '"svyear":"2026"'
+      assert_includes response.body, '"svmetricfinder":"tax|tax_rate_non_repeater|2026|5000000||sv-row-tax-2026-5000000-inf"'
     end
   end
 
@@ -453,6 +461,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       assert_includes response.body, '"svoverlaymetric":""'
       assert_includes response.body, '"svoverlayyear":""'
       assert_includes response.body, '"svoverlaylower":""'
+      assert_includes response.body, '"svmetricfinder":""'
     end
   end
 
@@ -503,6 +512,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       assert_includes response.body, '"svoverlaymetric":""'
       assert_includes response.body, '"svoverlayyear":""'
       assert_includes response.body, '"svoverlaylower":""'
+      assert_includes response.body, '"svmetricfinder":""'
     end
   end
 
