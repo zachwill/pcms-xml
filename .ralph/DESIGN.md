@@ -68,23 +68,35 @@ Supervisor review — 2026-02-13 (pass 4):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /agencies — make posture-lens thresholds explicit in-commandbar
+- [x] [P1] [INDEX] /agencies — make posture-lens thresholds explicit in-commandbar
   - Problem: Posture lenses now filter better, but users still cannot see exactly what qualifies as `inactive + live` or `live risk` without inferring from rows.
   - Hypothesis: Threshold helper copy near posture controls will improve trust and reduce interpretation ambiguity during shortlist scans.
   - Scope (files):
     - web/app/views/entities/agencies/index.html.erb
     - web/app/views/entities/agencies/_rightpanel_base.html.erb
     - web/test/integration/entities_agencies_index_test.rb
-  - Acceptance criteria:
-    - Commandbar posture controls include concise rule text for `inactive_live_book` and `live_book_risk`.
-    - Sidebar snapshot mirrors the same threshold language so table and panel use one posture grammar.
-    - Existing `/agencies/sse/refresh` multi-region behavior and overlay preserve/clear semantics remain unchanged.
-  - Rubric (before → target):
+  - What changed:
+    - Added explicit posture-threshold helper copy directly under commandbar posture radios in `/agencies`, using year-aware rule text:
+      - `Inactive + live: inactive and Book <year> > $0`
+      - `Live risk: Book <year> > $0 and restrictions > 0`
+    - Added the same threshold language to the rightpanel snapshot module so commandbar + sidebar now use one posture grammar.
+    - Kept all existing interaction wiring intact (`/agencies/sse/refresh` still patches maincanvas + rightpanel base + overlay + signals in one response).
+    - Expanded integration coverage to assert threshold copy is present on initial index render (appearing in both commandbar and sidebar snapshot contexts).
+  - Why this improves the flow:
+    - Users no longer need to infer posture cut rules from row chips or SQL intuition; threshold definitions are visible at the point of control.
+    - Commandbar and sidebar now reinforce the same lens semantics, reducing interpretation drift while scanning shortlist candidates.
+    - Interaction contract predictability is preserved because this is copy-level wayfinding on top of the existing SSE refresh path.
+  - Verification:
+    - `cd web && bundle exec rails test test/integration/entities_agencies_index_test.rb` *(fails in this environment: missing gem `lucide-rails-0.7.3`)*
+    - `cd web && ruby -rerb -e "['app/views/entities/agencies/index.html.erb','app/views/entities/agencies/_rightpanel_base.html.erb'].each { |p| ERB.new(File.read(p)).src }; puts 'ERB OK'" && ruby -c test/integration/entities_agencies_index_test.rb` *(ERB/syntax OK)*
+  - Rubric (before → after):
     - Scan speed: 5 → 5
     - Information hierarchy: 5 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 5 → 5
+  - Follow-up tasks discovered:
+    - Consider adding a compact tooltip/legend for what counts toward `restrictions` (no-trade + kicker + trade-restricted) for first-time users.
   - Guardrails:
     - Do not modify Salary Book files.
 

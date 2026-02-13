@@ -3,6 +3,8 @@
   year = summary[:year].to_i
   year = 2025 if year <= 0
   year_label = format_year_label(year).split("-").first
+  inactive_live_threshold_text = "inactive and Book #{year_label} > $0"
+  live_risk_threshold_text = "Book #{year_label} > $0 and restrictions > 0"
   top_rows = Array(summary[:top_rows])
 %>
 
@@ -60,6 +62,11 @@
         variant: (summary[:live_book_risk_count].to_i.positive? ? "option_eto" : "muted"),
         class_name: "w-full"
       } %>
+    </div>
+
+    <div class="rounded border border-border/60 bg-muted/20 px-2 py-1.5 text-[10px] leading-tight text-muted-foreground space-y-1">
+      <div><span class="text-foreground/90">Inactive + live</span>: <%= inactive_live_threshold_text %></div>
+      <div><span class="text-foreground/90">Live risk</span>: <%= live_risk_threshold_text %></div>
     </div>
 
     <div class="grid grid-cols-3 gap-1.5">
