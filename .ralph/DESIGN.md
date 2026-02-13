@@ -112,26 +112,30 @@ Current focus reset (2026-02-12):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /agencies — migrate agency explorer from table markup to flex-row workbench scan
-  - Problem: `/agencies` is still table-rendered, which breaks visual consistency with newer workbench-style index surfaces and slows row-level triage.
-  - Hypothesis: A flex-row workspace with the same identity/metric grammar as `/agents` and Two-Way Utility will improve scan continuity and make pivots more predictable.
-  - Scope (files):
-    - web/app/views/entities/agencies/_workspace_main.html.erb
-    - web/app/views/entities/agencies/index.html.erb
-    - web/app/controllers/entities/agencies_controller.rb
-    - web/app/controllers/entities/agencies_sse_controller.rb
-    - web/test/integration/entities_agencies_index_test.rb
-  - Acceptance criteria:
-    - Agency list rows are rendered with div/flex row primitives (no `<table>` in `_workspace_main`).
-    - Existing row click → sidebar overlay behavior is unchanged and selected-row highlighting remains obvious.
-    - Numeric columns remain mono/tabular and preserve current density.
-    - Current lens/sort/query params continue to round-trip correctly via URL + SSE refresh.
-  - Rubric (before → target):
+- [x] [P1] [INDEX] /agencies — migrate agency explorer from table markup to flex-row workbench scan
+  - Problem: `/agencies` was still table-rendered, which broke visual consistency with newer workbench-style index surfaces and slowed row-level triage.
+  - Hypothesis: A flex-row workspace with the same identity/metric grammar as `/agents` and Two-Way Utility would improve scan continuity and make pivots more predictable.
+  - What changed:
+    - Rebuilt `web/app/views/entities/agencies/_workspace_main.html.erb` from `<table>` markup to dense flex-row workbench rows with a sticky column header (`#agencies-flex-header`).
+    - Preserved agency row interaction grammar (row click/keyboard open overlay, selected-row highlight treatment, and row-level canonical page pivots).
+    - Kept numeric metric columns in `font-mono tabular-nums` and retained percentile secondary lines via `entity-cell-two-line` cells.
+    - Added lightweight workspace scan chips in the maincanvas header (live books / inactive+live / live risk) to front-load posture context before drill-in.
+    - Updated `web/test/integration/entities_agencies_index_test.rb` assertions to verify the flex header is present and `<table>` markup is absent in both index and SSE refresh responses.
+  - Why this improves the flow:
+    - Agency scanning now matches the newer entity workbench grammar (sticky compact header + dense flex rows), improving continuity across index surfaces.
+    - Posture chips and row-level status tokens make triage intent visible before opening the overlay.
+    - Overlay/pivot behavior remains stable, so analysts gain faster scan speed without relearning interactions.
+  - Verification:
+    - `cd web && bundle exec ruby -Itest test/integration/entities_agencies_index_test.rb -i "/agencies refresh|agencies sidebar overlay/"`
+    - `if rg "<table" web/app/views/entities/agencies/_workspace_main.html.erb; then echo "table-found"; else echo "no-table-markup"; fi`
+  - Rubric (before → after):
     - Scan speed: 3 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Full-page `/agencies` index integration still hits the known `tailwind.css` test asset load-path issue; continue focused SSE/overlay subsets until harness setup is fixed.
   - Guardrails:
     - Do not modify Salary Book files.
 

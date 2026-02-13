@@ -178,6 +178,8 @@ class EntitiesAgenciesIndexTest < ActionDispatch::IntegrationTest
       assert_operator response.body.scan("Book 2025 > $0 and restrictions > 0").length, :>=, 2
       assert_operator response.body.scan("no-trade + trade kicker + trade-restricted").length, :>=, 2
       assert_includes response.body, 'id="maincanvas"'
+      assert_includes response.body, 'id="agencies-flex-header"'
+      assert_not_includes response.body, "<table"
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
     end
@@ -214,6 +216,8 @@ class EntitiesAgenciesIndexTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, 'id="agencies-maincanvas"'
+      assert_includes response.body, 'id="agencies-flex-header"'
+      assert_not_includes response.body, "<table"
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, "Open agency page"
       assert_includes response.body, '"overlaytype":"agency"'
