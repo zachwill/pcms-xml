@@ -531,6 +531,25 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="rightpanel-overlay"'
       assert_includes response.body, "event: datastar-patch-signals"
       assert_includes response.body, '"txnquery":"alpha"'
+      assert_includes response.body, 'title="Matched on: player"'
+    end
+  end
+
+  test "transactions refresh shows team intent match provenance when team text drives query" do
+    with_fake_connection do
+      get "/transactions/sse/refresh", params: {
+        q: "boston",
+        daterange: "season",
+        team: "BOS",
+        signings: "1",
+        waivers: "1",
+        extensions: "1",
+        other: "0"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'title="Matched on: team"'
     end
   end
 

@@ -501,6 +501,7 @@ module Entities
         ORDER BY t.transaction_date DESC, t.transaction_id DESC
       SQL
 
+      annotate_intent_match_provenance!(query: @query)
       build_sidebar_summary!(selected_transaction_id: @selected_transaction_id)
     end
 
@@ -543,6 +544,45 @@ module Entities
         other_count: bucket_counts[:other],
         top_rows:
       }
+    end
+
+    def annotate_intent_match_provenance!(query:)
+      normalized_query = query.to_s.strip.downcase
+      return if normalized_query.blank?
+
+      Array(@transactions).each do |row|
+        labels = []
+
+        labels << "player" if intent_match?(row["player_name"], normalized_query)
+
+        team_fields = [
+          row["from_team_code"],
+          row["to_team_code"],
+          row["from_team_name"],
+          row["to_team_name"]
+        ]
+        labels << "team" if team_fields.any? { |value| intent_match?(value, normalized_query) }
+
+        labels << "type" if intent_match?(row["transaction_type_lk"], normalized_query)
+        labels << "description" if intent_match?(row["transaction_description_lk"], normalized_query)
+        labels << "id" if intent_match?(row["transaction_id"], normalized_query)
+
+        method_fields = [row["signed_method_lk"], row["contract_type_lk"]]
+        labels << "method" if method_fields.any? { |value| intent_match?(value, normalized_query) }
+
+        labels = ["other"] if labels.empty?
+
+        cue_labels = labels.first(2)
+        overflow_count = [labels.size - cue_labels.size, 0].max
+
+        row["intent_match_labels"] = labels
+        row["intent_match_cue"] = [cue_labels.join(" · "), (overflow_count.positive? ? "+#{overflow_count}" : nil)].compact.join(" ")
+        row["intent_match_title"] = "Matched on: #{labels.join(', ')}"
+      end
+    end
+
+    def intent_match?(value, normalized_query)
+      value.to_s.downcase.include?(normalized_query)
     end
 
     def load_sidebar_transaction_payload(transaction_id)

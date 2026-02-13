@@ -109,7 +109,16 @@
               <td class="px-3 py-2 align-top">
                 <div class="entity-cell-two-line">
                   <div class="entity-cell-primary"><span class="font-mono tabular-nums"><%= txn["signed_method_lk"].presence || "—" %></span></div>
-                  <div class="entity-cell-secondary"><%= txn["contract_type_lk"].presence || "—" %></div>
+                  <div class="entity-cell-secondary gap-1 truncate">
+                    <span class="truncate"><%= txn["contract_type_lk"].presence || "—" %></span>
+                    <% if @query.present? && txn["intent_match_cue"].present? %>
+                      <span class="text-muted-foreground/50">·</span>
+                      <span class="inline-flex items-center gap-1 truncate" title="<%= txn['intent_match_title'] %>">
+                        <span class="uppercase tracking-wide text-[9px] text-muted-foreground/70">match</span>
+                        <span class="font-medium text-foreground/90"><%= txn["intent_match_cue"] %></span>
+                      </span>
+                    <% end %>
+                  </div>
                 </div>
               </td>
             </tr>

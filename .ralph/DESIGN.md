@@ -138,25 +138,30 @@ Audit reset — 2026-02-13:
   - Follow-up tasks discovered:
     - Stabilize full-file `entities_players_index_test.rb` runs in environments without compiled `tailwind.css`; SSE-focused coverage for this flow remains passing and is the current verification guardrail.
 
-- [ ] [P2] [INDEX] /transactions — show intent-search match provenance in rows
-  - Problem: Intent search filters rows, but users can’t quickly tell whether the match came from player name, team, transaction type, or description.
-  - Hypothesis: Match-provenance cues in row secondary lines will improve trust and reduce re-scanning.
-  - Scope (files):
+- [x] [P2] [INDEX] /transactions — show intent-search match provenance in rows
+  - What changed (files):
     - web/app/controllers/entities/transactions_controller.rb
+      - Added `annotate_intent_match_provenance!` during index-state load to tag each intent-filtered row with compact match-source metadata.
+      - Added deterministic match-source detection for player, team, type, description, id, and method fields plus compact cue/title strings for rendering.
     - web/app/views/entities/transactions/_results.html.erb
+      - Added a compact secondary-line provenance cue in the Method column (`match <source>`) when an intent query is active.
+      - Kept dense two-line row layout intact by appending provenance inline with existing contract-type metadata.
     - web/test/integration/entities_pane_endpoints_test.rb
-  - Acceptance criteria:
-    - Intent-filtered rows display a concise match provenance cue.
-    - Cue is compact and compatible with existing dense row layout.
-    - Overlay preserve/clear behavior under query changes remains unchanged.
-  - Rubric (before → target):
+      - Extended transactions SSE refresh assertions to validate player-match provenance rendering.
+      - Added coverage for team-text intent queries to verify team provenance cues are emitted.
+  - Why this improves the flow:
+    - Users can immediately see *why* each transaction row matched the current intent query, reducing ambiguity between player/team/type/description-style hits.
+    - Provenance is rendered in-row (not hidden in overlay) so scan/triage loops stay inside the feed.
+    - Overlay preserve/clear behavior remains unchanged because only row metadata rendering was added.
+  - Rubric (before → after):
     - Scan speed: 5 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 5 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 5 → 5
-  - Guardrails:
-    - Do not modify Salary Book files.
+  - Follow-up tasks discovered:
+    - Consider extending provenance grammar to multi-token intent parsing (per-token source breakdown) if query complexity increases.
+    - Stabilize full `entities_pane_endpoints_test.rb` runs in environments lacking compiled `tailwind.css`; SSE-focused transactions coverage remains passing.
 
 - [ ] [P2] [TOOL] /tools/two-way-utility — strengthen compare-card risk explanations
   - Problem: Compare board shows deltas, but “why risky” context (hard limit vs estimated limit, threshold posture) is still implicit.
