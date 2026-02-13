@@ -9,7 +9,7 @@
     "bun": ">=1.0.0"
   },
   "dependencies": {
-    "@mariozechner/pi-coding-agent": "^0.52.9",
+    "@mariozechner/pi-coding-agent": "^0.52.10",
     "@zenbase/llml": "^0.4.0"
   },
   "scripts": {
