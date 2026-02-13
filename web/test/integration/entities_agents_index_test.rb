@@ -246,6 +246,8 @@ class EntitiesAgentsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, "$overlaytype === 'agent'"
       assert_includes response.body, "$overlaytype = 'agency'; $overlayid = '501'; @get('/agents/sidebar/agency/501')"
+      assert_includes response.body, "bg-violet-50/50 dark:bg-violet-900/15"
+      assert_includes response.body, 'data-show="$overlaytype === &#39;agency&#39; &amp;&amp; $overlayid === &#39;501&#39;"'
     end
   end
 
@@ -310,6 +312,8 @@ class EntitiesAgentsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "Open agency page"
       assert_includes response.body, '"overlaytype":"agency"'
       assert_includes response.body, '"overlayid":"501"'
+      assert_includes response.body, "bg-violet-50/50 dark:bg-violet-900/15"
+      assert_includes response.body, 'data-show="$overlaytype === &#39;agency&#39; &amp;&amp; $overlayid === &#39;501&#39;"'
     end
   end
 

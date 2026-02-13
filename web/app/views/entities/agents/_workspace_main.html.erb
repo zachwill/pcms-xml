@@ -91,10 +91,12 @@
                 restrictions_count = a["no_trade_count"].to_i + a["trade_kicker_count"].to_i + a["trade_restricted_count"].to_i
                 options_count = a["player_option_count"].to_i + a["team_option_count"].to_i
                 row_agent_id = a["agent_id"]
+                row_agency_id = a["agency_id"]
+                agency_overlay_match_expr = row_agency_id.present? ? "$overlaytype === 'agency' && $overlayid === '#{row_agency_id}'" : "false"
               %>
               <tr
                 class="group cursor-pointer hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
-                data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'agent' && $overlayid === '<%= row_agent_id %>' }"
+                data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'agent' && $overlayid === '<%= row_agent_id %>', 'bg-violet-50/50 dark:bg-violet-900/15': <%= agency_overlay_match_expr %> }"
                 data-on:click="$overlaytype = 'agent'; $overlayid = '<%= row_agent_id %>'; @get('/agents/sidebar/agent/<%= row_agent_id %>')"
               >
                 <td class="px-3 py-2">
@@ -113,15 +115,20 @@
                   </div>
                 </td>
                 <td class="px-3 py-2">
-                  <% if a["agency_id"].present? && a["agency_name"].present? %>
+                  <% if row_agency_id.present? && a["agency_name"].present? %>
                     <div class="flex items-center gap-2 min-w-0">
                       <button
                         type="button"
                         class="cursor-pointer min-w-0 truncate text-left text-muted-foreground hover:text-foreground hover:underline"
-                        data-on:click="evt.stopPropagation(); $overlaytype = 'agency'; $overlayid = '<%= a['agency_id'] %>'; @get('/agents/sidebar/agency/<%= a['agency_id'] %>')"
+                        data-on:click="evt.stopPropagation(); $overlaytype = 'agency'; $overlayid = '<%= row_agency_id %>'; @get('/agents/sidebar/agency/<%= row_agency_id %>')"
                       ><%= a["agency_name"] %></button>
+                      <span
+                        class="shrink-0 text-[10px] uppercase tracking-wide text-violet-700 dark:text-violet-300"
+                        data-show="<%= agency_overlay_match_expr %>"
+                        style="display: none;"
+                      >overlay</span>
                       <a
-                        href="<%= agency_href(a['agency_id']) %>"
+                        href="<%= agency_href(row_agency_id) %>"
                         class="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground/70 hover:text-foreground hover:underline"
                         onclick="event.stopPropagation()"
                       >Page</a>

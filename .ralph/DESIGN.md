@@ -90,24 +90,27 @@ Audit reset — 2026-02-13:
   - Follow-up tasks discovered:
     - Investigate and stabilize broader teams-index integration suite setup (asset/test-env drift surfaced during full-file test run), while keeping this overlay flow coverage focused and passing.
 
-- [ ] [P2] [INDEX] /agents — improve agency-overlay tie-back in agent directory rows
-  - Problem: Opening an agency overlay from the agents directory does not strongly tie back to all affected agent rows, weakening scan context.
-  - Hypothesis: Agency-context tie-back cues in the row list will reduce disorientation during agent⇄agency pivot loops.
-  - Scope (files):
+- [x] [P2] [INDEX] /agents — improve agency-overlay tie-back in agent directory rows
+  - What changed (files):
     - web/app/views/entities/agents/_workspace_main.html.erb
+      - Added agency-context row tie-back styling for agent rows when an agency overlay is active (`$overlaytype === 'agency'` + matching `$overlayid`).
+      - Added a lightweight in-cell `overlay` indicator next to agency names for represented rows so row context remains explicit during agency drill-ins.
+      - Kept existing selected-agent row highlighting behavior unchanged (`$overlaytype === 'agent'` path still uses current highlight state).
     - web/test/integration/entities_agents_index_test.rb
-  - Acceptance criteria:
-    - When an agency overlay is active, agent rows represented by that agency show a clear but lightweight tie-back cue.
-    - Existing agent-row selected highlighting behavior remains intact.
-    - No extra requests are introduced; behavior remains in current `/agents/sse/refresh` interaction model.
-  - Rubric (before → target):
+      - Extended index wiring assertions to verify the new agency tie-back class and agency-match `data-show` cue are rendered.
+      - Extended `/agents/sse/refresh` overlay-preserve coverage to confirm tie-back cues are present while an agency overlay remains active in agents mode.
+  - Why this improves the flow:
+    - Users now get immediate row-level confirmation of which agent rows are represented by the currently open agency overlay.
+    - Agent ⇄ agency pivot loops keep list context anchored, reducing re-scan overhead and “where am I?” drift after opening an agency overlay.
+    - The cue remains lightweight (subtle row tint + compact in-cell marker), preserving dense table readability.
+  - Rubric (before → after):
     - Scan speed: 5 → 5
     - Information hierarchy: 5 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 5 → 5
-  - Guardrails:
-    - Do not modify Salary Book files.
+  - Follow-up tasks discovered:
+    - Stabilize full-file `entities_agents_index_test.rb` runs in environments missing compiled `tailwind.css` (layout asset-path drift); SSE-focused coverage for this flow passes and remains the current verification guardrail.
 
 - [ ] [P2] [INDEX] /players — surface “why matched” emphasis for active constraint lens
   - Problem: Constraint chips are present, but active lens reason is not visually prioritized, making filtered states less self-explanatory.
