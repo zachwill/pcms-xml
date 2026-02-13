@@ -68,24 +68,27 @@ Audit reset — 2026-02-13:
   - Follow-up tasks discovered:
     - Consider reusing this exact restrictions-definition line in `/agents` and overlay-level agency summaries for posture-language parity.
 
-- [ ] [P1] [INDEX] /teams — add compare pin/unpin controls in overlay header for parity
-  - Problem: Teams compare controls exist in rows/base modules but not in the overlay, creating mode-switch friction during drill-in triage.
-  - Hypothesis: Overlay-level Pin A / Pin B / Clear slot controls will keep compare workflows continuous while preserving overlay focus.
-  - Scope (files):
+- [x] [P1] [INDEX] /teams — add compare pin/unpin controls in overlay header for parity
+  - What changed (files):
     - web/app/views/entities/teams/_rightpanel_overlay_team.html.erb
+      - Added overlay-level compare actions directly in the team identity header block: Pin A, Pin B, Clear A, and Clear B.
+      - Wired overlay controls to the same `/teams/sse/refresh` compare action path used by row controls (`pin` and `clear_slot`).
+      - Added active-slot visual states driven by `$comparea` / `$compareb` and conditional Clear A / Clear B affordances.
+      - Ensured compare actions keep overlay context by always sending `selected_id` for the currently open overlay team.
     - web/test/integration/entities_teams_index_test.rb
-  - Acceptance criteria:
-    - Overlay header/body exposes Pin A / Pin B controls with active-slot visual state.
-    - Clear A / Clear B affordances appear when relevant and use the same compare action path as rows.
-    - Compare actions preserve selected overlay context and keep URL sync behavior intact.
-  - Rubric (before → target):
+      - Expanded overlay endpoint assertions to verify Pin A / Pin B and Clear slot control wiring in the teams overlay payload.
+  - Why this improves the flow:
+    - Compare workflows now continue inside drill-in mode without forcing users back to row-level controls.
+    - Overlay triage keeps context while pinning/unpinning, reducing mode-switch friction and preserving wayfinding continuity.
+    - Active-slot button states and conditional clear affordances make compare slot ownership explicit at the point of decision.
+  - Rubric (before → after):
     - Scan speed: 5 → 5
     - Information hierarchy: 5 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 5 → 5
     - Navigation/pivots: 5 → 5
-  - Guardrails:
-    - Do not modify Salary Book files.
+  - Follow-up tasks discovered:
+    - Investigate and stabilize broader teams-index integration suite setup (asset/test-env drift surfaced during full-file test run), while keeping this overlay flow coverage focused and passing.
 
 - [ ] [P2] [INDEX] /agents — improve agency-overlay tie-back in agent directory rows
   - Problem: Opening an agency overlay from the agents directory does not strongly tie back to all affected agent rows, weakening scan context.

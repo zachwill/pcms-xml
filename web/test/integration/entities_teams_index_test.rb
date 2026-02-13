@@ -241,13 +241,20 @@ class EntitiesTeamsIndexTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "teams sidebar returns overlay and clear endpoint empties overlay" do
+  test "teams sidebar returns overlay compare controls and clear endpoint empties overlay" do
     with_fake_connection do
       get "/teams/sidebar/1610612738", headers: modern_headers
 
       assert_response :success
       assert_includes response.body, 'id="rightpanel-overlay"'
       assert_includes response.body, "Open Team Summary at this team"
+      assert_includes response.body, ">Pin A</button>"
+      assert_includes response.body, ">Pin B</button>"
+      assert_includes response.body, "action=pin&amp;slot=a&amp;team_id=1610612738"
+      assert_includes response.body, "action=pin&amp;slot=b&amp;team_id=1610612738"
+      assert_includes response.body, "action=clear_slot&amp;slot=a"
+      assert_includes response.body, "action=clear_slot&amp;slot=b"
+      assert_includes response.body, "selected_id=&#39; + encodeURIComponent(&#39;1610612738&#39;)"
 
       get "/teams/sidebar/clear", headers: modern_headers
 
