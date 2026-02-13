@@ -16,6 +16,7 @@
   posture_year_label = format_year_label(@book_year).split("-").first
   inactive_live_threshold_text = "inactive and Book #{posture_year_label} > $0"
   live_risk_threshold_text = "Book #{posture_year_label} > $0 and restrictions > 0"
+  restrictions_definition_text = "no-trade + trade kicker + trade-restricted"
 
   signals_literal = "{ agencyquery: #{@query.to_json}, agencyactivity: #{@activity_lens.to_json}, agencyyear: #{@book_year.to_s.to_json}, agencysort: #{@sort_key.to_json}, agencydir: #{@sort_dir.to_json}, overlaytype: 'none', overlayid: '' }"
 %>
@@ -89,6 +90,7 @@
         <div class="rounded border border-border/60 bg-muted/20 px-2 py-1.5 text-[10px] leading-tight text-muted-foreground space-y-1">
           <div><span class="text-foreground/90">Inactive + live</span>: <%= inactive_live_threshold_text %></div>
           <div><span class="text-foreground/90">Live risk</span>: <%= live_risk_threshold_text %></div>
+          <div><span class="text-foreground/90">Restrictions</span>: <%= restrictions_definition_text %></div>
         </div>
       </div>
 

@@ -5,6 +5,7 @@
   year_label = format_year_label(year).split("-").first
   inactive_live_threshold_text = "inactive and Book #{year_label} > $0"
   live_risk_threshold_text = "Book #{year_label} > $0 and restrictions > 0"
+  restrictions_definition_text = "no-trade + trade kicker + trade-restricted"
   top_rows = Array(summary[:top_rows])
 %>
 
@@ -67,6 +68,7 @@
     <div class="rounded border border-border/60 bg-muted/20 px-2 py-1.5 text-[10px] leading-tight text-muted-foreground space-y-1">
       <div><span class="text-foreground/90">Inactive + live</span>: <%= inactive_live_threshold_text %></div>
       <div><span class="text-foreground/90">Live risk</span>: <%= live_risk_threshold_text %></div>
+      <div><span class="text-foreground/90">Restrictions</span>: <%= restrictions_definition_text %></div>
     </div>
 
     <div class="grid grid-cols-3 gap-1.5">

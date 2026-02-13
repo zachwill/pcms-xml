@@ -175,7 +175,8 @@ class EntitiesAgenciesIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="agencies-activity-live_book_risk"'
       assert_includes response.body, 'id="agencies-year-2025"'
       assert_operator response.body.scan("inactive and Book 2025").length, :>=, 2
-      assert_operator response.body.scan("Book 2025").length, :>=, 2
+      assert_operator response.body.scan("Book 2025 > $0 and restrictions > 0").length, :>=, 2
+      assert_operator response.body.scan("no-trade + trade kicker + trade-restricted").length, :>=, 2
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'

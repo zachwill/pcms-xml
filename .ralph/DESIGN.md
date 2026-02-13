@@ -45,25 +45,28 @@ Audit reset — 2026-02-13:
   - Follow-up tasks discovered:
     - Consider matching this metric-cell focus cue style on other multi-metric detail tables where row-level drill-ins still mask exact metric origin.
 
-- [ ] [P1] [INDEX] /agencies — define restriction composition where posture controls are used
-  - Problem: `live risk` lens now exposes threshold text, but “restrictions” is still undefined, forcing users to infer components.
-  - Hypothesis: Explicit restrictions composition copy (no-trade + trade kicker + trade-restricted) will improve trust in posture filters.
-  - Scope (files):
+- [x] [P1] [INDEX] /agencies — define restriction composition where posture controls are used
+  - What changed (files):
     - web/app/views/entities/agencies/index.html.erb
+      - Added explicit posture helper definition text: `Restrictions: no-trade + trade kicker + trade-restricted`.
+      - Kept existing year-aware threshold copy for `Inactive + live` and `Live risk` unchanged in behavior.
     - web/app/views/entities/agencies/_rightpanel_base.html.erb
+      - Mirrored the same restrictions definition text in the sidebar snapshot helper box.
+      - Preserved the same year-aware threshold grammar used in the commandbar.
     - web/test/integration/entities_agencies_index_test.rb
-  - Acceptance criteria:
-    - Commandbar posture helper includes a compact definition of `restrictions`.
-    - Sidebar snapshot mirrors the same definition text (single posture grammar in both regions).
-    - Copy remains year-aware where needed and does not alter existing filter behavior.
-  - Rubric (before → target):
+      - Extended the index shell assertion to verify both threshold copy and restrictions-composition copy appear in both regions.
+  - Why this improves the flow:
+    - Posture controls now define exactly what `restrictions` means at the point of filtering, removing guesswork.
+    - Commandbar and sidebar now share one posture grammar, improving trust when users scan and then validate context in the right panel.
+    - Year-aware threshold language remains intact, so users still understand the active Book-year condition while gaining composition clarity.
+  - Rubric (before → after):
     - Scan speed: 5 → 5
     - Information hierarchy: 5 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 5 → 5
-  - Guardrails:
-    - Do not modify Salary Book files.
+  - Follow-up tasks discovered:
+    - Consider reusing this exact restrictions-definition line in `/agents` and overlay-level agency summaries for posture-language parity.
 
 - [ ] [P1] [INDEX] /teams — add compare pin/unpin controls in overlay header for parity
   - Problem: Teams compare controls exist in rows/base modules but not in the overlay, creating mode-switch friction during drill-in triage.
