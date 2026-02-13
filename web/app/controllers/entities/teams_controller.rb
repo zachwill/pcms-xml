@@ -10,6 +10,34 @@ module Entities
 
     INDEX_PRESSURE_LENSES = %w[all over_cap over_tax over_apron1 over_apron2].freeze
 
+    INDEX_PRESSURE_SECTION_DEFINITIONS = [
+      {
+        key: "over_apron2",
+        title: "Apron 2 red zone",
+        subtitle: "Most restrictive pressure posture"
+      },
+      {
+        key: "over_apron1",
+        title: "Apron 1 pressure",
+        subtitle: "Above apron line, below second apron"
+      },
+      {
+        key: "over_tax",
+        title: "Tax pressure",
+        subtitle: "Taxpayer but under apron lines"
+      },
+      {
+        key: "over_cap",
+        title: "Over cap runway",
+        subtitle: "Over cap, under tax"
+      },
+      {
+        key: "under_cap",
+        title: "Under cap flex",
+        subtitle: "Cap-space preserving posture"
+      }
+    ].freeze
+
     INDEX_SORT_SQL = {
       "pressure_desc" => "pressure_rank DESC, COALESCE(tsw.room_under_apron2, 0) ASC, COALESCE(tsw.room_under_apron1, 0) ASC, COALESCE(tsw.room_under_tax, 0) ASC, t.team_code ASC",
       "cap_space_asc" => "(COALESCE(tsw.salary_cap_amount, 0) - COALESCE(tsw.cap_total_hold, 0)) ASC, t.team_code ASC",
@@ -107,6 +135,7 @@ module Entities
       setup_index_filters!
       apply_index_compare_action! if apply_compare_action
       load_index_teams!
+      build_index_pressure_sections!
       build_index_compare_state!
       build_index_sidebar_summary!(selected_team_id: @selected_team_id)
     end
@@ -245,6 +274,32 @@ module Entities
       @teams = @teams_scope_rows.select { |row| pressure_row_matches_lens?(row, @pressure_lens) }
     end
 
+    def build_index_pressure_sections!
+      rows = Array(@teams)
+
+      @team_sections = INDEX_PRESSURE_SECTION_DEFINITIONS.filter_map do |definition|
+        section_rows = rows.select { |row| row["pressure_bucket"].to_s == definition[:key] }
+        next if section_rows.empty?
+
+        {
+          key: definition[:key],
+          title: definition[:title],
+          subtitle: definition[:subtitle],
+          row_count: section_rows.size,
+          taxpayer_count: section_rows.count { |row| row["is_taxpayer"] },
+          repeater_count: section_rows.count { |row| row["is_repeater_taxpayer"] },
+          cap_space_total: section_rows.sum { |row| row["cap_space"].to_f },
+          room_under_tax_total: section_rows.sum { |row| row["room_under_tax"].to_f },
+          room_under_apron1_total: section_rows.sum { |row| row["room_under_apron1"].to_f },
+          room_under_apron2_total: section_rows.sum { |row| row["room_under_apron2"].to_f },
+          luxury_tax_total: section_rows.sum { |row| row["luxury_tax_owed"].to_f },
+          roster_total: section_rows.sum { |row| row["roster_row_count"].to_i },
+          two_way_total: section_rows.sum { |row| row["two_way_row_count"].to_i },
+          rows: section_rows
+        }
+      end
+    end
+
     def build_index_compare_state!
       @teams_by_id = Array(@teams).index_by { |row| row["team_id"].to_i }
 
@@ -284,6 +339,7 @@ module Entities
         over_apron1_count: pressure_counts["over_apron1"],
         over_apron2_count: pressure_counts["over_apron2"],
         pressure_counts: pressure_counts,
+        section_counts: Array(@team_sections).to_h { |section| [section[:key], section[:row_count]] },
         active_pressure_lens: @pressure_lens,
         active_pressure_label: pressure_lens_label(@pressure_lens),
         active_pressure_count: pressure_counts[@pressure_lens],

@@ -9,6 +9,7 @@
   ] %>
   <% has_compare = compare_slots.any? { |slot| slot[:row].present? } %>
   <% pressure_counts = summary[:pressure_counts] || {} %>
+  <% section_counts = summary[:section_counts] || {} %>
   <% active_pressure_lens = summary[:active_pressure_lens].to_s.presence || "all" %>
   <% active_pressure_label = summary[:active_pressure_label].presence || "All teams" %>
   <% active_pressure_count = summary[:active_pressure_count].to_i %>
@@ -18,6 +19,13 @@
     ["over_tax", "Over Tax"],
     ["over_apron1", "Over Apron 1"],
     ["over_apron2", "Over Apron 2"]
+  ] %>
+  <% pressure_lane_options = [
+    ["over_apron2", "Apron 2 red zone", "entity-chip entity-chip--danger"],
+    ["over_apron1", "Apron 1 pressure", "entity-chip entity-chip--warning"],
+    ["over_tax", "Tax pressure", "entity-chip entity-chip--warning"],
+    ["over_cap", "Over cap runway", "entity-chip entity-chip--muted"],
+    ["under_cap", "Under cap flex", "entity-chip entity-chip--success"]
   ] %>
 
   <% if compare_a_row.present? && compare_b_row.present? %>
@@ -127,6 +135,22 @@
                  data-class="{ 'border-primary/40 bg-primary/10': $teamspressure === '<%= lens %>', 'border-border/60 bg-background': $teamspressure !== '<%= lens %>' }">
               <span class="truncate" data-class="{ 'text-foreground font-medium': $teamspressure === '<%= lens %>', 'text-muted-foreground': $teamspressure !== '<%= lens %>' }"><%= label %></span>
               <span class="font-mono"><%= pressure_counts[lens].to_i %></span>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="rounded border border-border/70 bg-muted/10 px-2 py-2 space-y-1.5">
+        <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Pressure lanes in view</div>
+        <div class="space-y-1">
+          <% pressure_lane_options.each do |lane_key, lane_label, lane_chip_class| %>
+            <% lane_count = section_counts[lane_key].to_i %>
+            <% next if lane_count.zero? %>
+            <div class="flex items-center justify-between gap-2 rounded border border-border/60 bg-background px-1.5 py-1 text-[10px] tabular-nums">
+              <div class="min-w-0 flex items-center gap-1.5">
+                <span class="<%= lane_chip_class %>"><%= lane_label %></span>
+              </div>
+              <span class="font-mono"><%= lane_count %></span>
             </div>
           <% end %>
         </div>

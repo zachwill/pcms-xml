@@ -36,21 +36,6 @@ class EntitiesTeamsIndexTest < ActionDispatch::IntegrationTest
             rows = rows.select { |row| row[4] == "Western" }
           end
 
-          if sql.include?("(COALESCE(tsw.salary_cap_amount, 0) - COALESCE(tsw.cap_total_hold, 0)) < 0")
-            rows = rows.select { |row| row[15].to_f < 0 }
-          end
-
-          if sql.include?("COALESCE(tsw.room_under_tax, 0) < 0")
-            rows = rows.select { |row| row[16].to_f < 0 }
-          end
-
-          if sql.include?("COALESCE(tsw.room_under_apron1, 0) < 0")
-            rows = rows.select { |row| row[17].to_f < 0 }
-          end
-
-          if sql.include?("COALESCE(tsw.room_under_apron2, 0) < 0")
-            rows = rows.select { |row| row[18].to_f < 0 }
-          end
         end
 
         ActiveRecord::Result.new(team_columns, rows)
@@ -110,11 +95,15 @@ class EntitiesTeamsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, 'id="teams-compare-strip"'
       assert_includes response.body, 'id="teams-compare-url-sync"'
+      assert_includes response.body, 'id="teams-sections-board"'
+      assert_includes response.body, 'id="teams-section-over-apron2"'
+      assert_includes response.body, 'id="teams-section-under-cap"'
       assert_includes response.body, "URLSearchParams(window.location.search)"
       assert_includes response.body, "params.set('compare_a', nextCompareA)"
       assert_includes response.body, '>Pin A</button>'
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, "Compare slots"
+      assert_includes response.body, "Pressure lanes in view"
     end
   end
 
@@ -146,6 +135,7 @@ class EntitiesTeamsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "id=\"commandbar\""
       assert_includes response.body, "id=\"maincanvas\""
       assert_includes response.body, "id=\"teams-compare-strip\""
+      assert_includes response.body, "id=\"teams-sections-board\""
       assert_includes response.body, "id=\"rightpanel-base\""
       assert_includes response.body, "id=\"rightpanel-overlay\""
       assert_includes response.body, "event: datastar-patch-signals"
@@ -191,6 +181,38 @@ class EntitiesTeamsIndexTest < ActionDispatch::IntegrationTest
       assert active_over_cap_match, "expected Over Cap active count in commandbar"
       assert rows_over_cap_match, "expected row count in workspace header"
       assert_equal active_over_cap_match[1], rows_over_cap_match[1]
+    end
+  end
+
+  test "teams refresh sections follow active pressure lens" do
+    with_fake_connection do
+      get "/teams/sse/refresh", params: {
+        q: "",
+        conference: "ALL",
+        pressure: "all",
+        sort: "pressure_desc"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="teams-section-over-apron2"'
+      assert_includes response.body, 'id="teams-section-under-cap"'
+      assert_includes response.body, "Apron 2 red zone"
+      assert_includes response.body, "Under cap flex"
+
+      get "/teams/sse/refresh", params: {
+        q: "",
+        conference: "ALL",
+        pressure: "over_cap",
+        sort: "pressure_desc"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, '"teamspressure":"over_cap"'
+      assert_includes response.body, 'id="teams-section-over-apron2"'
+      assert_not_includes response.body, 'id="teams-section-under-cap"'
+      assert_not_includes response.body, "Under cap flex"
     end
   end
 

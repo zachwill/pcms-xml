@@ -80,27 +80,35 @@ Current focus reset (2026-02-12):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /teams — reframe cap-pressure rows into sectioned flex lanes instead of table-like striping
-  - Problem: `/teams` rows are dense and useful, but still read like a flat table pass rather than pressure-oriented workbench sections.
-  - Hypothesis: Pressure-bucket sectioning with flex-row lanes will improve first-pass triage while keeping compare behavior intact.
-  - Scope (files):
-    - web/app/views/entities/teams/_workspace_main.html.erb
-    - web/app/views/entities/teams/_sticky_header.html.erb
-    - web/app/views/entities/teams/_rightpanel_base.html.erb
-    - web/app/controllers/entities/teams_controller.rb
-    - web/app/controllers/entities/teams_sse_controller.rb
-    - web/test/integration/entities_teams_index_test.rb
-  - Acceptance criteria:
-    - Teams workspace presents rows in pressure-oriented sections (not one continuous table-like lane) while keeping current cap metrics visible.
-    - Section transitions are obvious during scroll and preserve numeric alignment/hover affordances.
-    - Compare slots and pin actions still function across sections, with selected state preserved on refresh.
-    - Commandbar pressure posture and sidebar snapshot remain synchronized via one SSE response.
-  - Rubric (before → target):
+- [x] [P1] [INDEX] /teams — reframe cap-pressure rows into sectioned flex lanes instead of table-like striping
+  - Problem: `/teams` rows were dense/useful but still read as one flat pass, which made pressure triage feel like spreadsheet scanning instead of lane-based workbench analysis.
+  - Hypothesis: Pressure-bucket section lanes with sticky lane headers would improve first-pass orientation while preserving compare + overlay flows.
+  - What changed:
+    - Added pressure-lane section state in `web/app/controllers/entities/teams_controller.rb`:
+      - introduced ordered pressure section definitions,
+      - grouped filtered teams into `@team_sections`,
+      - computed per-section rollups (cap/tax/apron/tax-owed + roster + taxpayer/repeater counts).
+    - Reworked `web/app/views/entities/teams/_workspace_main.html.erb` from one continuous lane to sectioned pressure lanes:
+      - kept the existing global sticky column header,
+      - added sticky lane headers (`top-8`) with lane title/subtitle and numeric rollups aligned to row columns,
+      - preserved row hover, row click → overlay, and Pin A/Pin B compare actions.
+    - Updated `web/app/views/entities/teams/_rightpanel_base.html.erb` to surface “Pressure lanes in view” counts so sidebar posture mirrors the sectioned board.
+    - Expanded integration coverage in `web/test/integration/entities_teams_index_test.rb` for section container presence and lens-driven section routing.
+  - Why this improves the flow:
+    - Pressure transitions are now explicit while scrolling, reducing cognitive reset during long scans.
+    - Lane headers keep cap/tax/apron context anchored with aligned totals, which improves triage speed without sacrificing density.
+    - Compare slots, selected-row highlighting, and sidebar drill-ins remain unchanged, preserving interaction predictability.
+  - Verification:
+    - `cd web && bundle exec ruby -Itest test/integration/entities_teams_index_test.rb -i "/teams refresh|teams sidebar/"`
+  - Rubric (before → after):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 5 → 5
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Full-page `/teams` index integration assertions still hit the known `tailwind.css` test asset load-path issue; continue focused SSE subsets until harness setup is fixed.
+    - Consider extracting shared section-header/row partials between `/players` and `/teams` after the next index migration to reduce duplicated lane markup.
   - Guardrails:
     - Do not modify Salary Book files.
 
