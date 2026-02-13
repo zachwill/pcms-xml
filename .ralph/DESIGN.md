@@ -1,12 +1,11 @@
 # Design Evolution Backlog (`web/`)
 
-Design-evolution only (no hygiene churn).
-
 North star:
-- Entity index pages behave like explorer workbenches (commandbar + maincanvas + rightpanel-base + rightpanel-overlay).
-- Fast scan, meaningful knobs, dense interactive rows, and contextual drill-ins.
-- Salary Book is the read-only interaction quality bar.
-- Team Summary, System Values, and Two-Way Utility continue converging toward stronger workbench UX.
+- Entity index pages should behave like explorer workbenches (Salary Book-like interaction grammar, not clones).
+- Fast scan, meaningful filters/knobs, dense interactive rows, and sidebar drill-ins.
+- Canonical shell: `#commandbar` + `#maincanvas` + `#rightpanel-base` + `#rightpanel-overlay`.
+- Salary Book is read-only and remains the interaction quality bar.
+- Team Summary, System Values, and Two-Way Utility should continue converging toward stronger workbench UX.
 
 Rubric (1-5):
 1) Scan speed
@@ -15,325 +14,261 @@ Rubric (1-5):
 4) Density/readability balance
 5) Navigation/pivots
 
-## Supervisor review — 2026-02-13 (pass 2)
-
-Scope reviewed:
-- `git log --oneline -8`
-- `git diff --name-only HEAD~4 -- web/`
-- `web/AGENTS.md`
-- `web/docs/design_guide.md`
-- `web/docs/datastar_sse_playbook.md`
-- `reference/sites/INTERACTION_MODELS.md`
-
-Findings:
-- Last four commits are flow-scoped and surface-scoped:
-  - **[INDEX]** `/drafts` overlay preservation under view/year/team/round knob changes.
-  - **[INDEX]** `/transactions` overlay preservation under daterange/team/type knob changes.
-  - **[TOOL]** `/tools/team-summary` commandbar converted to one-request SSE refresh flow.
-  - **[TOOL]** `/tools/two-way-utility` selected-player overlay preservation under risk/team/conference lens changes.
-- Work remains meaningful UX/design evolution (interaction hierarchy + state continuity), not cosmetic class churn.
-- Datastar contracts remain correct: multi-region interactions patch canonical boundaries (`#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`) in one ordered SSE response with explicit preserve/clear semantics.
-- No forbidden Salary Book files were touched.
-- `.ralph/DESIGN.md` contains before/after rubric evidence for completed items.
-
-Drift check:
-- No drift requiring revert.
-- Minor coordination risk detected: recent work alternates INDEX and TOOL tracks across consecutive commits. Keep each next loop constrained to one explicit track.
-
-Next-loop guardrails (tightened):
-- Pick **one surface + one user flow + one track** per loop (recommended next: `/tools/system-values` baseline-delta extension in Minimum Salary + Rookie Scale sections).
-- Avoid shared partial rewrites unless directly required by that selected flow; prefer page-local changes.
-- Preserve canonical workbench shell (`commandbar + maincanvas + rightpanel-base + rightpanel-overlay`) and one-request SSE updates for multi-region interactions.
-
-## Backlog
-
-- [x] [P1] [INDEX] /agencies (`web/app/views/entities/agencies/index.html.erb`) — open agencies as a first-class explorer workbench (not a redirect detour)
-  - Problem: `/agencies` currently routes users through `/agents?kind=agencies`, which weakens orientation and hides agency-specific scanning context.
-  - Hypothesis: A dedicated agencies workbench shell with agency-native knobs + overlay drill-ins will reduce navigation friction and improve agency workflow adoption.
-  - What changed (files):
-    - `web/app/controllers/entities/agencies_controller.rb`
-    - `web/app/controllers/entities/agencies_sse_controller.rb`
-    - `web/app/views/entities/agencies/index.html.erb`
-    - `web/app/views/entities/agencies/_workspace_main.html.erb`
-    - `web/app/views/entities/agencies/_rightpanel_base.html.erb`
-    - `web/app/views/entities/agencies/_rightpanel_overlay_agency.html.erb`
-    - `web/app/views/entities/agencies/_rightpanel_clear.html.erb`
-    - `web/config/routes.rb`
-    - `web/test/integration/entities_agencies_index_test.rb`
-    - Removed: `web/test/integration/entities_agencies_entrypoint_test.rb` (redirect-era coverage)
-  - Why this improves the flow:
-    - `/agencies` is now a direct workbench shell (`#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`) instead of a detour redirect.
-    - Commandbar now exposes agency-native knobs: name search, activity lens, year lens, sort key, and sort direction.
-    - Dense agency rows open an in-place overlay with clear canonical pivots (`/agencies/:slug|:id`, `/agents/:slug|:id`, `/players/:slug|:id`).
-    - Multi-region knob refreshes are shipped in one ordered SSE response (main + sidebar base + overlay state/signals).
-  - Rubric (before → after):
-    - Scan speed: 2 → 4
-    - Information hierarchy: 2 → 4
-    - Interaction predictability: 3 → 4
-    - Density/readability: 3 → 4
-    - Navigation/pivots: 2 → 4
-  - Follow-up tasks discovered:
-    - Add explicit “with clients / with restrictions / with expirings” checkbox lenses if agency triage needs tighter pre-filtering.
-    - Consider inline quick actions in agency rows (e.g., open top agent overlay) for even faster shortlist workflows.
-
-- [x] [P1] [INDEX] /draft-selections (`web/app/views/entities/draft_selections/index.html.erb`) — find and trace draft selections without leaving the index flow
-  - Problem: Draft selections discovery is legacy search-only and not workbench-oriented; provenance inspection requires context switching.
-  - Hypothesis: Converging draft selections into a true index workbench (filters + dense rows + sidebar provenance) will speed historical pick investigation.
-  - What changed (files):
-    - `web/app/controllers/entities/draft_selections_controller.rb`
-    - `web/app/controllers/entities/draft_selections_sse_controller.rb`
-    - `web/app/views/entities/draft_selections/index.html.erb`
-    - `web/app/views/entities/draft_selections/_workspace_main.html.erb`
-    - `web/app/views/entities/draft_selections/_rightpanel_base.html.erb`
-    - `web/app/views/entities/draft_selections/_rightpanel_overlay_selection.html.erb`
-    - `web/app/views/entities/draft_selections/_rightpanel_clear.html.erb`
-    - `web/config/routes.rb`
-    - `web/test/integration/entities_draft_selections_index_test.rb`
-  - Why this improves the flow:
-    - `/draft-selections` is now a dedicated workbench shell (`#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`) with URL-backed query/year/round/team knobs.
-    - The main table is always scanable (not query-gated) and rows are dense, click-first pivots into an in-place provenance overlay.
-    - Sidebar overlays include full provenance rows plus canonical pivots (`/draft-selections/:slug|:id`, `/draft-picks/:team/:year/:round`, `/transactions/:id`, `/trades/:id`, `/players/:slug|:id`, `/teams/:slug|:id`).
-    - Filter changes now refresh main + sidebar base + overlay state in one ordered SSE response, preserving the selected overlay when that row remains visible.
-  - Rubric (before → after):
-    - Scan speed: 1 → 4
-    - Information hierarchy: 2 → 4
-    - Interaction predictability: 2 → 4
-    - Density/readability: 3 → 4
-    - Navigation/pivots: 3 → 5
-  - Follow-up tasks discovered:
-    - Add a sortable lens (e.g., pick order vs most provenance events) for faster anomaly hunting within busy draft years.
-    - Consider an optional “include adjacent years” mode to trace late/early draft-window chains without changing pages.
-
-- [x] [P1] [INDEX] /agents (`web/app/views/entities/agents/index.html.erb`) — jump directly to target agents/agencies while keeping current lens state
-  - What changed (files):
-    - `web/app/controllers/entities/agents_controller.rb`
-    - `web/app/controllers/entities/agents_sse_controller.rb`
-    - `web/app/views/entities/agents/index.html.erb`
-    - `web/app/views/entities/agents/_workspace_main.html.erb`
-    - `web/app/views/entities/agents/_rightpanel_base.html.erb`
-    - `web/app/views/entities/shared/_commandbar.html.erb`
-    - `web/test/integration/entities_agents_index_test.rb`
-  - Why this improves the flow:
-    - Agents commandbar now has a first-class search input (`q`) so known-agent and known-agency lookups are direct, not sort/filter-only.
-    - Query state is URL-backed and carried through all knob changes (`kind`, filters, year, sort/dir), so users can pivot lenses without losing lookup context.
-    - One SSE refresh still patches `#agents-maincanvas`, `#rightpanel-base`, and `#rightpanel-overlay` together, with overlay preserve/clear behavior unchanged and predictable.
-    - Search matching is usable in both modes: `kind=agents` matches agent + agency names; `kind=agencies` matches agency names plus member-agent names.
-  - Rubric (before → after):
-    - Scan speed: 3 → 5
-    - Information hierarchy: 4 → 4
-    - Interaction predictability: 4 → 4
-    - Density/readability: 4 → 4
-    - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add optional debounced “search-as-you-type” mode to reduce Apply/Clear clicks while preserving request-cancellation safety.
-    - Consider row-level match highlighting to improve quick visual confirmation during high-volume scans.
-
-- [x] [P1] [INDEX] /players (`web/app/views/entities/players/index.html.erb`) — preserve selected player drill-in during iterative filter/sort changes
-  - What changed (files):
-    - `web/app/controllers/entities/players_controller.rb`
-    - `web/app/controllers/entities/players_sse_controller.rb`
-    - `web/app/views/entities/players/index.html.erb`
-    - `web/app/views/entities/players/_rightpanel_base.html.erb`
-    - `web/test/integration/entities_players_index_test.rb`
-  - Why this improves the flow:
-    - Players refresh now carries selected overlay context (`selected_id`) and preserves `#rightpanel-overlay` when that player is still in the filtered result set.
-    - When the selected player is filtered out, refresh explicitly clears overlay HTML and resets signals (`overlaytype`, `selectedplayerid`) in the same SSE transaction.
-    - Selected-state highlighting is now synchronized between main table row and sidebar quick-list row; sidebar summary also guarantees the selected visible player appears in the quick list.
-    - Commandbar knob changes still ship one ordered SSE response for main canvas + sidebar base + overlay/signals.
-  - Rubric (before → after):
-    - Scan speed: 4 → 5
-    - Information hierarchy: 4 → 4
-    - Interaction predictability: 3 → 5
-    - Density/readability: 4 → 4
-    - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add a lightweight "selected" chip/marker in the sidebar quick list to make preserved context even more obvious during long scan sessions.
-    - Consider adding keyboard next/previous row stepping while retaining overlay preservation semantics.
-
-- [x] [P1] [INDEX] /teams (`web/app/views/entities/teams/index.html.erb`) — keep team pressure drill-ins stable while tuning conference/pressure knobs
-  - What changed (files):
-    - `web/app/controllers/entities/teams_controller.rb`
-    - `web/app/controllers/entities/teams_sse_controller.rb`
-    - `web/app/views/entities/teams/index.html.erb`
-    - `web/app/views/entities/teams/_rightpanel_base.html.erb`
-    - `web/test/integration/entities_teams_index_test.rb`
-  - Why this improves the flow:
-    - Teams refresh now carries `selected_id` and preserves `#rightpanel-overlay` when the selected team is still present in the filtered/sorted result set.
-    - When the selected team is no longer visible, refresh explicitly clears overlay HTML and resets `overlaytype`/`selectedteamid` in the same SSE transaction.
-    - Sidebar pressure-board quick list now mirrors selected-state highlighting, and summary construction guarantees the selected visible team appears in that quick list.
-    - Commandbar knob changes still ship as one ordered SSE response patching `#maincanvas`, `#rightpanel-base`, and `#rightpanel-overlay` together.
-  - Rubric (before → after):
-    - Scan speed: 4 → 5
-    - Information hierarchy: 4 → 4
-    - Interaction predictability: 3 → 5
-    - Density/readability: 4 → 4
-    - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add an explicit “selected” marker chip in pressure-board rows to make preserved context even more legible during rapid filter cycling.
-    - Consider keyboard next/previous team stepping that keeps the same preserve/clear overlay contract.
-
-- [x] [P1] [INDEX] /drafts (`web/app/views/entities/drafts/index.html.erb`) — preserve pick/selection context while adjusting year/team/round knobs
-  - What changed (files):
-    - `web/app/controllers/entities/drafts_controller.rb`
-    - `web/app/controllers/entities/drafts_sse_controller.rb`
-    - `web/app/views/entities/drafts/index.html.erb`
-    - `web/app/views/entities/drafts/_results.html.erb`
-    - `web/app/views/entities/drafts/_rightpanel_base.html.erb`
-    - `web/test/integration/entities_pane_endpoints_test.rb`
-  - Why this improves the flow:
-    - Drafts knob refresh now sends selected overlay context (`selected_type` + `selected_key`) and preserves `#rightpanel-overlay` when the selected pick/selection is still visible in the refreshed result set.
-    - Incompatible mode switches are now deterministic: e.g., a pick overlay is explicitly cleared when changing into `selections` view.
-    - Preserved pick overlays now normalize selection keys per mode (`pick-*` in picks, `grid-*` in grid), so selected styling remains synchronized with the currently visible row/cell grammar.
-    - Grid cells and sidebar quick rows now mirror selected-state highlighting, keeping wayfinding stable while iterating year/team/round filters.
-    - Multi-region updates remain a single ordered SSE transaction patching results + sidebar base + overlay + signals.
-  - Rubric (before → after):
-    - Scan speed: 4 → 5
-    - Information hierarchy: 4 → 4
-    - Interaction predictability: 3 → 5
-    - Density/readability: 4 → 4
-    - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add a lightweight selected marker glyph in grid cells to further improve preserved-context legibility during rapid year changes.
-    - Consider optional keyboard next/previous pick stepping that reuses the same overlay preserve/clear contract.
-
-- [x] [P1] [INDEX] /transactions (`web/app/views/entities/transactions/index.html.erb`) — keep transaction detail open while refining feed filters
-  - What changed (files):
-    - `web/app/controllers/entities/transactions_controller.rb`
-    - `web/app/controllers/entities/transactions_sse_controller.rb`
-    - `web/app/views/entities/transactions/index.html.erb`
-    - `web/test/integration/entities_pane_endpoints_test.rb`
-  - Why this improves the flow:
-    - Transactions commandbar refresh now carries selected overlay context (`selected_type` + `selected_id`) so filter/knob changes can preserve the open transaction detail when that row is still visible.
-    - SSE refresh now uses deterministic preserve/clear behavior: it re-renders `#rightpanel-overlay` for visible selected rows and explicitly clears overlay HTML + resets `overlaytype`/`overlayid` when the selected row no longer matches filters.
-    - Sidebar quick-feed summary now guarantees the selected visible transaction appears in top rows, so active-state highlighting stays synchronized between main feed row and quick-feed button.
-    - Multi-region updates remain one ordered SSE transaction patching `#transactions-results`, `#rightpanel-base`, and `#rightpanel-overlay` together.
-  - Rubric (before → after):
-    - Scan speed: 4 → 5
-    - Information hierarchy: 4 → 4
-    - Interaction predictability: 3 → 5
-    - Density/readability: 4 → 4
-    - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add an explicit selected-marker chip/glyph in quick-feed rows to make preserved context even more legible during rapid filter cycling.
-    - Consider optional keyboard next/previous transaction stepping that reuses the same overlay preserve/clear contract.
-  - Guardrails:
-    - Do not modify Salary Book files.
-
-- [x] [P2] [TOOL] /tools/team-summary (`web/app/views/tools/team_summary/show.html.erb`) — make commandbar knob changes patch-driven and state-preserving
-  - What changed (files):
-    - `web/app/controllers/tools/team_summary_controller.rb`
-    - `web/app/views/tools/team_summary/show.html.erb`
-    - `web/config/routes.rb`
-    - `web/test/integration/tools_team_summary_test.rb`
-  - Why this improves the flow:
-    - Team Summary commandbar knobs now submit through one SSE refresh endpoint (`/tools/team-summary/sse/refresh`) instead of full-page GET reloads.
-    - Knob refresh now patches `#maincanvas`, `#team-summary-compare-strip`, `#rightpanel-base`, and `#rightpanel-overlay` in one ordered stream, keeping table + compare + sidebar in lockstep.
-    - Selected team and compare slots now preserve when the row is still resolvable for the active year; unresolved selections are cleared deterministically in both HTML and signals.
-    - URL state is now signal-driven and continuously synchronized (`year`, `conference`, `pressure`, `sort`, `selected`, `compare_a`, `compare_b`) so copied links reflect the current workbench lens.
-  - Rubric (before → after):
+- [ ] [P1] [INDEX] /players — isolate constrained cap commitments without losing drill-in context
+  - Problem: Player scanning is strong, but users still need too many row opens to isolate constraint-heavy contracts across multiple cap years.
+  - Hypothesis: Adding constraint-specific knobs + cap-horizon switching will make “find risky money fast” a first-pass scan flow.
+  - Scope (files):
+    - web/app/views/entities/players/index.html.erb
+    - web/app/views/entities/players/_workspace_main.html.erb
+    - web/app/views/entities/players/_rightpanel_base.html.erb
+    - web/app/controllers/entities/players_controller.rb
+    - web/app/controllers/entities/players_sse_controller.rb
+    - web/test/integration/entities_players_index_test.rb
+  - Acceptance criteria:
+    - Commandbar exposes a discoverable constraint lens (beyond current status radios) and a cap-horizon knob.
+    - Main rows render horizon-aware cap values while remaining dense and interactive.
+    - Changing any knob uses one SSE refresh and preserves selected overlay when the selected player remains visible.
+    - Sidebar quick list reflects the same horizon/constraint context and keeps selected-state visibility.
+  - Rubric (before → target):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
-    - Interaction predictability: 3 → 5
-    - Density/readability: 5 → 5
+    - Interaction predictability: 4 → 5
+    - Density/readability: 4 → 5
     - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Convert the table-header Cap Space / Tax Overage sort links in `_workspace_main` from full-page navigations to the same refresh SSE path for complete sort-path consistency.
-    - Consider exposing a lightweight selected-context chip in the commandbar so preserved drill-in context is more obvious during rapid knob cycling.
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [x] [P2] [TOOL] /tools/two-way-utility (`web/app/views/tools/two_way_utility/show.html.erb`) — preserve selected player context while cycling risk/team/conference lenses
-  - What changed (files):
-    - `web/app/controllers/tools/two_way_utility_controller.rb`
-    - `web/app/views/tools/two_way_utility/show.html.erb`
-    - `web/app/views/tools/two_way_utility/_rightpanel_base.html.erb`
-    - `web/test/integration/tools_two_way_utility_test.rb`
-  - Why this improves the flow:
-    - Commandbar knob refresh now sends the current selected overlay id (`selected_id`) to `/tools/two-way-utility/sse/refresh`, so refreshes can preserve context instead of always hard-clearing overlay state.
-    - Refresh now applies deterministic preserve/clear behavior in one SSE stream: if selected player is still visible, `#rightpanel-overlay` is re-rendered and `overlaytype/overlayid` stay on that player; otherwise overlay HTML is explicitly cleared and signals reset.
-    - Sidebar quick-risk queue now guarantees the selected visible player is present in quick rows, and adds a selected marker chip so active state is visibly synchronized with the highlighted table row.
-    - Multi-region update contract is unchanged (single ordered SSE response patching `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`, plus signals).
-  - Rubric (before → after):
+- [ ] [P1] [INDEX] /teams — compare two cap-pressure candidates directly from the index table
+  - Problem: Team pressure triage is row-by-row; users cannot quickly hold two teams side-by-side without leaving the surface.
+  - Hypothesis: Inline pin/compare from dense rows will reduce context switching and speed shortlist decisions.
+  - Scope (files):
+    - web/app/views/entities/teams/index.html.erb
+    - web/app/views/entities/teams/_workspace_main.html.erb
+    - web/app/views/entities/teams/_rightpanel_base.html.erb
+    - web/app/controllers/entities/teams_controller.rb
+    - web/app/controllers/entities/teams_sse_controller.rb
+    - web/test/integration/entities_teams_index_test.rb
+  - Acceptance criteria:
+    - Rows provide inline Pin A / Pin B controls that do not force page navigation.
+    - A compare module appears in-surface with cap/tax/apron delta readouts for pinned teams.
+    - Pin/unpin and lens updates preserve selected overlay when still visible, in one SSE response.
+    - Canonical pivots to team page, Team Summary, and Salary Book remain obvious.
+  - Rubric (before → target):
     - Scan speed: 4 → 5
-    - Information hierarchy: 4 → 4
-    - Interaction predictability: 3 → 5
-    - Density/readability: 5 → 5
+    - Information hierarchy: 4 → 5
+    - Interaction predictability: 4 → 5
+    - Density/readability: 4 → 5
     - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add optional keyboard next/previous player stepping that reuses the same preserve/clear overlay contract.
-    - Consider adding a compact selected-context chip in the commandbar to make preserved drill-in state even clearer during fast lens cycling.
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [x] [P2] [TOOL] /tools/system-values (`web/app/views/tools/system_values/show.html.erb`) — extend baseline-delta grammar into Minimum Salary and Rookie Scale sections
-  - What changed (files):
-    - `web/app/views/tools/system_values/show.html.erb`
-    - `web/app/views/tools/system_values/_league_salary_scales_table.html.erb`
-    - `web/app/views/tools/system_values/_rookie_scale_amounts_table.html.erb`
-    - `web/test/integration/tools_system_values_test.rb`
-  - Why this improves the flow:
-    - Minimum Salary now follows the same baseline-delta grammar as System/Tax: explicit baseline header (`Δ vs …`), selected/baseline row context labels, and per-cell delta rows with consistent positive/negative/neutral coloring.
-    - Rookie Scale now mirrors that grammar across Year 1/2, option amounts, and option percentage columns, so users can scan one section interaction model instead of manually recomputing differences.
-    - Baseline context is now explicit in all four sections (System, Tax, Minimum, Rookie), reducing interpretation drift when switching sections.
-    - `show.html.erb` now passes baseline-year context and baseline row sets into Minimum/Rookie partials so deltas are computed against the same selected baseline as the rest of the page.
-  - Rubric (before → after):
+- [ ] [P1] [INDEX] /agents — pivot between agent and agency drill-ins without leaving workbench flow
+  - Problem: Related pivots in rows/overlays still pull users out to full pages too often during directory scanning.
+  - Hypothesis: In-panel cross-entity pivots (agent⇄agency) will preserve scan momentum and reduce backtracking.
+  - Scope (files):
+    - web/app/views/entities/agents/_workspace_main.html.erb
+    - web/app/views/entities/agents/_rightpanel_overlay_agent.html.erb
+    - web/app/views/entities/agents/_rightpanel_overlay_agency.html.erb
+    - web/app/controllers/entities/agents_controller.rb
+    - web/app/controllers/entities/agents_sse_controller.rb
+    - web/test/integration/entities_agents_index_test.rb
+  - Acceptance criteria:
+    - Agency cells in agent rows can open agency overlay in-place (with canonical page link retained).
+    - Agency overlay top-agent interactions can open agent overlay in-place.
+    - Overlay type/id signals stay synchronized as users pivot between agent and agency overlays.
+    - Refreshing filters keeps the active overlay when that entity remains in-scope.
+  - Rubric (before → target):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
-    - Navigation/pivots: 4 → 4
-  - Follow-up tasks discovered:
-    - Consolidate duplicated delta-formatting lambdas (currency/rate/percent) into a shared helper to keep section semantics aligned as columns evolve.
-    - Consider adding small “baseline missing” affordances when a YOS tier or pick is absent in baseline data (currently rendered as `Δ n/a`).
+    - Navigation/pivots: 4 → 5
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [x] [P2] [TOOL] /tools/team-summary (`web/app/views/tools/team_summary/_workspace_main.html.erb`) — build compare board directly from dense rows (without sidebar detour)
-  - What changed (files):
-    - `web/app/views/tools/team_summary/_workspace_main.html.erb`
-    - `web/app/views/tools/team_summary/_compare_strip.html.erb`
-    - `web/app/views/tools/team_summary/_rightpanel_base.html.erb`
-    - `web/app/controllers/tools/team_summary_controller.rb`
-    - `web/test/integration/tools_team_summary_test.rb`
-  - Why this improves the flow:
-    - Dense team rows now expose inline, keyboard-accessible `Pin A` / `Pin B` buttons in the sticky identity column, so users can build compare slots without opening sidebar drill-ins first.
-    - Row pin actions call the existing `/tools/team-summary/sse/compare` flow and include live signal-backed `selected/compare_a/compare_b` query state, preventing stale-slot overwrites when only compare/sidebar regions are patched.
-    - Compare pinning no longer auto-selects a team when no overlay is active, so row-first compare setup stays in scan mode instead of forcing an overlay detour.
-    - Existing A/B row badges remain signal-driven, while compare strip and rightpanel base keep updating via the same compare SSE response, so slot state stays synchronized after pin/replace/clear.
-  - Rubric (before → after):
+- [ ] [P1] [INDEX] /drafts — sort for ownership complexity to surface high-risk pick situations first
+  - Problem: Draft picks/selections views are dense, but users cannot quickly reorder by complexity/provenance risk.
+  - Hypothesis: View-aware sort/lens controls will turn the page into a triage board instead of a static listing.
+  - Scope (files):
+    - web/app/views/entities/drafts/index.html.erb
+    - web/app/views/entities/drafts/_results.html.erb
+    - web/app/controllers/entities/drafts_controller.rb
+    - web/app/controllers/entities/drafts_sse_controller.rb
+    - web/test/integration/entities_pane_endpoints_test.rb
+  - Acceptance criteria:
+    - Commandbar adds explicit sort options per draft view (picks/selections/grid).
+    - Picks/selections can be sorted by provenance/complexity-oriented criteria in addition to default order.
+    - Sort/lens changes patch results + sidebar + overlay via one SSE response.
+    - Existing overlay preserve/clear behavior remains deterministic across mode changes.
+  - Rubric (before → target):
+    - Scan speed: 4 → 5
+    - Information hierarchy: 4 → 5
+    - Interaction predictability: 5 → 5
+    - Density/readability: 4 → 4
+    - Navigation/pivots: 5 → 5
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [INDEX] /transactions — find transaction rows by player/team intent without losing feed context
+  - Problem: Feed filtering is type/date/team-heavy but lacks fast intent search for specific player or description patterns.
+  - Hypothesis: A query-first transaction flow will cut scan time for targeted audits.
+  - Scope (files):
+    - web/app/views/entities/transactions/index.html.erb
+    - web/app/views/entities/transactions/_results.html.erb
+    - web/app/controllers/entities/transactions_controller.rb
+    - web/app/controllers/entities/transactions_sse_controller.rb
+    - web/test/integration/entities_pane_endpoints_test.rb
+  - Acceptance criteria:
+    - Commandbar includes a search input (player, transaction id, description/team text).
+    - Query is URL-backed and reflected in Datastar signals during refresh.
+    - Query + lens changes keep one SSE response and preserve selected overlay when row remains visible.
+    - Row-level pivots (player/team/trade/transaction) remain dense and unobscured.
+  - Rubric (before → target):
+    - Scan speed: 4 → 5
+    - Information hierarchy: 4 → 4
+    - Interaction predictability: 5 → 5
+    - Density/readability: 4 → 4
+    - Navigation/pivots: 5 → 5
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [INDEX] /trades — isolate deal archetypes (player-heavy vs pick-heavy) in one pass
+  - Problem: Complexity lens exists, but users still can’t quickly isolate by asset composition intent.
+  - Hypothesis: Asset-type composition knobs will improve “what kind of deal is this?” triage speed.
+  - Scope (files):
+    - web/app/views/entities/trades/index.html.erb
+    - web/app/views/entities/trades/_results.html.erb
+    - web/app/views/entities/trades/_rightpanel_base.html.erb
+    - web/app/controllers/entities/trades_controller.rb
+    - web/app/controllers/entities/trades_sse_controller.rb
+    - web/test/integration/entities_pane_endpoints_test.rb
+  - Acceptance criteria:
+    - Commandbar exposes composition filters (player-heavy, pick-heavy, cash/TPE-involved or equivalent clear archetypes).
+    - Results and quick-deals sidebar use the same composition filter semantics.
+    - Filter changes preserve active overlay when visible and clear when no longer in result set.
+    - Canonical pivots from overlay (trade/team/transaction) remain one-click obvious.
+  - Rubric (before → target):
+    - Scan speed: 4 → 5
+    - Information hierarchy: 5 → 5
+    - Interaction predictability: 5 → 5
+    - Density/readability: 4 → 4
+    - Navigation/pivots: 5 → 5
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [INDEX] /draft-selections — prioritize picks with deepest provenance chains
+  - Problem: Selection rows are readable, but there is no direct lens for “most provenance complexity first.”
+  - Hypothesis: Provenance-first sorting/lensing will speed anomaly and ownership-history investigations.
+  - Scope (files):
+    - web/app/views/entities/draft_selections/index.html.erb
+    - web/app/views/entities/draft_selections/_workspace_main.html.erb
+    - web/app/views/entities/draft_selections/_rightpanel_base.html.erb
+    - web/app/controllers/entities/draft_selections_controller.rb
+    - web/app/controllers/entities/draft_selections_sse_controller.rb
+    - web/test/integration/entities_draft_selections_index_test.rb
+  - Acceptance criteria:
+    - Commandbar includes provenance-oriented sort/lens controls (e.g., with trade, highest provenance count).
+    - Rows visibly surface provenance ranking without adding card-like whitespace.
+    - Knob changes keep overlay preservation semantics in one SSE response.
+    - Sidebar quick selections reflect active sort/lens ordering.
+  - Rubric (before → target):
+    - Scan speed: 4 → 5
+    - Information hierarchy: 4 → 5
+    - Interaction predictability: 5 → 5
+    - Density/readability: 4 → 4
+    - Navigation/pivots: 5 → 5
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P2] [TOOL] /tools/team-summary — make table-header sorting fully patch-driven without full-page jumps
+  - Problem: Header sort links still behave like navigation links, breaking compare/selection continuity.
+  - Hypothesis: Routing header sorts through the existing refresh SSE flow will keep users in continuous workbench mode.
+  - Scope (files):
+    - web/app/views/tools/team_summary/_workspace_main.html.erb
+    - web/app/views/tools/team_summary/show.html.erb
+    - web/app/controllers/tools/team_summary_controller.rb
+    - web/app/javascript/tools/team_summary.js
+    - web/test/integration/tools_team_summary_test.rb
+  - Acceptance criteria:
+    - Clicking Cap Space / Tax Overage headers triggers SSE refresh instead of full-page reload.
+    - Compare strip, row highlights, and rightpanel overlay remain synchronized after sort changes.
+    - URL state still reflects active sort for shareability.
+    - No reduction in row density or sticky-column behavior.
+  - Rubric (before → target):
     - Scan speed: 5 → 5
-    - Information hierarchy: 4 → 4
+    - Information hierarchy: 5 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 5 → 5
-    - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Convert `_workspace_main` header sort links (Cap Space / Tax Overage) to the refresh SSE path for full no-reload consistency.
-    - Add optional keyboard shortcuts for slot pinning (`A`/`B` on focused row) to reduce tab-stop overhead on long scans.
+    - Navigation/pivots: 5 → 5
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [x] [P3] [INDEX] /trades (`web/app/views/entities/trades/index.html.erb`) — prioritize high-complexity deals faster with explicit sort/lens controls
-  - What changed (files):
-    - `web/app/controllers/entities/trades_controller.rb`
-    - `web/app/controllers/entities/trades_sse_controller.rb`
-    - `web/app/views/entities/trades/index.html.erb`
-    - `web/app/views/entities/trades/_results.html.erb`
-    - `web/app/views/entities/trades/_rightpanel_base.html.erb`
-    - `web/test/integration/entities_pane_endpoints_test.rb`
-  - Why this improves the flow:
-    - Trades commandbar now exposes explicit complexity controls: sort (`Newest`, `Most teams`, `Most assets`) and lens (`All deals`, `3+ teams or 4+ assets`, `4+ teams or 6+ assets`).
-    - Trades index query now computes `complexity_asset_count` and applies complexity lens + ordering server-side, so the main table and sidebar quick-deals list stay in the same ranking model.
-    - One SSE refresh still patches `#trades-results`, `#rightpanel-base`, and `#rightpanel-overlay` together; overlay preserve/clear remains deterministic via existing selected-row visibility checks.
-    - URL/signal state now persists `sort` + `lens` (`tradesort`, `tradelens`) across knob changes, so shared links and back/forward navigation retain complexity triage context.
-    - Row and sidebar summaries now surface complexity explicitly (asset-count chips + complexity KPIs), improving first-pass scanability of dense/multi-asset trades.
-  - Rubric (before → after):
+- [ ] [P2] [TOOL] /tools/system-values — add rightpanel drill-ins and SSE state transitions for baseline analysis
+  - Problem: System Values requires full-page apply loops and has no sidebar drill-in for metric provenance/context.
+  - Hypothesis: Converging to workbench shell + SSE updates + metric drill-ins will improve comparison speed and wayfinding.
+  - Scope (files):
+    - web/app/views/tools/system_values/show.html.erb
+    - web/app/views/tools/system_values/_league_system_values_table.html.erb
+    - web/app/views/tools/system_values/_league_tax_rates_table.html.erb
+    - web/app/controllers/tools/system_values_controller.rb
+    - web/test/integration/tools_system_values_test.rb
+  - Acceptance criteria:
+    - Surface includes explicit rightpanel base/overlay targets for metric context drill-ins.
+    - Apply/baseline/range changes patch relevant regions in one response path (SSE for multi-region updates).
+    - Clicking a metric row opens rightpanel overlay with selected-vs-baseline explanation and canonical pivots where applicable.
+    - Existing dense table grammar is preserved (no cardification).
+  - Rubric (before → target):
+    - Scan speed: 3 → 5
+    - Information hierarchy: 4 → 5
+    - Interaction predictability: 3 → 5
+    - Density/readability: 4 → 4
+    - Navigation/pivots: 3 → 4
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P2] [TOOL] /tools/two-way-utility — compare two at-risk players without leaving the risk board
+  - Problem: Users can inspect one player deeply, but can’t hold two candidates side-by-side while scanning risk queues.
+  - Hypothesis: Inline pin-to-compare for players will accelerate roster-decision workflows.
+  - Scope (files):
+    - web/app/views/tools/two_way_utility/_player_row.html.erb
+    - web/app/views/tools/two_way_utility/_rightpanel_base.html.erb
+    - web/app/views/tools/two_way_utility/show.html.erb
+    - web/app/controllers/tools/two_way_utility_controller.rb
+    - web/test/integration/tools_two_way_utility_test.rb
+  - Acceptance criteria:
+    - Player rows expose Pin A / Pin B interactions in dense-row format.
+    - Sidebar base shows compare board with key deltas (remaining games, used %, signing context).
+    - Compare updates preserve active player overlay when still visible and avoid full-page reloads.
+    - URL and signals capture compare state for shareable lenses.
+  - Rubric (before → target):
+    - Scan speed: 4 → 5
+    - Information hierarchy: 4 → 5
+    - Interaction predictability: 4 → 5
+    - Density/readability: 5 → 5
+    - Navigation/pivots: 5 → 5
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P3] [INDEX] /agencies — shortlist agencies by operating posture (active/inactive + live book risk) in one pass
+  - Problem: Agency activity lens is coarse; users can’t quickly isolate inactive-but-still-impactful books or high-risk agency posture.
+  - Hypothesis: Purpose-built posture knobs and row cues will improve “who needs attention now?” scanning.
+  - Scope (files):
+    - web/app/views/entities/agencies/index.html.erb
+    - web/app/views/entities/agencies/_workspace_main.html.erb
+    - web/app/views/entities/agencies/_rightpanel_base.html.erb
+    - web/app/controllers/entities/agencies_controller.rb
+    - web/app/controllers/entities/agencies_sse_controller.rb
+    - web/test/integration/entities_agencies_index_test.rb
+  - Acceptance criteria:
+    - Commandbar adds a posture lens beyond active/inactive (e.g., inactive with live book / restrictions present).
+    - Row secondary lines make posture state immediately scannable without expanding overlays.
+    - Lens changes preserve selected overlay where valid, in one SSE response.
+    - Canonical pivots to agency, agents, and clients remain explicit.
+  - Rubric (before → target):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add optional hybrid sort presets (e.g., `Most complex this week`) to reduce multi-control changes for common triage workflows.
-    - Consider a compact per-row complexity decomposition popover (players/picks/cash/TPE) to compare equally ranked deals faster without opening overlay.
   - Guardrails:
     - Do not modify Salary Book files.
