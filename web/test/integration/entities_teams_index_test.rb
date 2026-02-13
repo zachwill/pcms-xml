@@ -99,7 +99,7 @@ class EntitiesTeamsIndexTest < ActionDispatch::IntegrationTest
     host! "localhost"
   end
 
-  test "teams index renders pressure commandbar knobs and sidebar base" do
+  test "teams index renders pressure commandbar knobs and compare surfaces" do
     with_fake_connection do
       get "/teams", headers: modern_headers
 
@@ -107,7 +107,10 @@ class EntitiesTeamsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="teams-pressure-over-tax"'
       assert_includes response.body, 'id="teams-conference-eastern"'
       assert_includes response.body, 'id="maincanvas"'
+      assert_includes response.body, 'id="teams-compare-strip"'
+      assert_includes response.body, '>Pin A</button>'
       assert_includes response.body, 'id="rightpanel-base"'
+      assert_includes response.body, "Compare slots"
     end
   end
 
@@ -124,9 +127,37 @@ class EntitiesTeamsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, "event: datastar-patch-elements"
       assert_includes response.body, "id=\"maincanvas\""
+      assert_includes response.body, "id=\"teams-compare-strip\""
       assert_includes response.body, "id=\"rightpanel-base\""
       assert_includes response.body, "id=\"rightpanel-overlay\""
       assert_includes response.body, "event: datastar-patch-signals"
+      assert_includes response.body, '"comparea":""'
+      assert_includes response.body, '"compareb":""'
+    end
+  end
+
+  test "teams refresh pin action updates compare slots without forcing overlay selection" do
+    with_fake_connection do
+      get "/teams/sse/refresh", params: {
+        q: "",
+        conference: "ALL",
+        pressure: "all",
+        sort: "pressure_desc",
+        compare_a: "",
+        compare_b: "",
+        selected_id: "",
+        action: "pin",
+        slot: "a",
+        team_id: "1610612738"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="teams-compare-strip"'
+      assert_includes response.body, "Boston Celtics"
+      assert_includes response.body, '"comparea":"1610612738"'
+      assert_includes response.body, '"selectedteamid":""'
+      assert_includes response.body, 'id="rightpanel-overlay"></div>'
     end
   end
 

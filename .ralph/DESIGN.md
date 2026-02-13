@@ -109,7 +109,7 @@ Supervisor review — 2026-02-13:
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /teams — compare two cap-pressure candidates directly from the index table
+- [x] [P1] [INDEX] /teams — compare two cap-pressure candidates directly from the index table
   - Problem: Team pressure triage is row-by-row; users cannot quickly hold two teams side-by-side without leaving the surface.
   - Hypothesis: Inline pin/compare from dense rows will reduce context switching and speed shortlist decisions.
   - Scope (files):
@@ -119,17 +119,27 @@ Supervisor review — 2026-02-13:
     - web/app/controllers/entities/teams_controller.rb
     - web/app/controllers/entities/teams_sse_controller.rb
     - web/test/integration/entities_teams_index_test.rb
-  - Acceptance criteria:
-    - Rows provide inline Pin A / Pin B controls that do not force page navigation.
-    - A compare module appears in-surface with cap/tax/apron delta readouts for pinned teams.
-    - Pin/unpin and lens updates preserve selected overlay when still visible, in one SSE response.
-    - Canonical pivots to team page, Team Summary, and Salary Book remain obvious.
-  - Rubric (before → target):
+  - What changed:
+    - Added compare state signals (`comparea`, `compareb`) and URL-backed query wiring on `/teams` commandbar refreshes.
+    - Added inline row-level **Pin A / Pin B** controls in the team identity cell, with slot badges and pinned-row highlighting.
+    - Added an in-surface `#teams-compare-strip` module in maincanvas with slot cards, clear actions, focus-back-to-overlay behavior, and cap/tax/apron delta readouts.
+    - Extended `TeamsController` index workspace state to parse/normalize compare slots, apply compare actions (`pin`, `clear_slot`, `clear_all`), and hydrate compare rows (including lookup when filtered out).
+    - Updated `entities/teams/_rightpanel_base` with a mirrored compare-slots summary + delta context so sidebar wayfinding matches table compare state.
+    - Updated `/teams/sse/refresh` to run compare actions and patch compare signals in the same one-request multi-region SSE response while preserving/clearing selected overlay deterministically.
+    - Expanded integration tests to cover compare strip rendering, compare signal patching in refresh SSE, and pin action behavior without forced overlay selection.
+  - Why this improves the flow:
+    - Team shortlist comparison now happens directly inside the index table, removing row-open/close churn.
+    - Users can hold two candidates while continuing to scan and filter, with immediate delta context for cap/tax/apron pressure.
+    - Interaction grammar stays predictable: one SSE refresh path updates maincanvas + sidebar + overlay + signals together.
+  - Rubric (before → after):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 5
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Add URL replaceState updates on pin/unpin actions (currently URL sync happens on commandbar-driven refreshes).
+    - Consider exposing compare pin actions directly inside team overlay pivots for parity with row-level controls.
   - Guardrails:
     - Do not modify Salary Book files.
 
