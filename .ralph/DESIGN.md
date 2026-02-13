@@ -444,26 +444,38 @@ Corrective TODOs for next worker cycle (mandatory):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [TOOL] /tools/system-values — add keyboard-first metric finder shortlist
+- [x] [P1] [TOOL] /tools/system-values — add keyboard-first metric finder shortlist
   - Problem: Finder works, but still biases pointer-heavy selection for known metrics.
   - Hypothesis: Ranked typeahead + Enter open will complete find-and-open in one flow.
   - Scope (files):
-    - web/app/controllers/tools/system_values_controller.rb
-    - web/app/views/tools/system_values/_commandbar.html.erb
-    - web/app/views/tools/system_values/show.html.erb
-    - web/test/integration/tools_system_values_test.rb
-  - Patch targets: `#commandbar`, `#maincanvas`, `#rightpanel-overlay`
-  - Response type: shortlist/search refreshes that update commandbar + overlay use one `text/event-stream`; single metric overlay open remains `text/html`.
-  - Acceptance criteria:
-    - Finder supports keyboard shortlist + Enter to open selected metric overlay.
-    - Finder/overlay/URL state stay synchronized after refresh.
-    - No regressions in existing section visibility URL behavior.
-  - Rubric (before → target):
+    - `web/app/controllers/tools/system_values_controller.rb`
+    - `web/app/views/tools/system_values/show.html.erb`
+    - `web/app/views/tools/system_values/_commandbar.html.erb`
+    - `web/app/views/tools/system_values/_rightpanel_base.html.erb`
+    - `web/test/integration/tools_system_values_test.rb`
+  - Patch targets: `#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`
+  - Response type: finder query/shortlist refresh remains one `text/event-stream` response (`Tools::SystemValuesController#refresh`) so commandbar + maincanvas + rightpanel stay synchronized; single metric overlay open remains `text/html` via `/tools/system-values/sidebar/metric`.
+  - What changed (files):
+    - Added server-side metric shortlist state in `system_values_controller.rb`: query/cursor parsing, ranked shortlist derivation (`METRIC_SHORTLIST_LIMIT` + metric/context scoring), cursor preservation across refreshes, and SSE signal propagation (`svmetricfinderquery`, `svmetricfindercursor`, `svmetricfindercursorindex`).
+    - Extended URL/state query contracts in `system_values_controller.rb` and `show.html.erb` to carry finder query + cursor so refreshes and history state keep finder and overlay context aligned.
+    - Rebuilt commandbar finder UX in `_commandbar.html.erb` from pointer-first `<select>` to keyboard-first typeahead + ranked shortlist chips with `↑/↓` cursor movement and Enter-to-open overlay via one shortcut flow.
+    - Updated `_rightpanel_base.html.erb` finder card to surface shortlist state (active query + ranked count + keyboard hint) and explicit active overlay target context.
+    - Expanded `tools_system_values_test.rb` assertions for shortlist render/wiring, keyboard hint wiring, new finder signals, and URL query synchronization through SSE refresh.
+  - Why this improves the flow:
+    - Known-metric drill-in now starts with typing intent and stays on keyboard through shortlist pick + Enter open.
+    - Finder state and overlay state are now server-synchronized and URL-stable across SSE refreshes, reducing desync after lens/year changes.
+    - Commandbar shortlist and sidebar state now share one interaction grammar (highlighted cursor ↔ active overlay target), improving predictability.
+  - Verification:
+    - `cd web && bundle exec ruby -Itest test/integration/tools_system_values_test.rb`
+  - Rubric (before → after):
     - Scan speed: 4 → 5
     - Information hierarchy: 5 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 5 → 5
+  - Follow-up tasks discovered:
+    - Add explicit global shortcut/focus handoff (`Ctrl/Cmd+K`) to jump focus into metric finder input.
+    - Add server-returned match-reason badges (`metric exact`, `prefix`, `context`) in shortlist rows for ambiguous queries.
   - Guardrails:
     - Do not modify Salary Book files.
 

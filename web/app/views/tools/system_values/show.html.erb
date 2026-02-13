@@ -8,7 +8,9 @@
     '&show_system_values=' + encodeURIComponent($showsystemvalues ? '1' : '0') +
     '&show_tax_rates=' + encodeURIComponent($showtaxrates ? '1' : '0') +
     '&show_salary_scales=' + encodeURIComponent($showsalaryscales ? '1' : '0') +
-    '&show_rookie_scales=' + encodeURIComponent($showrookiescales ? '1' : '0')"
+    '&show_rookie_scales=' + encodeURIComponent($showrookiescales ? '1' : '0') +
+    '&metric_finder_query=' + encodeURIComponent($svmetricfinderquery || '') +
+    '&metric_finder_cursor=' + encodeURIComponent($svmetricfindercursor || '')"
 
   overlay_query_expr = "(#{state_query_expr}) +
     '&overlay_section=' + encodeURIComponent($svoverlaysection || '') +
@@ -34,6 +36,9 @@
     svfrom: @from_year.to_s,
     svto: @to_year.to_s,
     svmetricfinder: @active_metric_finder_value.to_s,
+    svmetricfinderquery: @metric_finder_query.to_s,
+    svmetricfindercursor: @metric_finder_cursor_value.to_s,
+    svmetricfindercursorindex: @metric_finder_cursor_index.to_i,
     svoverlaysection: @overlay_signals.fetch(:section, ""),
     svoverlaymetric: @overlay_signals.fetch(:metric, ""),
     svoverlayyear: @overlay_signals.fetch(:year, ""),

@@ -55,6 +55,13 @@ module Tools
       "minimum" => "Minimum",
       "rookie" => "Rookie"
     }.freeze
+    METRIC_FINDER_SECTION_RANK = {
+      "system" => 0,
+      "tax" => 1,
+      "minimum" => 2,
+      "rookie" => 3
+    }.freeze
+    METRIC_SHORTLIST_LIMIT = 6
 
     # GET /tools/system-values
     def show
@@ -145,6 +152,9 @@ module Tools
           svfrom: @from_year.to_s,
           svto: @to_year.to_s,
           svmetricfinder: @active_metric_finder_value.to_s,
+          svmetricfinderquery: @metric_finder_query.to_s,
+          svmetricfindercursor: @metric_finder_cursor_value.to_s,
+          svmetricfindercursorindex: @metric_finder_cursor_index.to_i,
           svoverlaysection: @overlay_signals.fetch(:section),
           svoverlaymetric: @overlay_signals.fetch(:metric),
           svoverlayyear: @overlay_signals.fetch(:year),
@@ -172,7 +182,9 @@ module Tools
         "'&show_system_values=' + encodeURIComponent($showsystemvalues ? '1' : '0') + " \
         "'&show_tax_rates=' + encodeURIComponent($showtaxrates ? '1' : '0') + " \
         "'&show_salary_scales=' + encodeURIComponent($showsalaryscales ? '1' : '0') + " \
-        "'&show_rookie_scales=' + encodeURIComponent($showrookiescales ? '1' : '0')"
+        "'&show_rookie_scales=' + encodeURIComponent($showrookiescales ? '1' : '0') + " \
+        "'&metric_finder_query=' + encodeURIComponent($svmetricfinderquery || '') + " \
+        "'&metric_finder_cursor=' + encodeURIComponent($svmetricfindercursor || '')"
     end
 
     def overlay_query_expr
@@ -409,12 +421,18 @@ module Tools
 
       resolve_section_visibility!
 
+      @metric_finder_query = resolve_metric_finder_query(params[:metric_finder_query])
+      @requested_metric_finder_cursor = resolve_metric_finder_cursor(params[:metric_finder_cursor])
+
       @section_shift_cards = build_section_shift_cards
       @comparison_label = "Comparing #{helpers.format_year_label(@selected_year)} against #{helpers.format_year_label(@baseline_year)} baseline"
       @quick_metric_cards = build_quick_metric_cards
       @metric_finder_options = build_metric_finder_options
       @active_metric_finder_value = ""
       @active_metric_finder_option = nil
+      @metric_finder_shortlist = []
+      @metric_finder_cursor_value = ""
+      @metric_finder_cursor_index = 0
       @state_params = {
         year: @selected_year,
         baseline_year: @baseline_year,
@@ -449,6 +467,11 @@ module Tools
       @metric_finder_options = []
       @active_metric_finder_value = ""
       @active_metric_finder_option = nil
+      @metric_finder_query = ""
+      @requested_metric_finder_cursor = ""
+      @metric_finder_shortlist = []
+      @metric_finder_cursor_value = ""
+      @metric_finder_cursor_index = 0
       @comparison_label = "Comparing #{helpers.format_year_label(@selected_year)} against #{helpers.format_year_label(@baseline_year)} baseline"
       @overlay_payload = nil
       @overlay_signals = empty_overlay_signals
@@ -496,6 +519,7 @@ module Tools
 
       @active_metric_finder_value = metric_finder_value_for_overlay(@overlay_signals)
       @active_metric_finder_option = @metric_finder_options.find { |option| option[:value] == @active_metric_finder_value }
+      resolve_metric_finder_shortlist!
     end
 
     def resolve_overlay_section(value)
@@ -795,6 +819,80 @@ module Tools
       }
     end
 
+    def resolve_metric_finder_query(value)
+      value.to_s.strip.tr("\u0000", "")[0, 80]
+    end
+
+    def resolve_metric_finder_cursor(value)
+      value.to_s.strip[0, 240]
+    end
+
+    def resolve_metric_finder_shortlist!
+      query = @metric_finder_query.to_s.downcase
+
+      if query.blank?
+        @metric_finder_shortlist = []
+        @metric_finder_cursor_value = ""
+        @metric_finder_cursor_index = 0
+        return
+      end
+
+      ranked = @metric_finder_options.each_with_index.filter_map do |option, index|
+        next unless metric_shortlist_match?(option:, query:)
+
+        [
+          metric_shortlist_score(option:, query:),
+          METRIC_FINDER_SECTION_RANK.fetch(option[:section].to_s, 99),
+          index,
+          option
+        ]
+      end
+
+      shortlist = ranked
+        .sort_by { |entry| entry[0..2] }
+        .first(METRIC_SHORTLIST_LIMIT)
+        .map(&:last)
+
+      @metric_finder_shortlist = shortlist
+
+      preferred_cursor = if @requested_metric_finder_cursor.present? && shortlist.any? { |option| option[:value] == @requested_metric_finder_cursor }
+        @requested_metric_finder_cursor
+      elsif @active_metric_finder_value.present? && shortlist.any? { |option| option[:value] == @active_metric_finder_value }
+        @active_metric_finder_value
+      else
+        shortlist.first&.dig(:value).to_s
+      end
+
+      @metric_finder_cursor_value = preferred_cursor.to_s
+      @metric_finder_cursor_index = shortlist.find_index { |option| option[:value] == @metric_finder_cursor_value } || 0
+    end
+
+    def metric_shortlist_match?(option:, query:)
+      haystacks = [
+        option[:metric_label],
+        option[:context_label],
+        option[:label]
+      ].compact.map { |value| value.to_s.downcase }
+
+      haystacks.any? { |value| value.include?(query) }
+    end
+
+    def metric_shortlist_score(option:, query:)
+      metric_label = option[:metric_label].to_s.downcase
+      context_label = option[:context_label].to_s.downcase
+      full_label = option[:label].to_s.downcase
+
+      return 0 if metric_label == query
+      return 1 if metric_label.start_with?(query)
+
+      metric_tokens = metric_label.split(/[^a-z0-9%]+/)
+      return 2 if metric_tokens.any? { |token| token.start_with?(query) }
+      return 3 if context_label.start_with?(query)
+      return 4 if full_label.include?(query)
+
+      5
+    end
+
     def build_metric_finder_options
       options = []
       selected_year_label = helpers.format_year_label(@selected_year)
@@ -804,6 +902,8 @@ module Tools
         options << {
           section: "system",
           section_label: METRIC_FINDER_SECTION_LABELS.fetch("system"),
+          metric_label: definition.fetch(:label),
+          context_label: selected_year_label,
           value: metric_finder_value(
             section: "system",
             metric: metric_key,
@@ -830,6 +930,8 @@ module Tools
           options << {
             section: "tax",
             section_label: METRIC_FINDER_SECTION_LABELS.fetch("tax"),
+            metric_label: definition.fetch(:label),
+            context_label: "#{bracket_label} · #{selected_year_label}",
             value: metric_finder_value(
               section: "tax",
               metric: metric_key,
@@ -850,6 +952,8 @@ module Tools
         options << {
           section: "minimum",
           section_label: METRIC_FINDER_SECTION_LABELS.fetch("minimum"),
+          metric_label: "Minimum Salary",
+          context_label: "YOS #{yos} · #{selected_year_label}",
           value: metric_finder_value(
             section: "minimum",
             metric: "minimum_salary_amount",
@@ -871,6 +975,8 @@ module Tools
           options << {
             section: "rookie",
             section_label: METRIC_FINDER_SECTION_LABELS.fetch("rookie"),
+            metric_label: definition.fetch(:label),
+            context_label: "Pick #{pick} · #{selected_year_label}",
             value: metric_finder_value(
               section: "rookie",
               metric: metric_key,

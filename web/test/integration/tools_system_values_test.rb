@@ -253,7 +253,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
 
   test "system values renders rightpanel targets, sse apply path, and rookie metric-cell drill-in wiring" do
     with_fake_connection do
-      get "/tools/system-values", params: {
+      get "/tools/system-values/sse/refresh", params: {
         year: "2026",
         baseline_year: "2024",
         from_year: "2024",
@@ -261,32 +261,33 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
         show_system_values: "1",
         show_tax_rates: "0",
         show_salary_scales: "1",
-        show_rookie_scales: "0"
+        show_rookie_scales: "0",
+        metric_finder_query: "cap"
       }, headers: modern_headers
 
       assert_response :success
+      assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
       assert_includes response.body, "/tools/system-values/sse/refresh?"
       assert_includes response.body, "/tools/system-values/sidebar/metric?"
       assert_includes response.body, "Comparing 26-27 against 24-25 baseline"
-      assert_includes response.body, 'id="system-values-metric-finder-select"'
-      assert_includes response.body, "Jump to metric + open drill-in"
-      assert_includes response.body, "system|salary_cap_amount|2026|||sv-row-system-2026"
-      assert_includes response.body, "tax|tax_rate_non_repeater|2026|5000000||sv-row-tax-2026-5000000-inf"
-      assert_includes response.body, "minimum|minimum_salary_amount|2026|1||sv-row-minimum-2026-yos-1"
-      assert_includes response.body, "rookie|salary_year_1|2026|1||sv-row-rookie-2026-pick-1"
+      assert_includes response.body, 'id="system-values-metric-finder-query"'
+      assert_includes response.body, 'id="system-values-metric-shortlist"'
+      assert_includes response.body, "salary_cap_amount|2026|||sv-row-system-2026"
+      assert_includes response.body, "Salary Cap"
+      assert_includes response.body, "ArrowDown"
+      assert_includes response.body, "Enter opens overlay"
       assert_includes response.body, "data-on:system-values-jump"
       assert_includes response.body, "$svoverlaysection='minimum'; $svoverlaymetric='minimum_salary_amount'"
       assert_includes response.body, "$svoverlaylower='0'"
-      assert_includes response.body, "$svoverlaysection='rookie'; $svoverlaymetric='salary_year_1'"
-      assert_includes response.body, "$svoverlaysection='rookie'; $svoverlaymetric='option_amount_year_4'"
-      assert_includes response.body, "$svoverlaysection='rookie'; $svoverlaymetric='option_pct_year_3'"
-      assert_includes response.body, "$svoverlaylower='1'"
       assert_includes response.body, '"showsystemvalues":true'
       assert_includes response.body, '"showtaxrates":false'
       assert_includes response.body, '"showsalaryscales":true'
       assert_includes response.body, '"showrookiescales":false'
+      assert_includes response.body, '"svmetricfinderquery":"cap"'
+      assert_includes response.body, '"svmetricfindercursor":"system|salary_cap_amount|2026|||sv-row-system-2026"'
+      assert_includes response.body, '"svmetricfindercursorindex":0'
       assert_includes response.body, "show_system_values=1"
       assert_includes response.body, "show_tax_rates=0"
       assert_includes response.body, "show_salary_scales=1"
@@ -408,6 +409,8 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
         show_tax_rates: "1",
         show_salary_scales: "0",
         show_rookie_scales: "1",
+        metric_finder_query: "tax",
+        metric_finder_cursor: "tax|tax_rate_non_repeater|2026|5000000||sv-row-tax-2026-5000000-inf",
         overlay_section: "tax",
         overlay_metric: "tax_rate_non_repeater",
         overlay_year: "2026",
@@ -432,6 +435,10 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       assert_includes response.body, '"showsalaryscales":false'
       assert_includes response.body, '"showrookiescales":true'
       assert_includes response.body, '"svmetricfinder":"tax|tax_rate_non_repeater|2026|5000000||sv-row-tax-2026-5000000-inf"'
+      assert_includes response.body, '"svmetricfinderquery":"tax"'
+      assert_includes response.body, '"svmetricfindercursor":"tax|tax_rate_non_repeater|2026|5000000||sv-row-tax-2026-5000000-inf"'
+      assert_includes response.body, '"svmetricfindercursorindex":'
+      assert_includes response.body, 'id="system-values-metric-shortlist"'
       assert_includes response.body, "show_system_values=0"
       assert_includes response.body, "show_tax_rates=1"
       assert_includes response.body, "show_salary_scales=0"
