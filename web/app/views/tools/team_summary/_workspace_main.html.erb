@@ -16,6 +16,8 @@
     "pressure=#{ERB::Util.url_encode(@pressure.to_s)}",
     "sort=#{ERB::Util.url_encode(@sort.to_s)}"
   ].join("&")
+
+  compare_signal_query_expr = "&selected=' + encodeURIComponent($selectedteam || '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '')"
 %>
 
 <%= render partial: "tools/team_summary/compare_strip" %>
@@ -94,6 +96,8 @@
 
         <% team_code = row["team_code"].to_s.upcase %>
         <% sidebar_path = tools_team_summary_sidebar_path(team_code: team_code) %>
+        <% pin_slot_a_expr = "@get('#{tools_team_summary_sse_compare_path}?#{sidebar_state_query}&action=pin&slot=a&team_code=#{ERB::Util.url_encode(team_code)}#{compare_signal_query_expr}')" %>
+        <% pin_slot_b_expr = "@get('#{tools_team_summary_sse_compare_path}?#{sidebar_state_query}&action=pin&slot=b&team_code=#{ERB::Util.url_encode(team_code)}#{compare_signal_query_expr}')" %>
 
         <div
           id="team-summary-row-<%= team_code.downcase %>"
@@ -102,7 +106,7 @@
           tabindex="0"
           data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $selectedteam === '<%= team_code %>', 'ring-1 ring-inset ring-indigo-500/50': $comparea === '<%= team_code %>' || $compareb === '<%= team_code %>' }"
           data-on:click="$selectedteam = '<%= team_code %>'; @get('<%= sidebar_path %>?<%= sidebar_state_query %>&selected=<%= team_code %>&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || ''))"
-          data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); $selectedteam = '<%= team_code %>'; @get('<%= sidebar_path %>?<%= sidebar_state_query %>&selected=<%= team_code %>&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '')); }"
+          data-on:keydown="if ((evt.key === 'Enter' || evt.key === ' ') && !(evt.target && evt.target.closest('a,button,input,select,textarea'))) { evt.preventDefault(); $selectedteam = '<%= team_code %>'; @get('<%= sidebar_path %>?<%= sidebar_state_query %>&selected=<%= team_code %>&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '')); }"
         >
           <div
             class="w-52 shrink-0 pl-4 sticky left-0 z-20 relative bg-background transition-colors duration-75
@@ -138,12 +142,34 @@
                 ><%= row["team_name"] %></a>
               </div>
 
-              <div class="h-[16px] -mt-px flex items-start gap-1 min-w-0 pl-1 pr-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
-                <span class="font-medium"><%= team_code %></span>
-                <span>•</span>
-                <span class="truncate"><%= conference_name %></span>
-                <span class="inline-flex items-center rounded border border-indigo-500/40 bg-indigo-500/10 px-1 text-[9px] font-semibold text-indigo-700 dark:text-indigo-300" data-show="$comparea === '<%= team_code %>'" style="display: none;">A</span>
-                <span class="inline-flex items-center rounded border border-emerald-500/40 bg-emerald-500/10 px-1 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300" data-show="$compareb === '<%= team_code %>'" style="display: none;">B</span>
+              <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1 pr-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums">
+                <div class="min-w-0 flex items-start gap-1 overflow-hidden">
+                  <span class="font-medium"><%= team_code %></span>
+                  <span>•</span>
+                  <span class="truncate"><%= conference_name %></span>
+                  <span class="inline-flex items-center rounded border border-indigo-500/40 bg-indigo-500/10 px-1 text-[9px] font-semibold text-indigo-700 dark:text-indigo-300" data-show="$comparea === '<%= team_code %>'" style="display: none;">A</span>
+                  <span class="inline-flex items-center rounded border border-emerald-500/40 bg-emerald-500/10 px-1 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300" data-show="$compareb === '<%= team_code %>'" style="display: none;">B</span>
+                </div>
+
+                <div class="ml-1 flex items-center gap-1 shrink-0" data-on:click="evt.stopPropagation()" data-on:keydown="evt.stopPropagation()">
+                  <button
+                    type="button"
+                    class="cursor-pointer h-4 px-1 rounded border border-border/70 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                    aria-label="Pin <%= row['team_name'] %> to compare slot A"
+                    title="Pin to compare slot A"
+                    data-class="{ 'border-indigo-500/60 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300': $comparea === '<%= team_code %>' }"
+                    data-on:click="evt.stopPropagation(); <%= pin_slot_a_expr %>"
+                  >Pin A</button>
+
+                  <button
+                    type="button"
+                    class="cursor-pointer h-4 px-1 rounded border border-border/70 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                    aria-label="Pin <%= row['team_name'] %> to compare slot B"
+                    title="Pin to compare slot B"
+                    data-class="{ 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300': $compareb === '<%= team_code %>' }"
+                    data-on:click="evt.stopPropagation(); <%= pin_slot_b_expr %>"
+                  >Pin B</button>
+                </div>
               </div>
             </div>
           </div>

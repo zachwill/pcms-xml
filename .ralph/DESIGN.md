@@ -288,25 +288,27 @@ Next-loop guardrails (tightened):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P2] [TOOL] /tools/team-summary (`web/app/views/tools/team_summary/_workspace_main.html.erb`) — build compare board directly from dense rows (without sidebar detour)
-  - Problem: Pinning compare slots is sidebar-first, adding extra clicks during fast side-by-side setup.
-  - Hypothesis: Inline row-level pin actions (A/B) will reduce interaction cost and make compare workflows faster.
-  - Scope (files):
+- [x] [P2] [TOOL] /tools/team-summary (`web/app/views/tools/team_summary/_workspace_main.html.erb`) — build compare board directly from dense rows (without sidebar detour)
+  - What changed (files):
     - `web/app/views/tools/team_summary/_workspace_main.html.erb`
     - `web/app/views/tools/team_summary/_compare_strip.html.erb`
+    - `web/app/views/tools/team_summary/_rightpanel_base.html.erb`
     - `web/app/controllers/tools/team_summary_controller.rb`
     - `web/test/integration/tools_team_summary_test.rb`
-  - Acceptance criteria:
-    - Each row exposes keyboard-accessible `Pin A` / `Pin B` actions.
-    - Pin actions update compare strip + sidebar state via one existing compare SSE flow.
-    - Row badges and compare strip stay synchronized after pin/replace/clear actions.
-    - Dense row layout is preserved (no card conversion).
-  - Rubric (before → target):
+  - Why this improves the flow:
+    - Dense team rows now expose inline, keyboard-accessible `Pin A` / `Pin B` buttons in the sticky identity column, so users can build compare slots without opening sidebar drill-ins first.
+    - Row pin actions call the existing `/tools/team-summary/sse/compare` flow and include live signal-backed `selected/compare_a/compare_b` query state, preventing stale-slot overwrites when only compare/sidebar regions are patched.
+    - Compare pinning no longer auto-selects a team when no overlay is active, so row-first compare setup stays in scan mode instead of forcing an overlay detour.
+    - Existing A/B row badges remain signal-driven, while compare strip and rightpanel base keep updating via the same compare SSE response, so slot state stays synchronized after pin/replace/clear.
+  - Rubric (before → after):
     - Scan speed: 5 → 5
     - Information hierarchy: 4 → 4
     - Interaction predictability: 4 → 5
     - Density/readability: 5 → 5
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Convert `_workspace_main` header sort links (Cap Space / Tax Overage) to the refresh SSE path for full no-reload consistency.
+    - Add optional keyboard shortcuts for slot pinning (`A`/`B` on focused row) to reduce tab-stop overhead on long scans.
   - Guardrails:
     - Do not modify Salary Book files.
 

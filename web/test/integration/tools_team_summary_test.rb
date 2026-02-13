@@ -143,6 +143,43 @@ class ToolsTeamSummaryTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "team summary rows expose inline pin a/b actions wired to compare sse flow" do
+    with_fake_connection do
+      get "/tools/team-summary", headers: modern_headers
+
+      assert_response :success
+      assert_includes response.body, ">Pin A</button>"
+      assert_includes response.body, ">Pin B</button>"
+      assert_includes response.body, "/tools/team-summary/sse/compare?year=2025"
+      assert_includes response.body, "action=pin&amp;slot=a&amp;team_code=BOS"
+      assert_includes response.body, "action=pin&amp;slot=b&amp;team_code=BOS"
+      assert_includes response.body, "encodeURIComponent($selectedteam"
+    end
+  end
+
+  test "team summary row pin compare action does not force sidebar selection" do
+    with_fake_connection do
+      get "/tools/team-summary/sse/compare", params: {
+        year: "2025",
+        conference: "all",
+        pressure: "all",
+        sort: "cap_space_desc",
+        compare_a: "",
+        compare_b: "",
+        selected: "",
+        action: "pin",
+        slot: "a",
+        team_code: "POR"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="rightpanel-overlay"></div>'
+      assert_includes response.body, '"selectedteam":""'
+      assert_includes response.body, '"comparea":"POR"'
+    end
+  end
+
   test "team summary refresh endpoint returns ordered multi-region sse patches" do
     with_fake_connection do
       get "/tools/team-summary/sse/refresh", params: {

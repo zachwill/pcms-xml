@@ -344,7 +344,6 @@ module Tools
           @compare_a_code = nil if @compare_a_code == team_code
         end
 
-        @selected_team_code = team_code if @selected_team_code.blank?
       when "clear_slot"
         return if slot.blank?
 
