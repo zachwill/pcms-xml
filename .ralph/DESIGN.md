@@ -133,24 +133,37 @@ Supervisor review — 2026-02-13 (pass 4):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P2] [TOOL] /tools/system-values — extend drill-ins to Rookie Scale pick rows
+- [x] [P2] [TOOL] /tools/system-values — extend drill-ins to Rookie Scale pick rows
   - Problem: Rookie Scale table is dense but non-interactive, so users cannot isolate pick-level baseline shifts in the right panel during planning passes.
   - Hypothesis: Pick-row drill-ins with option-amount/option-% context will make rookie-scale anomalies easier to inspect without losing workspace position.
   - Scope (files):
     - web/app/controllers/tools/system_values_controller.rb
+    - web/app/views/tools/system_values/_workspace_main.html.erb
     - web/app/views/tools/system_values/_rookie_scale_amounts_table.html.erb
     - web/app/views/tools/system_values/_rightpanel_overlay_metric.html.erb
+    - web/app/views/tools/system_values/_rightpanel_base.html.erb
     - web/test/integration/tools_system_values_test.rb
-  - Acceptance criteria:
-    - Clicking a Rookie Scale row opens overlay detail keyed by pick + year context.
-    - Overlay clearly communicates Year1/Year2 + Option Y3/Y4 deltas vs baseline.
-    - Existing one-request `/tools/system-values/sse/refresh` patch behavior remains canonical.
-  - Rubric (before → target):
+  - What changed:
+    - Added Rookie overlay support in `Tools::SystemValuesController` (`overlay_section=rookie`) with pick-aware context resolution (`overlay_lower` carries pick number), rookie metric validation, and payload generation from `pcms.rookie_scale_amounts`.
+    - Extended overlay payload formatting for rookie option-% fields (`:percentage` formatting + delta labels in percentage points) and added `rookie_detail_rows` so the sidebar can show full pick context, not just one metric.
+    - Wired Rookie Scale table rows as keyboard/click drill-ins in `_rookie_scale_amounts_table`, using the existing sidebar metric endpoint + signal contract (`svoverlaysection/metric/year/lower/upper`).
+    - Passed shared overlay query locals into Rookie section render from `_workspace_main` and updated rightpanel base helper copy so discovery language matches the new row-level drill-in behavior.
+    - Expanded integration coverage for Rookie row wiring, Rookie sidebar content (Year1/Year2 + Option Y3/Y4 + option-%), and refresh preserve/clear semantics when the focused pick row stays/leaves range.
+  - Why this improves the flow:
+    - Rookie Scale now completes the same scan → drill-in loop as System/Tax/Minimum, so users can inspect pick-level anomalies without leaving maincanvas context.
+    - Overlay detail now explicitly surfaces the four core rookie amount components (plus option-% context) against baseline in one place, reducing manual table diffing.
+    - Existing one-request `/tools/system-values/sse/refresh` interaction grammar remains unchanged and deterministic for overlay preserve/clear.
+  - Verification:
+    - `cd web && bundle exec rails test test/integration/tools_system_values_test.rb` *(fails in this environment: missing gem `lucide-rails-0.7.3`)*
+    - `cd web && ruby -c app/controllers/tools/system_values_controller.rb && ruby -c test/integration/tools_system_values_test.rb && ruby -rerb -e "['app/views/tools/system_values/_workspace_main.html.erb','app/views/tools/system_values/_rookie_scale_amounts_table.html.erb','app/views/tools/system_values/_rightpanel_overlay_metric.html.erb','app/views/tools/system_values/_rightpanel_base.html.erb'].each { |p| ERB.new(File.read(p)).src }; puts 'ERB OK'"` *(syntax/ERB OK)*
+  - Rubric (before → after):
     - Scan speed: 5 → 5
     - Information hierarchy: 5 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Consider allowing click-through on individual Rookie metric cells to set the overlay’s headline metric (currently row drill-in defaults to Year 1 while still showing full pick detail).
   - Guardrails:
     - Do not modify Salary Book files.
 

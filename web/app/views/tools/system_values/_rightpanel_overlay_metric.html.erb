@@ -22,6 +22,8 @@ else
   "text-muted-foreground"
 end %>
 
+<% rookie_detail_rows = Array(payload[:rookie_detail_rows]) %>
+
 <div id="rightpanel-overlay" class="h-full bg-background border-l border-border/70">
   <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
     <button
@@ -64,6 +66,37 @@ end %>
         <div class="mt-0.5 font-mono tabular-nums <%= focus_delta_class %>">Δ <%= payload[:focus_delta_label] %> vs <%= payload[:baseline_year_label] %></div>
       </div>
     </div>
+
+    <% if rookie_detail_rows.any? %>
+      <div class="rounded border border-border bg-background px-3 py-2 space-y-2 text-[11px]">
+        <div class="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/80">Pick scale detail</div>
+        <div class="space-y-1.5">
+          <% rookie_detail_rows.each do |row| %>
+            <% detail_delta_class = case row[:delta_variant]
+            when "positive"
+              "text-emerald-600 dark:text-emerald-400"
+            when "negative"
+              "text-red-500"
+            when "neutral"
+              "text-foreground"
+            else
+              "text-muted-foreground"
+            end %>
+
+            <div class="rounded border border-border/70 bg-muted/10 px-2 py-1.5">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] uppercase tracking-wide text-muted-foreground/80"><%= row[:label] %></span>
+                <span class="font-semibold font-mono tabular-nums"><%= row[:selected_value_label] %></span>
+              </div>
+              <div class="mt-0.5 flex items-center justify-between gap-2">
+                <span class="font-mono tabular-nums text-muted-foreground">Baseline <%= payload[:baseline_year_label] %>: <%= row[:baseline_value_label] %></span>
+                <span class="font-mono tabular-nums <%= detail_delta_class %>">Δ <%= row[:delta_label] %></span>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
 
     <div class="rounded border border-border bg-background px-3 py-2 space-y-1.5 text-[11px]">
       <div class="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/80">Provenance</div>

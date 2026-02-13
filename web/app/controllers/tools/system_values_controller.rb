@@ -33,6 +33,15 @@ module Tools
       "minimum_salary_amount" => { label: "Minimum Salary", kind: :currency }
     }.freeze
 
+    ROOKIE_METRIC_DEFINITIONS = {
+      "salary_year_1" => { label: "Year 1 Salary", kind: :currency },
+      "salary_year_2" => { label: "Year 2 Salary", kind: :currency },
+      "option_amount_year_3" => { label: "Option Year 3 Amount", kind: :currency },
+      "option_amount_year_4" => { label: "Option Year 4 Amount", kind: :currency },
+      "option_pct_year_3" => { label: "Option Year 3 %", kind: :percentage },
+      "option_pct_year_4" => { label: "Option Year 4 %", kind: :percentage }
+    }.freeze
+
     # GET /tools/system-values
     def show
       load_workspace_state!
@@ -374,6 +383,9 @@ module Tools
       when "minimum"
         yos = parse_year_param(params[:overlay_lower])
         build_minimum_overlay_context(metric:, year:, yos:)
+      when "rookie"
+        pick = parse_year_param(params[:overlay_lower])
+        build_rookie_overlay_context(metric:, year:, pick:)
       end
 
       @overlay_payload = context.present? ? build_overlay_payload(context) : nil
@@ -392,7 +404,7 @@ module Tools
 
     def resolve_overlay_section(value)
       normalized = value.to_s.strip
-      return normalized if %w[system tax minimum].include?(normalized)
+      return normalized if %w[system tax minimum rookie].include?(normalized)
 
       nil
     end
@@ -411,6 +423,8 @@ module Tools
         TAX_METRIC_DEFINITIONS
       when "minimum"
         MINIMUM_METRIC_DEFINITIONS
+      when "rookie"
+        ROOKIE_METRIC_DEFINITIONS
       else
         SYSTEM_METRIC_DEFINITIONS
       end
@@ -466,6 +480,24 @@ module Tools
       }
     end
 
+    def build_rookie_overlay_context(metric:, year:, pick:)
+      return nil if metric.blank? || year.blank? || pick.nil?
+
+      focus_row = @rookie_scale_amounts.find do |row|
+        row["salary_year"].to_i == year.to_i && row["pick_number"].to_i == pick.to_i
+      end
+      return nil unless focus_row
+
+      {
+        section: "rookie",
+        metric:,
+        metric_definition: ROOKIE_METRIC_DEFINITIONS.fetch(metric),
+        focus_year: year.to_i,
+        focus_row:,
+        pick: pick.to_i
+      }
+    end
+
     def build_overlay_payload(context)
       section = context.fetch(:section)
       metric = context.fetch(:metric)
@@ -473,6 +505,8 @@ module Tools
       focus_row = context.fetch(:focus_row)
       focus_year = context.fetch(:focus_year)
       kind = metric_definition.fetch(:kind)
+
+      rookie_detail_rows = nil
 
       selected_value, baseline_value, focus_baseline_value, context_label, overlay_lower, overlay_upper =
         case section
@@ -509,6 +543,21 @@ module Tools
             yos.to_s,
             ""
           ]
+        when "rookie"
+          pick = context.fetch(:pick)
+          selected_row = rookie_row_for_pick(@selected_rookie_scale_rows, pick:)
+          baseline_row = rookie_row_for_pick(@baseline_rookie_scale_rows, pick:)
+
+          rookie_detail_rows = build_rookie_overlay_detail_rows(selected_row:, baseline_row:)
+
+          [
+            selected_row&.[](metric),
+            baseline_row&.[](metric),
+            baseline_row&.[](metric),
+            "Pick #{pick}",
+            pick.to_s,
+            ""
+          ]
         else
           [
             @selected_system_values_row&.[](metric),
@@ -543,6 +592,8 @@ module Tools
         "League Tax Rates"
       when "minimum"
         "League Salary Scales"
+      when "rookie"
+        "Rookie Scale Amounts"
       else
         "League System Values"
       end
@@ -569,11 +620,14 @@ module Tools
         focus_line:,
         context_label:,
         bracket_label: context_label,
+        rookie_detail_rows:,
         source_table: case section
         when "tax"
           "pcms.league_tax_rates"
         when "minimum"
           "pcms.league_salary_scales"
+        when "rookie"
+          "pcms.rookie_scale_amounts"
         else
           "pcms.league_system_values"
         end,
@@ -598,6 +652,27 @@ module Tools
 
     def minimum_row_for_yos(rows, yos:)
       Array(rows).find { |row| row["years_of_service"].to_i == yos.to_i }
+    end
+
+    def rookie_row_for_pick(rows, pick:)
+      Array(rows).find { |row| row["pick_number"].to_i == pick.to_i }
+    end
+
+    def build_rookie_overlay_detail_rows(selected_row:, baseline_row:)
+      ROOKIE_METRIC_DEFINITIONS.map do |metric_key, definition|
+        selected_value = selected_row&.[](metric_key)
+        baseline_value = baseline_row&.[](metric_key)
+        delta = numeric_delta(selected_value, baseline_value)
+
+        {
+          metric: metric_key,
+          label: definition.fetch(:label),
+          selected_value_label: format_metric_value(selected_value, definition.fetch(:kind)),
+          baseline_value_label: format_metric_value(baseline_value, definition.fetch(:kind)),
+          delta_label: format_metric_delta(delta, definition.fetch(:kind)),
+          delta_variant: delta_variant(delta)
+        }
+      end
     end
 
     def tax_bracket_match?(row, lower:, upper:)
@@ -689,6 +764,8 @@ module Tools
         helpers.format_compact_currency(value)
       when :rate
         "#{format("%.2f", value.to_f)}x"
+      when :percentage
+        "#{format("%.1f", value.to_f * 100.0)}%"
       else
         value.to_s
       end
@@ -708,6 +785,11 @@ module Tools
 
         prefix = delta.to_f.positive? ? "+" : ""
         "#{prefix}#{format("%.2f", delta.to_f)}x"
+      when :percentage
+        return "±0.0pp" if delta.to_f.zero?
+
+        prefix = delta.to_f.positive? ? "+" : ""
+        "#{prefix}#{format("%.1f", delta.to_f * 100.0)}pp"
       else
         delta.to_s
       end
