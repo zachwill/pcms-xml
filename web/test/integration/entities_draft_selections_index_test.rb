@@ -39,17 +39,20 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
           ["team_code", "team_id", "team_name"],
           [["POR", 1_610_612_757, "Portland Trail Blazers"]]
         )
-      elsif sql.include?("FROM pcms.draft_pick_trades dpt")
+      elsif sql.include?("FROM pcms.draft_pick_trades dpt") && sql.include?("SELECT\n          dpt.id")
         ActiveRecord::Result.new(
           ["id", "trade_id", "trade_date", "from_team_code", "to_team_code", "original_team_code", "is_swap", "is_future", "is_conditional", "conditional_type_lk"],
           [[91001, 88001, "2025-02-07", "BOS", "POR", "BOS", false, true, true, "TOP4"]]
         )
-      elsif sql.include?("FROM pcms.draft_selections ds") && sql.include?("LIMIT 260")
+      elsif sql.include?("WITH selection_rows AS") && sql.include?("LIMIT 260")
         rows = if sql.include?("ds.draft_year = 2025")
           [selection_index_row_secondary]
         else
           [selection_index_row_primary]
         end
+
+        rows = rows.select { |row| row[10].present? } if sql.include?("selection_rows.trade_id IS NOT NULL")
+        rows = rows.select { |row| row[12].to_i >= 2 } if sql.include?("selection_rows.provenance_trade_count >= 2")
 
         ActiveRecord::Result.new(selection_index_columns, rows)
       elsif sql.include?("FROM \"slugs\"")
@@ -66,7 +69,7 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
       [
         "transaction_id", "draft_year", "draft_round", "pick_number", "player_id", "player_name",
         "drafting_team_id", "drafting_team_code", "drafting_team_name", "transaction_date", "trade_id",
-        "transaction_type_lk", "provenance_trade_count"
+        "transaction_type_lk", "provenance_trade_count", "has_trade", "provenance_priority_score"
       ]
     end
 
@@ -74,7 +77,7 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
       [
         777001, 2026, 1, 12, 203507, "Prospect One",
         1_610_612_738, "BOS", "Boston Celtics", "2026-06-25", 88001,
-        "DDRFT", 2
+        "DDRFT", 2, 1, 3
       ]
     end
 
@@ -82,7 +85,7 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
       [
         777002, 2025, 2, 40, 203508, "Prospect Two",
         1_610_612_757, "POR", "Portland Trail Blazers", "2025-06-27", nil,
-        "DDRFT", 0
+        "DDRFT", 0, 0, 0
       ]
     end
 
@@ -107,7 +110,7 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
     host! "localhost"
   end
 
-  test "draft selections index renders workbench shell with query year round team knobs" do
+  test "draft selections index renders workbench shell with provenance sort and lens knobs" do
     with_fake_connection do
       get "/draft-selections", headers: modern_headers
 
@@ -116,6 +119,8 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="draft-selections-search-input"'
       assert_includes response.body, 'id="draft-selections-year-select"'
       assert_includes response.body, 'id="draft-selections-team-select"'
+      assert_includes response.body, 'id="draft-selections-sort-select"'
+      assert_includes response.body, 'id="draft-selections-lens-select"'
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
@@ -147,6 +152,8 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
         year: "2026",
         round: "all",
         team: "",
+        sort: "provenance",
+        lens: "all",
         selected_id: "777001"
       }, headers: modern_headers
 
@@ -155,6 +162,8 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="draft-selections-maincanvas"'
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, "Open draft-selection page"
+      assert_includes response.body, '"draftselectionsort":"provenance"'
+      assert_includes response.body, '"draftselectionlens":"all"'
       assert_includes response.body, '"overlaytype":"selection"'
       assert_includes response.body, '"overlayid":"777001"'
     end
@@ -167,12 +176,16 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
         year: "2025",
         round: "all",
         team: "",
+        sort: "trade",
+        lens: "with_trade",
         selected_id: "777001"
       }, headers: modern_headers
 
       assert_response :success
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, '<div id="rightpanel-overlay"></div>'
+      assert_includes response.body, '"draftselectionsort":"trade"'
+      assert_includes response.body, '"draftselectionlens":"with_trade"'
       assert_includes response.body, '"overlaytype":"none"'
       assert_includes response.body, '"overlayid":""'
     end

@@ -287,7 +287,7 @@ Supervisor review — 2026-02-13 (pass 2):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /draft-selections — prioritize picks with deepest provenance chains
+- [x] [P1] [INDEX] /draft-selections — prioritize picks with deepest provenance chains
   - Problem: Selection rows are readable, but there is no direct lens for “most provenance complexity first.”
   - Hypothesis: Provenance-first sorting/lensing will speed anomaly and ownership-history investigations.
   - Scope (files):
@@ -297,17 +297,29 @@ Supervisor review — 2026-02-13 (pass 2):
     - web/app/controllers/entities/draft_selections_controller.rb
     - web/app/controllers/entities/draft_selections_sse_controller.rb
     - web/test/integration/entities_draft_selections_index_test.rb
-  - Acceptance criteria:
-    - Commandbar includes provenance-oriented sort/lens controls (e.g., with trade, highest provenance count).
-    - Rows visibly surface provenance ranking without adding card-like whitespace.
-    - Knob changes keep overlay preservation semantics in one SSE response.
-    - Sidebar quick selections reflect active sort/lens ordering.
-  - Rubric (before → target):
+  - What changed:
+    - Added URL-backed commandbar controls on `/draft-selections` for **Sort** (`provenance`, `trade`, `board`) and **Provenance lens** (`all`, `with_trade`, `deep_chain`) and wired them into Datastar state (`draftselectionsort`, `draftselectionlens`).
+    - Extended `DraftSelectionsController` filter state with sort/lens parsing + labels, plus SQL-backed selection ordering/filtering via `selections_order_sql` and `selections_lens_sql` so provenance depth and trade-linked rows can be prioritized deterministically.
+    - Kept index rendering dense while exposing provenance ranking directly in rows (rank cues under active non-board sorts, trade-linked annotation, and deep-chain emphasis for P2+ rows).
+    - Updated sidebar snapshot and quick selections to mirror active sort/lens context, including deep-chain KPI and sort-labeled quick list ordering.
+    - Extended `/draft-selections/sse/refresh` signal patching to include sort/lens while preserving existing one-response multi-region overlay preserve/clear semantics.
+    - Expanded integration coverage for the new controls and refresh signal patching semantics.
+  - Why this improves the flow:
+    - Users can move directly into provenance-first investigation from the commandbar without manual scanning passes.
+    - Ranking rationale is visible in-row, so provenance-heavy outliers are legible at scan speed without changing row density.
+    - Sidebar quick selections now stay aligned with the active provenance lens/sort, reducing mismatch between center table and right-panel wayfinding.
+  - Verification:
+    - `cd web && bundle exec rails test test/integration/entities_draft_selections_index_test.rb` *(fails in this environment: missing gem `lucide-rails-0.7.3`)*
+    - `cd web && ruby -c app/controllers/entities/draft_selections_controller.rb && ruby -c app/controllers/entities/draft_selections_sse_controller.rb && ruby -c test/integration/entities_draft_selections_index_test.rb && ruby -rerb -e "['app/views/entities/draft_selections/index.html.erb','app/views/entities/draft_selections/_workspace_main.html.erb','app/views/entities/draft_selections/_rightpanel_base.html.erb'].each { |p| ERB.new(File.read(p)).src }; puts 'ERB OK'"` *(syntax/ERB OK)*
+  - Rubric (before → after):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 5 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 5 → 5
+  - Follow-up tasks discovered:
+    - Add inline tooltip copy for provenance lens thresholds (e.g., explicit definition of deep-chain `P2+`) directly in commandbar controls.
+    - Consider a combined sort mode that clusters `deep_chain + with_trade` rows ahead of pure provenance ties for deadline audit workflows.
   - Guardrails:
     - Do not modify Salary Book files.
 

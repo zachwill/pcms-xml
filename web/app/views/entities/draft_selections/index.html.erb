@@ -4,7 +4,9 @@
   pane_query_expr = "'q=' + encodeURIComponent($draftselectionquery) +
     '&year=' + encodeURIComponent($draftselectionyear) +
     '&round=' + encodeURIComponent($draftselectionround) +
-    '&team=' + encodeURIComponent($draftselectionteam)"
+    '&team=' + encodeURIComponent($draftselectionteam) +
+    '&sort=' + encodeURIComponent($draftselectionsort) +
+    '&lens=' + encodeURIComponent($draftselectionlens)"
 
   refresh_query_expr = "(#{pane_query_expr}) +
     '&selected_id=' + encodeURIComponent($overlayid)"
@@ -13,7 +15,7 @@
   submit_search_expr = "evt.preventDefault(); #{refresh_expr}"
   clear_search_expr = "$draftselectionquery = ''; #{refresh_expr}"
 
-  signals_literal = "{ draftselectionquery: #{@query.to_json}, draftselectionyear: #{@year_lens.to_json}, draftselectionround: #{@round_lens.to_json}, draftselectionteam: #{@team_lens.to_json}, overlaytype: 'none', overlayid: '' }"
+  signals_literal = "{ draftselectionquery: #{@query.to_json}, draftselectionyear: #{@year_lens.to_json}, draftselectionround: #{@round_lens.to_json}, draftselectionteam: #{@team_lens.to_json}, draftselectionsort: #{@sort.to_json}, draftselectionlens: #{@lens.to_json}, overlaytype: 'none', overlayid: '' }"
 %>
 
 <div id="draft-selections-workspace" class="h-screen w-screen flex flex-col overflow-hidden bg-background" data-signals="<%= signals_literal %>">
@@ -95,6 +97,34 @@
             </label>
           <% end %>
         </div>
+      </div>
+
+      <div class="min-w-[13rem] space-y-1">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sort</div>
+        <select
+          id="draft-selections-sort-select"
+          class="h-7 w-56 rounded border border-border bg-background px-2 text-xs text-foreground"
+          data-bind="draftselectionsort"
+          data-on:change="<%= refresh_expr %>"
+        >
+          <option value="provenance" <%= "selected" if @sort == "provenance" %>>Deepest provenance chain</option>
+          <option value="trade" <%= "selected" if @sort == "trade" %>>With trade first</option>
+          <option value="board" <%= "selected" if @sort == "board" %>>Board order (round/pick)</option>
+        </select>
+      </div>
+
+      <div class="min-w-[12rem] space-y-1">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Provenance lens</div>
+        <select
+          id="draft-selections-lens-select"
+          class="h-7 w-48 rounded border border-border bg-background px-2 text-xs text-foreground"
+          data-bind="draftselectionlens"
+          data-on:change="<%= refresh_expr %>"
+        >
+          <option value="all" <%= "selected" if @lens == "all" %>>All rows</option>
+          <option value="with_trade" <%= "selected" if @lens == "with_trade" %>>With trade only</option>
+          <option value="deep_chain" <%= "selected" if @lens == "deep_chain" %>>Deep chain only (P2+)</option>
+        </select>
       </div>
 
       <div class="min-w-[11rem] space-y-1">

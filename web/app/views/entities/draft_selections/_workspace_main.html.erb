@@ -6,17 +6,20 @@
     <div>
       <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Draft selections workspace</div>
       <h2 class="text-sm font-semibold text-foreground">
-        Historical pick explorer
+        Historical pick explorer · <%= @sort_label %>
         <span class="text-muted-foreground font-medium">· <%= @results.size %> rows</span>
       </h2>
-      <p class="text-[11px] text-muted-foreground mt-1">Open a row to trace pre-draft provenance and pivot to player, team, trade, or transaction pages without leaving the list.</p>
+      <p class="text-[11px] text-muted-foreground mt-1">
+        Open a row to trace pre-draft provenance and pivot to player, team, trade, or transaction pages without leaving the list.
+        <% if @lens != "all" %>
+          <span class="font-medium text-foreground">Lens: <%= @lens_label %></span>
+        <% end %>
+      </p>
     </div>
 
-    <div class="text-[11px] text-muted-foreground tabular-nums">
-      Year <%= @year_lens %>
-      <% if @round_lens != "all" %>
-        · R<%= @round_lens %>
-      <% end %>
+    <div class="text-[11px] text-muted-foreground tabular-nums text-right">
+      <div>Year <%= @year_lens %><% if @round_lens != "all" %> · R<%= @round_lens %><% end %></div>
+      <div>Sort: <%= @sort_label %></div>
     </div>
   </div>
 
@@ -37,8 +40,11 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-border">
-          <% @results.each do |row| %>
+          <% @results.each_with_index do |row, index| %>
             <% selection_id = row["transaction_id"].to_s %>
+            <% row_rank = index + 1 %>
+            <% provenance_count = row["provenance_trade_count"].to_i %>
+            <% with_trade = row["trade_id"].present? %>
             <% open_expr = "$overlaytype = 'selection'; $overlayid = '#{selection_id}'; @get('/draft-selections/sidebar/#{selection_id}')" %>
 
             <tr
@@ -83,25 +89,32 @@
                 <div class="entity-cell-two-line">
                   <div class="entity-cell-primary">
                     <a href="<%= transaction_href(row['transaction_id']) %>" class="font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">#<%= row["transaction_id"] %></a>
-                    <% if row["trade_id"].present? %>
+                    <% if with_trade %>
                       <span class="px-1 text-muted-foreground/50">·</span>
                       <a href="<%= trade_href(row['trade_id']) %>" class="font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">T#<%= row["trade_id"] %></a>
                     <% end %>
                   </div>
-                  <div class="entity-cell-secondary"><%= row["transaction_date"].presence || "—" %></div>
+                  <div class="entity-cell-secondary">
+                    <span><%= row["transaction_date"].presence || "—" %></span>
+                    <% if with_trade %>
+                      <span class="px-1 text-muted-foreground/50">·</span>
+                      <span class="text-amber-600 dark:text-amber-400">trade-linked</span>
+                    <% end %>
+                  </div>
                 </div>
               </td>
 
               <td class="px-3 py-2 text-right font-mono tabular-nums">
-                <% provenance_count = row["provenance_trade_count"].to_i %>
-                <% if provenance_count.positive? %>
-                  <div class="space-y-0.5">
-                    <div class="font-medium"><%= provenance_count %></div>
-                    <div class="text-[10px] leading-none text-muted-foreground">trade rows</div>
+                <div class="space-y-0.5">
+                  <div class="font-medium <%= provenance_count >= 2 ? 'text-amber-600 dark:text-amber-400' : (provenance_count.zero? ? 'text-muted-foreground' : '') %>"><%= provenance_count %></div>
+                  <div class="text-[10px] leading-none text-muted-foreground">
+                    <% if @sort == "board" %>
+                      trade rows
+                    <% else %>
+                      rank <%= row_rank %>
+                    <% end %>
                   </div>
-                <% else %>
-                  <span class="text-muted-foreground">—</span>
-                <% end %>
+                </div>
               </td>
             </tr>
           <% end %>

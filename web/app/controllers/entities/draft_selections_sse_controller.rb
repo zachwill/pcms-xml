@@ -32,6 +32,8 @@ module Entities
           draftselectionyear: @year_lens.to_s,
           draftselectionround: @round_lens.to_s,
           draftselectionteam: @team_lens.to_s,
+          draftselectionsort: @sort,
+          draftselectionlens: @lens,
           overlaytype: resolved_overlay_type,
           overlayid: resolved_overlay_id
         )

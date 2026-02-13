@@ -1,6 +1,8 @@
 module Entities
   class DraftSelectionsController < ApplicationController
     INDEX_ROUNDS = %w[all 1 2].freeze
+    INDEX_SORTS = %w[provenance board trade].freeze
+    INDEX_LENSES = %w[all with_trade deep_chain].freeze
 
     # GET /draft-selections
     def index
@@ -205,6 +207,10 @@ module Entities
       @query = params[:q].to_s.strip
       @round_lens = normalize_round_param(params[:round]) || "all"
       @team_lens = normalize_team_code_param(params[:team]) || ""
+      @sort = normalize_sort_param(params[:sort]) || "provenance"
+      @lens = normalize_lens_param(params[:lens]) || "all"
+      @sort_label = draft_selections_sort_label(@sort)
+      @lens_label = draft_selections_lens_label(@lens)
     end
 
     def load_index_dimensions!
@@ -264,44 +270,55 @@ module Entities
       end
 
       @results = conn.exec_query(<<~SQL).to_a
+        WITH selection_rows AS (
+          SELECT
+            ds.transaction_id,
+            ds.draft_year,
+            ds.draft_round,
+            ds.pick_number,
+            ds.player_id,
+            COALESCE(
+              NULLIF(TRIM(CONCAT_WS(' ', p.display_first_name, p.display_last_name)), ''),
+              NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+              ds.player_id::text
+            ) AS player_name,
+            ds.drafting_team_id,
+            ds.drafting_team_code,
+            t.team_name AS drafting_team_name,
+            ds.transaction_date,
+            tx.trade_id,
+            tx.transaction_type_lk,
+            (
+              SELECT COUNT(*)::integer
+              FROM pcms.draft_pick_trades dpt
+              WHERE dpt.draft_year = ds.draft_year
+                AND dpt.draft_round = ds.draft_round
+                AND (
+                  dpt.original_team_code = ds.drafting_team_code
+                  OR dpt.from_team_code = ds.drafting_team_code
+                  OR dpt.to_team_code = ds.drafting_team_code
+                )
+            ) AS provenance_trade_count
+          FROM pcms.draft_selections ds
+          LEFT JOIN pcms.people p
+            ON p.person_id = ds.player_id
+          LEFT JOIN pcms.transactions tx
+            ON tx.transaction_id = ds.transaction_id
+          LEFT JOIN pcms.teams t
+            ON t.team_code = ds.drafting_team_code
+           AND t.league_lk = 'NBA'
+          WHERE #{where_clauses.join(" AND ")}
+        )
         SELECT
-          ds.transaction_id,
-          ds.draft_year,
-          ds.draft_round,
-          ds.pick_number,
-          ds.player_id,
-          COALESCE(
-            NULLIF(TRIM(CONCAT_WS(' ', p.display_first_name, p.display_last_name)), ''),
-            NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
-            ds.player_id::text
-          ) AS player_name,
-          ds.drafting_team_id,
-          ds.drafting_team_code,
-          t.team_name AS drafting_team_name,
-          ds.transaction_date,
-          tx.trade_id,
-          tx.transaction_type_lk,
+          selection_rows.*,
+          (CASE WHEN selection_rows.trade_id IS NOT NULL THEN 1 ELSE 0 END)::integer AS has_trade,
           (
-            SELECT COUNT(*)::integer
-            FROM pcms.draft_pick_trades dpt
-            WHERE dpt.draft_year = ds.draft_year
-              AND dpt.draft_round = ds.draft_round
-              AND (
-                dpt.original_team_code = ds.drafting_team_code
-                OR dpt.from_team_code = ds.drafting_team_code
-                OR dpt.to_team_code = ds.drafting_team_code
-              )
-          ) AS provenance_trade_count
-        FROM pcms.draft_selections ds
-        LEFT JOIN pcms.people p
-          ON p.person_id = ds.player_id
-        LEFT JOIN pcms.transactions tx
-          ON tx.transaction_id = ds.transaction_id
-        LEFT JOIN pcms.teams t
-          ON t.team_code = ds.drafting_team_code
-         AND t.league_lk = 'NBA'
-        WHERE #{where_clauses.join(" AND ")}
-        ORDER BY ds.draft_year DESC, ds.draft_round ASC, ds.pick_number ASC
+            COALESCE(selection_rows.provenance_trade_count, 0)
+            + CASE WHEN selection_rows.trade_id IS NOT NULL THEN 1 ELSE 0 END
+          )::integer AS provenance_priority_score
+        FROM selection_rows
+        WHERE #{selections_lens_sql(alias_name: "selection_rows")}
+        ORDER BY #{selections_order_sql}
         LIMIT 260
       SQL
     end
@@ -313,21 +330,72 @@ module Entities
       filters << "Round: R#{@round_lens}" if @round_lens != "all"
       filters << "Team: #{@team_lens}" if @team_lens.present?
       filters << %(Search: "#{@query}") if @query.present?
+      filters << "Sort: #{@sort_label}"
+      filters << "Lens: #{@lens_label}" unless @lens == "all"
 
       @sidebar_summary = {
         year: @year_lens,
         round: @round_lens,
         team: @team_lens,
         query: @query,
+        sort: @sort,
+        sort_label: @sort_label,
+        lens: @lens,
+        lens_label: @lens_label,
         row_count: rows.size,
         first_round_count: rows.count { |row| row["draft_round"].to_i == 1 },
         with_trade_count: rows.count { |row| row["trade_id"].present? },
+        deep_chain_count: rows.count { |row| row["provenance_trade_count"].to_i >= 2 },
         known_player_count: rows.count { |row| row["player_id"].present? },
         unique_team_count: rows.map { |row| row["drafting_team_code"].presence }.compact.uniq.size,
         provenance_trade_total: rows.sum { |row| row["provenance_trade_count"].to_i },
         filters: filters,
         top_rows: rows.first(14)
       }
+    end
+
+    def selections_order_sql
+      case @sort
+      when "trade"
+        "(CASE WHEN selection_rows.trade_id IS NOT NULL THEN 1 ELSE 0 END) DESC, selection_rows.provenance_trade_count DESC, selection_rows.draft_round ASC, selection_rows.pick_number ASC"
+      when "board"
+        "selection_rows.draft_round ASC, selection_rows.pick_number ASC"
+      else
+        "selection_rows.provenance_trade_count DESC, (CASE WHEN selection_rows.trade_id IS NOT NULL THEN 1 ELSE 0 END) DESC, selection_rows.draft_round ASC, selection_rows.pick_number ASC"
+      end
+    end
+
+    def selections_lens_sql(alias_name:)
+      case @lens
+      when "with_trade"
+        "#{alias_name}.trade_id IS NOT NULL"
+      when "deep_chain"
+        "#{alias_name}.provenance_trade_count >= 2"
+      else
+        "1=1"
+      end
+    end
+
+    def draft_selections_sort_label(sort)
+      case sort.to_s
+      when "trade"
+        "With trade first"
+      when "board"
+        "Board order"
+      else
+        "Deepest provenance chain"
+      end
+    end
+
+    def draft_selections_lens_label(lens)
+      case lens.to_s
+      when "with_trade"
+        "With trade only"
+      when "deep_chain"
+        "Deep chain only"
+      else
+        "All rows"
+      end
     end
 
     def load_sidebar_selection_payload(transaction_id)
@@ -448,6 +516,22 @@ module Entities
       round = raw.to_s.strip
       round = "all" if round.blank?
       return round if INDEX_ROUNDS.include?(round)
+
+      nil
+    end
+
+    def normalize_sort_param(raw)
+      sort = raw.to_s.strip
+      sort = "provenance" if sort.blank?
+      return sort if INDEX_SORTS.include?(sort)
+
+      nil
+    end
+
+    def normalize_lens_param(raw)
+      lens = raw.to_s.strip
+      lens = "all" if lens.blank?
+      return lens if INDEX_LENSES.include?(lens)
 
       nil
     end
