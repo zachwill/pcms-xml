@@ -105,6 +105,59 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
             [ 91001, 88001, "2025-02-07", "BOS", "POR", "BOS", false, true, true, "TOP4" ]
           ]
         )
+      elsif sql.include?("WITH filtered_trades AS") && sql.include?("FROM pcms.trades tr")
+        rows = if sql.include?("tt.team_code = 'LAL'")
+          [
+            [ 88002, "2025-01-15", nil, "Three-team balancing move", "LAL, DAL, HOU", 3, 1, 2, 1, 0 ]
+          ]
+        elsif sql.include?("tt.team_code = 'BOS'")
+          [
+            [ 88001, "2025-02-07", "2025-02-08", "Deadline consolidation", "BOS, POR, ATL", 3, 2, 1, 1, 1 ]
+          ]
+        else
+          [
+            [ 88001, "2025-02-07", "2025-02-08", "Deadline consolidation", "BOS, POR, ATL", 3, 2, 1, 1, 1 ],
+            [ 88002, "2025-01-15", nil, "Three-team balancing move", "LAL, DAL, HOU", 3, 1, 2, 1, 0 ]
+          ]
+        end
+
+        ActiveRecord::Result.new(
+          [ "trade_id", "trade_date", "trade_finalized_date", "trade_comments", "teams_involved", "team_count", "player_count", "pick_count", "cash_line_count", "tpe_line_count" ],
+          rows
+        )
+      elsif sql.include?("FROM pcms.trades tr") && sql.include?("WHERE tr.trade_id = 88001") && sql.include?("AS teams_involved")
+        ActiveRecord::Result.new(
+          [ "trade_id", "trade_date", "trade_comments", "teams_involved", "team_count", "player_count", "pick_count", "cash_line_count", "tpe_line_count" ],
+          [ [ 88001, "2025-02-07", "Deadline consolidation", "BOS, POR, ATL", 3, 2, 1, 1, 1 ] ]
+        )
+      elsif sql.include?("FROM pcms.trade_teams tt") && sql.include?("AS players_out")
+        ActiveRecord::Result.new(
+          [ "team_id", "team_code", "team_name", "seqno", "players_out", "players_in", "picks_out", "picks_in", "cash_out", "cash_in", "tpe_out", "tpe_in" ],
+          [
+            [ 1610612738, "BOS", "Boston Celtics", 1, 1, 1, 1, 0, 2500000, 0, 0, 1 ],
+            [ 1610612757, "POR", "Portland Trail Blazers", 2, 1, 1, 0, 1, 0, 2500000, 0, 0 ],
+            [ 1610612737, "ATL", "Atlanta Hawks", 3, 0, 0, 0, 0, 0, 0, 1, 0 ]
+          ]
+        )
+      elsif sql.include?("FROM pcms.trade_team_details ttd") && sql.include?("ttd.trade_team_detail_id") && sql.include?("LIMIT 120")
+        ActiveRecord::Result.new(
+          [ "trade_team_detail_id", "team_code", "team_name", "seqno", "is_sent", "player_id", "player_name", "draft_pick_year", "draft_pick_round", "is_draft_pick_swap", "draft_pick_conditional_lk", "is_draft_year_plus_two", "trade_entry_lk", "cash_amount" ],
+          [
+            [ 1, "BOS", "Boston Celtics", 1, true, 1629001, "Alpha Guard", nil, nil, false, nil, false, "PLYR", 0 ],
+            [ 2, "BOS", "Boston Celtics", 2, true, nil, nil, 2029, 1, false, "TOP4", false, "PICK", 0 ],
+            [ 3, "POR", "Portland Trail Blazers", 1, false, 1629002, "Beta Wing", nil, nil, false, nil, false, "PLYR", 0 ],
+            [ 4, "POR", "Portland Trail Blazers", 3, false, nil, nil, nil, nil, false, nil, false, "CASH", 2500000 ],
+            [ 5, "ATL", "Atlanta Hawks", 1, false, nil, nil, nil, nil, false, nil, false, "TREX", 0 ]
+          ]
+        )
+      elsif sql.include?("FROM pcms.transactions t") && sql.include?("WHERE t.trade_id = 88001") && sql.include?("LIMIT 24")
+        ActiveRecord::Result.new(
+          [ "transaction_id", "transaction_date", "transaction_type_lk", "player_id", "player_name" ],
+          [
+            [ 700001, "2025-02-07", "SIGN", 1629001, "Alpha Guard" ],
+            [ 700003, "2025-02-07", "WAIVE", 1629002, "Beta Wing" ]
+          ]
+        )
       elsif sql.include?("WITH filtered_transactions AS") && sql.include?("FROM pcms.transactions t")
         ActiveRecord::Result.new(
           [
@@ -219,6 +272,69 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "trades index exposes team filter and sidebar surfaces" do
+    with_fake_connection do
+      get "/trades", params: { daterange: "season", team: "" }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.body, 'id="trades-team-select"'
+      assert_includes response.body, 'id="rightpanel-base"'
+      assert_includes response.body, 'id="rightpanel-overlay"'
+    end
+  end
+
+  test "trades refresh preserves selected overlay when selected row remains visible" do
+    with_fake_connection do
+      get "/trades/sse/refresh", params: {
+        daterange: "season",
+        team: "",
+        selected_type: "trade",
+        selected_id: "88001"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="trades-results"'
+      assert_includes response.body, 'id="rightpanel-base"'
+      assert_includes response.body, "Trade #88001"
+      assert_includes response.body, '"overlaytype":"trade"'
+      assert_includes response.body, '"overlayid":"88001"'
+    end
+  end
+
+  test "trades refresh clears selected overlay when row no longer matches filters" do
+    with_fake_connection do
+      get "/trades/sse/refresh", params: {
+        daterange: "season",
+        team: "LAL",
+        selected_type: "trade",
+        selected_id: "88001"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, '<div id="rightpanel-overlay"></div>'
+      assert_includes response.body, '"overlaytype":"none"'
+      assert_includes response.body, '"overlayid":""'
+    end
+  end
+
+  test "trades sidebar endpoints return overlay and clear works" do
+    with_fake_connection do
+      get "/trades/sidebar/88001", headers: modern_headers
+
+      assert_response :success
+      assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, "Team anatomy"
+      assert_includes response.body, "Open canonical trade page"
+
+      get "/trades/sidebar/clear", headers: modern_headers
+
+      assert_response :success
+      assert_equal '<div id="rightpanel-overlay"></div>', response.body.strip
+    end
+  end
+
   test "transactions pane responds successfully without double render" do
     with_fake_connection do
       get "/transactions/pane", params: {
@@ -297,13 +413,13 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
 
       assert_response :success
 
-      root = css_select("#entity-directory").first
+      root = css_select("#trades-workspace").first
       refute_nil root
       assert_nil root["onmouseover"]
 
       signals = root["data-signals"]
       assert_includes signals, "tradedaterange: \"season\""
-      assert_includes signals, 'tradeteam: "AAA\\" ONMOUSEOVER=\\"X"'
+      assert_includes signals, 'tradeteam: ""'
     end
   end
 

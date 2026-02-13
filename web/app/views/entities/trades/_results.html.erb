@@ -1,77 +1,109 @@
-<div id="trades-results">
-  <section class="space-y-3">
-    <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-      Trades
-      <% case @daterange
-         when "today" then %>— Today<%
-         when "week" then %>— This Week<%
-         when "month" then %>— This Month<%
-         when "season" then %>— This Season<%
-         end %>
-    </h2>
+<div id="trades-results" class="space-y-3">
+  <div class="flex items-end justify-between gap-4">
+    <div>
+      <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Trades feed ·
+        <% case @daterange
+           when "today" then %>Today<%
+           when "week" then %>This week<%
+           when "month" then %>This month<%
+           when "season" then %>This season<%
+           else %>All dates<%
+           end %>
+      </h2>
+      <p class="text-[11px] text-muted-foreground mt-1">
+        Click a trade row to inspect team-in/team-out anatomy and assets without leaving the list.
+      </p>
+    </div>
 
-    <% if @trades.empty? %>
-      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">
-        No trades found for this time period.
-      </div>
-    <% else %>
-      <div class="overflow-x-auto rounded-lg border border-border">
-        <table class="entity-table min-w-full text-xs">
-          <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
-            <tr>
-              <th class="text-left px-3 py-2 font-medium">Date</th>
-              <th class="text-left px-3 py-2 font-medium">Teams</th>
-              <th class="text-center px-3 py-2 font-medium">Players</th>
-              <th class="text-center px-3 py-2 font-medium">Picks</th>
-              <th class="text-left px-3 py-2 font-medium">Notes</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border">
-            <% @trades.each do |trade| %>
-              <tr class="hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75">
-                <td class="px-3 py-2">
-                  <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary">
-                      <a href="<%= trade_path(trade['trade_id']) %>" class="font-medium font-mono tabular-nums hover:underline">
-                        <%= trade["trade_date"].present? ? Date.parse(trade["trade_date"].to_s).strftime("%b %d, %Y") : "—" %>
-                      </a>
-                    </div>
-                    <div class="entity-cell-secondary">id: <code class="font-mono tabular-nums"><%= trade["trade_id"] %></code></div>
+    <div class="text-[11px] text-muted-foreground tabular-nums">
+      <span><%= @trades.size %> rows</span>
+    </div>
+  </div>
+
+  <% if @trades.empty? %>
+    <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">
+      No trades found for this time period and filters.
+    </div>
+  <% else %>
+    <div class="overflow-x-auto rounded-lg border border-border">
+      <table class="entity-table min-w-full text-xs">
+        <thead class="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+          <tr>
+            <th class="text-left px-3 py-2 font-medium">Date</th>
+            <th class="text-left px-3 py-2 font-medium">Deal</th>
+            <th class="text-left px-3 py-2 font-medium">Teams</th>
+            <th class="text-left px-3 py-2 font-medium">Assets</th>
+            <th class="text-left px-3 py-2 font-medium">Notes</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-border">
+          <% @trades.each do |trade| %>
+            <% row_id = trade["trade_id"].to_s %>
+            <% open_expr = "$overlaytype = 'trade'; $overlayid = '#{row_id}'; @get('/trades/sidebar/#{row_id}')" %>
+            <% teams = trade["teams_involved"].to_s.split(", ").reject(&:blank?) %>
+            <tr
+              class="group cursor-pointer hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
+              data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'trade' && $overlayid === '<%= row_id %>' }"
+              data-on:click="<%= open_expr %>"
+            >
+              <td class="px-3 py-2 align-top">
+                <div class="entity-cell-two-line">
+                  <div class="entity-cell-primary">
+                    <a href="<%= trade_path(trade['trade_id']) %>" class="font-medium font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">
+                      <%= trade["trade_date"].present? ? Date.parse(trade["trade_date"].to_s).strftime("%b %d") : "—" %>
+                    </a>
                   </div>
-                </td>
-                <td class="px-3 py-2">
-                  <div class="flex flex-wrap gap-1">
-                    <% trade["teams_involved"].to_s.split(", ").each do |code| %>
-                      <a href="<%= team_href(team_code: code) %>" class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-foreground hover:bg-muted/80"><%= code %></a>
+                  <div class="entity-cell-secondary">id: <code class="font-mono tabular-nums"><%= trade["trade_id"] %></code></div>
+                </div>
+              </td>
+
+              <td class="px-3 py-2 align-top">
+                <div class="entity-cell-two-line">
+                  <div class="entity-cell-primary gap-1.5">
+                    <span class="entity-chip entity-chip--muted"><%= trade["team_count"].to_i %> teams</span>
+                    <% if trade["trade_finalized_date"].present? %>
+                      <span class="entity-chip entity-chip--accent">finalized</span>
                     <% end %>
                   </div>
-                </td>
-                <td class="px-3 py-2 text-center font-mono tabular-nums">
-                  <% if trade["player_count"].to_i > 0 %>
-                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"><%= trade["player_count"] %></span>
-                  <% else %>
-                    <span class="text-muted-foreground">—</span>
-                  <% end %>
-                </td>
-                <td class="px-3 py-2 text-center font-mono tabular-nums">
-                  <% if trade["pick_count"].to_i > 0 %>
-                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"><%= trade["pick_count"] %></span>
-                  <% else %>
-                    <span class="text-muted-foreground">—</span>
-                  <% end %>
-                </td>
-                <td class="px-3 py-2 text-muted-foreground text-[11px] max-w-xs truncate">
-                  <%= trade["trade_comments"].to_s.truncate(80) %>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
+                  <div class="entity-cell-secondary">Trade #<%= trade["trade_id"] %></div>
+                </div>
+              </td>
 
-      <p class="text-xs text-muted-foreground">
-        Showing <%= @trades.size %> trade<%= @trades.size == 1 ? "" : "s" %>.
-      </p>
-    <% end %>
-  </section>
+              <td class="px-3 py-2 align-top">
+                <div class="flex flex-wrap gap-1">
+                  <% if teams.any? %>
+                    <% teams.each do |code| %>
+                      <a href="<%= team_href(team_code: code) %>" class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-foreground hover:bg-muted/80" onclick="event.stopPropagation()"><%= code %></a>
+                    <% end %>
+                  <% else %>
+                    <span class="text-muted-foreground text-[11px]">—</span>
+                  <% end %>
+                </div>
+              </td>
+
+              <td class="px-3 py-2 align-top">
+                <div class="entity-cell-two-line">
+                  <div class="entity-cell-primary gap-1.5">
+                    <span class="entity-chip entity-chip--success"><%= trade["player_count"].to_i %> players</span>
+                    <span class="entity-chip entity-chip--accent"><%= trade["pick_count"].to_i %> picks</span>
+                  </div>
+                  <div class="entity-cell-secondary">
+                    <%= trade["cash_line_count"].to_i %> cash lines · <%= trade["tpe_line_count"].to_i %> TPE
+                  </div>
+                </div>
+              </td>
+
+              <td class="px-3 py-2 align-top max-w-sm">
+                <div class="entity-cell-two-line">
+                  <div class="entity-cell-primary text-[11px] truncate"><%= trade["trade_comments"].presence || "—" %></div>
+                  <div class="entity-cell-secondary"><%= teams.any? ? teams.join(" · ") : "No team map" %></div>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
 </div>

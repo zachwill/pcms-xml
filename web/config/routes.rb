@@ -112,6 +112,10 @@ Rails.application.routes.draw do
     # ---------------------------------------------------------------------
     get "trades", to: "trades#index"
     get "trades/pane", to: "trades#pane"
+    get "trades/sidebar/base", to: "trades#sidebar_base", as: :trades_sidebar_base
+    get "trades/sidebar/clear", to: "trades#sidebar_clear", as: :trades_sidebar_clear
+    get "trades/sidebar/:id", to: "trades#sidebar", constraints: { id: /\d+/ }
+    get "trades/sse/refresh", to: "trades_sse#refresh", as: :trades_sse_refresh
     get "trades/:id", to: "trades#show", as: :trade, constraints: { id: /\d+/ }
 
     # ---------------------------------------------------------------------

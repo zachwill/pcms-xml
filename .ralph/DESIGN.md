@@ -281,13 +281,17 @@ Supervisor TODOs for next cycle:
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /trades (`web/app/views/entities/trades/index.html.erb`) — inspect deal anatomy without leaving the list
+- [x] [P1] [INDEX] /trades (`web/app/views/entities/trades/index.html.erb`) — inspect deal anatomy without leaving the list
   - Problem: Team param exists but lacks a visible control; trade rows are scanable but not workbench-interactive for fast package breakdown.
   - Hypothesis: Visible team filter + sidebar trade anatomy preview will improve package comparison speed and reduce page hopping.
   - Scope (files):
     - `web/app/views/entities/trades/index.html.erb`
     - `web/app/views/entities/trades/_results.html.erb`
+    - `web/app/views/entities/trades/_rightpanel_base.html.erb`
+    - `web/app/views/entities/trades/_rightpanel_overlay_trade.html.erb`
+    - `web/app/views/entities/trades/_rightpanel_clear.html.erb`
     - `web/app/controllers/entities/trades_controller.rb`
+    - `web/app/controllers/entities/trades_sse_controller.rb`
     - `web/config/routes.rb`
     - `web/test/integration/entities_pane_endpoints_test.rb`
   - Acceptance criteria:
@@ -296,12 +300,27 @@ Supervisor TODOs for next cycle:
     - Selected-row state is visually persistent, and refresh defines deterministic overlay behavior (preserve when still visible or explicit clear when filtered out).
     - Multi-target refreshes use ordered SSE patching when main/side panels both change.
     - Rows remain dense, hover-consistent, and link-rich.
-  - Rubric (before → target):
-    - Scan speed: 3 → 4
-    - Information hierarchy: 3 → 4
-    - Interaction predictability: 3 → 4
-    - Density/readability: 3 → 4
-    - Navigation/pivots: 3 → 4
+  - Completion notes:
+    - What changed:
+      - Rebuilt `/trades` into a full workbench shell (`commandbar + maincanvas + rightpanel base/overlay`) with discoverable date-range and team controls, URL-synced Datastar signals, and entity navigation parity with other converged indexes.
+      - Upgraded trade rows into dense, selected-state drill-ins in `entities/trades/_results.html.erb`; row click now opens sidebar anatomy while inline team/trade links keep canonical pivots via `stopPropagation`.
+      - Added sidebar surfaces for the flow: workspace snapshot + quick-deals base panel, trade anatomy overlay (team in/out breakdown, asset snippets, related transaction pivots), and explicit clear shell.
+      - Extended `TradesController` with team-option loading, richer trade list metrics (team/player/pick/cash/TPE counts), sidebar endpoints/payload loaders, and summary-building for rightpanel base.
+      - Added `TradesSseController#refresh` + routes for ordered multi-region patches (`#trades-results`, `#rightpanel-base`, `#rightpanel-overlay`) with deterministic overlay policy: preserve when selected trade remains visible, clear when filtered out.
+      - Expanded integration coverage in `entities_pane_endpoints_test.rb` for team filter discoverability, SSE preserve/clear behavior, and sidebar open/clear endpoints.
+    - Why this improves the flow:
+      - Package triage now stays in-list: users filter by date/team, open trade anatomy in-panel, and compare deal structures without losing scroll/list context.
+      - Selected-row persistence and explicit preserve/clear semantics remove ambiguity during iterative filtering.
+      - One-request SSE refresh keeps main table + sidebar context synchronized, improving interaction predictability.
+    - Rubric (before → after):
+      - Scan speed: 3 → 4
+      - Information hierarchy: 3 → 4
+      - Interaction predictability: 3 → 4
+      - Density/readability: 3 → 4
+      - Navigation/pivots: 3 → 4
+    - Follow-up tasks discovered:
+      - Add per-team counterparty direction detail in overlay asset rows once a stable `from/to` team mapping is exposed for each trade detail line.
+      - Consider server-patched commandbar chips summarizing active filters (currently state is clear via control selections and sidebar filter chips).
   - Guardrails:
     - Do not modify Salary Book files.
 

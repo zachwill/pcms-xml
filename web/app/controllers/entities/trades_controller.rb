@@ -12,6 +12,27 @@ module Entities
       render partial: "entities/trades/results"
     end
 
+    # GET /trades/sidebar/base
+    def sidebar_base
+      load_index_state!
+      render partial: "entities/trades/rightpanel_base"
+    end
+
+    # GET /trades/sidebar/:id
+    def sidebar
+      trade_id = Integer(params[:id])
+      raise ActiveRecord::RecordNotFound if trade_id <= 0
+
+      render partial: "entities/trades/rightpanel_overlay_trade", locals: load_sidebar_trade_payload(trade_id)
+    rescue ArgumentError
+      raise ActiveRecord::RecordNotFound
+    end
+
+    # GET /trades/sidebar/clear
+    def sidebar_clear
+      render partial: "entities/trades/rightpanel_clear"
+    end
+
     # GET /trades/:id
     def show
       id = Integer(params[:id])
@@ -303,61 +324,267 @@ module Entities
       conn = ActiveRecord::Base.connection
 
       @daterange = params[:daterange].to_s.strip.presence || "season"
-      @team = params[:team].to_s.strip.upcase.presence
+      @daterange = "season" unless %w[today week month season all].include?(@daterange)
 
-      # Calculate date filters
+      @team = params[:team].to_s.strip.upcase.presence
+      @team = nil unless @team&.match?(/\A[A-Z]{3}\z/)
+
+      @team_options = conn.exec_query(<<~SQL).to_a
+        SELECT team_code, team_name
+        FROM pcms.teams
+        WHERE league_lk = 'NBA'
+          AND team_name NOT LIKE 'Non-NBA%'
+        ORDER BY team_code
+      SQL
+
       today = Date.today
       season_start = today.month >= 7 ? Date.new(today.year, 7, 1) : Date.new(today.year - 1, 7, 1)
 
-      date_filter = case @daterange
+      where_clauses = []
+      case @daterange
       when "today"
-        "tr.trade_date = #{conn.quote(today)}"
+        where_clauses << "tr.trade_date = #{conn.quote(today)}"
       when "week"
-        "tr.trade_date >= #{conn.quote(today - 7)}"
+        where_clauses << "tr.trade_date >= #{conn.quote(today - 7)}"
       when "month"
-        "tr.trade_date >= #{conn.quote(today - 30)}"
+        where_clauses << "tr.trade_date >= #{conn.quote(today - 30)}"
       when "season"
-        "tr.trade_date >= #{conn.quote(season_start)}"
-      else
-        "1=1" # all
+        where_clauses << "tr.trade_date >= #{conn.quote(season_start)}"
       end
-
-      where_clauses = [date_filter]
 
       if @team.present?
         where_clauses << <<~SQL
           EXISTS (
-            SELECT 1 FROM pcms.trade_teams tt
-            WHERE tt.trade_id = tr.trade_id AND tt.team_code = #{conn.quote(@team)}
+            SELECT 1
+            FROM pcms.trade_teams tt
+            WHERE tt.trade_id = tr.trade_id
+              AND tt.team_code = #{conn.quote(@team)}
           )
         SQL
       end
 
+      where_sql = where_clauses.any? ? where_clauses.join(" AND ") : "1=1"
+
       @trades = conn.exec_query(<<~SQL).to_a
+        WITH filtered_trades AS (
+          SELECT
+            tr.trade_id,
+            tr.trade_date,
+            tr.trade_finalized_date,
+            tr.trade_comments
+          FROM pcms.trades tr
+          WHERE #{where_sql}
+          ORDER BY tr.trade_date DESC, tr.trade_id DESC
+          LIMIT 200
+        )
+        SELECT
+          ft.trade_id,
+          ft.trade_date,
+          ft.trade_finalized_date,
+          ft.trade_comments,
+          (
+            SELECT string_agg(tt.team_code, ', ' ORDER BY tt.seqno)
+            FROM pcms.trade_teams tt
+            WHERE tt.trade_id = ft.trade_id
+          ) AS teams_involved,
+          (
+            SELECT COUNT(DISTINCT tt.team_id)::integer
+            FROM pcms.trade_teams tt
+            WHERE tt.trade_id = ft.trade_id
+          ) AS team_count,
+          (
+            SELECT COUNT(DISTINCT ttd.player_id)::integer
+            FROM pcms.trade_team_details ttd
+            WHERE ttd.trade_id = ft.trade_id
+              AND ttd.player_id IS NOT NULL
+          ) AS player_count,
+          (
+            SELECT COUNT(*)::integer
+            FROM pcms.trade_team_details ttd
+            WHERE ttd.trade_id = ft.trade_id
+              AND ttd.draft_pick_year IS NOT NULL
+          ) AS pick_count,
+          (
+            SELECT COUNT(*)::integer
+            FROM pcms.trade_team_details ttd
+            WHERE ttd.trade_id = ft.trade_id
+              AND (ttd.trade_entry_lk = 'CASH' OR COALESCE(ttd.cash_amount, 0) <> 0)
+          ) AS cash_line_count,
+          (
+            SELECT COUNT(*)::integer
+            FROM pcms.trade_team_details ttd
+            WHERE ttd.trade_id = ft.trade_id
+              AND ttd.trade_entry_lk = 'TREX'
+          ) AS tpe_line_count
+        FROM filtered_trades ft
+        ORDER BY ft.trade_date DESC, ft.trade_id DESC
+      SQL
+
+      build_sidebar_summary!
+    end
+
+    def build_sidebar_summary!
+      rows = Array(@trades)
+      filters = ["Date: #{daterange_label(@daterange)}"]
+      filters << "Team: #{@team}" if @team.present?
+
+      @sidebar_summary = {
+        row_count: rows.size,
+        player_assets_total: rows.sum { |row| row["player_count"].to_i },
+        pick_assets_total: rows.sum { |row| row["pick_count"].to_i },
+        cash_line_total: rows.sum { |row| row["cash_line_count"].to_i },
+        multi_team_count: rows.count { |row| row["team_count"].to_i >= 3 },
+        filters:,
+        top_rows: rows.first(14)
+      }
+    end
+
+    def load_sidebar_trade_payload(trade_id)
+      conn = ActiveRecord::Base.connection
+      id_sql = conn.quote(trade_id)
+
+      trade = conn.exec_query(<<~SQL).first
         SELECT
           tr.trade_id,
           tr.trade_date,
-          tr.trade_finalized_date,
           tr.trade_comments,
           (
             SELECT string_agg(tt.team_code, ', ' ORDER BY tt.seqno)
-            FROM pcms.trade_teams tt WHERE tt.trade_id = tr.trade_id
+            FROM pcms.trade_teams tt
+            WHERE tt.trade_id = tr.trade_id
           ) AS teams_involved,
           (
-            SELECT COUNT(DISTINCT ttd.player_id)::int
+            SELECT COUNT(DISTINCT tt.team_id)::integer
+            FROM pcms.trade_teams tt
+            WHERE tt.trade_id = tr.trade_id
+          ) AS team_count,
+          (
+            SELECT COUNT(DISTINCT ttd.player_id)::integer
             FROM pcms.trade_team_details ttd
-            WHERE ttd.trade_id = tr.trade_id AND ttd.player_id IS NOT NULL
+            WHERE ttd.trade_id = tr.trade_id
+              AND ttd.player_id IS NOT NULL
           ) AS player_count,
           (
-            SELECT COUNT(*)::int
+            SELECT COUNT(*)::integer
             FROM pcms.trade_team_details ttd
-            WHERE ttd.trade_id = tr.trade_id AND ttd.draft_pick_year IS NOT NULL
-          ) AS pick_count
+            WHERE ttd.trade_id = tr.trade_id
+              AND ttd.draft_pick_year IS NOT NULL
+          ) AS pick_count,
+          (
+            SELECT COUNT(*)::integer
+            FROM pcms.trade_team_details ttd
+            WHERE ttd.trade_id = tr.trade_id
+              AND (ttd.trade_entry_lk = 'CASH' OR COALESCE(ttd.cash_amount, 0) <> 0)
+          ) AS cash_line_count,
+          (
+            SELECT COUNT(*)::integer
+            FROM pcms.trade_team_details ttd
+            WHERE ttd.trade_id = tr.trade_id
+              AND ttd.trade_entry_lk = 'TREX'
+          ) AS tpe_line_count
         FROM pcms.trades tr
-        WHERE #{where_clauses.join(" AND ")}
-        ORDER BY tr.trade_date DESC, tr.trade_id DESC
-        LIMIT 200
+        WHERE tr.trade_id = #{id_sql}
+        LIMIT 1
       SQL
+      raise ActiveRecord::RecordNotFound unless trade
+
+      team_anatomy_rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          tt.team_id,
+          tt.team_code,
+          team.team_name,
+          tt.seqno,
+          COUNT(ttd.trade_team_detail_id) FILTER (WHERE ttd.player_id IS NOT NULL AND ttd.is_sent = TRUE)::integer AS players_out,
+          COUNT(ttd.trade_team_detail_id) FILTER (WHERE ttd.player_id IS NOT NULL AND ttd.is_sent = FALSE)::integer AS players_in,
+          COUNT(ttd.trade_team_detail_id) FILTER (WHERE ttd.draft_pick_year IS NOT NULL AND ttd.is_sent = TRUE)::integer AS picks_out,
+          COUNT(ttd.trade_team_detail_id) FILTER (WHERE ttd.draft_pick_year IS NOT NULL AND ttd.is_sent = FALSE)::integer AS picks_in,
+          SUM(COALESCE(ttd.cash_amount, 0)) FILTER (WHERE COALESCE(ttd.cash_amount, 0) <> 0 AND ttd.is_sent = TRUE) AS cash_out,
+          SUM(COALESCE(ttd.cash_amount, 0)) FILTER (WHERE COALESCE(ttd.cash_amount, 0) <> 0 AND ttd.is_sent = FALSE) AS cash_in,
+          COUNT(ttd.trade_team_detail_id) FILTER (WHERE ttd.trade_entry_lk = 'TREX' AND ttd.is_sent = TRUE)::integer AS tpe_out,
+          COUNT(ttd.trade_team_detail_id) FILTER (WHERE ttd.trade_entry_lk = 'TREX' AND ttd.is_sent = FALSE)::integer AS tpe_in
+        FROM pcms.trade_teams tt
+        LEFT JOIN pcms.trade_team_details ttd
+          ON ttd.trade_id = tt.trade_id
+         AND ttd.team_id = tt.team_id
+        LEFT JOIN pcms.teams team
+          ON team.team_id = tt.team_id
+        WHERE tt.trade_id = #{id_sql}
+        GROUP BY tt.team_id, tt.team_code, team.team_name, tt.seqno
+        ORDER BY tt.seqno, tt.team_code
+      SQL
+
+      asset_rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          ttd.trade_team_detail_id,
+          ttd.team_code,
+          team.team_name,
+          ttd.seqno,
+          ttd.is_sent,
+          ttd.player_id,
+          COALESCE(
+            NULLIF(TRIM(CONCAT_WS(' ', p.display_first_name, p.display_last_name)), ''),
+            NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+            ttd.player_id::text
+          ) AS player_name,
+          ttd.draft_pick_year,
+          ttd.draft_pick_round,
+          ttd.is_draft_pick_swap,
+          ttd.draft_pick_conditional_lk,
+          ttd.is_draft_year_plus_two,
+          ttd.trade_entry_lk,
+          ttd.cash_amount
+        FROM pcms.trade_team_details ttd
+        LEFT JOIN pcms.people p
+          ON p.person_id = ttd.player_id
+        LEFT JOIN pcms.teams team
+          ON team.team_id = ttd.team_id
+        WHERE ttd.trade_id = #{id_sql}
+        ORDER BY ttd.team_code, ttd.seqno, ttd.trade_team_detail_id
+        LIMIT 120
+      SQL
+
+      related_transactions = conn.exec_query(<<~SQL).to_a
+        SELECT
+          t.transaction_id,
+          t.transaction_date,
+          t.transaction_type_lk,
+          t.player_id,
+          COALESCE(
+            NULLIF(TRIM(CONCAT_WS(' ', p.display_first_name, p.display_last_name)), ''),
+            NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+            t.player_id::text
+          ) AS player_name
+        FROM pcms.transactions t
+        LEFT JOIN pcms.people p
+          ON p.person_id = t.player_id
+        WHERE t.trade_id = #{id_sql}
+        ORDER BY t.transaction_date, t.transaction_id
+        LIMIT 24
+      SQL
+
+      {
+        trade:,
+        team_anatomy_rows:,
+        asset_rows:,
+        related_transactions:
+      }
+    end
+
+    def selected_overlay_visible?(overlay_type:, overlay_id:)
+      return false unless overlay_type.to_s == "trade"
+      return false unless overlay_id.to_i.positive?
+
+      Array(@trades).any? { |row| row["trade_id"].to_i == overlay_id.to_i }
+    end
+
+    def daterange_label(value)
+      case value.to_s
+      when "today" then "Today"
+      when "week" then "This week"
+      when "month" then "This month"
+      when "season" then "This season"
+      else "All dates"
+      end
     end
   end
 end
