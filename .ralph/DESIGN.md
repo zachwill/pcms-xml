@@ -164,28 +164,29 @@ Next-loop guardrails (tightened):
     - Add an explicit “selected” marker chip in pressure-board rows to make preserved context even more legible during rapid filter cycling.
     - Consider keyboard next/previous team stepping that keeps the same preserve/clear overlay contract.
 
-- [ ] [P1] [INDEX] /drafts (`web/app/views/entities/drafts/index.html.erb`) — preserve pick/selection context while adjusting year/team/round knobs
-  - Problem: Drafts refresh always clears overlay, breaking pick-provenance tracing during filter iteration.
-  - Hypothesis: Preserve-on-compatible-refresh behavior will support faster ownership/provenance analysis.
-  - Scope (files):
+- [x] [P1] [INDEX] /drafts (`web/app/views/entities/drafts/index.html.erb`) — preserve pick/selection context while adjusting year/team/round knobs
+  - What changed (files):
     - `web/app/controllers/entities/drafts_controller.rb`
     - `web/app/controllers/entities/drafts_sse_controller.rb`
+    - `web/app/views/entities/drafts/index.html.erb`
     - `web/app/views/entities/drafts/_results.html.erb`
     - `web/app/views/entities/drafts/_rightpanel_base.html.erb`
     - `web/test/integration/entities_pane_endpoints_test.rb`
-  - Acceptance criteria:
-    - Selected pick/selection overlay remains open when the selected entity still exists after refresh.
-    - Switching to an incompatible view mode (e.g., pick overlay while in selections view) clears overlay explicitly.
-    - Selected row/cell styling remains visible after refresh.
-    - Refresh response remains one SSE transaction for all updated regions.
-  - Rubric (before → target):
+  - Why this improves the flow:
+    - Drafts knob refresh now sends selected overlay context (`selected_type` + `selected_key`) and preserves `#rightpanel-overlay` when the selected pick/selection is still visible in the refreshed result set.
+    - Incompatible mode switches are now deterministic: e.g., a pick overlay is explicitly cleared when changing into `selections` view.
+    - Preserved pick overlays now normalize selection keys per mode (`pick-*` in picks, `grid-*` in grid), so selected styling remains synchronized with the currently visible row/cell grammar.
+    - Grid cells and sidebar quick rows now mirror selected-state highlighting, keeping wayfinding stable while iterating year/team/round filters.
+    - Multi-region updates remain a single ordered SSE transaction patching results + sidebar base + overlay + signals.
+  - Rubric (before → after):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 4
     - Interaction predictability: 3 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
-  - Guardrails:
-    - Do not modify Salary Book files.
+  - Follow-up tasks discovered:
+    - Add a lightweight selected marker glyph in grid cells to further improve preserved-context legibility during rapid year changes.
+    - Consider optional keyboard next/previous pick stepping that reuses the same overlay preserve/clear contract.
 
 - [ ] [P1] [INDEX] /transactions (`web/app/views/entities/transactions/index.html.erb`) — keep transaction detail open while refining feed filters
   - Problem: Transaction refresh clears detail overlay on every change, slowing triage for multi-step investigations.

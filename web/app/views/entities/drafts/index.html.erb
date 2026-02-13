@@ -6,7 +6,11 @@
     '&round=' + encodeURIComponent($draftround) +
     '&team=' + encodeURIComponent($draftteam)"
 
-  refresh_expr = "@get('/drafts/sse/refresh?' + (#{pane_query_expr})); window.history.replaceState({}, '', '/drafts?' + (#{pane_query_expr}))"
+  refresh_query_expr = "(#{pane_query_expr}) +
+    '&selected_type=' + encodeURIComponent($overlaytype) +
+    '&selected_key=' + encodeURIComponent($overlaykey)"
+
+  refresh_expr = "@get('/drafts/sse/refresh?' + (#{refresh_query_expr})); window.history.replaceState({}, '', '/drafts?' + (#{pane_query_expr}))"
 
   signals_literal = "{ draftview: #{@view.to_json}, draftyear: #{@year.to_json}, draftround: #{@round.to_json}, draftteam: #{(@team || '').to_json}, overlaytype: 'none', overlaykey: '' }"
 %>

@@ -33,6 +33,17 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
             [ "LAL", "Los Angeles Lakers" ]
           ]
         )
+      elsif sql.include?("STRING_AGG(v.display_text, '; ' ORDER BY v.asset_slot, v.sub_asset_slot) AS cell_text")
+        ActiveRecord::Result.new(
+          [
+            "team_code", "team_name", "draft_year", "draft_round", "cell_text",
+            "has_outgoing", "has_swap", "has_conditional", "has_forfeited"
+          ],
+          [
+            [ "BOS", "Boston Celtics", 2027, 1, "To POR: top-4 protected", true, false, true, false ],
+            [ "LAL", "Los Angeles Lakers", 2027, 2, "Own", false, true, false, false ]
+          ]
+        )
       elsif sql.include?("WITH picks AS") && sql.include?("FROM pcms.vw_draft_pick_assets v")
         ActiveRecord::Result.new(
           [
@@ -238,6 +249,63 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
       assert_includes response.body, "event: datastar-patch-signals"
+    end
+  end
+
+  test "drafts refresh preserves selected pick overlay and normalizes key for grid view" do
+    with_fake_connection do
+      get "/drafts/sse/refresh", params: {
+        view: "grid",
+        year: "2027",
+        round: "all",
+        team: "",
+        selected_type: "pick",
+        selected_key: "pick-BOS-2027-1"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, "Open canonical draft-pick page"
+      assert_includes response.body, '"overlaytype":"pick"'
+      assert_includes response.body, '"overlaykey":"grid-BOS-2027-1"'
+    end
+  end
+
+  test "drafts refresh preserves selected selection overlay when row remains visible" do
+    with_fake_connection do
+      get "/drafts/sse/refresh", params: {
+        view: "selections",
+        year: "2026",
+        round: "all",
+        team: "",
+        selected_type: "selection",
+        selected_key: "selection-777001"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, "Open canonical draft-selection page"
+      assert_includes response.body, '"overlaytype":"selection"'
+      assert_includes response.body, '"overlaykey":"selection-777001"'
+    end
+  end
+
+  test "drafts refresh clears selected overlay when mode is incompatible" do
+    with_fake_connection do
+      get "/drafts/sse/refresh", params: {
+        view: "selections",
+        year: "2026",
+        round: "all",
+        team: "",
+        selected_type: "pick",
+        selected_key: "pick-BOS-2027-1"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, '<div id="rightpanel-overlay"></div>'
+      assert_includes response.body, '"overlaytype":"none"'
+      assert_includes response.body, '"overlaykey":""'
     end
   end
 

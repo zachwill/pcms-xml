@@ -77,9 +77,13 @@
                     <%
                       cell = @grid_data.dig(team_code, round, year)
                       cell_text = cell ? cell[:text].to_s : "—"
-                      cell_open_expr = "$overlaytype = 'pick'; $overlaykey = 'grid-#{team_code}-#{year}-#{round}'; @get('/drafts/sidebar/pick?team=#{team_code}&year=#{year}&round=#{round}')"
+                      cell_key = "grid-#{team_code}-#{year}-#{round}"
+                      cell_open_expr = "$overlaytype = 'pick'; $overlaykey = '#{cell_key}'; @get('/drafts/sidebar/pick?team=#{team_code}&year=#{year}&round=#{round}')"
                     %>
-                    <td class="px-2 py-1 text-[11px] leading-snug max-w-[12rem]">
+                    <td
+                      class="px-2 py-1 text-[11px] leading-snug max-w-[12rem] transition-colors duration-75"
+                      data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'pick' && $overlaykey === '<%= cell_key %>' }"
+                    >
                       <% if cell.present? %>
                         <button
                           type="button"
