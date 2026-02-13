@@ -167,23 +167,32 @@ Supervisor review — 2026-02-13 (pass 4):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P2] [TOOL] /tools/two-way-utility — add compare slot pin/unpin actions in player overlay header
+- [x] [P2] [TOOL] /tools/two-way-utility — add compare slot pin/unpin actions in player overlay header
   - Problem: Compare slot controls exist in rows/base panel but not in player overlay header, causing avoidable back-and-forth when users are already in drill-in mode.
   - Hypothesis: Overlay-level pin/unpin controls will keep compare workflow continuous while preserving drill-in focus.
   - Scope (files):
     - web/app/views/tools/two_way_utility/_rightpanel_overlay_player.html.erb
-    - web/app/controllers/tools/two_way_utility_controller.rb
     - web/test/integration/tools_two_way_utility_test.rb
-  - Acceptance criteria:
-    - Overlay header exposes Pin A / Pin B / clear actions with active-slot visual state.
-    - Actions route through existing `/tools/two-way-utility/sse/refresh` compare action path (no extra fetch choreography).
-    - Overlay remains stable after pin/unpin and compare URL params stay shareable.
-  - Rubric (before → target):
+  - What changed:
+    - Added overlay-header compare controls in `_rightpanel_overlay_player` for **Pin A**, **Pin B**, **Clear A**, and **Clear B** directly under player identity metadata.
+    - Wired overlay actions through the existing `/tools/two-way-utility/sse/refresh` compare action path (`pin`, `clear_slot`) using the same signal-backed request contract as row/base controls (`selected_id`, `compare_a`, `compare_b`).
+    - Added active-slot visual treatment in overlay controls (`Pin A` / `Pin B` button state classes keyed to `$comparea`/`$compareb`) and conditional clear affordances keyed to the active slot.
+    - Expanded integration coverage to assert overlay-header compare wiring is present on sidebar render and that `clear_slot` SSE actions preserve selected overlay context while updating compare signals.
+  - Why this improves the flow:
+    - Users can now keep compare actions inside the drill-in loop instead of leaving overlay context to pin/unpin from rows or sidebar base.
+    - Compare controls now feel consistent across row, rightpanel base, and rightpanel overlay, reducing interaction grammar drift.
+    - URL shareability remains intact because overlay compare actions still mutate compare signals through refresh SSE, which continues to drive root `replaceState` sync.
+  - Verification:
+    - `cd web && bundle exec rails test test/integration/tools_two_way_utility_test.rb` *(fails in this environment: missing gem `lucide-rails-0.7.3`)*
+    - `cd web && ruby -rerb -e "ERB.new(File.read('app/views/tools/two_way_utility/_rightpanel_overlay_player.html.erb')).src; puts 'ERB OK'" && ruby -c app/controllers/tools/two_way_utility_controller.rb && ruby -c test/integration/tools_two_way_utility_test.rb` *(syntax/ERB OK)*
+  - Rubric (before → after):
     - Scan speed: 5 → 5
     - Information hierarchy: 5 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 5 → 5
     - Navigation/pivots: 5 → 5
+  - Follow-up tasks discovered:
+    - Consider extracting repeated Two-Way compare refresh query-expression assembly (row/base/overlay) into a shared helper/local to reduce drift.
   - Guardrails:
     - Do not modify Salary Book files.
 

@@ -237,6 +237,15 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "Open player page"
       assert_includes response.body, "Open team page"
       assert_includes response.body, "Open agent page"
+      assert_includes response.body, ">Pin A</button>"
+      assert_includes response.body, ">Pin B</button>"
+      assert_includes response.body, "/tools/two-way-utility/sse/refresh?conference=all&team=&risk=all"
+      assert_includes response.body, "action=pin&slot=a&player_id=1001"
+      assert_includes response.body, "action=pin&slot=b&player_id=1001"
+      assert_includes response.body, "action=clear_slot&slot=a"
+      assert_includes response.body, "action=clear_slot&slot=b"
+      assert_includes response.body, "$comparea === '1001'"
+      assert_includes response.body, "$compareb === '1001'"
     end
   end
 
@@ -300,6 +309,31 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_includes response.body, '"compareb":""'
       assert_includes response.body, '"overlaytype":"player"'
       assert_includes response.body, '"overlayid":"1002"'
+    end
+  end
+
+  test "two-way utility compare clear_slot action keeps selected overlay stable" do
+    with_fake_connection do
+      get "/tools/two-way-utility/sse/refresh", params: {
+        conference: "all",
+        team: "",
+        risk: "all",
+        selected_id: "1001",
+        compare_a: "1001",
+        compare_b: "1002",
+        action: "clear_slot",
+        slot: "a"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, '"comparea":""'
+      assert_includes response.body, '"compareb":"1002"'
+      assert_includes response.body, '"overlaytype":"player"'
+      assert_includes response.body, '"overlayid":"1001"'
+      assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, "Clear A"
+      assert_includes response.body, "Pin B"
     end
   end
 

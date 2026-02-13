@@ -57,6 +57,13 @@
 
   current_year = SalaryBookHelper::SALARY_YEARS.first
   next_year = SalaryBookHelper::SALARY_YEARS[1]
+
+  refresh_base = "/tools/two-way-utility/sse/refresh?#{@state_query}"
+  compare_state_suffix_expr = "'&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '')"
+  pin_a_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&action=pin&slot=a&player_id=#{player_id}')"
+  pin_b_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&action=pin&slot=b&player_id=#{player_id}')"
+  clear_a_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&action=clear_slot&slot=a')"
+  clear_b_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&action=clear_slot&slot=b')"
 %>
 
 <div id="rightpanel-overlay" class="h-full bg-background border-l border-border/70">
@@ -101,9 +108,49 @@
         />
       </div>
 
-      <div class="min-w-0">
+      <div class="min-w-0 space-y-1">
         <h2 class="text-base font-semibold truncate"><%= player_name %></h2>
         <div class="text-[11px] text-muted-foreground/80 tabular-nums"><%= team_code %> · <%= team_name %></div>
+
+        <div class="flex flex-wrap items-center gap-1.5" data-on:click="evt.stopPropagation()" data-on:keydown="evt.stopPropagation()">
+          <button
+            type="button"
+            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            aria-label="Pin <%= player_name %> to compare slot A"
+            title="Pin to compare slot A"
+            data-class="{ 'border-indigo-500/60 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300': $comparea === '<%= player_id %>' }"
+            data-on:click="<%= pin_a_expr %>"
+          >Pin A</button>
+
+          <button
+            type="button"
+            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            aria-label="Pin <%= player_name %> to compare slot B"
+            title="Pin to compare slot B"
+            data-class="{ 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300': $compareb === '<%= player_id %>' }"
+            data-on:click="<%= pin_b_expr %>"
+          >Pin B</button>
+
+          <button
+            type="button"
+            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            data-show="$comparea === '<%= player_id %>'"
+            style="display: none;"
+            aria-label="Clear compare slot A"
+            title="Clear compare slot A"
+            data-on:click="<%= clear_a_expr %>"
+          >Clear A</button>
+
+          <button
+            type="button"
+            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            data-show="$compareb === '<%= player_id %>'"
+            style="display: none;"
+            aria-label="Clear compare slot B"
+            title="Clear compare slot B"
+            data-on:click="<%= clear_b_expr %>"
+          >Clear B</button>
+        </div>
       </div>
     </div>
 
