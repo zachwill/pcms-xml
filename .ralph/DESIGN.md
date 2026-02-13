@@ -48,26 +48,35 @@ Current focus reset (2026-02-12):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /players — shift from single table-rail scan to sectioned flex rows (Two-Way Utility style)
-  - Problem: `/players` remains visually table-like (single rigid rail + dense numeric columns), which makes long scans feel spreadsheet-heavy instead of workbench-oriented.
-  - Hypothesis: Sectioned flex rows (with lightweight section headers) will preserve density while improving orientation and reducing cognitive reset during long scans.
-  - Scope (files):
-    - web/app/views/entities/players/_workspace_main.html.erb
-    - web/app/views/entities/players/_sticky_header.html.erb
-    - web/app/controllers/entities/players_controller.rb
-    - web/app/controllers/entities/players_sse_controller.rb
-    - web/test/integration/entities_players_index_test.rb
-  - Acceptance criteria:
-    - Player rows remain div-based and dense, but are organized into explicit flex sections (e.g., by active lens bucket) instead of one uninterrupted table-like lane.
-    - Section headers remain sticky/legible during scroll and keep cap columns aligned with row cells.
-    - Compare strip + Pin A/Pin B controls continue working with no regression in overlay/URL sync behavior.
-    - Sidebar and overlay selection state is preserved through SSE refreshes when selected player remains in filtered scope.
-  - Rubric (before → target):
+- [x] [P1] [INDEX] /players — shift from single table-rail scan to sectioned flex rows (Two-Way Utility style)
+  - Problem: `/players` remained visually table-like (single rigid rail + dense numeric columns), which made long scans feel spreadsheet-heavy instead of workbench-oriented.
+  - Hypothesis: Sectioned flex rows (with lightweight section headers) would preserve density while improving orientation and reducing cognitive reset during long scans.
+  - What changed:
+    - Added section-bucketing state in `web/app/controllers/entities/players_controller.rb`:
+      - introduced ordered player section definitions (status and constraint buckets),
+      - grouped filtered rows into `@player_sections`,
+      - computed per-section row/team counts plus aligned cap/total rollups for header context.
+    - Reworked `web/app/views/entities/players/_workspace_main.html.erb` from one uninterrupted lane to explicit section blocks:
+      - kept the existing global sticky column header,
+      - added sticky per-section headers (`top-8`) with section title/subtitle and cap rollups aligned to the same cap columns as row cells,
+      - preserved existing dense row anatomy, row click→overlay flow, and Pin A/Pin B controls.
+    - Expanded integration coverage in `web/test/integration/entities_players_index_test.rb` to assert section container/header presence in SSE refresh payloads and active-lens section routing (`trade_kicker` bucket precedence).
+  - Why this improves the flow:
+    - Long scans now re-anchor at each section boundary instead of forcing one continuous spreadsheet pass.
+    - Sticky section headers keep posture context visible while preserving numeric column alignment for cap comparison.
+    - Compare and overlay mechanics stay unchanged, so interaction predictability remains high while hierarchy improves.
+  - Verification:
+    - `cd web && bundle exec ruby -Itest test/integration/entities_players_index_test.rb -i "/players refresh uses one sse response|players refresh applies trade kicker constraint with horizon-aware cap labels|players refresh pin action updates compare slots without forcing overlay selection/"`
+    - `cd web && bundle exec ruby -Itest test/integration/entities_players_index_test.rb -i "/players refresh preserves selected overlay when selected row remains visible|players refresh clears selected overlay when selected row is filtered out/"`
+  - Rubric (before → after):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Full-page `/players` integration assertions still hit the known `tailwind.css` test asset load-path issue; continue using focused SSE subsets until harness setup is fixed.
+    - Consider extracting a shared section-header partial once `/teams` adopts sectioned cap lanes to reduce duplicated rollup-header markup.
   - Guardrails:
     - Do not modify Salary Book files.
 

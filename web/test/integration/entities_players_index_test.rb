@@ -178,6 +178,10 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, 'id="players-compare-strip"'
       assert_includes response.body, 'id="players-compare-url-sync"'
+      assert_includes response.body, 'id="players-sections-board"'
+      assert_includes response.body, 'id="players-section-lock_now"'
+      assert_includes response.body, 'id="players-section-two_way"'
+      assert_includes response.body, "Section cap rollup"
       assert_includes response.body, "URLSearchParams(window.location.search)"
       assert_includes response.body, "params.set('compare_a', nextCompareA)"
       assert_includes response.body, '>Pin A</button>'
@@ -215,6 +219,9 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "event: datastar-patch-elements"
       assert_includes response.body, "id=\"maincanvas\""
       assert_includes response.body, "id=\"players-compare-strip\""
+      assert_includes response.body, "id=\"players-sections-board\""
+      assert_includes response.body, "id=\"players-section-lock_now\""
+      assert_includes response.body, "sticky top-8"
       assert_includes response.body, "id=\"rightpanel-base\""
       assert_includes response.body, "id=\"rightpanel-overlay\""
       assert_includes response.body, "event: datastar-patch-signals"
@@ -339,6 +346,8 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "Top cap hits · 26-27"
       assert_operator response.body.scan("Why matched: Trade kicker clause on file").length, :>=, 2
       assert_includes response.body, "Match: Trade kicker"
+      assert_includes response.body, 'id="players-section-trade_kicker"'
+      assert_not_includes response.body, 'id="players-section-lock_now"'
       assert_includes response.body, "Alpha Guard"
       assert_not_includes response.body, "Beta Wing"
       assert_includes response.body, '"playerconstraint":"trade_kicker"'

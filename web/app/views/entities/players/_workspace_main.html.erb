@@ -162,8 +162,26 @@
           </div>
         </div>
 
-        <div class="divide-y divide-border/50">
-          <% @players.each do |player| %>
+        <div id="players-sections-board" class="divide-y divide-border/60">
+          <% Array(@player_sections).each do |section| %>
+            <section id="players-section-<%= section[:key] %>" class="border-b border-border/70 last:border-b-0">
+              <div class="sticky top-8 z-[6] border-b border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+                <div class="flex items-center px-4 h-8 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+                  <div class="w-64 shrink-0 min-w-0 pr-2">
+                    <span class="font-semibold text-foreground/90"><%= section[:title] %></span>
+                    <span class="ml-1 normal-case text-muted-foreground/80"><%= section[:subtitle] %></span>
+                  </div>
+                  <div class="w-32 shrink-0 font-mono tabular-nums text-muted-foreground/80">Rows <%= section[:row_count] %> · Teams <%= section[:team_count] %></div>
+                  <div class="w-40 shrink-0 text-muted-foreground/70">Section cap rollup</div>
+                  <div class="w-44 shrink-0 text-muted-foreground/70">Overlay + compare flow unchanged</div>
+                  <div class="w-24 shrink-0 text-right font-mono tabular-nums text-foreground/85"><%= format_compact_currency(section[:cap_lens_total]) %></div>
+                  <div class="w-24 shrink-0 text-right font-mono tabular-nums text-foreground/85"><%= format_compact_currency(section[:cap_next_total]) %></div>
+                  <div class="w-24 shrink-0 text-right font-mono tabular-nums text-foreground/85"><%= format_compact_currency(section[:total_salary_total]) %></div>
+                </div>
+              </div>
+
+              <div class="divide-y divide-border/50">
+                <% section[:rows].each do |player| %>
             <% player_id = player["player_id"] %>
             <% team_code = player["team_code"].to_s.upcase.presence %>
             <% team_name = player["team_name"].presence || "Free Agent" %>
@@ -335,6 +353,9 @@
                 </div>
               </div>
             </div>
+                <% end %>
+              </div>
+            </section>
           <% end %>
         </div>
       </div>

@@ -6,6 +6,51 @@ module Entities
     PLAYER_CONSTRAINT_LENSES = %w[all lock_now options non_guaranteed trade_kicker expiring].freeze
     PLAYER_SORT_LENSES = %w[cap_desc cap_asc name_asc name_desc].freeze
 
+    PLAYER_SECTION_DEFINITIONS = {
+      "status_two_way" => {
+        title: "Status lens · Two-Way",
+        subtitle: "Rows constrained to active two-way contracts"
+      },
+      "status_restricted" => {
+        title: "Status lens · Restricted",
+        subtitle: "Rows constrained to active trade-restricted players"
+      },
+      "status_no_trade" => {
+        title: "Status lens · No-Trade",
+        subtitle: "Rows constrained to active no-trade clauses"
+      },
+      "lock_now" => {
+        title: "Lock now posture",
+        subtitle: "Trade restricted, consent required, or no-trade now"
+      },
+      "options" => {
+        title: "Options ahead",
+        subtitle: "At least one PO/TO/ETO in forward years"
+      },
+      "non_guaranteed" => {
+        title: "Non-guaranteed years",
+        subtitle: "Forward salary years include non-guaranteed treatment"
+      },
+      "trade_kicker" => {
+        title: "Trade kicker exposure",
+        subtitle: "Trade bonus clauses that can inflate outgoing salary"
+      },
+      "expiring" => {
+        title: "Expiring at horizon",
+        subtitle: "Cap value this horizon, then zero next horizon"
+      },
+      "two_way" => {
+        title: "Two-way support rows",
+        subtitle: "Two-way rows outside other constraint buckets"
+      },
+      "baseline" => {
+        title: "Baseline commitments",
+        subtitle: "No active constraint chips in this lens"
+      }
+    }.freeze
+
+    PLAYER_DEFAULT_SECTION_ORDER = %w[lock_now options non_guaranteed trade_kicker expiring two_way baseline].freeze
+
     # GET /players
     def index
       load_index_workspace_state!
@@ -96,6 +141,7 @@ module Entities
       load_player_team_lenses!
       load_index_players!
       build_index_compare_state!
+      build_index_player_sections!
       build_player_sidebar_summary!(selected_player_id: @selected_player_id)
     end
 
@@ -449,6 +495,100 @@ module Entities
       else
         "#{horizon_cap_column} DESC NULLS LAST, sbw.player_name ASC"
       end
+    end
+
+    def build_index_player_sections!
+      grouped_rows = Hash.new { |hash, key| hash[key] = [] }
+
+      Array(@players).each do |row|
+        grouped_rows[player_section_key_for_row(row)] << row
+      end
+
+      @player_sections = index_player_section_order.filter_map do |section_key|
+        rows = grouped_rows[section_key]
+        next if rows.blank?
+
+        definition = player_section_definition(section_key)
+
+        {
+          key: section_key,
+          title: definition[:title],
+          subtitle: definition[:subtitle],
+          row_count: rows.size,
+          team_count: rows.map { |row| row["team_code"].presence }.compact.uniq.size,
+          cap_lens_total: rows.sum { |row| row["cap_lens_value"].to_f },
+          cap_next_total: rows.sum { |row| row["cap_next_value"].to_f },
+          total_salary_total: rows.sum { |row| row["total_salary_from_2025"].to_f },
+          rows: rows
+        }
+      end
+    end
+
+    def index_player_section_order
+      status_key = resolve_status_section_key(@status_lens)
+      active_constraint_key = constraint_lens_match_key(@constraint_lens)
+
+      ordered = []
+      ordered << status_key if status_key.present?
+      ordered << active_constraint_key if active_constraint_key.present?
+      ordered.concat(PLAYER_DEFAULT_SECTION_ORDER)
+      ordered.uniq
+    end
+
+    def player_section_key_for_row(row)
+      status_key = resolve_status_section_key(@status_lens)
+      if status_key.present? && row_matches_section_key?(row, status_key)
+        return status_key
+      end
+
+      active_constraint_key = constraint_lens_match_key(@constraint_lens)
+      if active_constraint_key.present? && row_matches_section_key?(row, active_constraint_key)
+        return active_constraint_key
+      end
+
+      PLAYER_DEFAULT_SECTION_ORDER.find { |section_key| row_matches_section_key?(row, section_key) } || "baseline"
+    end
+
+    def row_matches_section_key?(row, section_key)
+      case section_key.to_s
+      when "status_two_way"
+        row["is_two_way"]
+      when "status_restricted"
+        row["is_trade_restricted_now"]
+      when "status_no_trade"
+        row["is_no_trade"]
+      when "lock_now"
+        row["has_lock_now"]
+      when "options"
+        row["has_future_option"]
+      when "non_guaranteed"
+        row["has_non_guaranteed"]
+      when "trade_kicker"
+        row["is_trade_bonus"]
+      when "expiring"
+        row["expires_after_horizon"]
+      when "two_way"
+        row["is_two_way"]
+      when "baseline"
+        !constrained_row?(row) && !row["is_two_way"]
+      else
+        false
+      end
+    end
+
+    def resolve_status_section_key(status_lens)
+      case status_lens.to_s
+      when "two_way"
+        "status_two_way"
+      when "restricted"
+        "status_restricted"
+      when "no_trade"
+        "status_no_trade"
+      end
+    end
+
+    def player_section_definition(section_key)
+      PLAYER_SECTION_DEFINITIONS.fetch(section_key.to_s, PLAYER_SECTION_DEFINITIONS.fetch("baseline"))
     end
 
     def constrained_row?(row)
