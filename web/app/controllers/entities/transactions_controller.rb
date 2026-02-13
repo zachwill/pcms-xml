@@ -502,6 +502,7 @@ module Entities
       SQL
 
       annotate_intent_match_provenance!(query: @query)
+      build_transaction_date_groups!
       build_sidebar_summary!(selected_transaction_id: @selected_transaction_id)
     end
 
@@ -530,9 +531,14 @@ module Entities
       if selected_id.positive?
         selected_row = rows.find { |row| row["transaction_id"].to_i == selected_id }
         if selected_row.present? && top_rows.none? { |row| row["transaction_id"].to_i == selected_id }
-          top_rows = [selected_row] + top_rows.first(13)
+          top_rows = (top_rows + [selected_row]).uniq { |row| row["transaction_id"].to_i }
+          top_rows = top_rows.sort_by do |row|
+            [normalize_transaction_date(row["transaction_date"]) || Date.new(1900, 1, 1), row["transaction_id"].to_i]
+          end.reverse.first(14)
         end
       end
+
+      top_row_groups = build_transaction_date_groups!(rows: top_rows, assign: false)
 
       @sidebar_summary = {
         row_count: rows.size,
@@ -542,8 +548,67 @@ module Entities
         waivers_count: bucket_counts[:waivers],
         extensions_count: bucket_counts[:extensions],
         other_count: bucket_counts[:other],
-        top_rows:
+        date_group_count: Array(@transaction_date_groups).size,
+        top_rows:,
+        top_row_groups:
       }
+    end
+
+    def build_transaction_date_groups!(rows: Array(@transactions), assign: true)
+      grouped = Array(rows).group_by do |row|
+        normalize_transaction_date(row["transaction_date"])
+      end
+
+      today = Date.current
+      groups = grouped.map do |date_value, date_rows|
+        if date_value.present?
+          relative_label = if date_value == today
+            "Today"
+          elsif date_value == today - 1
+            "Yesterday"
+          elsif date_value < today
+            "#{(today - date_value).to_i}d ago"
+          else
+            "In #{(date_value - today).to_i}d"
+          end
+
+          {
+            key: date_value.iso8601,
+            date: date_value,
+            headline: date_value.strftime("%a, %b %-d"),
+            subline: date_value.strftime("%Y"),
+            relative_label:,
+            row_count: date_rows.size,
+            rows: date_rows
+          }
+        else
+          {
+            key: "undated",
+            date: nil,
+            headline: "Undated",
+            subline: nil,
+            relative_label: "Date missing",
+            row_count: date_rows.size,
+            rows: date_rows
+          }
+        end
+      end
+
+      groups.sort_by! do |group|
+        [group[:date] || Date.new(1900, 1, 1), group[:rows].map { |row| row["transaction_id"].to_i }.max.to_i]
+      end
+      groups.reverse!
+
+      @transaction_date_groups = groups if assign
+      groups
+    end
+
+    def normalize_transaction_date(value)
+      return value if value.is_a?(Date)
+
+      Date.parse(value.to_s)
+    rescue ArgumentError, TypeError
+      nil
     end
 
     def annotate_intent_match_provenance!(query:)

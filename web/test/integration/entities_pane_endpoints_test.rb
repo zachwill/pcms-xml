@@ -513,6 +513,9 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_includes response.body, 'id="transactions-results"'
+      assert_includes response.body, 'id="transactions-flex-header"'
+      assert_includes response.body, 'id="transactions-date-group-2025-02-07"'
+      assert_not_includes response.body, "<table"
       assert_not_includes response.body, "DoubleRenderError"
     end
   end
@@ -532,6 +535,8 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_includes response.body, 'id="transactions-search-input"'
       assert_includes response.body, 'id="transactions-team-select"'
+      assert_includes response.body, 'id="transactions-flex-header"'
+      assert_includes response.body, "Quick feed by day"
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
     end
@@ -553,11 +558,15 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, "event: datastar-patch-elements"
       assert_includes response.body, 'id="transactions-results"'
+      assert_includes response.body, 'id="transactions-flex-header"'
+      assert_includes response.body, 'id="transactions-date-group-2025-02-07"'
       assert_includes response.body, 'id="rightpanel-base"'
+      assert_includes response.body, "Quick feed by day"
       assert_includes response.body, 'id="rightpanel-overlay"'
       assert_includes response.body, "event: datastar-patch-signals"
       assert_includes response.body, '"txnquery":"alpha"'
       assert_includes response.body, 'title="Matched on: player"'
+      assert_not_includes response.body, "<table"
     end
   end
 

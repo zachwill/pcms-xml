@@ -258,26 +258,40 @@ Supervisor review (2026-02-13):
     - Salary Book exception: only edit `web/app/views/tools/salary_book/_maincanvas_tankathon_frame.html.erb`.
     - Do not modify any other Salary Book files/controllers/helpers/tests.
 
-- [ ] [P1] [INDEX] /transactions — support fast day-by-day feed triage with date-grouped scanning
-  - Problem: Long transaction lists are flat, forcing users to repeatedly re-read dates while scanning.
-  - Hypothesis: Date-group headers with stable row density will improve temporal orientation and reduce cognitive load.
+- [x] [P1] [INDEX] /transactions — support fast day-by-day feed triage with date-grouped scanning
+  - Problem: Long transaction lists were flat, forcing users to repeatedly re-read dates while scanning.
+  - Hypothesis: Date-group headers with stable row density improve temporal orientation and reduce cognitive load.
   - Scope (files):
+    - web/app/controllers/entities/transactions_controller.rb
     - web/app/views/entities/transactions/_results.html.erb
     - web/app/views/entities/transactions/_rightpanel_base.html.erb
-    - web/app/controllers/entities/transactions_controller.rb
-    - web/app/controllers/entities/transactions_sse_controller.rb
     - web/test/integration/entities_pane_endpoints_test.rb
-  - Acceptance criteria:
-    - Transactions render in date-grouped blocks (today-first chronology) with clear separators using flex-row groups (no `<table>` in `_results`).
-    - Grouping works with intent search and type filters without breaking row click → overlay flow.
-    - Sidebar quick feed mirrors grouped chronology for top rows.
-    - Overlay preservation behavior remains correct when filtered results still contain selected row.
-  - Rubric (before → target):
+  - What changed:
+    - Added server-side date-lane grouping in `TransactionsController` (`@transaction_date_groups`) so transactions are rendered and summarized as day buckets in newest-first chronology.
+    - Updated sidebar summary construction to produce grouped quick-feed lanes (`top_row_groups`) and keep selected-row inclusion stable without breaking chronological ordering.
+    - Rebuilt `web/app/views/entities/transactions/_results.html.erb` from table markup to dense flex-row lanes with:
+      - sticky global column header,
+      - sticky per-day lane headers,
+      - row anatomy that preserves existing row click/keyboard open-overlay behavior and selected-row highlight semantics,
+      - intent-match cue display in-row.
+    - Reworked `web/app/views/entities/transactions/_rightpanel_base.html.erb` quick feed into date-grouped sections so sidebar chronology mirrors main feed scanning.
+    - Expanded transactions integration assertions in `entities_pane_endpoints_test.rb` to validate flex headers/date-lane markers, grouped quick-feed presence, and no table markup in transactions pane/SSE refresh responses.
+  - Why this improves the flow:
+    - Analysts can now scan by day lanes first, then triage rows within each lane, reducing repeated date re-parsing across long feeds.
+    - Maincanvas and sidebar now share the same temporal grouping grammar, improving wayfinding and reducing context switching during drill-in.
+    - Overlay selection/preservation behavior remains unchanged, so this improves hierarchy and scan speed without changing interaction expectations.
+  - Verification:
+    - `cd web && bundle exec ruby -Itest test/integration/entities_pane_endpoints_test.rb -i "/transactions pane responds successfully without double render|transactions refresh uses one sse response for feed, sidebar, and query signals|transactions refresh shows team intent match provenance when team text drives query|transactions refresh preserves selected overlay when query still matches selected row|transactions refresh clears selected overlay when query removes selected row|transactions sidebar endpoints return overlay and clear works/"`
+    - `if rg "<table" web/app/views/entities/transactions/_results.html.erb; then echo "table-found"; else echo "no-table-markup"; fi`
+  - Rubric (before → after):
     - Scan speed: 3 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - The full-page `/transactions` index integration path still hits the known `tailwind.css` test asset load-path issue in this environment; keep using focused pane/SSE subsets until that harness issue is fixed.
+    - Consider adding an optional compact “jump to previous day lane” control in the commandbar for very long season/all-date scans.
   - Guardrails:
     - Do not modify Salary Book files.
 

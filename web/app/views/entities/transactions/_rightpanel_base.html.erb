@@ -1,5 +1,6 @@
 <% summary = @sidebar_summary || {} %>
 <% top_rows = Array(summary[:top_rows]) %>
+<% top_row_groups = Array(summary[:top_row_groups]) %>
 
 <div id="rightpanel-base" class="space-y-4">
   <div class="rounded-lg border border-border bg-background p-3 space-y-3">
@@ -7,7 +8,7 @@
       <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Workspace snapshot</div>
       <div class="text-sm font-semibold text-foreground">
         Transactions
-        <span class="text-muted-foreground font-medium">· <%= summary[:row_count].to_i %> rows</span>
+        <span class="text-muted-foreground font-medium">· <%= summary[:row_count].to_i %> rows · <%= summary[:date_group_count].to_i %> day lanes</span>
       </div>
     </div>
 
@@ -29,26 +30,41 @@
 
   <% if top_rows.any? %>
     <div class="rounded-lg border border-border bg-background">
-      <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick feed</div>
-      <div class="divide-y divide-border">
-        <% top_rows.each do |row| %>
-          <% row_id = row["transaction_id"].to_s %>
-          <% open_expr = "$overlaytype = 'transaction'; $overlayid = '#{row_id}'; @get('/transactions/sidebar/#{row_id}')" %>
-          <% type_code = row["transaction_type_lk"].to_s %>
-          <button
-            type="button"
-            class="cursor-pointer w-full px-3 py-2 text-left hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
-            data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'transaction' && $overlayid === '<%= row_id %>' }"
-            data-on:click="<%= open_expr %>"
-          >
-            <div class="entity-cell-two-line">
-              <div class="entity-cell-primary justify-between gap-2">
-                <span class="font-medium font-mono tabular-nums">#<%= row["transaction_id"] %></span>
-                <span class="text-[10px] text-muted-foreground"><%= row["transaction_date"].present? ? Date.parse(row["transaction_date"].to_s).strftime("%b %d") : "—" %></span>
+      <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick feed by day</div>
+
+      <div class="divide-y divide-border/70">
+        <% top_row_groups.each do |group| %>
+          <section id="transactions-quick-group-<%= group[:key].to_s.parameterize.presence || 'undated' %>">
+            <div class="px-3 py-1.5 border-b border-border/60 bg-muted/30">
+              <div class="flex items-center justify-between gap-2 text-[10px] uppercase tracking-wide text-muted-foreground/80">
+                <span class="font-semibold text-foreground/90"><%= group[:headline] %></span>
+                <span class="font-mono tabular-nums"><%= group[:row_count] %></span>
               </div>
-              <div class="entity-cell-secondary truncate"><%= type_code.presence || "—" %> · <%= row["player_name"].presence || "No player" %></div>
+              <div class="text-[10px] text-muted-foreground/80"><%= [group[:subline], group[:relative_label]].compact.join(" · ") %></div>
             </div>
-          </button>
+
+            <div class="divide-y divide-border/50">
+              <% Array(group[:rows]).each do |row| %>
+                <% row_id = row["transaction_id"].to_s %>
+                <% open_expr = "$overlaytype = 'transaction'; $overlayid = '#{row_id}'; @get('/transactions/sidebar/#{row_id}')" %>
+                <% type_code = row["transaction_type_lk"].to_s %>
+                <button
+                  type="button"
+                  class="cursor-pointer w-full px-3 py-2 text-left hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
+                  data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'transaction' && $overlayid === '<%= row_id %>' }"
+                  data-on:click="<%= open_expr %>"
+                >
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary justify-between gap-2">
+                      <span class="font-medium font-mono tabular-nums">#<%= row["transaction_id"] %></span>
+                      <span class="entity-chip entity-chip--muted"><%= type_code.presence || "—" %></span>
+                    </div>
+                    <div class="entity-cell-secondary truncate"><%= row["player_name"].presence || "No player" %> · <%= format_plain_date(row["transaction_date"]) %></div>
+                  </div>
+                </button>
+              <% end %>
+            </div>
+          </section>
         <% end %>
       </div>
     </div>
