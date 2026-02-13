@@ -20,22 +20,40 @@ Rubric (1-5):
 - Tankathon exception succeeded in approved Salary Book frame file.
 - Biggest remaining UX gap is now **entity detail pages** (`/players/:slug`, `/agents/:slug`, `/teams/:slug`, etc.), which still contain many table-heavy sections and weaker “next action” flow.
 
-## Supervisor correction — track lock (2026-02-13)
+## Supervisor correction — track lock (2026-02-13, evening pass)
 
-- Last 4 commits were **high-value flow upgrades** (agents/teams/transactions/trades detail pages), not cosmetic churn.
-- Guardrail check passed: no forbidden Salary Book paths were touched.
-- Datastar boundary check passed: multi-region team refresh remains one SSE in `Entities::TeamsSseController#refresh`; team bootstrap remains `text/html` morph-by-id.
+Review inputs checked:
+- `.ralph/DESIGN.md`
+- `git log --oneline -8`
+- `git diff --name-only HEAD~4 -- web/`
+- `web/AGENTS.md`
+- `web/docs/design_guide.md`
+- `web/docs/datastar_sse_playbook.md`
+- `reference/sites/INTERACTION_MODELS.md`
+
+Recent commit audit (last 4):
+- `56677d6` — `/draft-picks/:slug` detail lane redesign (**flow-level**, but `ENTITY` track)
+- `81d2141` — `/draft-selections/:slug` provenance lane redesign (**flow-level**, but `ENTITY` track)
+- `4d8a581` — `/agencies/:slug` de-table workspace lanes (**flow-level**, but `ENTITY` track)
+- `253de4a` — `/tools/two-way-utility` keyboard shortlist + overlay open (**flow-level**, `TOOL` track)
+
+Supervisor verdict:
+- Quality check: work is meaningful UX/interaction evolution (not cosmetic lint churn).
+- Guardrail check: passed — no forbidden Salary Book paths touched.
+- Datastar boundary check: passed — multi-region updates still use one SSE refresh (`/tools/two-way-utility/sse/refresh`, `/transactions/sse/refresh`), and single overlay opens remain `text/html`.
+- Revert action: none required (no low-value cosmetic sweep detected).
 
 Drift detected:
-- Work stayed in **ENTITY detail** track, while current loop direction is now stricter: prioritize **INDEX convergence** or **TOOL evolution**.
+- Track discipline drift: last 4 commits mixed **3× `ENTITY` detail + 1× `TOOL`**. Current loop must prioritize **`[INDEX]` convergence** and **`[TOOL]` evolution** only.
 
 Corrective TODOs for next worker cycle (mandatory):
-- Next commits must be tagged and scoped as exactly one track: `[INDEX]` or `[TOOL]`.
-- One surface + one user flow per commit (no cross-surface bundles).
-- Each task entry must include: patch targets (`#commandbar/#maincanvas/#rightpanel-base/#rightpanel-overlay` as applicable), response type (`text/html` vs `text/event-stream`), and before/after rubric scores.
+- Freeze `ENTITY` detail work unless explicitly supervisor-approved.
+- Next 2 commits must be exactly one `[INDEX]` and one `[TOOL]` (one surface + one user flow each).
+- Commit title schema required: `design: [TRACK] /surface flow-outcome`.
+- Every task entry must include patch targets (`#commandbar/#maincanvas/#rightpanel-base/#rightpanel-overlay` as applicable), response type (`text/html` vs `text/event-stream`), and before/after rubric scores.
 - Prefer flow outcomes (knobs, scan speed, pivots, drill-ins) over class-only visual polish.
 
-### Immediate supervisor-gated queue (pick from here next)
+### Immediate supervisor-gated queue (INDEX/TOOL only from here forward)
 
 - [x] [P0] [INDEX] /transactions — explorer commandbar knobs + severity-first scan lanes
   - User flow: scan latest movement → narrow by impact/type → drill into one transaction in sidebar without leaving index context.
@@ -387,7 +405,32 @@ Corrective TODOs for next worker cycle (mandatory):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P2] [TOOL] /tools/system-values — add keyboard-first metric finder shortlist
+- [ ] [P1] [INDEX] /players — contract-horizon knobs + urgency-first scan lanes
+  - Problem: `/players` remains strong as a directory but still under-exposes immediate decision urgency (expiring/options/guarantee pressure) in first-pass scan.
+  - Hypothesis: Adding commandbar urgency knobs + urgency-grouped result lanes + mirrored sidebar quick feed will improve triage speed without leaving index context.
+  - Scope (files):
+    - `web/app/controllers/entities/players_controller.rb`
+    - `web/app/controllers/entities/players_sse_controller.rb`
+    - `web/app/views/entities/players/index.html.erb`
+    - `web/app/views/entities/players/_workspace_main.html.erb`
+    - `web/app/views/entities/players/_rightpanel_base.html.erb`
+    - `web/test/integration/entities_players_index_test.rb`
+  - Patch targets: `#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`
+  - Response type: multi-region filter/urgency refresh remains one `text/event-stream` response (`Entities::PlayersSseController#refresh`); single player overlay open remains `text/html`.
+  - Acceptance criteria:
+    - New urgency knobs (`all`, `urgent`, `upcoming`, `stable`) are URL-stable and server-authoritative.
+    - Main results render urgency-first scan lanes with dense row pivots (player/team/agent + quick open overlay).
+    - Sidebar base mirrors urgency counts + quick feed using the same urgency grammar as main lanes.
+  - Rubric (before → target):
+    - Scan speed: 4 → 5
+    - Information hierarchy: 4 → 5
+    - Interaction predictability: 4 → 5
+    - Density/readability: 4 → 4
+    - Navigation/pivots: 4 → 5
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [TOOL] /tools/system-values — add keyboard-first metric finder shortlist
   - Problem: Finder works, but still biases pointer-heavy selection for known metrics.
   - Hypothesis: Ranked typeahead + Enter open will complete find-and-open in one flow.
   - Scope (files):
@@ -395,6 +438,8 @@ Corrective TODOs for next worker cycle (mandatory):
     - web/app/views/tools/system_values/_commandbar.html.erb
     - web/app/views/tools/system_values/show.html.erb
     - web/test/integration/tools_system_values_test.rb
+  - Patch targets: `#commandbar`, `#maincanvas`, `#rightpanel-overlay`
+  - Response type: shortlist/search refreshes that update commandbar + overlay use one `text/event-stream`; single metric overlay open remains `text/html`.
   - Acceptance criteria:
     - Finder supports keyboard shortlist + Enter to open selected metric overlay.
     - Finder/overlay/URL state stay synchronized after refresh.
@@ -414,9 +459,12 @@ Corrective TODOs for next worker cycle (mandatory):
   - Scope (files):
     - agents/design.ts
     - web/app/views/tools/salary_book/_maincanvas_tankathon_frame.html.erb (allow-list reference only)
+  - Patch targets: N/A (process guardrail task)
+  - Response type: N/A
   - Acceptance criteria:
     - Commit title schema enforced (`design: [TRACK] /surface flow-outcome`) for worker commits.
     - Loop rejects diffs touching Salary Book files outside approved Tankathon file.
+    - Loop rejects worker tasks/commits tagged `[ENTITY]` unless explicit supervisor override is present.
     - Failure mode is explicit and logged in supervision output.
   - Rubric (before → target):
     - Scan speed: 3 → 3
