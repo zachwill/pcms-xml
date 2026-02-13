@@ -7,7 +7,7 @@ import { loop, work, generate, supervisor } from "./core";
  * Goal:
  * - Raise the UX/design quality of non-Salary-Book surfaces in web/
  * - Work at the user-flow level (hierarchy, navigation, scan speed, interaction clarity)
- * - Keep Salary Book untouched as the golden reference
+ * - Keep Salary Book read-only as the golden reference, except the approved Tankathon surface
  */
 
 const TASK_FILE = ".ralph/DESIGN.md";
@@ -41,6 +41,10 @@ const NON_SALARY_TARGETS = [
   "web/test/integration/",
 ];
 
+const SALARY_BOOK_TANKATHON_ALLOWED = [
+  "web/app/views/tools/salary_book/_maincanvas_tankathon_frame.html.erb",
+];
+
 const ENTITY_INDEX_SURFACES = [
   "web/app/views/entities/players/index.html.erb",
   "web/app/views/entities/teams/index.html.erb",
@@ -63,7 +67,7 @@ North star:
 - Entity index pages are explorer workbenches (Salary Book-like interaction model, not clones).
 - They should support fast scanning, meaningful filters/knobs, dense interactive rows, and sidebar drill-ins.
 - Canonical pattern: commandbar + maincanvas + rightpanel-base + rightpanel-overlay.
-- Salary Book remains read-only and is used as the quality bar for interaction grammar.
+- Salary Book remains read-only and is used as the quality bar for interaction grammar (except approved Tankathon surface work).
 - In parallel, tool surfaces (Team Summary, System Values, Two-Way Utility) should evolve toward stronger workbench UX.
 `.trim();
 
@@ -96,9 +100,11 @@ STRATEGIC INTENT:
 ${NORTH_STAR}
 
 HARD GUARDRAIL:
-Salary Book is read-only reference quality. Do not modify any Salary Book files.
+Salary Book remains read-only reference quality, with one approved exception.
+Allowed Salary Book edit target (only):
+${SALARY_BOOK_TANKATHON_ALLOWED.map((f) => `- ${f}`).join("\n")}
 Forbidden edits include (non-exhaustive):
-- web/app/views/tools/salary_book/**
+- web/app/views/tools/salary_book/** (except the approved Tankathon file above)
 - web/app/controllers/tools/salary_book_controller.rb
 - web/app/controllers/tools/salary_book_sse_controller.rb
 - web/app/helpers/salary_book_helper.rb
@@ -117,7 +123,7 @@ SUPERVISOR CHECKLIST:
 - Is the change improving hierarchy/behavior/wayfinding (not just class tweaks)?
 - Did the worker avoid broad grep-only style chores unless directly supporting a flow fix?
 - Are Datastar patch boundaries and response rules still correct?
-- Did they avoid touching Salary Book files?
+- Did they avoid touching forbidden Salary Book files (anything outside the approved Tankathon file)?
 - Did ${TASK_FILE} get updated with before/after rubric scoring evidence?
 
 IF DRIFT IS DETECTED:
@@ -162,17 +168,20 @@ FIRST, read:
 - Relevant Salary Book exemplar(s):
 ${SALARY_BOOK_EXEMPLARS.map((f) => `- ${f}`).join("\n")}
 
-TARGETS (non-Salary-Book only):
+TARGETS:
 ${NON_SALARY_TARGETS.map((t) => `- ${t}`).join("\n")}
+Approved Salary Book exception (only):
+${SALARY_BOOK_TANKATHON_ALLOWED.map((f) => `- ${f}`).join("\n")}
 
 HARD RULES:
-1) Do NOT edit Salary Book files or Salary Book controllers/helpers/tests.
-2) Focus on one surface and one user flow for this task.
-3) Respect strategic priority: entity index convergence first, while continuing steady tool evolution.
-4) Prioritize hierarchy/interaction/wayfinding over cosmetic class parity.
-5) You may edit views/controllers/helpers/minimal JS/tests when required.
-6) Keep business/CBA math in SQL (do not reimplement in Ruby/JS).
-7) Keep changes coherent and shippable (avoid sprawling refactors).
+1) Do NOT edit Salary Book files except the approved Tankathon file above.
+2) Do NOT edit Salary Book controllers/helpers/tests.
+3) Focus on one surface and one user flow for this task.
+4) Respect strategic priority: entity index convergence first, while continuing steady tool evolution.
+5) Prioritize hierarchy/interaction/wayfinding over cosmetic class parity.
+6) You may edit views/controllers/helpers/minimal JS/tests when required.
+7) Keep business/CBA math in SQL (do not reimplement in Ruby/JS).
+8) Keep changes coherent and shippable (avoid sprawling refactors).
 
 ANTI-PATTERNS (avoid):
 - Repo-wide grep/replace for style-only classes
@@ -227,6 +236,8 @@ ${TOOL_SURFACES.map((f) => `- ${f}`).join("\n")}
 
 Audit these areas:
 ${NON_SALARY_TARGETS.map((t) => `- ${t}`).join("\n")}
+Approved Salary Book exception (only):
+${SALARY_BOOK_TANKATHON_ALLOWED.map((f) => `- ${f}`).join("\n")}
 
 Rubric to use:
 ${RUBRIC}
@@ -237,11 +248,13 @@ BACKLOG RULES:
 3) Include concrete files likely to change.
 4) Include acceptance criteria that can be verified.
 5) Include before/target rubric scores.
-6) Explicitly forbid Salary Book edits in each task block.
+6) Guardrails per task block:
+   - Default: Do not modify Salary Book files.
+   - Tankathon-only exception: allow edits only to approved Tankathon file; forbid all other Salary Book files/controllers/helpers/tests.
 7) Prioritize highest-leverage UX wins first.
 8) Prioritization order:
    - P1: Entity index convergence to explorer-workbench behavior
-   - P2: Tool evolution (Team Summary, System Values, Two-Way Utility)
+   - P2: Tool evolution (Team Summary, System Values, Two-Way Utility, and Salary Book Tankathon-only)
    - P3: Lower-leverage polish/supporting tasks
 9) Do not starve tool evolution: top 10 tasks should include at least 3 tool tasks.
 
@@ -262,7 +275,7 @@ TASK BLOCK FORMAT (required):
     - Density/readability: X → Y
     - Navigation/pivots: X → Y
   - Guardrails:
-    - Do not modify Salary Book files.
+    - <default Salary Book prohibition OR Tankathon-only exception>
 
 For INDEX tasks, prefer acceptance criteria that validate:
 - filters/knobs are useful and discoverable
