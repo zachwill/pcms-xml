@@ -447,26 +447,48 @@ Supervisor TODOs for next cycle:
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P2] [TOOL] /tools/two-way-utility (`web/app/views/tools/two_way_utility/show.html.erb`) — isolate at-risk two-way situations quickly
+- [x] [P2] [TOOL] /tools/two-way-utility (`web/app/views/tools/two_way_utility/show.html.erb`) — isolate at-risk two-way situations quickly
   - Problem: Surface is dense and useful, but lacks fast risk filtering and in-panel drill-ins for player-level decision context.
   - Hypothesis: Risk knobs + sidebar drill-ins will improve scan-to-decision speed for two-way management workflows.
   - Scope (files):
     - `web/app/views/tools/two_way_utility/show.html.erb`
+    - `web/app/views/tools/two_way_utility/_workspace_main.html.erb`
     - `web/app/views/tools/two_way_utility/_team_section.html.erb`
     - `web/app/views/tools/two_way_utility/_player_row.html.erb`
+    - `web/app/views/tools/two_way_utility/_rightpanel_base.html.erb`
+    - `web/app/views/tools/two_way_utility/_rightpanel_overlay_player.html.erb`
+    - `web/app/views/tools/two_way_utility/_rightpanel_clear.html.erb`
     - `web/app/controllers/tools/two_way_utility_controller.rb`
+    - `web/config/routes.rb`
     - `web/test/integration/tools_two_way_utility_test.rb`
   - Acceptance criteria:
     - Commandbar exposes discoverable risk knobs (e.g., low remaining games, estimated limit flags, conference/team narrowing).
     - Row click opens sidebar drill-in with usage trend, contract flags, and canonical pivots to player/team/agent pages.
     - Filter + drill-in behavior preserves main scroll context and keeps state transitions predictable.
     - Layout stays dense and row-first while improving wayfinding cues.
-  - Rubric (before → target):
-    - Scan speed: 3 → 4
-    - Information hierarchy: 3 → 4
-    - Interaction predictability: 3 → 4
-    - Density/readability: 4 → 5
-    - Navigation/pivots: 3 → 4
+  - Completion notes:
+    - What changed:
+      - Reworked `/tools/two-way-utility` into a Pattern-A workbench shell with `#maincanvas` + rightpanel base/overlay layers and explicit Datastar signal state (`twconference`, `twteam`, `twrisk`, `overlaytype`, `overlayid`).
+      - Added discoverable risk knobs in commandbar (conference lens, team narrowing select, risk lens for `≤20`, `≤10`, and estimated-limit rows) wired to one-request SSE refresh (`/tools/two-way-utility/sse/refresh`) plus URL state sync.
+      - Added dense workspace wayfinding: active filter chips, at-risk counters, and team-section KPI upgrades (critical/≤20/estimated counts) while preserving row-first table density.
+      - Converted two-way player rows into selectable drill-ins with selected-row state, click-to-open sidebar behavior, and inline canonical links that preserve row interaction context.
+      - Added rightpanel base + overlay surfaces: quick risk queue, player usage-trend snapshot, contract/flag context, and canonical pivots to player/team/agent pages.
+      - Extended `TwoWayUtilityController` with filter resolution, risk-tier decoration, sidebar endpoints (`/sidebar/:id`, `/sidebar/clear`), ordered SSE multi-region patching, and focused integration coverage in `tools_two_way_utility_test.rb`.
+    - Why this improves the flow:
+      - Users can now isolate risky two-way situations directly from the commandbar (conference/team/risk) without full-page navigation churn.
+      - Row drill-ins keep scanning context intact while surfacing player-level decision details (usage trend + contract flags + pivots) in-panel.
+      - Filter transitions are predictable and atomic because maincanvas + rightpanel base + overlay reset patch in one SSE response.
+      - Wayfinding is clearer: risk totals, filter chips, and per-team risk KPIs quickly indicate where to investigate next.
+    - Rubric (before → after):
+      - Scan speed: 3 → 4
+      - Information hierarchy: 3 → 4
+      - Interaction predictability: 3 → 4
+      - Density/readability: 4 → 5
+      - Navigation/pivots: 3 → 4
+    - Follow-up tasks discovered:
+      - Preserve an open player overlay across refresh when the selected row still exists in the filtered result set (current behavior intentionally clears overlay on lens change).
+      - Add optional sort lenses (e.g., most-urgent first across all teams vs team-grouped) for users doing league-wide triage.
+      - Add direct pivot from overlay into team page “Two-way” section anchor once deep-link anchors are standardized across entity workspaces.
   - Guardrails:
     - Do not modify Salary Book files.
 

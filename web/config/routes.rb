@@ -7,6 +7,9 @@ Rails.application.routes.draw do
     # Primary tool surface
     get "salary-book", to: "salary_book#show"
     get "two-way-utility", to: "two_way_utility#show"
+    get "two-way-utility/sidebar/clear", to: "two_way_utility#sidebar_clear", as: :two_way_utility_sidebar_clear
+    get "two-way-utility/sidebar/:id", to: "two_way_utility#sidebar", as: :two_way_utility_sidebar, constraints: { id: /\d+/ }
+    get "two-way-utility/sse/refresh", to: "two_way_utility#refresh", as: :two_way_utility_sse_refresh
     get "system-values", to: "system_values#show"
     get "team-summary", to: "team_summary#show"
     get "team-summary/sidebar/clear", to: "team_summary#sidebar_clear", as: :team_summary_sidebar_clear

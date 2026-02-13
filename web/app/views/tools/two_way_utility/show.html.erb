@@ -1,59 +1,122 @@
 <% content_for :title, "Two-Way Utility" %>
 
-<div class="h-screen w-full flex flex-col overflow-hidden bg-background" style="height: 100dvh;">
+<%
+  refresh_query_expr = "'conference=' + encodeURIComponent($twconference) +
+    '&team=' + encodeURIComponent($twteam) +
+    '&risk=' + encodeURIComponent($twrisk)"
+
+  refresh_expr = "@get('/tools/two-way-utility/sse/refresh?' + (#{refresh_query_expr})); window.history.replaceState({}, '', '/tools/two-way-utility?' + (#{refresh_query_expr}))"
+
+  signals_literal = {
+    twconference: @conference.to_s,
+    twteam: @team.to_s,
+    twrisk: @risk.to_s,
+    overlaytype: "none",
+    overlayid: ""
+  }.to_json
+
+  team_options = Array(@team_options)
+%>
+
+<div
+  id="two-way-utility-workspace"
+  class="h-screen w-full flex flex-col overflow-hidden bg-background"
+  style="height: 100dvh;"
+  data-signals='<%= signals_literal %>'
+>
+  <div id="flash"></div>
+
   <header id="commandbar" class="shrink-0 z-40 border-b border-border bg-background h-[130px] px-4 pt-3 flex items-start gap-4 select-none">
-    <% if @teams_by_conference["Eastern"].any? || @teams_by_conference["Western"].any? %>
-      <div class="flex gap-4" role="navigation" aria-label="Teams">
-        <% %w[Eastern Western].each do |conference| %>
-          <div class="space-y-1">
-            <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70"><%= conference %></div>
-            <div class="grid grid-cols-5 gap-1">
-              <% @teams_by_conference[conference].each do |team| %>
-                <a
-                  href="#<%= team[:code] %>"
-                  class="relative h-7 px-2 rounded text-xs font-medium transition-all duration-150 border outline-none inline-flex items-center justify-center no-underline hover:no-underline bg-muted/50 text-foreground border-border hover:bg-muted hover:border-foreground/20"
-                  title="<%= team[:name] %>"
-                ><%= team[:code] %></a>
-              <% end %>
-            </div>
-          </div>
+    <div class="min-w-[7rem] space-y-1" role="radiogroup" aria-label="Conference">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Conference</div>
+      <% [["all", "All"], ["Eastern", "East"], ["Western", "West"]].each do |value, label| %>
+        <label class="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="radio"
+            name="two-way-conference"
+            value="<%= value %>"
+            class="size-3.5 accent-primary"
+            <%= "checked" if @conference == value %>
+            data-bind="twconference"
+            data-on:change="if (el.checked) { <%= refresh_expr %>; }"
+          />
+          <span class="text-[11px] leading-none select-none" data-class="{ 'text-foreground font-semibold': $twconference === '<%= value %>', 'text-muted-foreground': $twconference !== '<%= value %>' }"><%= label %></span>
+        </label>
+      <% end %>
+    </div>
+
+    <div class="h-20 w-px bg-border self-center"></div>
+
+    <div class="min-w-[12rem] space-y-1">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Team</div>
+      <select
+        id="two-way-team-select"
+        class="h-7 w-56 rounded border border-border bg-background px-2 text-xs text-foreground"
+        data-bind="twteam"
+        data-on:change="<%= refresh_expr %>"
+      >
+        <option value="">All teams</option>
+        <% team_options.each do |team_option| %>
+          <% code = team_option[:code].to_s.upcase %>
+          <option value="<%= code %>" <%= "selected" if @team == code %>>
+            <%= code %> · <%= team_option[:name] %>
+          </option>
         <% end %>
+      </select>
+      <div class="text-[10px] text-muted-foreground/70 tabular-nums"><%= @sidebar_summary[:row_count].to_i %> two-way rows in view</div>
+    </div>
+
+    <div class="h-20 w-px bg-border self-center"></div>
+
+    <div class="min-w-[11rem] space-y-1" role="radiogroup" aria-label="Risk lens">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Risk lens</div>
+      <% [["all", "All"], ["warning", "≤20 games left"], ["critical", "≤10 games left"], ["estimate", "Estimated limit"]].each do |value, label| %>
+        <label class="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="radio"
+            name="two-way-risk"
+            value="<%= value %>"
+            class="size-3.5 accent-primary"
+            <%= "checked" if @risk == value %>
+            data-bind="twrisk"
+            data-on:change="if (el.checked) { <%= refresh_expr %>; }"
+          />
+          <span class="text-[11px] leading-none select-none" data-class="{ 'text-foreground font-semibold': $twrisk === '<%= value %>', 'text-muted-foreground': $twrisk !== '<%= value %>' }"><%= label %></span>
+        </label>
+      <% end %>
+    </div>
+
+    <div class="h-20 w-px bg-border self-center"></div>
+
+    <div class="min-w-[10rem] space-y-1">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">At-risk snapshot</div>
+      <div class="grid grid-cols-2 gap-1.5">
+        <span class="entity-chip entity-chip--danger justify-center"><%= @sidebar_summary[:critical_count].to_i %> critical</span>
+        <span class="entity-chip entity-chip--warning justify-center"><%= @sidebar_summary[:low_remaining_count].to_i %> ≤20</span>
+        <span class="entity-chip entity-chip--muted justify-center"><%= @sidebar_summary[:estimate_count].to_i %> est.</span>
+        <span class="entity-chip entity-chip--muted justify-center"><%= @sidebar_summary[:team_count].to_i %> teams</span>
       </div>
-    <% else %>
-      <div class="text-sm text-muted-foreground">No teams.</div>
-    <% end %>
+    </div>
 
     <div class="h-20 w-px bg-border self-center ml-auto shrink-0"></div>
     <%= render partial: "shared/commandbar_navigation", locals: { active_destination: "two_way_utility" } %>
   </header>
 
-  <main class="flex-1 min-h-0 overflow-auto pb-8">
-    <% if @boot_error %>
-      <div class="p-6">
-        <div class="text-sm font-medium text-destructive">Warehouse not available</div>
-        <div class="mt-2 text-xs text-muted-foreground">
-          Booted Rails, but querying <code>pcms.two_way_utility_warehouse</code> failed:
-        </div>
-        <pre class="mt-3 p-3 rounded-lg bg-muted/30 border border-border/50 text-xs overflow-auto"><%= @boot_error %></pre>
-      </div>
-    <% elsif @team_codes.empty? %>
-      <div class="p-6 text-sm text-muted-foreground">No NBA teams available.</div>
-    <% else %>
-      <% if @rows.any? %>
-        <% prefetch_canonical_slugs(entity_type: "player", entity_ids: @rows.map { |row| row["player_id"] }) %>
-        <% prefetch_canonical_slugs(entity_type: "agent", entity_ids: @rows.map { |row| row["agent_id"] }.compact) %>
-      <% end %>
+  <div id="viewport" class="flex flex-1 overflow-hidden relative">
+    <%= render partial: "tools/two_way_utility/workspace_main" %>
 
-      <div class="divide-y divide-border/60">
-        <% @team_codes.each do |team_code| %>
-          <%= render partial: "tools/two_way_utility/team_section", locals: {
-            team_code: team_code,
-            players: (@rows_by_team[team_code] || []),
-            team_meta: (@team_meta_by_code[team_code] || {}),
-            team_capacity: (@team_capacity_by_code[team_code] || {})
-          } %>
-        <% end %>
+    <aside
+      id="rightpanel"
+      class="w-[30%] min-w-[320px] max-w-[480px] border-l border-border bg-background overflow-hidden relative"
+    >
+      <div
+        id="rightpanel-base-layer"
+        class="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-y-contain scroll-touch pt-2 px-4 pb-4"
+      >
+        <%= render partial: "tools/two_way_utility/rightpanel_base" %>
       </div>
-    <% end %>
-  </main>
+
+      <%= render partial: "tools/two_way_utility/rightpanel_clear" %>
+    </aside>
+  </div>
 </div>

@@ -1,6 +1,7 @@
 <% players ||= [] %>
 <% team_meta ||= {} %>
 <% team_capacity ||= {} %>
+<% state_query ||= "" %>
 
 <% team_row = players.first || {} %>
 <% team_name = team_row["team_name"].presence || team_meta["team_name"].presence || team_code %>
@@ -17,12 +18,16 @@ else
   team_capacity["team_is_under_15_contracts"]
 end %>
 
+<% critical_count = players.count { |row| row["risk_tier"] == "critical" } %>
+<% low_remaining_count = players.count { |row| row["remaining_active_list_games"].present? && row["remaining_active_list_games"].to_i <= 20 } %>
+<% estimate_count = players.count { |row| row["limit_status_chip"].present? } %>
+
 <% games_remaining_number = games_remaining_context&.to_i %>
 <% games_remaining_variant = games_remaining_number && games_remaining_number < 30 ? "negative" : "default" %>
 <% under_15_label = under_15_context.nil? ? "—" : (under_15_context ? "<15 Std" : "15 Std") %>
 <% under_15_variant = under_15_context.nil? ? "muted" : "default" %>
 
-<section id="<%= team_code %>" data-teamcode="<%= team_code %>" class="border-b border-border snap-start scroll-mt-2">
+<section id="<%= team_code %>" data-teamcode="<%= team_code %>" class="border-b border-border snap-start scroll-mt-[172px]">
   <div class="sticky top-0 z-30 bg-background will-change-transform shadow-[0_1px_3px_0_rgb(0_0_0/0.08),0_1px_2px_-1px_rgb(0_0_0/0.08)]">
     <div class="h-14 flex items-center border-b border-border bg-muted">
       <div class="w-52 shrink-0 pl-4 flex items-center gap-3">
@@ -69,25 +74,50 @@ end %>
 
         <div class="w-24 shrink-0 flex justify-center">
           <%= render partial: "tools/salary_book/kpi_cell", locals: {
-            label: "Games Left",
-            value: (games_remaining_context || "—").to_s,
-            title: "Remaining active-list games",
-            variant: games_remaining_variant
+            label: "Critical",
+            value: critical_count.to_s,
+            title: "Players with 10 or fewer active-list games left",
+            variant: (critical_count.positive? ? "negative" : "muted")
           } %>
         </div>
 
         <div class="w-24 shrink-0 flex justify-center">
           <%= render partial: "tools/salary_book/kpi_cell", locals: {
-            label: "Context",
-            value: under_15_label,
-            title: "Whether under-15 or 15-standard context applies",
-            variant: under_15_variant
+            label: "≤20",
+            value: low_remaining_count.to_s,
+            title: "Players with 20 or fewer active-list games left",
+            variant: (low_remaining_count.positive? ? "negative" : "muted")
           } %>
         </div>
 
-        <div class="w-24 shrink-0"></div>
-        <div class="w-28 shrink-0"></div>
-        <div class="w-28 shrink-0"></div>
+        <div class="w-24 shrink-0 flex justify-center">
+          <%= render partial: "tools/salary_book/kpi_cell", locals: {
+            label: "Games Left",
+            value: (games_remaining_context || "—").to_s,
+            title: "Remaining active-list games context",
+            variant: games_remaining_variant
+          } %>
+        </div>
+
+        <div class="w-28 shrink-0 flex justify-center">
+          <%= render partial: "tools/salary_book/kpi_cell", locals: {
+            label: "Context",
+            value: under_15_label,
+            title: "Whether under-15 or 15-standard context applies",
+            variant: under_15_variant,
+            class_name: "w-24"
+          } %>
+        </div>
+
+        <div class="w-28 shrink-0 flex justify-center">
+          <%= render partial: "tools/salary_book/kpi_cell", locals: {
+            label: "Est.",
+            value: estimate_count.to_s,
+            title: "Rows with estimated active-list game limits",
+            class_name: "w-20"
+          } %>
+        </div>
+
         <div class="w-40 shrink-0"></div>
       </div>
     </div>
@@ -115,11 +145,11 @@ end %>
   <div class="[&>*:first-child]:mt-1">
     <% if players.any? %>
       <% players.each do |player| %>
-        <%= render partial: "tools/two_way_utility/player_row", locals: { player: player } %>
+        <%= render partial: "tools/two_way_utility/player_row", locals: { player: player, state_query: state_query } %>
       <% end %>
     <% else %>
       <div class="h-10 px-4 flex items-center text-xs text-muted-foreground border-b border-border/50">
-        No active two-way contracts.
+        No active two-way contracts for this risk lens.
       </div>
     <% end %>
   </div>

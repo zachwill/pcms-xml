@@ -1,5 +1,6 @@
 <% player_id = player["player_id"] %>
 <% player_name = player["player_name"] %>
+<% state_query ||= "" %>
 
 <% games_used = player["games_on_active_list"] %>
 <% games_limit = player["active_list_games_limit"] %>
@@ -23,6 +24,16 @@
 <% if player["is_trade_restricted_now"] || player["is_trade_consent_required_now"] %>
   <% status_tokens << { label: "TR", classes: "text-red-600 dark:text-red-400" } %>
 <% end %>
+
+<% risk_token = case player["risk_tier"].to_s
+when "critical"
+  { label: "Risk:≤10", classes: "text-red-600 dark:text-red-400" }
+when "warning"
+  { label: "Risk:≤20", classes: "text-orange-600 dark:text-orange-400" }
+when "estimate"
+  { label: "Risk:EST", classes: "text-muted-foreground" }
+end %>
+<% status_tokens << risk_token if risk_token.present? %>
 
 <% if next_year.present? %>
   <% next_option = player_option(player, next_year) %>
@@ -113,11 +124,21 @@ end %>
   <% end %>
 <% end %>
 
-<div class="group h-10 border-b border-border/50 flex items-center text-xs transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25">
+<% open_expr = "$overlaytype = 'player'; $overlayid = '#{player_id}'; @get('/tools/two-way-utility/sidebar/#{player_id}?#{state_query}')" %>
+
+<div
+  class="group h-10 border-b border-border/50 flex items-center text-xs transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 cursor-pointer"
+  role="button"
+  tabindex="0"
+  data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'player' && $overlayid === '<%= player_id %>' }"
+  data-on:click="<%= open_expr %>"
+  data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= open_expr %>; }"
+>
   <div
     class="w-52 shrink-0 pl-4 sticky left-0 z-20 relative bg-background transition-colors duration-75
            group-hover:bg-yellow-50 dark:group-hover:bg-yellow-900/25
            after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/30"
+    data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'player' && $overlayid === '<%= player_id %>' }"
   >
     <div class="grid grid-cols-[40px_1fr] grid-rows-[24px_16px]" aria-label="<%= player_name %> player info">
       <div class="row-span-2 flex items-center justify-start">
@@ -134,7 +155,7 @@ end %>
       </div>
 
       <div class="h-[24px] flex items-end min-w-0 pl-1 pr-2">
-        <a href="<%= player_href(player_id) %>" class="block truncate font-medium text-[14px] text-foreground transition-colors group-hover:text-primary" title="<%= player_name %>">
+        <a href="<%= player_href(player_id) %>" class="block truncate font-medium text-[14px] text-foreground transition-colors group-hover:text-primary hover:underline" title="<%= player_name %>" data-on:click="evt.stopPropagation()">
           <%= player_name %>
         </a>
       </div>
@@ -293,6 +314,7 @@ end %>
         <a
           href="<%= agent_href(player['agent_id']) %>"
           class="block text-xs leading-tight truncate -translate-y-[3px] text-muted-foreground hover:text-foreground hover:underline focus:outline-none focus-visible:underline focus-visible:text-foreground transition-colors"
+          data-on:click="evt.stopPropagation()"
         ><%= player['agent_name'] %></a>
       <% elsif player['agent_name'].present? %>
         <span class="text-xs leading-tight truncate -translate-y-[3px] text-muted-foreground"><%= player['agent_name'] %></span>
