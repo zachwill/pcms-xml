@@ -100,24 +100,36 @@ Supervisor review — 2026-02-13 (pass 4):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P2] [TOOL] /tools/system-values — extend drill-ins to Minimum Salary (YOS) section
+- [x] [P2] [TOOL] /tools/system-values — extend drill-ins to Minimum Salary (YOS) section
   - Problem: System/Tax sections now support rightpanel drill-ins, but Minimum Salary rows are still passive, forcing users to mentally compare deltas in-table only.
   - Hypothesis: YOS-level drill-ins with selected-vs-baseline context will complete the baseline-analysis loop and reduce scan-to-detail friction.
   - Scope (files):
     - web/app/controllers/tools/system_values_controller.rb
+    - web/app/views/tools/system_values/_workspace_main.html.erb
     - web/app/views/tools/system_values/_league_salary_scales_table.html.erb
     - web/app/views/tools/system_values/_rightpanel_overlay_metric.html.erb
     - web/test/integration/tools_system_values_test.rb
-  - Acceptance criteria:
-    - Clicking a Minimum Salary row opens overlay detail via existing System Values sidebar/SSE contract.
-    - Overlay includes selected vs baseline value + delta + clear pivot back to canonical System Values state.
-    - Refresh preserves/clears Minimum overlays deterministically when year/range changes.
-  - Rubric (before → target):
+  - What changed:
+    - Added Minimum Salary overlay support in `Tools::SystemValuesController` (`overlay_section=minimum`) with YOS-aware context resolution (`overlay_lower` carries YOS), metric validation, and overlay payload generation against `pcms.league_salary_scales`.
+    - Extended overlay payload composition to support section-specific context labels (`YOS n`, tax bracket labels) while preserving the existing selected-vs-baseline + focus-row summary structure and canonical pivots.
+    - Wired Minimum Salary table rows as keyboard/click drill-ins in `_league_salary_scales_table`, routed through existing sidebar metric endpoint and signal contract (`svoverlaysection/metric/year/lower/upper`).
+    - Passed shared overlay query locals into the Minimum Salary section render from `_workspace_main` so row drill-ins use the same URL/state contract as System/Tax tables.
+    - Expanded integration coverage for Minimum row wiring, Minimum sidebar overlay content, and refresh preserve/clear behavior when range changes keep/drop the focused YOS row.
+  - Why this improves the flow:
+    - Minimum Salary now behaves like the rest of the System Values workbench: scan in-table → drill into rightpanel detail → pivot/clear without losing place.
+    - Users can inspect YOS-specific selected-vs-baseline deltas directly in overlay context instead of performing manual mental diffs from table cells.
+    - Overlay lifecycle remains deterministic under baseline/year-window changes because refresh now preserves only valid Minimum contexts and clears stale ones.
+  - Verification:
+    - `cd web && bundle exec rails test test/integration/tools_system_values_test.rb` *(fails in this environment: missing gem `lucide-rails-0.7.3`)*
+    - `cd web && ruby -c app/controllers/tools/system_values_controller.rb && ruby -c test/integration/tools_system_values_test.rb && ruby -rerb -e "['app/views/tools/system_values/_workspace_main.html.erb','app/views/tools/system_values/_league_salary_scales_table.html.erb','app/views/tools/system_values/_rightpanel_overlay_metric.html.erb'].each { |p| ERB.new(File.read(p)).src }; puts 'ERB OK'"` *(syntax/ERB OK)*
+  - Rubric (before → after):
     - Scan speed: 5 → 5
     - Information hierarchy: 5 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Reuse the new section-context overlay scaffold for Rookie Scale pick drill-ins (`pick` context + Year1/Year2 + option rows) to keep parity semantics consistent.
   - Guardrails:
     - Do not modify Salary Book files.
 

@@ -2,6 +2,8 @@
 <% selected_year ||= nil %>
 <% baseline_year ||= nil %>
 <% baseline_rows ||= [] %>
+<% overlay_query_expr ||= "''" %>
+<% sidebar_metric_path ||= tools_system_values_sidebar_metric_path %>
 
 <% baseline_year_i = baseline_year.present? ? baseline_year.to_i : nil %>
 <% baseline_label = baseline_year_i ? format_year_label(baseline_year_i) : "—" %>
@@ -93,7 +95,15 @@ end %>
               "text-muted-foreground"
             end %>
 
-            <div class="group flex items-stretch text-xs transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 <%= row_bg %>">
+            <% row_active_expr = "$svoverlaysection === 'minimum' && $svoverlaymetric === 'minimum_salary_amount' && $svoverlayyear === '#{row_year}' && $svoverlaylower === '#{yos_key}'" %>
+
+            <div
+              class="group flex items-stretch text-xs transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 <%= row_bg %> cursor-pointer focus-visible:outline-none"
+              role="button"
+              tabindex="0"
+              data-on:click="$svoverlaysection='minimum'; $svoverlaymetric='minimum_salary_amount'; $svoverlayyear='<%= row_year %>'; $svoverlaylower='<%= yos_key %>'; $svoverlayupper=''; @get('<%= sidebar_metric_path %>?' + (<%= overlay_query_expr %>));"
+              data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); $svoverlaysection='minimum'; $svoverlaymetric='minimum_salary_amount'; $svoverlayyear='<%= row_year %>'; $svoverlaylower='<%= yos_key %>'; $svoverlayupper=''; @get('<%= sidebar_metric_path %>?' + (<%= overlay_query_expr %>)); }"
+            >
               <div class="w-36 shrink-0 px-4 py-1.5 sticky left-0 z-20 relative transition-colors duration-75 <%= sticky_bg %> before:absolute before:right-0 before:top-0 before:bottom-0 before:w-[6px] before:bg-gradient-to-r before:from-[rgba(0,0,0,0.08)] before:to-transparent after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/50">
                 <div class="entity-cell-two-line">
                   <div class="entity-cell-primary font-mono tabular-nums"><%= format_year_label(row_year) %></div>
@@ -103,7 +113,7 @@ end %>
 
               <div class="w-24 shrink-0 px-3 py-2 text-right font-mono tabular-nums"><%= row["years_of_service"] %></div>
 
-              <div class="w-40 shrink-0 px-3 py-1">
+              <div class="w-40 shrink-0 px-3 py-1 transition-colors duration-100" data-class="{ 'bg-amber-100/70 dark:bg-amber-900/20': <%= row_active_expr %> }">
                 <div class="entity-cell-two-line">
                   <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= format_compact_currency(row["minimum_salary_amount"]) %></div>
                   <div class="entity-cell-secondary justify-end font-mono tabular-nums <%= delta_class %>"><%= delta_label %></div>

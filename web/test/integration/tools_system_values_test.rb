@@ -251,7 +251,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
     host! "localhost"
   end
 
-  test "system values renders rightpanel targets and sse apply path" do
+  test "system values renders rightpanel targets, sse apply path, and minimum row drill-in wiring" do
     with_fake_connection do
       get "/tools/system-values", params: {
         year: "2026",
@@ -266,6 +266,8 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "/tools/system-values/sse/refresh?"
       assert_includes response.body, "/tools/system-values/sidebar/metric?"
       assert_includes response.body, "Comparing 26-27 against 24-25 baseline"
+      assert_includes response.body, "$svoverlaysection='minimum'; $svoverlaymetric='minimum_salary_amount'"
+      assert_includes response.body, "$svoverlaylower='0'"
     end
   end
 
@@ -288,6 +290,31 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "Salary Cap"
       assert_includes response.body, "Source table: pcms.league_system_values"
       assert_includes response.body, "Open Team Summary"
+    end
+  end
+
+  test "system values minimum salary sidebar drill-in renders yos baseline context" do
+    with_fake_connection do
+      get "/tools/system-values/sidebar/metric", params: {
+        year: "2026",
+        baseline_year: "2024",
+        from_year: "2024",
+        to_year: "2026",
+        overlay_section: "minimum",
+        overlay_metric: "minimum_salary_amount",
+        overlay_year: "2026",
+        overlay_lower: "1",
+        overlay_upper: ""
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_equal "text/html", response.media_type
+      assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, "League Salary Scales"
+      assert_includes response.body, "Minimum Salary"
+      assert_includes response.body, "YOS 1"
+      assert_includes response.body, "Source table: pcms.league_salary_scales"
+      assert_includes response.body, "Open canonical System Values view"
     end
   end
 
@@ -319,16 +346,43 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "system values refresh clears overlay state when selected metric is out of range" do
+  test "system values refresh preserves minimum overlay when yos row remains in range" do
+    with_fake_connection do
+      get "/tools/system-values/sse/refresh", params: {
+        year: "2026",
+        baseline_year: "2024",
+        from_year: "2025",
+        to_year: "2026",
+        overlay_section: "minimum",
+        overlay_metric: "minimum_salary_amount",
+        overlay_year: "2026",
+        overlay_lower: "1",
+        overlay_upper: ""
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, 'Source table: pcms.league_salary_scales'
+      assert_includes response.body, '"svoverlaysection":"minimum"'
+      assert_includes response.body, '"svoverlaymetric":"minimum_salary_amount"'
+      assert_includes response.body, '"svoverlayyear":"2026"'
+      assert_includes response.body, '"svoverlaylower":"1"'
+    end
+  end
+
+  test "system values refresh clears minimum overlay state when focused row is out of range" do
     with_fake_connection do
       get "/tools/system-values/sse/refresh", params: {
         year: "2026",
         baseline_year: "2025",
         from_year: "2025",
         to_year: "2026",
-        overlay_section: "system",
-        overlay_metric: "salary_cap_amount",
-        overlay_year: "2024"
+        overlay_section: "minimum",
+        overlay_metric: "minimum_salary_amount",
+        overlay_year: "2024",
+        overlay_lower: "1",
+        overlay_upper: ""
       }, headers: modern_headers
 
       assert_response :success
@@ -337,6 +391,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       assert_includes response.body, '"svoverlaysection":""'
       assert_includes response.body, '"svoverlaymetric":""'
       assert_includes response.body, '"svoverlayyear":""'
+      assert_includes response.body, '"svoverlaylower":""'
     end
   end
 

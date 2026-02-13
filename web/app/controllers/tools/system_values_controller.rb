@@ -29,6 +29,10 @@ module Tools
       "base_charge_repeater" => { label: "Base Charge (Repeater)", kind: :currency }
     }.freeze
 
+    MINIMUM_METRIC_DEFINITIONS = {
+      "minimum_salary_amount" => { label: "Minimum Salary", kind: :currency }
+    }.freeze
+
     # GET /tools/system-values
     def show
       load_workspace_state!
@@ -367,6 +371,9 @@ module Tools
         upper = parse_decimal_param(params[:overlay_upper])
         upper = nil if params[:overlay_upper].to_s.strip.blank?
         build_tax_overlay_context(metric:, year:, lower:, upper:)
+      when "minimum"
+        yos = parse_year_param(params[:overlay_lower])
+        build_minimum_overlay_context(metric:, year:, yos:)
       end
 
       @overlay_payload = context.present? ? build_overlay_payload(context) : nil
@@ -385,7 +392,7 @@ module Tools
 
     def resolve_overlay_section(value)
       normalized = value.to_s.strip
-      return normalized if %w[system tax].include?(normalized)
+      return normalized if %w[system tax minimum].include?(normalized)
 
       nil
     end
@@ -394,8 +401,19 @@ module Tools
       metric = value.to_s.strip
       return nil if metric.blank?
 
-      definitions = section == "tax" ? TAX_METRIC_DEFINITIONS : SYSTEM_METRIC_DEFINITIONS
+      definitions = overlay_metric_definitions(section)
       definitions.key?(metric) ? metric : nil
+    end
+
+    def overlay_metric_definitions(section)
+      case section
+      when "tax"
+        TAX_METRIC_DEFINITIONS
+      when "minimum"
+        MINIMUM_METRIC_DEFINITIONS
+      else
+        SYSTEM_METRIC_DEFINITIONS
+      end
     end
 
     def build_system_overlay_context(metric:, year:)
@@ -430,6 +448,24 @@ module Tools
       }
     end
 
+    def build_minimum_overlay_context(metric:, year:, yos:)
+      return nil if metric.blank? || year.blank? || yos.nil?
+
+      focus_row = @league_salary_scales.find do |row|
+        row["salary_year"].to_i == year.to_i && row["years_of_service"].to_i == yos.to_i
+      end
+      return nil unless focus_row
+
+      {
+        section: "minimum",
+        metric:,
+        metric_definition: MINIMUM_METRIC_DEFINITIONS.fetch(metric),
+        focus_year: year.to_i,
+        focus_row:,
+        yos: yos.to_i
+      }
+    end
+
     def build_overlay_payload(context)
       section = context.fetch(:section)
       metric = context.fetch(:metric)
@@ -438,25 +474,51 @@ module Tools
       focus_year = context.fetch(:focus_year)
       kind = metric_definition.fetch(:kind)
 
-      selected_value, baseline_value, focus_baseline_value = if section == "tax"
-        lower = focus_row["lower_limit"]&.to_f
-        upper = focus_row["upper_limit"]&.to_f
+      selected_value, baseline_value, focus_baseline_value, context_label, overlay_lower, overlay_upper =
+        case section
+        when "tax"
+          lower = focus_row["lower_limit"]&.to_f
+          upper = focus_row["upper_limit"]&.to_f
 
-        selected_row = tax_row_for_bracket(@selected_tax_rate_rows, lower:, upper:)
-        baseline_row = tax_row_for_bracket(@baseline_tax_rate_rows, lower:, upper:)
+          selected_row = tax_row_for_bracket(@selected_tax_rate_rows, lower:, upper:)
+          baseline_row = tax_row_for_bracket(@baseline_tax_rate_rows, lower:, upper:)
 
-        [
-          selected_row&.[](metric),
-          baseline_row&.[](metric),
-          baseline_row&.[](metric)
-        ]
-      else
-        [
-          @selected_system_values_row&.[](metric),
-          @baseline_system_values_row&.[](metric),
-          @baseline_system_values_row&.[](metric)
-        ]
-      end
+          lower_raw = focus_row["lower_limit"]
+          upper_raw = focus_row["upper_limit"]
+          lower_label = helpers.format_compact_currency(lower_raw)
+          upper_label = upper_raw.present? ? helpers.format_compact_currency(upper_raw) : "∞"
+
+          [
+            selected_row&.[](metric),
+            baseline_row&.[](metric),
+            baseline_row&.[](metric),
+            "Bracket #{lower_label} – #{upper_label}",
+            lower_raw.present? ? format("%.0f", lower_raw.to_f) : "",
+            upper_raw.present? ? format("%.0f", upper_raw.to_f) : ""
+          ]
+        when "minimum"
+          yos = context.fetch(:yos)
+          selected_row = minimum_row_for_yos(@selected_salary_scale_rows, yos:)
+          baseline_row = minimum_row_for_yos(@baseline_salary_scale_rows, yos:)
+
+          [
+            selected_row&.[](metric),
+            baseline_row&.[](metric),
+            baseline_row&.[](metric),
+            "YOS #{yos}",
+            yos.to_s,
+            ""
+          ]
+        else
+          [
+            @selected_system_values_row&.[](metric),
+            @baseline_system_values_row&.[](metric),
+            @baseline_system_values_row&.[](metric),
+            nil,
+            "",
+            ""
+          ]
+        end
 
       focus_value = focus_row[metric]
       selected_delta = numeric_delta(selected_value, baseline_value)
@@ -466,31 +528,25 @@ module Tools
       baseline_year_label = helpers.format_year_label(@baseline_year)
       focus_year_label = helpers.format_year_label(focus_year)
 
-      summary_line = "#{selected_year_label} #{metric_definition.fetch(:label)} is #{format_metric_value(selected_value, kind)} (#{format_metric_delta(selected_delta, kind)} vs #{baseline_year_label})."
+      context_suffix = context_label.present? ? " (#{context_label})" : ""
+
+      summary_line = "#{selected_year_label} #{metric_definition.fetch(:label)}#{context_suffix} is #{format_metric_value(selected_value, kind)} (#{format_metric_delta(selected_delta, kind)} vs #{baseline_year_label})."
 
       focus_line = if focus_year.to_i == @selected_year.to_i
         "Current focus matches selected season baseline comparison."
       else
-        "#{focus_year_label} value: #{format_metric_value(focus_value, kind)} (#{format_metric_delta(focus_delta, kind)} vs #{baseline_year_label})."
+        "#{focus_year_label} value#{context_suffix}: #{format_metric_value(focus_value, kind)} (#{format_metric_delta(focus_delta, kind)} vs #{baseline_year_label})."
       end
 
-      section_title = section == "tax" ? "League Tax Rates" : "League System Values"
+      section_title = case section
+      when "tax"
+        "League Tax Rates"
+      when "minimum"
+        "League Salary Scales"
+      else
+        "League System Values"
+      end
       pivot_pressure = section == "tax" ? "over_tax" : "all"
-
-      overlay_lower = ""
-      overlay_upper = ""
-      bracket_label = nil
-
-      if section == "tax"
-        lower = focus_row["lower_limit"]
-        upper = focus_row["upper_limit"]
-        overlay_lower = lower.present? ? format("%.0f", lower.to_f) : ""
-        overlay_upper = upper.present? ? format("%.0f", upper.to_f) : ""
-
-        lower_label = helpers.format_compact_currency(lower)
-        upper_label = upper.present? ? helpers.format_compact_currency(upper) : "∞"
-        bracket_label = "Bracket #{lower_label} – #{upper_label}"
-      end
 
       {
         section:,
@@ -511,8 +567,16 @@ module Tools
         focus_delta_variant: delta_variant(focus_delta),
         summary_line:,
         focus_line:,
-        bracket_label:,
-        source_table: section == "tax" ? "pcms.league_tax_rates" : "pcms.league_system_values",
+        context_label:,
+        bracket_label: context_label,
+        source_table: case section
+        when "tax"
+          "pcms.league_tax_rates"
+        when "minimum"
+          "pcms.league_salary_scales"
+        else
+          "pcms.league_system_values"
+        end,
         pivot_links: [
           {
             label: "Open Team Summary (#{selected_year_label})",
@@ -530,6 +594,10 @@ module Tools
 
     def tax_row_for_bracket(rows, lower:, upper:)
       Array(rows).find { |row| tax_bracket_match?(row, lower:, upper:) }
+    end
+
+    def minimum_row_for_yos(rows, yos:)
+      Array(rows).find { |row| row["years_of_service"].to_i == yos.to_i }
     end
 
     def tax_bracket_match?(row, lower:, upper:)

@@ -1,4 +1,5 @@
 <% payload = @overlay_payload || {} %>
+<% context_label = payload[:context_label].presence || payload[:bracket_label].presence %>
 <% selected_delta_class = case payload[:selected_delta_variant]
 when "positive"
   "text-emerald-600 dark:text-emerald-400"
@@ -36,7 +37,7 @@ end %>
     <div class="space-y-1">
       <div class="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/80"><%= payload[:section_title] %></div>
       <h2 class="text-base font-semibold text-foreground"><%= payload[:metric_label] %></h2>
-      <div class="text-[11px] text-muted-foreground/80 font-mono tabular-nums"><%= payload[:focus_year_label] %><% if payload[:bracket_label].present? %> · <%= payload[:bracket_label] %><% end %></div>
+      <div class="text-[11px] text-muted-foreground/80 font-mono tabular-nums"><%= payload[:focus_year_label] %><% if context_label.present? %> · <%= context_label %><% end %></div>
     </div>
 
     <div class="rounded border border-border bg-muted/20 px-3 py-2 space-y-1.5 text-[11px]">
