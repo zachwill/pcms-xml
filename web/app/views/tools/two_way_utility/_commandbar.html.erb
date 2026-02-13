@@ -1,0 +1,126 @@
+<%
+  pane_query_expr = "'conference=' + encodeURIComponent($twconference) +
+    '&team=' + encodeURIComponent($twteam) +
+    '&risk=' + encodeURIComponent($twrisk) +
+    '&intent=' + encodeURIComponent($twintent || '')"
+
+  compare_query_expr = "'compare_a=' + encodeURIComponent($comparea || '') +
+    '&compare_b=' + encodeURIComponent($compareb || '')"
+
+  selected_overlay_query_expr = "'selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '')"
+  refresh_query_expr = "(#{pane_query_expr}) + '&' + (#{compare_query_expr}) + '&' + (#{selected_overlay_query_expr})"
+
+  refresh_expr = "@get('/tools/two-way-utility/sse/refresh?' + (#{refresh_query_expr}))"
+  submit_intent_expr = "evt.preventDefault(); #{refresh_expr}"
+  clear_intent_expr = "$twintent = ''; #{refresh_expr}"
+
+  team_options = Array(@team_options)
+%>
+
+<header id="commandbar" class="shrink-0 z-40 border-b border-border bg-background h-[130px] px-4 pt-3 flex items-start gap-4 select-none">
+  <div class="min-w-[7rem] space-y-1" role="radiogroup" aria-label="Conference">
+    <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Conference</div>
+    <% [["all", "All"], ["Eastern", "East"], ["Western", "West"]].each do |value, label| %>
+      <label class="flex items-center gap-1.5 cursor-pointer">
+        <input
+          type="radio"
+          name="two-way-conference"
+          value="<%= value %>"
+          class="size-3.5 accent-primary"
+          <%= "checked" if @conference == value %>
+          data-bind="twconference"
+          data-on:change="if (el.checked) { <%= refresh_expr %>; }"
+        />
+        <span class="text-[11px] leading-none select-none" data-class="{ 'text-foreground font-semibold': $twconference === '<%= value %>', 'text-muted-foreground': $twconference !== '<%= value %>' }"><%= label %></span>
+      </label>
+    <% end %>
+  </div>
+
+  <div class="h-20 w-px bg-border self-center"></div>
+
+  <form class="min-w-[12.5rem] space-y-1" data-on:submit="<%= submit_intent_expr %>">
+    <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Player intent</div>
+    <div class="flex items-center gap-1.5">
+      <input
+        id="two-way-intent-input"
+        type="search"
+        placeholder="name or player_id"
+        class="h-7 w-36 rounded border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground/70"
+        value="<%= @intent %>"
+        data-bind="twintent"
+        data-on:keydown="if (evt.key === 'Enter') { evt.preventDefault(); <%= refresh_expr %>; }"
+      />
+      <button
+        type="submit"
+        class="cursor-pointer h-7 px-2 rounded border border-border bg-muted/40 text-[11px] text-foreground hover:bg-muted transition-colors"
+      >Apply</button>
+      <button
+        type="button"
+        class="cursor-pointer h-7 px-2 rounded border border-border bg-background text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+        data-on:click="<%= clear_intent_expr %>"
+      >Clear</button>
+    </div>
+    <div class="text-[10px] text-muted-foreground/70 tabular-nums">
+      <%= @sidebar_summary[:row_count].to_i %> rows in view
+      <% if @intent.present? %>
+        <span class="ml-1">· intent active</span>
+      <% end %>
+    </div>
+  </form>
+
+  <div class="h-20 w-px bg-border self-center"></div>
+
+  <div class="min-w-[12rem] space-y-1">
+    <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Team</div>
+    <select
+      id="two-way-team-select"
+      class="h-7 w-56 rounded border border-border bg-background px-2 text-xs text-foreground"
+      data-bind="twteam"
+      data-on:change="<%= refresh_expr %>"
+    >
+      <option value="">All teams</option>
+      <% team_options.each do |team_option| %>
+        <% code = team_option[:code].to_s.upcase %>
+        <option value="<%= code %>" <%= "selected" if @team == code %>>
+          <%= code %> · <%= team_option[:name] %>
+        </option>
+      <% end %>
+    </select>
+    <div class="text-[10px] text-muted-foreground/70 tabular-nums"><%= @sidebar_summary[:team_count].to_i %> teams in scope</div>
+  </div>
+
+  <div class="h-20 w-px bg-border self-center"></div>
+
+  <div class="min-w-[11rem] space-y-1" role="radiogroup" aria-label="Risk lens">
+    <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Risk lens</div>
+    <% [["all", "All"], ["warning", "≤20 games left"], ["critical", "≤10 games left"], ["estimate", "Estimated limit"]].each do |value, label| %>
+      <label class="flex items-center gap-1.5 cursor-pointer">
+        <input
+          type="radio"
+          name="two-way-risk"
+          value="<%= value %>"
+          class="size-3.5 accent-primary"
+          <%= "checked" if @risk == value %>
+          data-bind="twrisk"
+          data-on:change="if (el.checked) { <%= refresh_expr %>; }"
+        />
+        <span class="text-[11px] leading-none select-none" data-class="{ 'text-foreground font-semibold': $twrisk === '<%= value %>', 'text-muted-foreground': $twrisk !== '<%= value %>' }"><%= label %></span>
+      </label>
+    <% end %>
+  </div>
+
+  <div class="h-20 w-px bg-border self-center"></div>
+
+  <div class="min-w-[10rem] space-y-1">
+    <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">At-risk snapshot</div>
+    <div class="grid grid-cols-2 gap-1.5">
+      <span class="entity-chip entity-chip--danger justify-center"><%= @sidebar_summary[:critical_count].to_i %> critical</span>
+      <span class="entity-chip entity-chip--warning justify-center"><%= @sidebar_summary[:low_remaining_count].to_i %> ≤20</span>
+      <span class="entity-chip entity-chip--muted justify-center"><%= @sidebar_summary[:estimate_count].to_i %> est.</span>
+      <span class="entity-chip entity-chip--muted justify-center"><%= @sidebar_summary[:team_count].to_i %> teams</span>
+    </div>
+  </div>
+
+  <div class="h-20 w-px bg-border self-center ml-auto shrink-0"></div>
+  <%= render partial: "shared/commandbar_navigation", locals: { active_destination: "two_way_utility" } %>
+</header>

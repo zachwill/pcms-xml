@@ -44,8 +44,9 @@ module Tools
     end
 
     # GET /tools/two-way-utility/sse/refresh
-    # One-request multi-region update for risk filters.
+    # One-request multi-region update for commandbar + board + sidebars.
     # Patches:
+    # - #commandbar
     # - #maincanvas
     # - #rightpanel-base
     # - #rightpanel-overlay (preserved when selected row remains visible)
@@ -59,6 +60,10 @@ module Tools
       )
 
       with_sse_stream do |sse|
+        commandbar_html = without_view_annotations do
+          render_to_string(partial: "tools/two_way_utility/commandbar", layout: false)
+        end
+
         main_html = without_view_annotations do
           render_to_string(partial: "tools/two_way_utility/workspace_main", layout: false)
         end
@@ -67,6 +72,7 @@ module Tools
           render_to_string(partial: "tools/two_way_utility/rightpanel_base", layout: false)
         end
 
+        patch_elements_by_id(sse, commandbar_html)
         patch_elements_by_id(sse, main_html)
         patch_elements_by_id(sse, sidebar_html)
         patch_elements_by_id(sse, overlay_html)
@@ -75,6 +81,7 @@ module Tools
           twconference: @conference,
           twteam: @team.to_s,
           twrisk: @risk,
+          twintent: @intent.to_s,
           comparea: @compare_a_id.to_s,
           compareb: @compare_b_id.to_s,
           overlaytype: resolved_overlay_type,
@@ -97,8 +104,9 @@ module Tools
       @conference = resolve_conference(params[:conference])
       @team = resolve_team(params[:team])
       @risk = resolve_risk(params[:risk])
+      @intent = resolve_intent(params[:intent])
 
-      @rows = fetch_rows(conference: @conference, team: @team, risk: @risk)
+      @rows = fetch_rows(conference: @conference, team: @team, risk: @risk, intent: @intent)
       @rows_by_team = @rows.group_by { |row| row["team_code"] }
 
       @teams_by_conference, @team_meta_by_code = fetch_teams
@@ -120,6 +128,7 @@ module Tools
       @conference = "all"
       @team = nil
       @risk = "all"
+      @intent = ""
       @rows = []
       @rows_by_team = {}
       @teams_by_conference = { "Eastern" => [], "Western" => [] }
@@ -149,6 +158,10 @@ module Tools
     def resolve_risk(value)
       normalized = value.to_s.strip
       RISK_LENSES.include?(normalized) ? normalized : "all"
+    end
+
+    def resolve_intent(value)
+      value.to_s.strip.tr("\u0000", "")[0, 80]
     end
 
     def resolve_compare_action(value)
@@ -198,8 +211,11 @@ module Tools
     end
 
     def apply_compare_action!
-      action = resolve_compare_action(params[:action])
-      slot = resolve_compare_slot(params[:slot])
+      compare_action_param = params[:compare_action].presence || request.query_parameters["action"]
+      compare_slot_param = params[:compare_slot].presence || request.query_parameters["slot"]
+
+      action = resolve_compare_action(compare_action_param)
+      slot = resolve_compare_slot(compare_slot_param)
       player_id = normalize_player_id_param(params[:player_id])
 
       case action
@@ -234,7 +250,8 @@ module Tools
       Rack::Utils.build_query(
         conference: @conference.to_s,
         team: @team.to_s,
-        risk: @risk.to_s
+        risk: @risk.to_s,
+        intent: @intent.to_s
       )
     end
 
@@ -249,7 +266,7 @@ module Tools
       (options & row_codes) + (row_codes - options)
     end
 
-    def fetch_rows(conference:, team:, risk:)
+    def fetch_rows(conference:, team:, risk:, intent:)
       where_clauses = []
       where_clauses << "tw.conference_name = #{conn.quote(conference)}" if conference != "all"
       where_clauses << "tw.team_code = #{conn.quote(team)}" if team.present?
@@ -261,6 +278,11 @@ module Tools
         where_clauses << "COALESCE(tw.remaining_active_list_games, 999) <= 20"
       when "estimate"
         where_clauses << "COALESCE(tw.active_list_games_limit_is_estimate, false) = true"
+      end
+
+      if intent.present?
+        intent_like = conn.quote("%#{intent}%")
+        where_clauses << "(tw.player_name ILIKE #{intent_like} OR tw.player_id::text ILIKE #{intent_like})"
       end
 
       where_sql = where_clauses.any? ? where_clauses.join(" AND ") : "TRUE"
@@ -533,12 +555,15 @@ module Tools
       end
 
       active_filters = []
+      active_filters << %(Intent: "#{@intent}") if @intent.present?
       active_filters << "Conference: #{@conference}" unless @conference == "all"
       active_filters << "Team: #{@team}" if @team.present?
       active_filters << "Risk: #{risk_filter_label(@risk)}" unless @risk == "all"
 
       @sidebar_summary = {
         row_count: rows.size,
+        intent: @intent.to_s,
+        intent_active: @intent.present?,
         team_count: @rows_by_team.keys.size,
         critical_count:,
         warning_count:,

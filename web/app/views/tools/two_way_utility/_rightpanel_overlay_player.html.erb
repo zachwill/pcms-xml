@@ -60,10 +60,10 @@
 
   refresh_base = "/tools/two-way-utility/sse/refresh?#{@state_query}"
   compare_state_suffix_expr = "'&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '')"
-  pin_a_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&action=pin&slot=a&player_id=#{player_id}')"
-  pin_b_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&action=pin&slot=b&player_id=#{player_id}')"
-  clear_a_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&action=clear_slot&slot=a')"
-  clear_b_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&action=clear_slot&slot=b')"
+  pin_a_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=pin&compare_slot=a&player_id=#{player_id}')"
+  pin_b_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=pin&compare_slot=b&player_id=#{player_id}')"
+  clear_a_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=clear_slot&compare_slot=a')"
+  clear_b_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=clear_slot&compare_slot=b')"
 %>
 
 <div id="rightpanel-overlay" class="h-full bg-background border-l border-border/70">
@@ -203,7 +203,7 @@
       <% if player["agent_id"].present? %>
         <a class="block text-blue-600 dark:text-blue-400 hover:underline" href="<%= agent_href(player['agent_id']) %>">Open agent page</a>
       <% end %>
-      <a class="block text-blue-600 dark:text-blue-400 hover:underline" href="<%= tools_two_way_utility_path(conference: @conference, team: @team, risk: @risk) %>">Share this risk lens</a>
+      <a class="block text-blue-600 dark:text-blue-400 hover:underline" href="<%= tools_two_way_utility_path(conference: @conference, team: @team, risk: @risk, intent: @intent) %>">Share this risk lens</a>
     </div>
   </div>
 </div>

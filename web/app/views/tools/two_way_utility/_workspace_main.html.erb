@@ -11,17 +11,28 @@
     <div class="p-6 space-y-3">
       <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Two-way risk board</h2>
       <div class="p-4 rounded-lg border border-border bg-muted/20 text-sm text-muted-foreground italic">
-        No two-way contracts match the current risk filter.
+        <% if @intent.present? %>
+          No two-way contracts match this player intent in the current lens.
+        <% else %>
+          No two-way contracts match the current risk filter.
+        <% end %>
       </div>
     </div>
   <% else %>
+    <% intent_active = @intent.present? %>
     <% prefetch_canonical_slugs(entity_type: "player", entity_ids: @rows.map { |row| row["player_id"] }) %>
     <% prefetch_canonical_slugs(entity_type: "agent", entity_ids: @rows.map { |row| row["agent_id"] }.compact) %>
 
     <div class="px-4 pt-4 pb-2 flex items-end justify-between gap-4">
       <div>
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Two-way risk board</h2>
-        <p class="text-[11px] text-muted-foreground mt-1">Filter to risky usage pockets, pin A/B directly in rows, and click a row anytime for in-panel player context.</p>
+        <p class="text-[11px] text-muted-foreground mt-1">
+          <% if intent_active %>
+            Intent search is active — matching rows stay grouped by team section and carry an in-row match highlight.
+          <% else %>
+            Filter to risky usage pockets, pin A/B directly in rows, and click a row anytime for in-panel player context.
+          <% end %>
+        </p>
       </div>
       <div class="text-[11px] text-muted-foreground tabular-nums">
         <span><%= @sidebar_summary[:row_count].to_i %> rows · <%= @sidebar_summary[:team_count].to_i %> teams</span>
@@ -31,6 +42,9 @@
     <div class="px-4 pb-3 flex flex-wrap gap-1.5">
       <% Array(@sidebar_summary[:active_filters]).each do |label| %>
         <span class="entity-chip entity-chip--muted"><%= label %></span>
+      <% end %>
+      <% if intent_active %>
+        <span class="entity-chip entity-chip--accent">Intent matches</span>
       <% end %>
       <span class="entity-chip entity-chip--danger"><%= @sidebar_summary[:critical_count].to_i %> critical</span>
       <span class="entity-chip entity-chip--warning"><%= @sidebar_summary[:low_remaining_count].to_i %> ≤20 games left</span>
@@ -44,7 +58,8 @@
           players: (@rows_by_team[team_code] || []),
           team_meta: (@team_meta_by_code[team_code] || {}),
           team_capacity: (@team_capacity_by_code[team_code] || {}),
-          state_query: @state_query
+          state_query: @state_query,
+          intent_query: @intent
         } %>
       <% end %>
     </div>

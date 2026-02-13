@@ -29,20 +29,30 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
           rows = rows.select { |row| row["player_id"].to_i == match[1].to_i }
         end
 
-        if (match = sql.match(/tw\.conference_name\s*=\s*'([^']+)'/))
+        where_sql = sql.split("WHERE").last.to_s
+        where_clause = where_sql.split("ORDER BY").first.to_s
+
+        if (match = where_clause.match(/tw\.conference_name\s*=\s*'([^']+)'/))
           rows = rows.select { |row| row["conference_name"] == match[1] }
         end
 
-        if (match = sql.match(/tw\.team_code\s*=\s*'([A-Z]{3})'/))
+        if (match = where_clause.match(/tw\.team_code\s*=\s*'([A-Z]{3})'/))
           rows = rows.select { |row| row["team_code"] == match[1] }
         end
 
-        if sql.include?("COALESCE(tw.remaining_active_list_games, 999) <= 10")
+        if where_clause.include?("COALESCE(tw.remaining_active_list_games, 999) <= 10")
           rows = rows.select { |row| row["remaining_active_list_games"].to_i <= 10 }
-        elsif sql.include?("COALESCE(tw.remaining_active_list_games, 999) <= 20")
+        elsif where_clause.include?("COALESCE(tw.remaining_active_list_games, 999) <= 20")
           rows = rows.select { |row| row["remaining_active_list_games"].to_i <= 20 }
-        elsif sql.include?("COALESCE(tw.active_list_games_limit_is_estimate, false) = true")
+        elsif where_clause.include?("COALESCE(tw.active_list_games_limit_is_estimate, false) = true")
           rows = rows.select { |row| row["active_list_games_limit_is_estimate"] }
+        end
+
+        if (match = where_clause.match(/tw\.player_name ILIKE '([^']*)'/))
+          pattern = match[1].gsub("''", "'").downcase.delete("%")
+          rows = rows.select do |row|
+            row["player_name"].to_s.downcase.include?(pattern) || row["player_id"].to_s.include?(pattern)
+          end
         end
 
         rows = rows.sort_by { |row| [row["team_code"], row["player_name"]] }
@@ -200,10 +210,19 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
 
   test "two-way utility renders risk controls and sidebar shell" do
     with_fake_connection do
-      get "/tools/two-way-utility", headers: modern_headers
+      get "/tools/two-way-utility/sse/refresh", params: {
+        conference: "all",
+        team: "",
+        risk: "all",
+        intent: ""
+      }, headers: modern_headers
 
       assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="commandbar"'
+      assert_includes response.body, 'id="two-way-intent-input"'
       assert_includes response.body, 'id="two-way-team-select"'
+      assert_includes response.body, "Player intent"
       assert_includes response.body, "Risk lens"
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, 'id="rightpanel-base"'
@@ -269,26 +288,72 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "Open agent page"
       assert_includes response.body, ">Pin A</button>"
       assert_includes response.body, ">Pin B</button>"
-      assert_includes response.body, "/tools/two-way-utility/sse/refresh?conference=all&team=&risk=all"
-      assert_includes response.body, "action=pin&slot=a&player_id=1001"
-      assert_includes response.body, "action=pin&slot=b&player_id=1001"
-      assert_includes response.body, "action=clear_slot&slot=a"
-      assert_includes response.body, "action=clear_slot&slot=b"
+      assert_includes response.body, "/tools/two-way-utility/sse/refresh?conference=all&amp;team=&amp;risk=all&amp;intent="
+      assert_includes response.body, "compare_action=pin&amp;compare_slot=a&amp;player_id=1001"
+      assert_includes response.body, "compare_action=pin&amp;compare_slot=b&amp;player_id=1001"
+      assert_includes response.body, "compare_action=clear_slot&amp;compare_slot=a"
+      assert_includes response.body, "compare_action=clear_slot&amp;compare_slot=b"
       assert_includes response.body, "$comparea === '1001'"
       assert_includes response.body, "$compareb === '1001'"
     end
   end
 
-  test "two-way utility commandbar refresh keeps selected-id context in request params" do
+  test "two-way utility commandbar refresh keeps selected-id and intent context in request params" do
     with_fake_connection do
-      get "/tools/two-way-utility", headers: modern_headers
+      get "/tools/two-way-utility/sse/refresh", params: {
+        conference: "all",
+        team: "",
+        risk: "all",
+        intent: ""
+      }, headers: modern_headers
 
       assert_response :success
       assert_includes response.body, "selected_id="
-      assert_includes response.body, "$overlaytype === 'player' ? $overlayid : ''"
+      assert_includes response.body, "overlaytype === &#39;player&#39; ? $overlayid : &#39;&#39;"
       assert_includes response.body, "compare_a="
       assert_includes response.body, "compare_b="
-      assert_includes response.body, "window.history.replaceState"
+      assert_includes response.body, "intent="
+      assert_includes response.body, "$twintent"
+    end
+  end
+
+  test "two-way utility refresh applies intent filter and keeps intent highlights in grouped rows" do
+    with_fake_connection do
+      get "/tools/two-way-utility/sse/refresh", params: {
+        conference: "all",
+        team: "",
+        risk: "all",
+        intent: "Warning"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="commandbar"'
+      assert_includes response.body, "Warning Wing"
+      assert_not_includes response.body, "Critical Prospect"
+      assert_not_includes response.body, "Estimate Guard"
+      assert_includes response.body, "Intent matches"
+      assert_includes response.body, "INTENT"
+      assert_includes response.body, '"twintent":"Warning"'
+    end
+  end
+
+  test "two-way utility refresh keeps overlay selection when intent still includes selected row" do
+    with_fake_connection do
+      get "/tools/two-way-utility/sse/refresh", params: {
+        conference: "all",
+        team: "",
+        risk: "all",
+        intent: "Warning",
+        selected_id: "1002"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, '"overlaytype":"player"'
+      assert_includes response.body, '"overlayid":"1002"'
+      assert_includes response.body, '"twintent":"Warning"'
     end
   end
 
@@ -303,6 +368,7 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, "event: datastar-patch-elements"
+      assert_includes response.body, 'id="commandbar"'
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
@@ -310,6 +376,7 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_includes response.body, '"twconference":"Western"'
       assert_includes response.body, '"twteam":"POR"'
       assert_includes response.body, '"twrisk":"critical"'
+      assert_includes response.body, '"twintent":""'
       assert_includes response.body, '"comparea":""'
       assert_includes response.body, '"compareb":""'
       assert_includes response.body, '"overlaytype":"none"'
@@ -326,8 +393,8 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
         selected_id: "1002",
         compare_a: "",
         compare_b: "",
-        action: "pin",
-        slot: "a",
+        compare_action: "pin",
+        compare_slot: "a",
         player_id: "1001"
       }, headers: modern_headers
 
@@ -351,8 +418,8 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
         selected_id: "1001",
         compare_a: "1001",
         compare_b: "1002",
-        action: "clear_slot",
-        slot: "a"
+        compare_action: "clear_slot",
+        compare_slot: "a"
       }, headers: modern_headers
 
       assert_response :success

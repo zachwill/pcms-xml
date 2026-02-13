@@ -162,26 +162,42 @@ Current focus reset (2026-02-12):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P2] [TOOL] /tools/two-way-utility — add intent search to find one player fast without leaving team-section context
+- [x] [P2] [TOOL] /tools/two-way-utility — add intent search to find one player fast without leaving team-section context
   - Problem: Users scanning many team sections cannot quickly jump to a known player name/id.
   - Hypothesis: Commandbar intent search with in-context filtering/highlighting will cut navigation time while preserving workbench density.
   - Scope (files):
-    - web/app/views/tools/two_way_utility/show.html.erb
-    - web/app/views/tools/two_way_utility/_workspace_main.html.erb
-    - web/app/views/tools/two_way_utility/_rightpanel_base.html.erb
     - web/app/controllers/tools/two_way_utility_controller.rb
+    - web/app/views/tools/two_way_utility/show.html.erb
+    - web/app/views/tools/two_way_utility/_commandbar.html.erb
+    - web/app/views/tools/two_way_utility/_workspace_main.html.erb
+    - web/app/views/tools/two_way_utility/_team_section.html.erb
+    - web/app/views/tools/two_way_utility/_player_row.html.erb
+    - web/app/views/tools/two_way_utility/_rightpanel_base.html.erb
+    - web/app/views/tools/two_way_utility/_rightpanel_overlay_player.html.erb
     - web/test/integration/tools_two_way_utility_test.rb
-  - Acceptance criteria:
-    - Commandbar includes player intent search (name/id) that updates board via SSE.
-    - Matching rows remain grouped by team section and visibly highlighted.
-    - Compare slots and selected overlay player are preserved when still in filtered scope.
-    - URL query string captures the search state for sharing.
-  - Rubric (before → target):
+  - What changed:
+    - Added a dedicated Two-Way Utility commandbar partial and wired `/tools/two-way-utility/sse/refresh` to patch `#commandbar` + `#maincanvas` + `#rightpanel-base` + `#rightpanel-overlay` in one SSE response.
+    - Added `intent` workspace state (controller + signals + URL sync + state query) so name/player_id search is shareable and preserved across refreshes.
+    - Added commandbar player-intent controls (`#two-way-intent-input`, Apply/Clear) that drive SSE refresh without leaving team-section context.
+    - Applied intent-aware board treatment: intent chips in workspace header/team sections, row-level highlight treatment, and inline `INTENT` status token.
+    - Kept compare/overlay flows stable while migrating compare actions to canonical query keys (`compare_action`, `compare_slot`) with legacy fallback parsing in controller.
+    - Updated overlay share link to retain active intent state.
+    - Expanded integration coverage for intent filtering/highlight behavior, commandbar patching/signals, canonical compare params, and overlay-preservation behavior.
+  - Why this improves the flow:
+    - Analysts can jump directly to a known player from the commandbar and still read the result in-team, instead of manually scanning across sections.
+    - Team grouping remains intact while matches are visibly emphasized, preserving orientation in dense board workflows.
+    - One SSE refresh keeps commandbar, board, sidebar summary, compare slots, and overlay selection synchronized, improving predictability.
+  - Verification:
+    - `cd web && bundle exec ruby -Itest test/integration/tools_two_way_utility_test.rb`
+  - Rubric (before → after):
     - Scan speed: 3 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Consider adding keyboard-first intent suggestions (top N matches) so experts can jump with one Enter without typing full names.
+    - After all callers migrate, remove legacy `action`/`slot` compare fallback parsing from `TwoWayUtilityController`.
   - Guardrails:
     - Do not modify Salary Book files.
 

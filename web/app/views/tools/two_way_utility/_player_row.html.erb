@@ -1,6 +1,13 @@
 <% player_id = player["player_id"] %>
 <% player_name = player["player_name"] %>
 <% state_query ||= "" %>
+<% intent_query = local_assigns[:intent_query].to_s.strip %>
+<% intent_active = intent_query.present? %>
+<% highlighted_player_name = if intent_active
+  highlight(player_name.to_s, intent_query, highlighter: '<mark class="rounded bg-amber-200/80 dark:bg-amber-700/60 px-0.5">\\1</mark>', sanitize: true)
+else
+  ERB::Util.h(player_name.to_s)
+end %>
 
 <% games_used = player["games_on_active_list"] %>
 <% games_limit = player["active_list_games_limit"] %>
@@ -34,6 +41,7 @@ when "estimate"
   { label: "Risk:EST", classes: "text-muted-foreground" }
 end %>
 <% status_tokens << risk_token if risk_token.present? %>
+<% status_tokens << { label: "INTENT", classes: "text-amber-700 dark:text-amber-300" } if intent_active %>
 
 <% if next_year.present? %>
   <% next_option = player_option(player, next_year) %>
@@ -127,11 +135,11 @@ end %>
 <% open_expr = "$overlaytype = 'player'; $overlayid = '#{player_id}'; @get('/tools/two-way-utility/sidebar/#{player_id}?#{state_query}')" %>
 <% compare_refresh_base = "/tools/two-way-utility/sse/refresh?#{state_query}" %>
 <% compare_state_suffix_expr = "'&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '')" %>
-<% pin_a_expr = "@get('#{compare_refresh_base}' + (#{compare_state_suffix_expr}) + '&action=pin&slot=a&player_id=#{player_id}')" %>
-<% pin_b_expr = "@get('#{compare_refresh_base}' + (#{compare_state_suffix_expr}) + '&action=pin&slot=b&player_id=#{player_id}')" %>
+<% pin_a_expr = "@get('#{compare_refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=pin&compare_slot=a&player_id=#{player_id}')" %>
+<% pin_b_expr = "@get('#{compare_refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=pin&compare_slot=b&player_id=#{player_id}')" %>
 
 <div
-  class="group h-10 border-b border-border/50 flex items-center text-xs transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 cursor-pointer"
+  class="group h-10 border-b border-border/50 flex items-center text-xs transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 cursor-pointer <%= intent_active ? 'bg-amber-50/40 dark:bg-amber-900/10 ring-1 ring-inset ring-amber-400/35 dark:ring-amber-500/30' : '' %>"
   role="button"
   tabindex="0"
   data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'player' && $overlayid === '<%= player_id %>', 'ring-1 ring-inset ring-indigo-500/50': $comparea === '<%= player_id %>' || $compareb === '<%= player_id %>' }"
@@ -141,6 +149,7 @@ end %>
   <div
     class="w-52 shrink-0 pl-4 sticky left-0 z-20 relative bg-background transition-colors duration-75
            group-hover:bg-yellow-50 dark:group-hover:bg-yellow-900/25
+           <%= intent_active ? 'bg-amber-50/40 dark:bg-amber-900/10' : '' %>
            after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/30"
     data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'player' && $overlayid === '<%= player_id %>' }"
   >
@@ -160,7 +169,7 @@ end %>
 
       <div class="h-[24px] flex items-end min-w-0 pl-1 pr-2">
         <a href="<%= player_href(player_id) %>" class="block truncate font-medium text-[14px] text-foreground transition-colors group-hover:text-primary hover:underline" title="<%= player_name %>" data-on:click="evt.stopPropagation()">
-          <%= player_name %>
+          <%= raw(highlighted_player_name) %>
         </a>
       </div>
 
