@@ -29,6 +29,18 @@ class ToolsTeamSummaryTest < ActionDispatch::IntegrationTest
       if sql.include?("FROM pcms.team_salary_warehouse tsw") && sql.include?("JOIN pcms.teams t")
         rows = sample_rows
 
+        if (year_match = sql.match(/tsw\.salary_year\s*=\s*(\d{4})/))
+          rows = rows.select { |row| row[4].to_i == year_match[1].to_i }
+        end
+
+        if (conference_match = sql.match(/t\.conference_name\s*=\s*'([^']+)'/))
+          rows = rows.select { |row| row[3].to_s == conference_match[1].to_s }
+        end
+
+        rows = rows.select { |row| row[15].to_f < 0 } if sql.include?("COALESCE(tsw.room_under_tax, 0) < 0")
+        rows = rows.select { |row| row[16].to_f < 0 } if sql.include?("COALESCE(tsw.room_under_apron1, 0) < 0")
+        rows = rows.select { |row| row[17].to_f < 0 } if sql.include?("COALESCE(tsw.room_under_apron2, 0) < 0")
+
         if (match = sql.match(/tsw\.team_code\s*=\s*'([A-Z]{3})'/))
           rows = rows.select { |row| row[0] == match[1] }
         elsif sql.include?("tsw.team_code IN (")
@@ -118,6 +130,63 @@ class ToolsTeamSummaryTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="rightpanel-overlay"'
       assert_includes response.body, "Open canonical team page"
       assert_includes response.body, "Open Salary Book at BOS"
+    end
+  end
+
+  test "team summary commandbar knobs submit through refresh sse path" do
+    with_fake_connection do
+      get "/tools/team-summary", headers: modern_headers
+
+      assert_response :success
+      assert_includes response.body, "/tools/team-summary/sse/refresh?"
+      assert_includes response.body, "data-on:submit=\"evt.preventDefault(); @get('/tools/team-summary/sse/refresh?"
+    end
+  end
+
+  test "team summary refresh endpoint returns ordered multi-region sse patches" do
+    with_fake_connection do
+      get "/tools/team-summary/sse/refresh", params: {
+        year: "2025",
+        conference: "all",
+        pressure: "all",
+        sort: "cap_space_desc",
+        compare_a: "BOS",
+        compare_b: "POR",
+        selected: "BOS"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, "event: datastar-patch-elements"
+      assert_includes response.body, "selector #maincanvas"
+      assert_includes response.body, 'id="team-summary-compare-strip"'
+      assert_includes response.body, 'id="rightpanel-base"'
+      assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, "event: datastar-patch-signals"
+      assert_includes response.body, '"selectedteam":"BOS"'
+      assert_includes response.body, '"comparea":"BOS"'
+      assert_includes response.body, '"compareb":"POR"'
+    end
+  end
+
+  test "team summary refresh clears unresolved selected and compare state" do
+    with_fake_connection do
+      get "/tools/team-summary/sse/refresh", params: {
+        year: "2024",
+        conference: "all",
+        pressure: "all",
+        sort: "cap_space_desc",
+        compare_a: "BOS",
+        compare_b: "POR",
+        selected: "BOS"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="rightpanel-overlay"></div>'
+      assert_includes response.body, '"selectedteam":""'
+      assert_includes response.body, '"comparea":""'
+      assert_includes response.body, '"compareb":""'
     end
   end
 

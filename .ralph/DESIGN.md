@@ -211,29 +211,26 @@ Next-loop guardrails (tightened):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P2] [TOOL] /tools/team-summary (`web/app/views/tools/team_summary/show.html.erb`) — make commandbar knob changes patch-driven and state-preserving
-  - Problem: Team Summary commandbar currently submits full-page GETs, causing avoidable context resets and uneven state transitions.
-  - Hypothesis: A dedicated SSE refresh flow for knobs will keep main table, compare strip, and sidebar synchronized with predictable behavior.
-  - Scope (files):
+- [x] [P2] [TOOL] /tools/team-summary (`web/app/views/tools/team_summary/show.html.erb`) — make commandbar knob changes patch-driven and state-preserving
+  - What changed (files):
     - `web/app/controllers/tools/team_summary_controller.rb`
     - `web/app/views/tools/team_summary/show.html.erb`
-    - `web/app/views/tools/team_summary/_workspace_main.html.erb`
-    - `web/app/views/tools/team_summary/_compare_strip.html.erb`
-    - `web/app/views/tools/team_summary/_rightpanel_base.html.erb`
-    - `web/app/views/tools/team_summary/_rightpanel_overlay_team.html.erb`
     - `web/config/routes.rb`
     - `web/test/integration/tools_team_summary_test.rb`
-  - Acceptance criteria:
-    - Year/conference/pressure/sort changes trigger one SSE refresh (no full-page reload).
-    - SSE refresh patches `#maincanvas`, compare strip, and rightpanel regions in one ordered response.
-    - Selected team + compare slots are preserved when still resolvable; otherwise clear deterministically.
-    - URL remains shareable and synchronized with current knob state.
-  - Rubric (before → target):
+  - Why this improves the flow:
+    - Team Summary commandbar knobs now submit through one SSE refresh endpoint (`/tools/team-summary/sse/refresh`) instead of full-page GET reloads.
+    - Knob refresh now patches `#maincanvas`, `#team-summary-compare-strip`, `#rightpanel-base`, and `#rightpanel-overlay` in one ordered stream, keeping table + compare + sidebar in lockstep.
+    - Selected team and compare slots now preserve when the row is still resolvable for the active year; unresolved selections are cleared deterministically in both HTML and signals.
+    - URL state is now signal-driven and continuously synchronized (`year`, `conference`, `pressure`, `sort`, `selected`, `compare_a`, `compare_b`) so copied links reflect the current workbench lens.
+  - Rubric (before → after):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 3 → 5
     - Density/readability: 5 → 5
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Convert the table-header Cap Space / Tax Overage sort links in `_workspace_main` from full-page navigations to the same refresh SSE path for complete sort-path consistency.
+    - Consider exposing a lightweight selected-context chip in the commandbar so preserved drill-in context is more obvious during rapid knob cycling.
   - Guardrails:
     - Do not modify Salary Book files.
 

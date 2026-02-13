@@ -97,6 +97,51 @@ module Tools
       end
     end
 
+    # GET /tools/team-summary/sse/refresh
+    # One-request multi-region refresh for commandbar knob changes.
+    # Patches:
+    # - #maincanvas
+    # - #team-summary-compare-strip
+    # - #rightpanel-base
+    # - #rightpanel-overlay
+    def refresh
+      load_workspace_state!
+      @state_params = build_state_params
+
+      with_sse_stream do |sse|
+        main_html = render_to_string(partial: "tools/team_summary/workspace_main", layout: false)
+        compare_html = render_to_string(partial: "tools/team_summary/compare_strip", layout: false)
+        sidebar_html = render_to_string(partial: "tools/team_summary/rightpanel_base", layout: false)
+
+        overlay_html = if @selected_row.present?
+          render_to_string(partial: "tools/team_summary/rightpanel_overlay_team", layout: false)
+        else
+          render_to_string(partial: "tools/team_summary/rightpanel_clear", layout: false)
+        end
+
+        patch_elements(sse, selector: "#maincanvas", mode: "inner", html: main_html)
+        patch_elements_by_id(sse, compare_html)
+        patch_elements_by_id(sse, sidebar_html)
+        patch_elements_by_id(sse, overlay_html)
+        patch_signals(
+          sse,
+          tsyear: @selected_year.to_s,
+          tspressure: @pressure.to_s,
+          tssortmetric: sort_metric_for(@sort),
+          tssortasc: sort_ascending_for(@sort),
+          tsconferenceeast: @conference != "Western",
+          tsconferencewest: @conference != "Eastern",
+          selectedteam: @selected_team_code.to_s,
+          comparea: @compare_a_code.to_s,
+          compareb: @compare_b_code.to_s
+        )
+      end
+    rescue ActiveRecord::StatementInvalid => e
+      with_sse_stream do |sse|
+        patch_flash(sse, "Team Summary refresh failed: #{e.message.to_s.truncate(160)}")
+      end
+    end
+
     private
 
     def conn
@@ -190,6 +235,19 @@ module Tools
       SORT_SQL.key?(normalized) ? normalized : "cap_space_desc"
     end
 
+    def sort_metric_for(sort)
+      sort_value = sort.to_s
+      return "tax_overage" if sort_value.start_with?("tax_overage")
+      return "team" if sort_value == "team_asc"
+
+      "cap_space"
+    end
+
+    def sort_ascending_for(sort)
+      sort_value = sort.to_s
+      sort_value.end_with?("_asc") && sort_value != "team_asc"
+    end
+
     def resolve_team_code(value)
       code = value.to_s.strip.upcase
       code.match?(/\A[A-Z]{3}\z/) ? code : nil
@@ -246,6 +304,10 @@ module Tools
 
       @compare_a_row = @compare_a_code.present? ? lookup_rows_by_code[@compare_a_code] : nil
       @compare_b_row = @compare_b_code.present? ? lookup_rows_by_code[@compare_b_code] : nil
+
+      @compare_a_code = nil if @compare_a_code.present? && @compare_a_row.blank?
+      @compare_b_code = nil if @compare_b_code.present? && @compare_b_row.blank?
+      normalize_compare_slots!
 
       @selected_row = if @selected_team_code.present?
         @rows_by_code[@selected_team_code] || lookup_rows_by_code[@selected_team_code]
