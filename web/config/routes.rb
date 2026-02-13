@@ -89,6 +89,11 @@ Rails.application.routes.draw do
     # ---------------------------------------------------------------------
     get "drafts", to: "drafts#index"
     get "drafts/pane", to: "drafts#pane"
+    get "drafts/sidebar/base", to: "drafts#sidebar_base", as: :drafts_sidebar_base
+    get "drafts/sidebar/pick", to: "drafts#sidebar_pick", as: :drafts_sidebar_pick
+    get "drafts/sidebar/selection/:id", to: "drafts#sidebar_selection", as: :drafts_sidebar_selection, constraints: { id: /\d+/ }
+    get "drafts/sidebar/clear", to: "drafts#sidebar_clear", as: :drafts_sidebar_clear
+    get "drafts/sse/refresh", to: "drafts_sse#refresh", as: :drafts_sse_refresh
 
     # ---------------------------------------------------------------------
     # Draft selections (historical drafts) — show pages

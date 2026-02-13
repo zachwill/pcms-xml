@@ -176,13 +176,18 @@ A bad task is broad cosmetic churn (for example, repo-wide class sweeps) with no
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /drafts (`web/app/views/entities/drafts/index.html.erb`) — trace pick ownership/provenance with fewer context switches
+- [x] [P1] [INDEX] /drafts (`web/app/views/entities/drafts/index.html.erb`) — trace pick ownership/provenance with fewer context switches
   - Problem: Team filtering is hidden in params, and ownership/protection details require jumping away from the index; provenance flow is fragmented.
   - Hypothesis: Exposing team knob + row/cell sidebar drill-in will turn Drafts into a true ownership explorer.
   - Scope (files):
     - `web/app/views/entities/drafts/index.html.erb`
     - `web/app/views/entities/drafts/_results.html.erb`
     - `web/app/controllers/entities/drafts_controller.rb`
+    - `web/app/controllers/entities/drafts_sse_controller.rb`
+    - `web/app/views/entities/drafts/_rightpanel_base.html.erb`
+    - `web/app/views/entities/drafts/_rightpanel_overlay_pick.html.erb`
+    - `web/app/views/entities/drafts/_rightpanel_overlay_selection.html.erb`
+    - `web/app/views/entities/drafts/_rightpanel_clear.html.erb`
     - `web/config/routes.rb`
     - `web/test/integration/entities_pane_endpoints_test.rb`
   - Acceptance criteria:
@@ -190,12 +195,29 @@ A bad task is broad cosmetic churn (for example, repo-wide class sweeps) with no
     - Clicking a grid/list row opens `#rightpanel-overlay` with protections/provenance summary and pivots to canonical trade/team/draft-pick pages.
     - Switching view mode preserves relevant filter state in URL and clears/retains overlay predictably.
     - Dense table/grid layout is retained (no card conversion).
-  - Rubric (before → target):
-    - Scan speed: 3 → 4
-    - Information hierarchy: 2 → 4
-    - Interaction predictability: 3 → 4
-    - Density/readability: 3 → 4
-    - Navigation/pivots: 3 → 4
+  - Completion notes:
+    - What changed:
+      - Rebuilt `/drafts` as a workbench shell (`commandbar + maincanvas + rightpanel base/overlay`) with explicit view/year/round/team controls bound to Datastar signals and URL state.
+      - Added ordered SSE refresh endpoint (`/drafts/sse/refresh`) to patch `#drafts-results`, `#rightpanel-base`, and clear `#rightpanel-overlay` in one response when knobs change.
+      - Converted draft list/grid rows into interactive drill-ins: picks and selections rows open overlay endpoints, and grid cells now open pick provenance overlays directly.
+      - Added dedicated sidebar surfaces for ownership/provenance (`_rightpanel_overlay_pick`) and selection provenance (`_rightpanel_overlay_selection`) plus a summary base panel and clear endpoint.
+      - Extended controller query/loading paths to support team-aware filtering, grid year-window control, sidebar payloads, and workspace summary metrics.
+      - Expanded `entities_pane_endpoints_test.rb` with focused drafts coverage for commandbar discoverability, SSE multi-region response shape, and pick/selection sidebar endpoints.
+    - Why this improves the flow:
+      - Team/year/round state is now visible and editable in one place, so users no longer rely on hidden params.
+      - Ownership and provenance can be inspected in-panel from either list rows or grid cells, reducing page hops to trace where picks came from.
+      - View/filter transitions keep URL and signal state synchronized while clearing overlay state deterministically.
+      - Density is preserved (table/grid-first), but with faster pivots to draft-pick, draft-selection, trade, team, transaction, and player pages.
+    - Rubric (before → after):
+      - Scan speed: 3 → 4
+      - Information hierarchy: 2 → 4
+      - Interaction predictability: 3 → 4
+      - Density/readability: 3 → 4
+      - Navigation/pivots: 3 → 4
+    - Follow-up tasks discovered:
+      - Preserve a compatible open overlay across refresh when the selected pick/selection still exists in the filtered set (current behavior intentionally clears).
+      - Add richer team filter affordances (e.g., conference/team-set presets) once cross-index commandbar control patterns are standardized.
+      - Consider adding commandbar patching on refresh if draft year option sets should be server-normalized per-view instead of globally unioned.
   - Guardrails:
     - Do not modify Salary Book files.
 
