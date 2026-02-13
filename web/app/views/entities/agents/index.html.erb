@@ -1,4 +1,5 @@
-<% content_for :title, "Agents" %>
+<% directory_scope = @directory_kind.to_s == "agencies" ? "agencies" : "agents" %>
+<% content_for :title, directory_scope == "agencies" ? "Agencies" : "Agents" %>
 
 <%
   pane_query_expr = "'kind=' + $entitykind +
@@ -38,7 +39,7 @@
   }"
 >
   <%= render partial: "entities/shared/commandbar", locals: {
-    active_entity_scope: "agents",
+    active_entity_scope: directory_scope,
     header_knobs: [
       {
         label: "Directory",

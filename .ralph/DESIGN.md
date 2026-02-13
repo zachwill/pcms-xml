@@ -324,7 +324,7 @@ Supervisor TODOs for next cycle:
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /agencies entry (`web/app/views/entities/agencies/index.html.erb` + `/agents?kind=agencies`) — make agency exploration first-class
+- [x] [P1] [INDEX] /agencies entry (`web/app/views/entities/agencies/index.html.erb` + `/agents?kind=agencies`) — make agency exploration first-class
   - Problem: Agency exploration is discoverability-fragile (redirect-only entry, weak wayfinding), so users underuse agency lens workflows.
   - Hypothesis: A first-class Agencies entry flow that lands directly in agency workbench mode will reduce navigation friction and improve adoption.
   - Scope (files):
@@ -338,12 +338,26 @@ Supervisor TODOs for next cycle:
     - Redirects preserve filter/sort query state so shared URLs open identical agency lens state.
     - Agency rows stay dense and interactive with sidebar drill-ins + canonical agency/agent pivots.
     - Active lens (agents vs agencies) is visually explicit and URL-backed.
-  - Rubric (before → target):
-    - Scan speed: 2 → 4
-    - Information hierarchy: 2 → 4
-    - Interaction predictability: 2 → 4
-    - Density/readability: 3 → 4
-    - Navigation/pivots: 2 → 4
+  - Completion notes:
+    - What changed:
+      - Promoted Agencies into entity navigation by adding a first-class `/agencies` button in `entities/shared/_commandbar.html.erb` and preserving active-state highlighting when the agents workspace is in `kind=agencies` mode.
+      - Updated `entities/agents/index.html.erb` to treat agency mode as a first-class page state (dynamic page title + commandbar active scope), so users can orient immediately after redirect.
+      - Added explicit lens wayfinding in `entities/agents/_workspace_main.html.erb` with visible Agents/Agencies lens chips that deep-link to URL-backed state while preserving current filter/sort knobs.
+      - Hardened `AgenciesController#index` redirect forwarding by slicing known query params from the incoming URL and forcing `kind=agencies`, preserving shareable filter/sort/year state.
+      - Added focused integration coverage in `entities_agencies_entrypoint_test.rb` for redirect state preservation, commandbar discoverability, and agencies-lens active/interactive render behavior.
+    - Why this improves the flow:
+      - Agencies is now discoverable from the same entity navigation surface as the other indexes, instead of being a hidden URL convention.
+      - `/agencies` links now reliably land users in the exact agencies lens configuration they shared (filter/sort/year intact), reducing “wrong state” friction.
+      - The active lens is explicit in both commandbar and workspace header, so users don’t lose orientation while toggling between agent and agency analysis.
+    - Rubric (before → after):
+      - Scan speed: 2 → 4
+      - Information hierarchy: 2 → 4
+      - Interaction predictability: 2 → 4
+      - Density/readability: 3 → 4
+      - Navigation/pivots: 2 → 4
+    - Follow-up tasks discovered:
+      - Add agency-mode overlay-preservation integration coverage on `/agents/sse/refresh` (agent-mode preservation already exists in `entities_agents_index_test.rb`).
+      - Consider adding an agency-specific search knob once directory query semantics (`q`) are wired in `AgentsController` for both kinds.
   - Guardrails:
     - Do not modify Salary Book files.
 

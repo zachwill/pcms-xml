@@ -7,25 +7,22 @@
   Each entity type button is same-width, arranged in a grid.
 
   locals:
-  - active_entity_scope: agents|drafts|players|teams|trades|transactions
+  - active_entity_scope: agents|agencies|drafts|players|teams|trades|transactions
   - knobs: Array[Hash] — filter groups, each with :label and :options
     - options: Array[Hash] with :type (checkbox|radio), :id, :label, :name, :value, :checked, :bind, :on_change
 %>
 
 <%
   active_entity_scope = local_assigns[:active_entity_scope].to_s.strip.presence || "players"
-  active_entity_scope = "agents" if active_entity_scope == "agencies"
   active_entity_scope = "drafts" if active_entity_scope == "draft"
   active_entity_scope = "teams" if active_entity_scope == "team"
 
   knobs = Array(local_assigns[:knobs].presence || local_assigns[:header_knobs])
 
-  # Entity nav links — will be arranged in a 4-col × 3-row grid
-  # Row 1: Agents, Drafts, Players, Teams
-  # Row 2: Trades, Transactions, (future), (future)
-  # Row 3: (future entities)
+  # Entity nav links — arranged in a 4-col grid
   nav_links = [
     ["agents", "Agents", "/agents"],
+    ["agencies", "Agencies", "/agencies"],
     ["drafts", "Drafts", "/drafts"],
     ["players", "Players", "/players"],
     ["teams", "Teams", "/teams"],
@@ -47,6 +44,8 @@
       <% nav_links.each do |scope, label, href| %>
         <% active = scope == active_entity_scope %>
         <a
+          id="entity-nav-<%= scope %>"
+          data-entity-scope="<%= scope %>"
           href="<%= href %>"
           class="relative h-7 w-20 px-2 rounded text-xs font-medium transition-all duration-150 border outline-none inline-flex items-center justify-center no-underline hover:no-underline <%= active ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-muted/50 text-foreground border-border hover:bg-muted hover:border-foreground/20' %>"
         ><%= label %></a>
@@ -107,6 +106,7 @@
   <%# Global navigation + theme controls %>
   <% navigation_destination = case active_entity_scope
      when "drafts" then "draft"
+     when "agencies" then "agents"
      when "agents", "players", "teams", "trades", "transactions" then active_entity_scope
      else "players"
      end %>

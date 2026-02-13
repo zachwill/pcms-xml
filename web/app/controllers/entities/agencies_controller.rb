@@ -1,21 +1,23 @@
 module Entities
   class AgenciesController < ApplicationController
+    AGENCIES_ENTRY_QUERY_KEYS = %w[
+      active_only
+      certified_only
+      with_clients
+      with_book
+      with_restrictions
+      with_expiring
+      year
+      sort
+      dir
+      q
+    ].freeze
+
     # GET /agencies
-    # Agencies now live under /agents with a radio knob for directory scope.
+    # Entry path for agency exploration. The workbench itself is /agents?kind=agencies.
     def index
-      query = {
-        kind: "agencies",
-        active_only: params[:active_only],
-        certified_only: params[:certified_only],
-        with_clients: params[:with_clients],
-        with_book: params[:with_book],
-        with_restrictions: params[:with_restrictions],
-        with_expiring: params[:with_expiring],
-        year: params[:year],
-        sort: params[:sort],
-        dir: params[:dir],
-        q: params[:q]
-      }.compact_blank
+      forwarded_query = request.query_parameters.slice(*AGENCIES_ENTRY_QUERY_KEYS).compact_blank
+      query = forwarded_query.merge("kind" => "agencies")
 
       redirect_to "/agents#{query_string(query)}", status: :moved_permanently
     end
