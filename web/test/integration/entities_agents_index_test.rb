@@ -212,6 +212,9 @@ class EntitiesAgentsIndexTest < ActionDispatch::IntegrationTest
     def filtered_agent_rows(sql)
       rows = sql.include?("COALESCE(w.client_count, 0) > 0") ? [agent_row_secondary] : [agent_row_primary, agent_row_secondary]
 
+      rows = rows.select { |row| row[2] == 501 } if sql.include?("w.agency_id = 501")
+      rows = rows.select { |row| row[2] == 777 } if sql.include?("w.agency_id = 777")
+
       if sql.include?("w.full_name ILIKE '%Alpha%'") || sql.include?("COALESCE(w.agency_name, '') ILIKE '%Summit%'")
         rows.select { |row| row[0] == 11 }
       elsif sql.include?("w.full_name ILIKE '%Beta%'") || sql.include?("COALESCE(w.agency_name, '') ILIKE '%Northwest%'")
@@ -249,7 +252,27 @@ class EntitiesAgentsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "$overlaytype = 'agency'; $overlayid = '501'; @get('/agents/sidebar/agency/501')"
       assert_includes response.body, "bg-violet-50/50 dark:bg-violet-900/15"
       assert_includes response.body, 'data-show="$overlaytype === &#39;agency&#39; &amp;&amp; $overlayid === &#39;501&#39;"'
+      assert_includes response.body, 'id="agents-scope-to-overlay"'
+      assert_includes response.body, 'id="agents-sidebar-scope-overlay"'
+      assert_includes response.body, 'agencyscopeactive: false'
       refute_includes response.body, '<table class="entity-table'
+    end
+  end
+
+  test "agents index applies agency scope params for shareable narrowing" do
+    with_fake_connection do
+      get "/agents", params: {
+        kind: "agents",
+        agency_scope: "1",
+        agency_scope_id: "501"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.body, "Alpha Agent"
+      refute_includes response.body, "Beta Agent"
+      assert_includes response.body, "Scoped: Summit Sports"
+      assert_includes response.body, "agencyscopeactive: true"
+      assert_includes response.body, "agencyscopeid: '501'"
     end
   end
 
@@ -321,6 +344,68 @@ class EntitiesAgentsIndexTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "agents refresh narrows to agency-scoped agents while keeping agency overlay context" do
+    with_fake_connection do
+      get "/agents/sse/refresh", params: {
+        q: "",
+        kind: "agents",
+        active_only: "0",
+        certified_only: "0",
+        with_clients: "0",
+        with_book: "0",
+        with_restrictions: "0",
+        with_expiring: "0",
+        year: "2025",
+        sort: "book",
+        dir: "desc",
+        agency_scope: "1",
+        agency_scope_id: "501",
+        selected_type: "agency",
+        selected_id: "501"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, "Alpha Agent"
+      refute_includes response.body, "Beta Agent"
+      assert_includes response.body, '"agencyscopeactive":true'
+      assert_includes response.body, '"agencyscopeid":"501"'
+      assert_includes response.body, '"overlaytype":"agency"'
+      assert_includes response.body, '"overlayid":"501"'
+    end
+  end
+
+  test "agents refresh keeps scoped agency overlay even when scoped rows empty" do
+    with_fake_connection do
+      get "/agents/sse/refresh", params: {
+        q: "",
+        kind: "agents",
+        active_only: "0",
+        certified_only: "0",
+        with_clients: "1",
+        with_book: "0",
+        with_restrictions: "0",
+        with_expiring: "0",
+        year: "2025",
+        sort: "book",
+        dir: "desc",
+        agency_scope: "1",
+        agency_scope_id: "501",
+        selected_type: "agency",
+        selected_id: "501"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, "No agents match these filters."
+      assert_includes response.body, "Scoped agency: Agency #501"
+      assert_includes response.body, "Open agency page"
+      assert_includes response.body, '"overlaytype":"agency"'
+      assert_includes response.body, '"overlayid":"501"'
+      assert_includes response.body, '"agencyscopeactive":true'
+    end
+  end
+
   test "agents refresh preserves agent overlay while scanning agencies when agent remains in-scope" do
     with_fake_connection do
       get "/agents/sse/refresh", params: {
@@ -344,6 +429,8 @@ class EntitiesAgentsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "Open agent page"
       assert_includes response.body, '"overlaytype":"agent"'
       assert_includes response.body, '"overlayid":"11"'
+      assert_includes response.body, '"agencyscopeactive":false'
+      assert_includes response.body, '"agencyscopeid":""'
     end
   end
 

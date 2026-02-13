@@ -313,6 +313,17 @@ module Entities
       allowed_sort_keys = @directory_kind == "agencies" ? AGENCY_SORT_KEYS : AGENT_SORT_KEYS
       @sort_key = params[:sort].to_s
       @sort_key = "book" unless allowed_sort_keys.include?(@sort_key)
+
+      @agency_scope_active = cast_bool(params[:agency_scope])
+      @agency_scope_id = parse_positive_integer(params[:agency_scope_id])
+
+      if @agency_scope_active && @directory_kind == "agents"
+        @agency_scope_id ||= parse_overlay_agency_id_from_params
+        @agency_scope_active = false unless @agency_scope_id.present?
+      else
+        @agency_scope_active = false
+        @agency_scope_id = nil
+      end
     end
 
     def load_directory_rows!
@@ -399,6 +410,7 @@ module Entities
         where_clauses << "COALESCE(#{book_total_sql}, 0) > 0" if @with_book
         where_clauses << "COALESCE(#{expiring_sql}, 0) > 0" if @with_expiring
         where_clauses << "(COALESCE(w.no_trade_count, 0) > 0 OR COALESCE(w.trade_kicker_count, 0) > 0 OR COALESCE(w.trade_restricted_count, 0) > 0)" if @with_restrictions
+        where_clauses << "w.agency_id = #{conn.quote(@agency_scope_id)}" if @agency_scope_active && @agency_scope_id.present?
 
         if @query.present?
           query_sql = conn.quote("%#{@query}%")
@@ -487,6 +499,9 @@ module Entities
         restricted_total: rows.sum { |row| row["trade_restricted_count"].to_i },
         option_total: rows.sum { |row| row["player_option_count"].to_i + row["team_option_count"].to_i },
         book_total: rows.sum { |row| row["book_total"].to_i },
+        agency_scope_active: @agency_scope_active,
+        agency_scope_id: @agency_scope_id,
+        agency_scope_name: active_agency_scope_name(rows),
         filters: sidebar_filter_labels,
         top_rows: sidebar_top_rows(rows)
       }
@@ -525,7 +540,14 @@ module Entities
       labels << "With book" if @with_book
       labels << "With restrictions" if @with_restrictions
       labels << "With expirings" if @with_expiring
+      labels << "Scoped to agency ##{@agency_scope_id}" if @agency_scope_active && @agency_scope_id.present?
       labels
+    end
+
+    def active_agency_scope_name(rows)
+      return nil unless @directory_kind == "agents" && @agency_scope_active && @agency_scope_id.present?
+
+      rows.find { |row| row["agency_id"].to_i == @agency_scope_id }&.dig("agency_name")
     end
 
     def selected_overlay_visible?(overlay_type:, overlay_id:)
@@ -555,6 +577,8 @@ module Entities
     end
 
     def agency_overlay_visible_in_scope?(agency_id)
+      return true if @directory_kind == "agents" && @agency_scope_active && @agency_scope_id.present? && @agency_scope_id == agency_id
+
       visible_agency_ids.include?(agency_id)
     end
 
@@ -753,6 +777,19 @@ module Entities
         top_agents:,
         top_clients:
       }
+    end
+
+    def parse_positive_integer(raw_value)
+      parsed = Integer(raw_value, 10)
+      parsed.positive? ? parsed : nil
+    rescue ArgumentError, TypeError
+      nil
+    end
+
+    def parse_overlay_agency_id_from_params
+      return nil unless params[:selected_type].to_s.strip.downcase == "agency"
+
+      parse_positive_integer(params[:selected_id])
     end
 
     def cast_bool(value)

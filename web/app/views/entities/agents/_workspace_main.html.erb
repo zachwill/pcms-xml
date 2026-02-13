@@ -1,6 +1,23 @@
 <% directory_kind = @directory_kind.to_s == "agencies" ? "agencies" : "agents" %>
 <% year_label = format_year_label(@book_year).split("-").first %>
 <%
+  pane_query_expr = "'q=' + encodeURIComponent($agentquery) +
+    '&kind=' + $entitykind +
+    '&active_only=' + ($activeonly ? '1' : '0') +
+    '&certified_only=' + ($certifiedonly ? '1' : '0') +
+    '&with_clients=' + ($withclients ? '1' : '0') +
+    '&with_book=' + ($withbook ? '1' : '0') +
+    '&with_restrictions=' + ($withrestrictions ? '1' : '0') +
+    '&with_expiring=' + ($withexpiring ? '1' : '0') +
+    '&year=' + $bookyear +
+    '&sort=' + $sortkey +
+    '&dir=' + $sortdir +
+    '&agency_scope=' + (($entitykind === 'agents' && $agencyscopeactive) ? '1' : '0') +
+    '&agency_scope_id=' + encodeURIComponent($entitykind === 'agents' ? $agencyscopeid : '')"
+
+  selected_overlay_query_expr = "'selected_type=' + encodeURIComponent($overlaytype) + '&selected_id=' + encodeURIComponent($overlayid)"
+  refresh_expr = "@get('/agents/sse/refresh?' + (#{pane_query_expr}) + '&' + (#{selected_overlay_query_expr})); window.history.replaceState({}, '', '/agents?' + (#{pane_query_expr}))"
+
   shared_lens_query = {
     q: @query,
     active_only: (@active_only ? 1 : 0),
@@ -14,8 +31,15 @@
     dir: @sort_dir
   }
 
-  agents_lens_href = "/agents?#{shared_lens_query.merge(kind: 'agents').to_query}"
+  agents_lens_query = shared_lens_query.merge(
+    kind: "agents",
+    agency_scope: (@agency_scope_active ? 1 : 0),
+    agency_scope_id: @agency_scope_id
+  ).compact
+
+  agents_lens_href = "/agents?#{agents_lens_query.to_query}"
   agencies_lens_href = "/agents?#{shared_lens_query.merge(kind: 'agencies').to_query}"
+  scope_agency_label = @sidebar_summary&.dig(:agency_scope_name).presence || (@agency_scope_id.present? ? "Agency ##{@agency_scope_id}" : "Agency")
 %>
 
 <% if directory_kind == "agents" %>
@@ -50,6 +74,34 @@
           class="rounded border px-1.5 py-0.5 transition-colors <%= directory_kind == 'agencies' ? 'border-primary bg-primary/10 text-primary font-semibold' : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/20' %>"
         >Agencies lens</a>
       </div>
+
+      <% if directory_kind == "agents" %>
+        <div class="flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-wide">
+          <button
+            id="agents-scope-to-overlay"
+            type="button"
+            class="cursor-pointer rounded border border-violet-400/70 bg-violet-100/70 px-1.5 py-0.5 font-semibold text-violet-800 transition-colors hover:bg-violet-100 dark:border-violet-500/60 dark:bg-violet-900/30 dark:text-violet-200"
+            data-show="$overlaytype === 'agency' && !$agencyscopeactive"
+            style="display: none;"
+            data-on:click="$agencyscopeactive = true; $agencyscopeid = $overlayid; <%= refresh_expr %>"
+          >Scope to active agency overlay</button>
+
+          <button
+            id="agents-clear-agency-scope"
+            type="button"
+            class="cursor-pointer rounded border border-border px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/20"
+            data-show="$agencyscopeactive"
+            style="display: none;"
+            data-on:click="$agencyscopeactive = false; $agencyscopeid = ''; <%= refresh_expr %>"
+          >Show all agents</button>
+
+          <span
+            class="rounded border border-violet-400/60 bg-violet-100/60 px-1.5 py-0.5 font-semibold text-violet-800 dark:border-violet-500/50 dark:bg-violet-900/25 dark:text-violet-200"
+            data-show="$agencyscopeactive"
+            style="display: none;"
+          >Scoped: <%= scope_agency_label %></span>
+        </div>
+      <% end %>
     </div>
 
     <div class="text-[11px] text-muted-foreground tabular-nums text-right">
@@ -63,8 +115,11 @@
 
   <% if directory_kind == "agents" %>
     <% if @agents.empty? %>
-      <div class="p-6 rounded-lg border border-border bg-muted/20 text-sm text-muted-foreground italic">
-        No agents match these filters.
+      <div class="p-6 rounded-lg border border-border bg-muted/20 text-sm text-muted-foreground italic space-y-1">
+        <div>No agents match these filters.</div>
+        <% if @agency_scope_active && @agency_scope_id.present? %>
+          <div class="text-[11px] not-italic uppercase tracking-wide text-violet-700 dark:text-violet-300">Scoped agency: <%= scope_agency_label %></div>
+        <% end %>
       </div>
     <% else %>
       <div class="rounded-lg border border-border overflow-x-auto">

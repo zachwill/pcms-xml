@@ -47,6 +47,8 @@ module Entities
           withbook: @with_book,
           withrestrictions: @with_restrictions,
           withexpiring: @with_expiring,
+          agencyscopeactive: @agency_scope_active,
+          agencyscopeid: @agency_scope_id.to_s,
           bookyear: @book_year.to_s,
           sortkey: @sort_key,
           sortdir: @sort_dir,

@@ -4,6 +4,27 @@
   year = 2025 if year <= 0
   year_label = format_year_label(year).split("-").first
   top_rows = Array(summary[:top_rows])
+
+  pane_query_expr = "'q=' + encodeURIComponent($agentquery) +
+    '&kind=' + $entitykind +
+    '&active_only=' + ($activeonly ? '1' : '0') +
+    '&certified_only=' + ($certifiedonly ? '1' : '0') +
+    '&with_clients=' + ($withclients ? '1' : '0') +
+    '&with_book=' + ($withbook ? '1' : '0') +
+    '&with_restrictions=' + ($withrestrictions ? '1' : '0') +
+    '&with_expiring=' + ($withexpiring ? '1' : '0') +
+    '&year=' + $bookyear +
+    '&sort=' + $sortkey +
+    '&dir=' + $sortdir +
+    '&agency_scope=' + (($entitykind === 'agents' && $agencyscopeactive) ? '1' : '0') +
+    '&agency_scope_id=' + encodeURIComponent($entitykind === 'agents' ? $agencyscopeid : '')"
+
+  selected_overlay_query_expr = "'selected_type=' + encodeURIComponent($overlaytype) + '&selected_id=' + encodeURIComponent($overlayid)"
+  refresh_expr = "@get('/agents/sse/refresh?' + (#{pane_query_expr}) + '&' + (#{selected_overlay_query_expr})); window.history.replaceState({}, '', '/agents?' + (#{pane_query_expr}))"
+
+  agency_scope_id = summary[:agency_scope_id].to_i
+  agency_scope_name = summary[:agency_scope_name].to_s
+  agency_scope_label = agency_scope_name.presence || (agency_scope_id.positive? ? "Agency ##{agency_scope_id}" : "Agency")
 %>
 
 <div id="rightpanel-base" class="space-y-4">
@@ -15,6 +36,37 @@
         <span class="text-muted-foreground font-medium">· <%= summary[:row_count].to_i %> rows</span>
       </div>
     </div>
+
+    <% if summary[:kind].to_s == "agents" %>
+      <div class="rounded border border-border bg-muted/20 px-2 py-1.5 space-y-1">
+        <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Agency narrowing</div>
+        <div class="flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-wide">
+          <button
+            id="agents-sidebar-scope-overlay"
+            type="button"
+            class="cursor-pointer rounded border border-violet-400/70 bg-violet-100/70 px-1.5 py-0.5 font-semibold text-violet-800 transition-colors hover:bg-violet-100 dark:border-violet-500/60 dark:bg-violet-900/30 dark:text-violet-200"
+            data-show="$overlaytype === 'agency' && !$agencyscopeactive"
+            style="display: none;"
+            data-on:click="$agencyscopeactive = true; $agencyscopeid = $overlayid; <%= refresh_expr %>"
+          >Scope to active overlay</button>
+
+          <button
+            id="agents-sidebar-clear-scope"
+            type="button"
+            class="cursor-pointer rounded border border-border px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/20"
+            data-show="$agencyscopeactive"
+            style="display: none;"
+            data-on:click="$agencyscopeactive = false; $agencyscopeid = ''; <%= refresh_expr %>"
+          >Show all agents</button>
+
+          <span
+            class="rounded border border-violet-400/60 bg-violet-100/60 px-1.5 py-0.5 font-semibold text-violet-800 dark:border-violet-500/50 dark:bg-violet-900/25 dark:text-violet-200"
+            data-show="$agencyscopeactive"
+            style="display: none;"
+          >Scoped: <%= agency_scope_label %></span>
+        </div>
+      </div>
+    <% end %>
 
     <div class="grid grid-cols-2 gap-1.5">
       <%= render partial: "tools/salary_book/kpi_cell", locals: {

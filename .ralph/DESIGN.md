@@ -368,27 +368,35 @@ Supervisor review (2026-02-13):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /agents — allow agency-anchored narrowing while keeping agency overlay context
+- [x] [P1] [INDEX] /agents — allow agency-anchored narrowing while keeping agency overlay context
   - Problem: After opening an agency overlay, users still scan the full agent list and must mentally filter represented agents.
   - Hypothesis: A one-click “scope to active agency overlay” flow will reduce visual noise and speed agency-to-agent triage.
-  - Scope (files):
-    - web/app/views/entities/agents/index.html.erb
-    - web/app/views/entities/agents/_workspace_main.html.erb
-    - web/app/views/entities/agents/_rightpanel_base.html.erb
-    - web/app/controllers/entities/agents_controller.rb
-    - web/app/controllers/entities/agents_sse_controller.rb
-    - web/test/integration/entities_agents_index_test.rb
-  - Acceptance criteria:
-    - When an agency overlay is active, users can toggle a scoped view showing only represented agents.
-    - Scoped mode preserves agency overlay and keeps row highlight/tie-back cues.
-    - Clearing scope returns to prior filters/sort without losing overlay state.
-    - URL state captures scope mode for shareability.
-  - Rubric (before → target):
+  - What changed:
+    - Added agency-scope workspace state in `web/app/controllers/entities/agents_controller.rb` (`agency_scope`, `agency_scope_id`) with agents-lens-only normalization and SQL narrowing (`w.agency_id = ...`) when scoped mode is active.
+    - Updated overlay-visibility rules so scoped agency overlays remain mounted even when additional filters produce zero visible agent rows, preserving context during scoped triage.
+    - Extended agents SSE signal patching in `web/app/controllers/entities/agents_sse_controller.rb` to include `agencyscopeactive` + `agencyscopeid` so scope state stays synchronized with commandbar/maincanvas/sidebar/overlay updates.
+    - Updated `/agents` URL/query builders in `web/app/views/entities/agents/_commandbar.html.erb` to persist scope state (`agency_scope`, `agency_scope_id`) for shareable scoped views while auto-clearing scope params outside the agents lens.
+    - Added one-click scope controls + scoped status chips in:
+      - `web/app/views/entities/agents/_workspace_main.html.erb`
+      - `web/app/views/entities/agents/_rightpanel_base.html.erb`
+      Users can now scope to the active agency overlay and clear scope without losing overlay selection.
+    - Seeded initial scope signals in `web/app/views/entities/agents/index.html.erb` and expanded integration coverage in `web/test/integration/entities_agents_index_test.rb` for scoped SSE narrowing, scoped overlay preservation on empty result sets, URL-backed scoped filtering, and sidebar/workspace scope affordances.
+  - Why this improves the flow:
+    - Agency-to-agent drill-in now has an explicit narrowing toggle instead of requiring manual mental filtering.
+    - Scoped mode keeps overlay context stable, so users can triage represented agents without losing agency reference state.
+    - Scope is URL-addressable and survives refresh/filter/sort changes, improving replayability and collaboration.
+  - Verification:
+    - `cd web && bundle exec ruby -Itest test/integration/entities_agents_index_test.rb -i "/agents refresh preserves selected overlay when selected row remains visible|agents refresh preserves agency overlay while scanning agents when agency remains represented|agents refresh narrows to agency-scoped agents while keeping agency overlay context|agents refresh keeps scoped agency overlay even when scoped rows empty|agents refresh preserves agent overlay while scanning agencies when agent remains in-scope|agents refresh clears selected overlay when row no longer matches filters|agents refresh query matches agency names in agents mode|agents refresh query works in agencies mode and preserves agency overlay|agency overlay exposes in-panel top-agent pivots/"`
+    - `cd web && bundle exec ruby -c app/controllers/entities/agents_controller.rb && bundle exec ruby -c app/controllers/entities/agents_sse_controller.rb`
+  - Rubric (before → after):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 3 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Full-page `/agents` integration assertions that render the layout still hit the known `tailwind.css` test asset load-path issue in this environment; continue focused SSE/sidebar subsets until harness setup is fixed.
+    - Consider hydrating agency overlay content directly from scoped URL params on first load so shared scoped links can restore both narrowing and overlay state without an extra click.
   - Guardrails:
     - Do not modify Salary Book files.
 
