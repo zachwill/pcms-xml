@@ -48,10 +48,15 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
         rows = if sql.include?("ds.draft_year = 2025")
           [selection_index_row_secondary]
         else
-          [selection_index_row_primary]
+          [selection_index_row_primary, selection_index_row_trade_active]
         end
 
-        rows = rows.select { |row| row[10].present? } if sql.include?("selection_rows.trade_id IS NOT NULL")
+        if sql.include?("selection_rows.trade_id IS NOT NULL OR selection_rows.provenance_trade_count > 0")
+          rows = rows.select { |row| row[10].present? || row[12].to_i.positive? }
+        elsif sql.include?("selection_rows.trade_id IS NOT NULL")
+          rows = rows.select { |row| row[10].present? }
+        end
+
         rows = rows.select { |row| row[12].to_i >= 2 } if sql.include?("selection_rows.provenance_trade_count >= 2")
 
         ActiveRecord::Result.new(selection_index_columns, rows)
@@ -78,6 +83,14 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
         777001, 2026, 1, 12, 203507, "Prospect One",
         1_610_612_738, "BOS", "Boston Celtics", "2026-06-25", 88001,
         "DDRFT", 2, 1, 3
+      ]
+    end
+
+    def selection_index_row_trade_active
+      [
+        777003, 2026, 2, 35, 203509, "Prospect Three",
+        1_610_612_738, "BOS", "Boston Celtics", "2026-06-25", nil,
+        "DDRFT", 1, 0, 1
       ]
     end
 
@@ -110,7 +123,7 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
     host! "localhost"
   end
 
-  test "draft selections index renders workbench shell with provenance sort and lens knobs" do
+  test "draft selections index renders workbench shell with provenance severity legend and flex rows" do
     with_fake_connection do
       get "/draft-selections", headers: modern_headers
 
@@ -121,6 +134,11 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="draft-selections-team-select"'
       assert_includes response.body, 'id="draft-selections-sort-select"'
       assert_includes response.body, 'id="draft-selections-lens-select"'
+      assert_includes response.body, 'id="draft-selections-flex-header"'
+      assert_includes response.body, "Provenance severity legend"
+      assert_includes response.body, "Deep chain"
+      assert_includes response.body, "With trade"
+      refute_includes response.body, 'entity-table min-w-full text-xs'
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
@@ -188,6 +206,28 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, '"draftselectionlens":"with_trade"'
       assert_includes response.body, '"overlaytype":"none"'
       assert_includes response.body, '"overlayid":""'
+    end
+  end
+
+  test "draft selections with-trade lens keeps provenance-active rows without direct trade id" do
+    with_fake_connection do
+      get "/draft-selections/sse/refresh", params: {
+        q: "",
+        year: "2026",
+        round: "all",
+        team: "",
+        sort: "provenance",
+        lens: "with_trade",
+        selected_id: ""
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'id="draft-selections-flex-header"'
+      assert_includes response.body, "Prospect Three"
+      assert_includes response.body, "With trade"
+      refute_includes response.body, 'entity-table min-w-full text-xs'
+      assert_includes response.body, '"draftselectionlens":"with_trade"'
     end
   end
 

@@ -269,7 +269,7 @@ module Entities
         end
       end
 
-      @results = conn.exec_query(<<~SQL).to_a
+      rows = conn.exec_query(<<~SQL).to_a
         WITH selection_rows AS (
           SELECT
             ds.transaction_id,
@@ -321,10 +321,20 @@ module Entities
         ORDER BY #{selections_order_sql}
         LIMIT 260
       SQL
+
+      @results = rows.map do |row|
+        severity = draft_selection_provenance_severity(row)
+        row.merge(
+          "provenance_severity" => severity,
+          "provenance_severity_label" => draft_selection_provenance_severity_label(severity)
+        )
+      end
     end
 
     def build_sidebar_summary!
       rows = Array(@results)
+      severity_counts = draft_selection_provenance_counts(rows)
+      trade_active_count = severity_counts["with_trade"] + severity_counts["deep_chain"]
 
       filters = ["Year: #{@year_lens}"]
       filters << "Round: R#{@round_lens}" if @round_lens != "all"
@@ -344,8 +354,11 @@ module Entities
         lens_label: @lens_label,
         row_count: rows.size,
         first_round_count: rows.count { |row| row["draft_round"].to_i == 1 },
-        with_trade_count: rows.count { |row| row["trade_id"].present? },
-        deep_chain_count: rows.count { |row| row["provenance_trade_count"].to_i >= 2 },
+        clean_count: severity_counts["clean"],
+        with_trade_count: severity_counts["with_trade"],
+        deep_chain_count: severity_counts["deep_chain"],
+        trade_active_count: trade_active_count,
+        severity_counts: severity_counts,
         known_player_count: rows.count { |row| row["player_id"].present? },
         unique_team_count: rows.map { |row| row["drafting_team_code"].presence }.compact.uniq.size,
         provenance_trade_total: rows.sum { |row| row["provenance_trade_count"].to_i },
@@ -368,7 +381,7 @@ module Entities
     def selections_lens_sql(alias_name:)
       case @lens
       when "with_trade"
-        "#{alias_name}.trade_id IS NOT NULL"
+        "(#{alias_name}.trade_id IS NOT NULL OR #{alias_name}.provenance_trade_count > 0)"
       when "deep_chain"
         "#{alias_name}.provenance_trade_count >= 2"
       else
@@ -390,12 +403,46 @@ module Entities
     def draft_selections_lens_label(lens)
       case lens.to_s
       when "with_trade"
-        "With trade only"
+        "Trade-active only"
       when "deep_chain"
         "Deep chain only"
       else
         "All rows"
       end
+    end
+
+    def draft_selection_provenance_severity(row)
+      provenance_count = row["provenance_trade_count"].to_i
+      return "deep_chain" if provenance_count >= 2
+      return "with_trade" if row["trade_id"].present? || provenance_count.positive?
+
+      "clean"
+    end
+
+    def draft_selection_provenance_severity_label(severity)
+      case severity.to_s
+      when "deep_chain"
+        "Deep chain"
+      when "with_trade"
+        "With trade"
+      else
+        "Clean"
+      end
+    end
+
+    def draft_selection_provenance_counts(rows)
+      counts = {
+        "clean" => 0,
+        "with_trade" => 0,
+        "deep_chain" => 0
+      }
+
+      rows.each do |row|
+        severity = row["provenance_severity"].presence || draft_selection_provenance_severity(row)
+        counts[severity] += 1 if counts.key?(severity)
+      end
+
+      counts
     end
 
     def load_sidebar_selection_payload(transaction_id)

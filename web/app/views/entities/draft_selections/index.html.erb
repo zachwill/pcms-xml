@@ -122,7 +122,7 @@
           data-on:change="<%= refresh_expr %>"
         >
           <option value="all" <%= "selected" if @lens == "all" %>>All rows</option>
-          <option value="with_trade" <%= "selected" if @lens == "with_trade" %>>With trade only</option>
+          <option value="with_trade" <%= "selected" if @lens == "with_trade" %>>Trade-active only (trade or P1+)</option>
           <option value="deep_chain" <%= "selected" if @lens == "deep_chain" %>>Deep chain only (P2+)</option>
         </select>
       </div>

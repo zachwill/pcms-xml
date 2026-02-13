@@ -400,27 +400,36 @@ Supervisor review (2026-02-13):
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [ ] [P1] [INDEX] /draft-selections — make provenance severity legible at row glance for faster shortlist building
-  - Problem: Provenance intensity is mostly numeric and requires close reading across many rows.
-  - Hypothesis: Explicit severity chips and consistent row grammar will speed deep-chain vs clean-pick triage.
-  - Scope (files):
-    - web/app/views/entities/draft_selections/_workspace_main.html.erb
-    - web/app/views/entities/draft_selections/_rightpanel_base.html.erb
-    - web/app/controllers/entities/draft_selections_controller.rb
-    - web/app/controllers/entities/draft_selections_sse_controller.rb
-    - web/test/integration/entities_draft_selections_index_test.rb
-  - Acceptance criteria:
-    - Draft selections workspace renders dense flex rows (no `<table>` in `_workspace_main`).
-    - Rows include provenance severity chip taxonomy (e.g., clean / with-trade / deep-chain).
-    - Severity taxonomy aligns with lens behavior and sidebar KPI counts.
-    - Quick selections panel mirrors row severity grammar.
-    - Selection overlay and pivots remain unchanged functionally.
-  - Rubric (before → target):
+- [x] [P1] [INDEX] /draft-selections — make provenance severity legible at row glance for faster shortlist building
+  - Problem: Provenance intensity was mostly numeric and required close reading across many rows.
+  - Hypothesis: Explicit severity chips + dense flex-row grammar would speed clean-pick vs deep-chain shortlist triage before overlay open.
+  - What changed:
+    - Rebuilt `web/app/views/entities/draft_selections/_workspace_main.html.erb` from table markup to dense flex rows with sticky header (`#draft-selections-flex-header`), preserving row click/keyboard overlay-open behavior and selected-row highlight semantics.
+    - Added in-row provenance severity taxonomy (`Clean` / `With trade` / `Deep chain`) with consistent chip + container treatment and a top-of-workspace severity legend/count strip.
+    - Updated selection filtering/severity derivation in `web/app/controllers/entities/draft_selections_controller.rb`:
+      - added row-level severity fields (`provenance_severity`, `provenance_severity_label`),
+      - aligned `with_trade` lens behavior to include trade-linked **or** provenance-active rows,
+      - centralized severity counts for sidebar/workspace parity.
+    - Updated `web/app/views/entities/draft_selections/_rightpanel_base.html.erb` so snapshot KPIs and quick selections mirror the same severity grammar used in rows.
+    - Updated lens copy in `web/app/views/entities/draft_selections/index.html.erb` (`Trade-active only (trade or P1+)`) so commandbar language matches server filtering rules.
+    - Expanded `web/test/integration/entities_draft_selections_index_test.rb` assertions for flex-header rendering, severity legend/chips, de-tabled workspace rendering (`entity-table` removed), and with-trade lens inclusion of provenance-active/non-trade-linked rows.
+  - Why this improves the flow:
+    - Analysts can now rank selections by provenance severity at glance without parsing raw counts row-by-row.
+    - Main list, lens behavior, and sidebar quick selections all use the same severity taxonomy, reducing interpretation drift while filtering.
+    - Dense flex rows match current index workbench grammar and improve scan rhythm without changing overlay/pivot mechanics.
+  - Verification:
+    - `cd web && bundle exec ruby -Itest test/integration/entities_draft_selections_index_test.rb -i "/sidebar overlay|refresh|with-trade lens/"`
+    - `cd web && bundle exec ruby -c app/controllers/entities/draft_selections_controller.rb && bundle exec ruby -c app/controllers/entities/draft_selections_sse_controller.rb`
+    - `if rg "<table" web/app/views/entities/draft_selections/_workspace_main.html.erb; then echo "table-found"; else echo "no-table-markup"; fi`
+  - Rubric (before → after):
     - Scan speed: 3 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
+  - Follow-up tasks discovered:
+    - Full-page `/draft-selections` integration path still hits the known `tailwind.css` test asset load-path issue; continue focused SSE/sidebar subsets until harness setup is fixed.
+    - Consider de-tabling the provenance table inside `rightpanel_overlay_selection` for complete main/overlay grammar alignment in a future pass.
   - Guardrails:
     - Do not modify Salary Book files.
 
