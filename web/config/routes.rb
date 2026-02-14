@@ -35,8 +35,8 @@ Rails.application.routes.draw do
     # Salary Book combobox fragments (server-rendered HTML options)
     get "salary-book/combobox/players/search", to: "salary_book#combobox_players_search", as: :salary_book_combobox_players_search
 
-    # SSE multi-region team switch (main canvas + sidebar in one request)
-    get "salary-book/sse/switch-team", to: "salary_book_sse#switch_team", as: :salary_book_sse_switch_team
+    # Team switch patch set (text/html morph-by-id)
+    get "salary-book/switch-team", to: "salary_book_switch#switch_team", as: :salary_book_switch_team
   end
 
   # Entities (Bricklink-style navigation; clean top-level URLs)

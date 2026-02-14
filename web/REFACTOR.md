@@ -23,7 +23,7 @@ This doc captures what is currently coupled and what likely needs to change.
 
 This is feasible without a full rewrite, but there is one major assumption to unwind:
 
-- Salary Book is currently hardwired as a **single app mode** ("Salaries") across controller, SSE, view composition, and URL state.
+- Salary Book is currently hardwired as a **single app mode** ("Salaries") across controller, team-switch transport, view composition, and URL state.
 
 So this is a **moderate refactor** of orchestration/state/partials, not a DB math rewrite.
 
@@ -41,11 +41,11 @@ So this is a **moderate refactor** of orchestration/state/partials, not a DB mat
 
 ---
 
-## 2) Team switching SSE is salary-specific
+## 2) Team switching transport is salary-specific
 
 - Team buttons always call:
-  - `/tools/salary-book/sse/switch-team?team=...&year=...`
-- File: `web/app/controllers/tools/salary_book_sse_controller.rb`
+  - `/tools/salary-book/switch-team?team=...&year=...`
+- File: `web/app/controllers/tools/salary_book_switch_controller.rb`
   - `switch_team` always renders:
     - `tools/salary_book/maincanvas_team_frame`
     - `tools/salary_book/sidebar_team`
@@ -160,7 +160,7 @@ If app switch updates 2+ regions, return one SSE response with ordered patches.
 
 Possible approach:
 
-- Keep `/sse/switch-team` for team-aware apps (initially Salaries only)
+- Keep `/switch-team` for team-aware apps (initially Salaries only)
 - Add `/sse/switch-app` for app transitions
 
 ---
@@ -209,7 +209,7 @@ Avoid `replaceState` calls that drop unknown params.
 - `web/app/controllers/tools/salary_book_controller.rb`
   - parse/normalize `app`
   - branch initial payload strategy by app
-- `web/app/controllers/tools/salary_book_sse_controller.rb`
+- `web/app/controllers/tools/salary_book_switch_controller.rb`
   - add app-switch SSE endpoint and/or make `switch_team` app-aware
 - `web/config/routes.rb`
   - route(s) for app-switch interactions

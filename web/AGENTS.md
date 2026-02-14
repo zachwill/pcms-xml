@@ -9,7 +9,7 @@
 ## Hard rules (non-negotiable)
 
 1. **Server HTML, not JSON.** Datastar patches elements by `id`. Don't return JSON and render client-side.
-2. **Multi-region = one SSE.** Updating 2+ regions? Return `text/event-stream` with ordered patches. Never multiple fetches or client stitching.
+2. **Multi-region = one response.** Updating 2+ regions? Use a single request/response: either `text/html` morph-by-id patch set (multiple top-level `id` roots) or `text/event-stream` when ordering/signals/streaming are required. Never multiple fetches or client stitching.
 3. **No Turbo/Hotwire/Stimulus.** Datastar is the only UI runtime. Don't add Turbo Frames, Turbo Streams, or Stimulus controllers.
 4. **Scroll = state.** In tools (Salary Book, etc.), scroll position determines active context. Don't override with click-driven state machines.
 5. **Sidebar: base + one overlay.** No modal stacks, no nested overlays. `#rightpanel-base` + `#rightpanel-overlay`, that's it.
@@ -30,8 +30,9 @@ UPDATING UI?
 │  → Datastar morphs content into element by id
 │
 ├─ 2+ regions (commandbar + sidebar, main + flash, etc.)
-│  → return text/event-stream (one-off SSE is normal)
-│  → patch each region in sequence
+│  → one response only (never multiple fetches)
+│  → if elements-only + top-level id roots available: return text/html patch set
+│  → if ordering/signals/streaming needed: return text/event-stream
 │  → see: web/docs/datastar_sse_playbook.md
 │
 └─ signals only, no HTML change
@@ -93,7 +94,7 @@ Datastar backend actions (`@get`, `@post`, etc.) default to `requestCancellation
 - If one element fires multiple requests quickly, a newer request can cancel an older in-flight request.
 
 Salary Book guardrail:
-- The sidebar-loader element (`#salarybook-sidebar-loader`) fires cap-year updates via `data-effect`. It is a **separate element** from the root `#salarybook` shell, so sidebar refreshes don't cancel team-switch SSE requests (or vice versa).
+- The sidebar-loader element (`#salarybook-sidebar-loader`) fires cap-year updates via `data-effect`. It is a **separate element** from the root `#salarybook` shell, so sidebar refreshes don't cancel team-switch requests (or vice versa).
 - If adding new `@get`/`@post` triggers, keep heavy fetches on dedicated elements to avoid cross-cancellation.
 
 ## Before you code (checklist)
@@ -102,7 +103,7 @@ Answer these before writing code:
 
 - [ ] **Design baseline:** Which shell pattern am I using (A full-viewport, B scrolling page, C entity workspace)?
 - [ ] **Patch targets:** Which `id`(s) am I patching? (`#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`, `#flash`)
-- [ ] **Response type:** Is this 1 region (HTML) or 2+ regions (SSE)?
+- [ ] **Response type:** Is this 1 region (HTML), 2+ regions via HTML patch set, or 2+ regions via SSE?
 - [ ] **Row treatment:** Am I using dense row patterns (identity double-row grid / `entity-cell-two-line`) instead of card layouts?
 - [ ] **Visual invariants:** Row hover uses yellow class, and financial/numeric cells use `font-mono tabular-nums`.
 - [ ] **Client JS:** Am I keeping JS to scroll/measure/sync/transition only? No business logic?
@@ -127,7 +128,7 @@ These are the stable `id`s Datastar targets:
 
 | ID | What it holds |
 |----|---------------|
-| `#salarybook-team-frame` | Patchable frame inside `#maincanvas`. SSE `switch-team` morphs this element. |
+| `#salarybook-team-frame` | Patchable frame inside `#maincanvas`. Team switch response morphs this element. |
 | `#rightpanel-base` | Team/system context underlay (sidebar team summary + tabs). |
 | `#rightpanel-overlay` | Entity overlay layer (player, agent, pick detail). |
 
@@ -135,13 +136,13 @@ Ownership map:
 - Shell: `web/app/views/tools/salary_book/show.html.erb`
 - Team section partials: `web/app/views/tools/salary_book/_team_section.html.erb`
 - Sidebar partials: `web/app/views/tools/salary_book/_sidebar_*.html.erb`
-- SSE controller: `web/app/controllers/tools/salary_book_sse_controller.rb`
+- Team switch controller: `web/app/controllers/tools/salary_book_switch_controller.rb`
 
 ### Patch guidance
 
 - Prefer section-level patches, not tiny leaf patches.
 - Keep IDs stable across refactors.
-- If interaction patches multiple boundaries, use one-off SSE.
+- If interaction patches multiple boundaries, use one response (HTML patch set or one-off SSE).
 - Protect third-party-managed DOM with `data-ignore-morph`.
 
 ---

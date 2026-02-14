@@ -1,69 +1,71 @@
 module Tools
-  class SalaryBookSseController < SalaryBookController
-    include Datastar
-
-    # GET /tools/salary-book/sse/switch-team?team=BOS&year=2025&view=salary-book
-    # One-request, multi-region team swap:
-    # - patch #salarybook-team-frame (main canvas)
-    # - patch #rightpanel-base (sidebar base)
+  class SalaryBookSwitchController < SalaryBookController
+    # GET /tools/salary-book/switch-team?team=BOS&year=2025&view=salary-book
+    # One-request, multi-region team swap via text/html morph-by-id patch set.
+    # Response body contains two top-level roots:
+    # - #salarybook-team-frame
+    # - #rightpanel-base
     # This preserves overlay state while keeping main + base in sync.
     def switch_team
       team_code = normalize_team_code(params[:team])
       year = salary_year_param
       view = salary_book_view_param
 
-      with_sse_stream do |sse|
-        begin
-          payload = fetch_team_support_payload(team_code, base_year: year)
-          summaries_by_year = payload[:team_summaries]
-          summary = summaries_by_year[year] || {}
-          team_meta = payload[:team_meta]
-
-          main_html = if view == "tankathon"
-            build_tankathon_main_html(team_code:, year:)
-          elsif view == "injuries"
-            build_injuries_main_html(team_code:, year:)
-          else
-            players = fetch_team_players(team_code)
-            build_salary_book_main_html(
-              team_code:,
-              year:,
-              players:,
-              cap_holds: payload[:cap_holds],
-              exceptions: payload[:exceptions],
-              dead_money: payload[:dead_money],
-              picks: payload[:picks],
-              summaries_by_year:,
-              team_meta:
-            )
-          end
-
-          sidebar_html = without_view_annotations do
-            render_to_string(
-              partial: "tools/salary_book/sidebar_team",
-              locals: {
-                team_code:,
-                summary:,
-                team_meta:,
-                summaries_by_year:,
-                year:
-              },
-            )
-          end
-
-          patch_elements_by_id(sse, main_html)
-          patch_elements_by_id(sse, sidebar_html)
-        rescue ActiveRecord::StatementInvalid => e
-          patch_maincanvas_error(sse, year:, message: e.message, view:, team_code:)
-          patch_flash(sse, "Salary Book team switch failed.")
-        end
-      end
+      main_html, sidebar_html = build_switch_team_sections(team_code:, year:, view:)
+      no_cache_headers!
+      render html: [main_html, sidebar_html].join("\n").html_safe, layout: false
+    rescue ActiveRecord::StatementInvalid => e
+      error_main_html = build_maincanvas_error_html(year:, message: e.message, view:, team_code:)
+      flash_html = %(<div id="flash">Salary Book team switch failed.</div>)
+      no_cache_headers!
+      render html: [error_main_html, flash_html].join("\n").html_safe, layout: false, status: :unprocessable_entity
     end
 
     private
 
-    def patch_maincanvas_error(sse, year:, message:, view:, team_code:)
-      html = if view == "tankathon"
+    def build_switch_team_sections(team_code:, year:, view:)
+      payload = fetch_team_support_payload(team_code, base_year: year)
+      summaries_by_year = payload[:team_summaries]
+      summary = summaries_by_year[year] || {}
+      team_meta = payload[:team_meta]
+
+      main_html = if view == "tankathon"
+        build_tankathon_main_html(team_code:, year:)
+      elsif view == "injuries"
+        build_injuries_main_html(team_code:, year:)
+      else
+        players = fetch_team_players(team_code)
+        build_salary_book_main_html(
+          team_code:,
+          year:,
+          players:,
+          cap_holds: payload[:cap_holds],
+          exceptions: payload[:exceptions],
+          dead_money: payload[:dead_money],
+          picks: payload[:picks],
+          summaries_by_year:,
+          team_meta:
+        )
+      end
+
+      sidebar_html = without_view_annotations do
+        render_to_string(
+          partial: "tools/salary_book/sidebar_team",
+          locals: {
+            team_code:,
+            summary:,
+            team_meta:,
+            summaries_by_year:,
+            year:
+          },
+        )
+      end
+
+      [main_html, sidebar_html]
+    end
+
+    def build_maincanvas_error_html(year:, message:, view:, team_code:)
+      if view == "tankathon"
         without_view_annotations do
           render_to_string(
             partial: "tools/salary_book/maincanvas_tankathon_frame",
@@ -112,8 +114,6 @@ module Tools
           )
         end
       end
-
-      patch_elements_by_id(sse, html)
     end
 
     def build_salary_book_main_html(team_code:, year:, players:, cap_holds:, exceptions:, dead_money:, picks:, summaries_by_year:, team_meta:)
@@ -182,6 +182,11 @@ module Tools
       yield
     ensure
       ActionView::Base.annotate_rendered_view_with_filenames = original
+    end
+
+    def no_cache_headers!
+      response.headers["Cache-Control"] = "no-store"
+      response.headers.delete("ETag")
     end
   end
 end

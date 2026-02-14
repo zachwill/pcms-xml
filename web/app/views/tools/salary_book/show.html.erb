@@ -53,7 +53,7 @@
 
     const effectiveview = ['injuries', 'tankathon'].includes($activeview) ? $activeview : 'salary-book';
 
-    @get('/tools/salary-book/sse/switch-team?team=' + teamcode + '&year=' + encodeURIComponent(effectiveyear) + '&view=' + encodeURIComponent(effectiveview));
+    @get('/tools/salary-book/switch-team?team=' + teamcode + '&year=' + encodeURIComponent(effectiveyear) + '&view=' + encodeURIComponent(effectiveview));
     window.history.replaceState({}, '', '<%= salary_book_base_path %>?team=' + teamcode + '&year=' + encodeURIComponent(effectiveyear) + '&view=' + encodeURIComponent(effectiveview));
   "
   data-on:salarybook-switch-view="

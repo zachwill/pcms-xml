@@ -5,7 +5,9 @@ Use this when implementing interactions that patch HTML from Rails.
 ## Response decision rule
 
 - **Single-region update** → `text/html`
-- **Multi-region/disjoint update** (or ordered patch steps) → `text/event-stream` (one-off SSE is normal)
+- **Multi-region/disjoint update**:
+  - **elements-only** and you can return multiple top-level roots by `id` → `text/html`
+  - **ordered patch steps / signal patches / streaming** → `text/event-stream`
 - **Signals-only update** → `application/json`
 
 ## Multi-region update rule (hard)
@@ -17,7 +19,7 @@ If one interaction must update two or more of:
 - `#rightpanel-overlay`
 - `#flash`
 
-→ respond with `text/event-stream` and stream patches in order.
+→ use **one request/response** (either HTML patch set or SSE stream).
 
 Do **not** do multiple fetches or client-side stitching.
 
@@ -34,7 +36,7 @@ Salary Book reference pattern:
   - validate/sanitize payload (`evt.detail.team`, optional `evt.detail.year`)
   - no-op if team is already active
   - update switch-related signals in one place
-  - perform one SSE call (`/tools/salary-book/sse/switch-team?...`)
+  - perform one call (`/tools/salary-book/switch-team?...`)
   - update URL with `history.replaceState`
 
 Payload contract:
@@ -131,23 +133,23 @@ data: elements </div>
 ## Repo examples
 
 - Concern: `web/app/controllers/concerns/datastar.rb`
-- SSE usage (Salary Book team switch): `web/app/controllers/tools/salary_book_sse_controller.rb`
+- Team switch usage (Salary Book): `web/app/controllers/tools/salary_book_switch_controller.rb`
 - Team switch event-bus contract: `web/docs/contracts/salary_book_team_switch_events.md`
 - HTML bootstrap (entities): `web/app/controllers/entities/players_sse_controller.rb`, `teams_sse_controller.rb`
 - Routes:
   - `GET /tools/salary-book/frame` (single-region HTML: patches `#salarybook-team-frame` for view switches)
-  - `GET /tools/salary-book/sse/switch-team` (multi-region SSE: patches `#salarybook-team-frame` + `#rightpanel-base`)
+  - `GET /tools/salary-book/switch-team` (multi-region HTML patch set: patches `#salarybook-team-frame` + `#rightpanel-base`)
   - `GET /players/:slug/sse/bootstrap` (text/html, morph-by-id)
   - `GET /teams/:slug/sse/bootstrap` (text/html, morph-by-id)
 
-Note: Salary Book **does not use an SSE bootstrap**. The initial team is server-rendered on page load (`SalaryBookController#show`). SSE is only used for subsequent team switches.
+Note: Salary Book **does not use an SSE bootstrap**. The initial team is server-rendered on page load (`SalaryBookController#show`).
 
 ## Salary Book endpoint patch map (current)
 
 | Endpoint | Response type | Primary patch target(s) |
 |---|---|---|
 | `GET /tools/salary-book/frame?view=...&team=...&year=...` | `text/html` | `#salarybook-team-frame` |
-| `GET /tools/salary-book/sse/switch-team?team=...&year=...&view=...` | `text/event-stream` | `#salarybook-team-frame`, `#rightpanel-base` |
+| `GET /tools/salary-book/switch-team?team=...&year=...&view=...` | `text/html` | `#salarybook-team-frame`, `#rightpanel-base` |
 | `GET /tools/salary-book/sidebar/team?team=...&year=...` | `text/html` | `#rightpanel-base` |
 | `GET /tools/salary-book/sidebar/team/cap?team=...&year=...` | `text/html` | `#sidebar-team-tab-cap` |
 | `GET /tools/salary-book/sidebar/team/draft?team=...&year=...` | `text/html` | `#sidebar-team-tab-draft` |
@@ -192,7 +194,7 @@ the rest.
 ## Avoid these traps
 
 - Missing anti-buffering headers (the concern handles this for SSE).
-- Treating SSE as "only long-lived" — one-off SSE is fine and preferred for multi-region.
+- Treating SSE as "only long-lived" — one-off SSE is fine when you need ordering/signals/streaming.
 - Emitting too many micro-patches instead of section-level patches.
 - Forgetting disconnect handling (the concern handles this for SSE).
 - Using SSE when `text/html` morph-by-id is sufficient (entity pages).
