@@ -3,6 +3,8 @@ module Tools
     include Datastar
 
     CURRENT_SALARY_YEAR = 2025
+    SALARY_YEAR_HORIZON = 7
+    AVAILABLE_SALARY_YEARS = (CURRENT_SALARY_YEAR...(CURRENT_SALARY_YEAR + SALARY_YEAR_HORIZON)).to_a.freeze
 
     SORT_SQL = {
       "cap_space_desc" => "(COALESCE(tsw.salary_cap_amount, 0) - COALESCE(tsw.cap_total_hold, 0)) DESC NULLS LAST, tsw.team_code",
@@ -24,13 +26,13 @@ module Tools
       @sort = "cap_space_desc"
       @rows = []
       @rows_by_code = {}
+      @team_picker_by_conference = { "Eastern" => [], "Western" => [] }
       @compare_a_code = nil
       @compare_b_code = nil
       @compare_a_row = nil
       @compare_b_row = nil
       @selected_team_code = nil
       @selected_row = nil
-      @team_finder_query = ""
       @state_params = {
         year: @selected_year,
         conference: @conference,
@@ -164,7 +166,6 @@ module Tools
           tssortasc: sort_ascending_for(@sort),
           tsconferenceeast: @conference != "Western",
           tsconferencewest: @conference != "Eastern",
-          tsteamfinderquery: @team_finder_query.to_s,
           selectedteam: @selected_team_code.to_s,
           comparea: @compare_a_code.to_s,
           compareb: @compare_b_code.to_s
@@ -189,11 +190,7 @@ module Tools
     end
 
     def fetch_available_years
-      conn.exec_query(<<~SQL).rows.flatten.map(&:to_i)
-        SELECT DISTINCT salary_year
-        FROM pcms.team_salary_warehouse
-        ORDER BY salary_year
-      SQL
+      AVAILABLE_SALARY_YEARS
     end
 
     def resolve_selected_year(available_years)
@@ -287,10 +284,6 @@ module Tools
       code.match?(/\A[A-Z]{3}\z/) ? code : nil
     end
 
-    def resolve_team_finder_query(value)
-      value.to_s.strip.tr("\u0000", "")[0, 80]
-    end
-
     def resolve_compare_action(value)
       normalized = value.to_s.strip
       return normalized if %w[pin clear_slot clear_all].include?(normalized)
@@ -344,7 +337,6 @@ module Tools
       @conference = resolve_conference_from_params
       @pressure = resolve_pressure(params[:pressure])
       @sort = resolve_sort_from_params
-      @team_finder_query = resolve_team_finder_query(params[:team_finder_query])
 
       @rows = fetch_team_summary_rows(
         year: @selected_year,
@@ -353,6 +345,7 @@ module Tools
         sort: @sort
       )
       @rows_by_code = @rows.index_by { |row| row["team_code"] }
+      @team_picker_by_conference = build_team_picker_by_conference(year: @selected_year)
 
       @compare_a_code = resolve_team_code(params[:compare_a])
       @compare_b_code = resolve_team_code(params[:compare_b])
@@ -366,7 +359,17 @@ module Tools
 
     def hydrate_sidebar_payload!
       lookup_codes = [@selected_team_code, @compare_a_code, @compare_b_code].compact.uniq
-      lookup_rows_by_code = fetch_rows_by_team_codes(year: @selected_year, team_codes: lookup_codes)
+      lookup_rows_by_code = {}
+
+      lookup_codes.each do |code|
+        row = @rows_by_code[code]
+        lookup_rows_by_code[code] = row if row.present?
+      end
+
+      missing_codes = lookup_codes - lookup_rows_by_code.keys
+      if missing_codes.any?
+        lookup_rows_by_code.merge!(fetch_rows_by_team_codes(year: @selected_year, team_codes: missing_codes))
+      end
 
       @compare_a_row = @compare_a_code.present? ? lookup_rows_by_code[@compare_a_code] : nil
       @compare_b_row = @compare_b_code.present? ? lookup_rows_by_code[@compare_b_code] : nil
@@ -375,9 +378,7 @@ module Tools
       @compare_b_code = nil if @compare_b_code.present? && @compare_b_row.blank?
       normalize_compare_slots!
 
-      @selected_row = if @selected_team_code.present?
-        @rows_by_code[@selected_team_code] || lookup_rows_by_code[@selected_team_code]
-      end
+      @selected_row = @selected_team_code.present? ? lookup_rows_by_code[@selected_team_code] : nil
       @selected_team_code = nil unless @selected_row.present?
     end
 
@@ -387,7 +388,6 @@ module Tools
         conference: @conference,
         pressure: @pressure,
         sort: @sort,
-        team_finder_query: @team_finder_query.presence,
         selected: @selected_team_code.presence,
         compare_a: @compare_a_code.presence,
         compare_b: @compare_b_code.presence
@@ -447,6 +447,33 @@ module Tools
       codes.each_with_object({}) do |code, acc|
         acc[code] = rows_by_code[code] if rows_by_code.key?(code)
       end
+    end
+
+    def build_team_picker_by_conference(year:)
+      rows = fetch_team_summary_rows(
+        year: year,
+        conference: "all",
+        pressure: "all",
+        sort: "team_asc",
+        apply_filters: false
+      )
+
+      picker = { "Eastern" => [], "Western" => [] }
+
+      rows.each do |row|
+        code = resolve_team_code(row["team_code"])
+        next if code.blank?
+
+        conference = row["conference_name"].to_s
+        next unless picker.key?(conference)
+
+        picker[conference] << {
+          code: code,
+          name: row["team_name"].presence || code
+        }
+      end
+
+      picker
     end
 
     def fetch_team_summary_rows(year:, conference:, pressure:, sort:, team_codes: nil, apply_filters: true)
@@ -509,13 +536,15 @@ module Tools
           tsw.apron_level_lk,
           tsw.roster_row_count,
           tsw.two_way_row_count,
-          tax_calc.luxury_tax_owed,
+          pcms.fn_luxury_tax_amount(
+            tsw.salary_year,
+            GREATEST(0::bigint, COALESCE(tsw.tax_total, 0) - COALESCE(tsw.tax_level_amount, 0)),
+            COALESCE(tsw.is_repeater_taxpayer, false)
+          ) AS luxury_tax_owed,
           tsw.refreshed_at
         FROM pcms.team_salary_warehouse tsw
         JOIN pcms.teams t
           ON t.team_code = tsw.team_code
-        LEFT JOIN LATERAL pcms.fn_team_luxury_tax(tsw.team_code, tsw.salary_year) tax_calc
-          ON true
         WHERE #{where_clauses.join(" AND ")}
         ORDER BY #{order_sql}
       SQL

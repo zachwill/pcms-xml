@@ -48,14 +48,17 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
           rows = rows.select { |row| row["active_list_games_limit_is_estimate"] }
         end
 
-        if (match = where_clause.match(/tw\.player_name ILIKE '([^']*)'/))
-          pattern = match[1].gsub("''", "'").downcase.delete("%")
-          rows = rows.select do |row|
-            row["player_name"].to_s.downcase.include?(pattern) || row["player_id"].to_s.include?(pattern)
-          end
-        end
-
         rows = rows.sort_by { |row| [row["team_code"], row["player_name"]] }
+        return to_result(rows)
+      end
+
+      if sql.include?("FROM nba.standings s")
+        rows = standings_rows
+
+        if (match = sql.match(/IN \(([^\)]+)\)/))
+          requested_codes = match[1].scan(/'([A-Z]{3})'/).flatten
+          rows = rows.select { |row| requested_codes.include?(row["team_code"]) } if requested_codes.any?
+        end
 
         return to_result(rows)
       end
@@ -187,6 +190,14 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       ]
     end
 
+    def standings_rows
+      @standings_rows ||= [
+        { "team_code" => "BOS", "record" => "41-19" },
+        { "team_code" => "POR", "record" => "26-28" },
+        { "team_code" => "LAL", "record" => "34-24" }
+      ]
+    end
+
     def team_rows
       @team_rows ||= [
         { "team_id" => 1610612738, "team_code" => "BOS", "team_name" => "Boston Celtics", "conference_name" => "Eastern" },
@@ -208,238 +219,53 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
     host! "localhost"
   end
 
-  test "two-way utility renders risk controls and sidebar shell" do
+  test "two-way utility refresh renders team-button commandbar and simplified sidebar" do
     with_fake_connection do
       get "/tools/two-way-utility/sse/refresh", params: {
         conference: "all",
         team: "",
-        risk: "all",
-        intent: ""
+        risk: "all"
       }, headers: modern_headers
 
       assert_response :success
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, 'id="commandbar"'
-      assert_includes response.body, 'id="two-way-intent-input"'
-      assert_includes response.body, 'id="two-way-team-select"'
-      assert_includes response.body, "Player intent"
-      assert_includes response.body, "Risk lens"
+      assert_includes response.body, "Eastern"
+      assert_includes response.body, "Western"
+      assert_not_includes response.body, "Scope"
+      assert_includes response.body, 'title="Boston Celtics"'
+      assert_includes response.body, 'title="Portland Trail Blazers"'
+      assert_not_includes response.body, 'id="two-way-intent-input"'
+      assert_not_includes response.body, 'id="two-way-team-select"'
+      assert_not_includes response.body, "Compare board"
+      assert_not_includes response.body, ">Pin A</button>"
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, 'id="rightpanel-base"'
-      assert_includes response.body, 'id="rightpanel-overlay"'
-      assert_includes response.body, "Compare board"
-      assert_includes response.body, ">Pin A</button>"
-      assert_includes response.body, ">Pin B</button>"
-      assert_includes response.body, "Cmd/Ctrl+K"
+      assert_includes response.body, "Team pressure"
+      assert_includes response.body, "Quick risk queue"
+      assert_includes response.body, "41-19"
+      assert_includes response.body, "26-28"
     end
   end
 
-  test "two-way utility show wires cmd ctrl+k intent focus" do
+  test "two-way utility show uses simplified signal model" do
     with_fake_connection do
       get "/tools/two-way-utility", params: {
         conference: "all",
         team: "",
-        risk: "all",
-        intent: ""
+        risk: "all"
       }, headers: modern_headers
 
       assert_response :success
       assert_equal "text/html", response.media_type
       assert_includes response.body, 'id="two-way-utility-workspace"'
-      assert_includes response.body, "toLowerCase() ==="
-      assert_includes response.body, "key !== &#39;Escape&#39; || isEditable"
-      assert_includes response.body, "target.isContentEditable"
-      assert_includes response.body, "[data-two-way-overlay-clear]"
-      assert_includes response.body, "two-way-intent-input"
-      assert_includes response.body, "finder.focus(); finder.select();"
-      assert_includes response.body, "Cmd/Ctrl+K"
-    end
-  end
-
-  test "two-way utility refresh renders compare board risk-source context from compare params" do
-    with_fake_connection do
-      get "/tools/two-way-utility/sse/refresh", params: {
-        conference: "all",
-        team: "",
-        risk: "all",
-        compare_a: "1001",
-        compare_b: "1002"
-      }, headers: modern_headers
-
-      assert_response :success
-      assert_includes response.media_type, "text/event-stream"
-      assert_includes response.body, '"comparea":"1001"'
-      assert_includes response.body, '"compareb":"1002"'
-      assert_includes response.body, "Warning Wing vs Critical Prospect delta"
-      assert_includes response.body, "Risk source: hard limit · critical threshold posture (≤10 left)."
-      assert_includes response.body, "Risk source: hard limit · warning threshold posture (≤20 left)."
-      assert_includes response.body, "Signal basis: both players are hard limit."
-      assert_includes response.body, "Remaining games (hard-limit)"
-      assert_includes response.body, "Signing context"
-    end
-  end
-
-  test "two-way utility refresh delta flags estimate-aware basis when either slot uses estimates" do
-    with_fake_connection do
-      get "/tools/two-way-utility/sse/refresh", params: {
-        conference: "all",
-        team: "",
-        risk: "all",
-        compare_a: "1001",
-        compare_b: "1003"
-      }, headers: modern_headers
-
-      assert_response :success
-      assert_includes response.media_type, "text/event-stream"
-      assert_includes response.body, "Estimate Guard vs Critical Prospect delta"
-      assert_includes response.body, "Signal basis: Critical Prospect is hard limit; Estimate Guard is estimated limit."
-      assert_includes response.body, "Remaining games (estimate-aware)"
-      assert_includes response.body, "Risk source: estimated limit · above warning threshold"
-    end
-  end
-
-  test "two-way utility sidebar endpoint returns player drill-in pivots" do
-    with_fake_connection do
-      get "/tools/two-way-utility/sidebar/1001", params: { conference: "all", team: "", risk: "all" }, headers: modern_headers
-
-      assert_response :success
-      assert_equal "text/html", response.media_type
-      assert_includes response.body, 'id="rightpanel-overlay"'
-      assert_includes response.body, "data-two-way-overlay-clear"
-      assert_includes response.body, "Usage trend"
-      assert_includes response.body, "Open player page"
-      assert_includes response.body, "Open team page"
-      assert_includes response.body, "Open agent page"
-      assert_includes response.body, ">Pin A</button>"
-      assert_includes response.body, ">Pin B</button>"
-      assert_includes response.body, "/tools/two-way-utility/sse/refresh?conference=all&amp;team=&amp;risk=all&amp;intent="
-      assert_includes response.body, "compare_action=pin&amp;compare_slot=a&amp;player_id=1001"
-      assert_includes response.body, "compare_action=pin&amp;compare_slot=b&amp;player_id=1001"
-      assert_includes response.body, "compare_action=clear_slot&amp;compare_slot=a"
-      assert_includes response.body, "compare_action=clear_slot&amp;compare_slot=b"
-      assert_includes response.body, "$comparea === '1001'"
-      assert_includes response.body, "$compareb === '1001'"
-    end
-  end
-
-  test "two-way utility commandbar refresh keeps selected-id, intent, and cursor context in request params" do
-    with_fake_connection do
-      get "/tools/two-way-utility/sse/refresh", params: {
-        conference: "all",
-        team: "",
-        risk: "all",
-        intent: ""
-      }, headers: modern_headers
-
-      assert_response :success
-      assert_includes response.body, "selected_id="
-      assert_includes response.body, "overlaytype === &#39;player&#39; ? $overlayid : &#39;&#39;"
-      assert_includes response.body, "compare_a="
-      assert_includes response.body, "compare_b="
-      assert_includes response.body, "intent="
-      assert_includes response.body, "$twintent"
-      assert_includes response.body, "intent_cursor="
-      assert_includes response.body, "intent_cursor_index="
-      assert_includes response.body, "$twintentcursor"
-      assert_includes response.body, "$twintentcursorindex"
-    end
-  end
-
-  test "two-way utility refresh applies intent filter and keeps intent highlights in grouped rows" do
-    with_fake_connection do
-      get "/tools/two-way-utility/sse/refresh", params: {
-        conference: "all",
-        team: "",
-        risk: "all",
-        intent: "Warning"
-      }, headers: modern_headers
-
-      assert_response :success
-      assert_includes response.media_type, "text/event-stream"
-      assert_includes response.body, 'id="commandbar"'
-      assert_includes response.body, "Warning Wing"
-      assert_not_includes response.body, "Critical Prospect"
-      assert_not_includes response.body, "Estimate Guard"
-      assert_includes response.body, "Intent matches"
-      assert_includes response.body, "INTENT"
-      assert_includes response.body, 'id="two-way-intent-shortlist"'
-      assert_includes response.body, "id exact/name prefix/contains"
-      assert_includes response.body, "↑/↓ pick · Enter opens overlay"
-      assert_includes response.body, "ArrowDown"
-      assert_includes response.body, 'data-two-way-match-reason="name_prefix"'
-      assert_includes response.body, "name prefix"
-      assert_includes response.body, '"twintent":"Warning"'
-      assert_includes response.body, '"twintentcursor":"1002"'
-      assert_includes response.body, '"twintentcursorindex":0'
-    end
-  end
-
-  test "two-way utility intent shortlist labels id exact and contains rationale" do
-    with_fake_connection do
-      get "/tools/two-way-utility/sse/refresh", params: {
-        conference: "all",
-        team: "",
-        risk: "all",
-        intent: "1002"
-      }, headers: modern_headers
-
-      assert_response :success
-      assert_includes response.media_type, "text/event-stream"
-      assert_includes response.body, 'data-two-way-match-reason="id_exact"'
-      assert_includes response.body, "id exact"
-
-      get "/tools/two-way-utility/sse/refresh", params: {
-        conference: "all",
-        team: "",
-        risk: "all",
-        intent: "mate"
-      }, headers: modern_headers
-
-      assert_response :success
-      assert_includes response.media_type, "text/event-stream"
-      assert_includes response.body, 'data-two-way-match-reason="contains"'
-      assert_includes response.body, "contains"
-    end
-  end
-
-  test "two-way utility refresh keeps overlay selection when intent still includes selected row" do
-    with_fake_connection do
-      get "/tools/two-way-utility/sse/refresh", params: {
-        conference: "all",
-        team: "",
-        risk: "all",
-        intent: "Warning",
-        selected_id: "1002"
-      }, headers: modern_headers
-
-      assert_response :success
-      assert_includes response.media_type, "text/event-stream"
-      assert_includes response.body, 'id="rightpanel-overlay"'
-      assert_includes response.body, '"overlaytype":"player"'
-      assert_includes response.body, '"overlayid":"1002"'
-      assert_includes response.body, '"twintent":"Warning"'
-    end
-  end
-
-  test "two-way utility refresh preserves requested intent cursor across refresh" do
-    with_fake_connection do
-      get "/tools/two-way-utility/sse/refresh", params: {
-        conference: "all",
-        team: "",
-        risk: "all",
-        intent: "1",
-        intent_cursor: "1002",
-        intent_cursor_index: "1"
-      }, headers: modern_headers
-
-      assert_response :success
-      assert_includes response.media_type, "text/event-stream"
-      assert_includes response.body, '"twintent":"1"'
-      assert_includes response.body, '"twintentcursor":"1002"'
-      assert_includes response.body, '"twintentcursorindex":1'
-      assert_includes response.body, "intent_cursor="
-      assert_includes response.body, "$twintentcursor"
-      assert_includes response.body, "$twintentcursorindex"
+      assert_includes response.body, '"twconference":"all"'
+      assert_includes response.body, '"twteam":""'
+      assert_includes response.body, '"twrisk":"all"'
+      assert_not_includes response.body, "twintent"
+      assert_not_includes response.body, "comparea"
+      assert_not_includes response.body, "compareb"
+      assert_not_includes response.body, "Cmd/Ctrl+K"
     end
   end
 
@@ -448,7 +274,7 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       get "/tools/two-way-utility/sse/refresh", params: {
         conference: "Western",
         team: "POR",
-        risk: "critical"
+        risk: "warning"
       }, headers: modern_headers
 
       assert_response :success
@@ -461,68 +287,50 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "event: datastar-patch-signals"
       assert_includes response.body, '"twconference":"Western"'
       assert_includes response.body, '"twteam":"POR"'
-      assert_includes response.body, '"twrisk":"critical"'
-      assert_includes response.body, '"twintent":""'
-      assert_includes response.body, '"twintentcursor":""'
-      assert_includes response.body, '"twintentcursorindex":0'
-      assert_includes response.body, '"comparea":""'
-      assert_includes response.body, '"compareb":""'
+      assert_includes response.body, '"twrisk":"warning"'
       assert_includes response.body, '"overlaytype":"none"'
       assert_includes response.body, '"overlayid":""'
+      assert_not_includes response.body, "twintent"
+      assert_not_includes response.body, "comparea"
+      assert_not_includes response.body, "compareb"
     end
   end
 
-  test "two-way utility compare pin action updates compare slots without losing overlay context" do
+  test "two-way utility sidebar endpoint returns player drill-in without compare controls" do
     with_fake_connection do
-      get "/tools/two-way-utility/sse/refresh", params: {
-        conference: "all",
-        team: "",
-        risk: "all",
-        selected_id: "1002",
-        compare_a: "",
-        compare_b: "",
-        compare_action: "pin",
-        compare_slot: "a",
-        player_id: "1001"
-      }, headers: modern_headers
+      get "/tools/two-way-utility/sidebar/1001", params: { conference: "all", team: "", risk: "all" }, headers: modern_headers
 
       assert_response :success
-      assert_includes response.media_type, "text/event-stream"
-      assert_includes response.body, 'id="rightpanel-base"'
-      assert_includes response.body, "Critical Prospect"
-      assert_includes response.body, '"comparea":"1001"'
-      assert_includes response.body, '"compareb":""'
-      assert_includes response.body, '"overlaytype":"player"'
-      assert_includes response.body, '"overlayid":"1002"'
-    end
-  end
-
-  test "two-way utility compare clear_slot action keeps selected overlay stable" do
-    with_fake_connection do
-      get "/tools/two-way-utility/sse/refresh", params: {
-        conference: "all",
-        team: "",
-        risk: "all",
-        selected_id: "1001",
-        compare_a: "1001",
-        compare_b: "1002",
-        compare_action: "clear_slot",
-        compare_slot: "a"
-      }, headers: modern_headers
-
-      assert_response :success
-      assert_includes response.media_type, "text/event-stream"
-      assert_includes response.body, '"comparea":""'
-      assert_includes response.body, '"compareb":"1002"'
-      assert_includes response.body, '"overlaytype":"player"'
-      assert_includes response.body, '"overlayid":"1001"'
+      assert_equal "text/html", response.media_type
       assert_includes response.body, 'id="rightpanel-overlay"'
-      assert_includes response.body, "Clear A"
-      assert_includes response.body, "Pin B"
+      assert_includes response.body, "Usage trend"
+      assert_includes response.body, "Open player page"
+      assert_includes response.body, "Open team page"
+      assert_includes response.body, "Open agent page"
+      assert_not_includes response.body, ">Pin A</button>"
+      assert_not_includes response.body, ">Pin B</button>"
+      assert_not_includes response.body, "compare_action="
     end
   end
 
-  test "two-way utility refresh preserves selected overlay when player remains visible" do
+  test "two-way utility team filter scopes rows to selected team" do
+    with_fake_connection do
+      get "/tools/two-way-utility/sse/refresh", params: {
+        conference: "all",
+        team: "POR",
+        risk: "all"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, "Warning Wing"
+      assert_not_includes response.body, "Critical Prospect"
+      assert_not_includes response.body, "Estimate Guard"
+      assert_includes response.body, '"twteam":"POR"'
+    end
+  end
+
+  test "two-way utility refresh preserves and clears overlay selection based on visibility" do
     with_fake_connection do
       get "/tools/two-way-utility/sse/refresh", params: {
         conference: "all",
@@ -533,16 +341,10 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_includes response.media_type, "text/event-stream"
-      assert_includes response.body, 'id="rightpanel-overlay"'
-      assert_includes response.body, "Warning Wing"
       assert_includes response.body, '"overlaytype":"player"'
       assert_includes response.body, '"overlayid":"1002"'
-      assert_includes response.body, "Selected"
-    end
-  end
+      assert_includes response.body, "Warning Wing"
 
-  test "two-way utility refresh clears selected overlay when player is filtered out" do
-    with_fake_connection do
       get "/tools/two-way-utility/sse/refresh", params: {
         conference: "Eastern",
         team: "BOS",

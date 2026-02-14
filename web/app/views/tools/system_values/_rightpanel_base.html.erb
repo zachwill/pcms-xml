@@ -16,14 +16,14 @@
   </div>
 
   <div class="rounded-lg border border-border bg-background p-3 space-y-2">
-    <div class="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/80">Metric finder shortlist state</div>
+    <div class="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/80">Selection state</div>
     <% if @metric_finder_query.present? %>
       <div class="rounded border border-border/70 bg-muted/20 px-2 py-1.5 text-xs">
-        <div class="font-medium text-foreground">Query: <span class="font-mono tabular-nums"><%= @metric_finder_query %></span></div>
-        <div class="mt-0.5 text-muted-foreground"><%= Array(@metric_finder_shortlist).size %> ranked shortlist rows · reason badges (exact/prefix/context) · Enter opens the highlighted row.</div>
+        <div class="font-medium text-foreground">Deep-link query: <span class="font-mono tabular-nums"><%= @metric_finder_query %></span></div>
+        <div class="mt-0.5 text-muted-foreground"><%= Array(@metric_finder_shortlist).size %> shortlist rows resolved for this state.</div>
       </div>
     <% else %>
-      <div class="text-xs text-muted-foreground">Use Cmd/Ctrl+K to focus Metric finder, then type intent and use ↑/↓ + Enter for one-keystroke drill-in.</div>
+      <div class="text-xs text-muted-foreground">Use table cells and quick drill-ins to open selected-vs-baseline context in the overlay.</div>
     <% end %>
 
     <% if @active_metric_finder_option.present? %>

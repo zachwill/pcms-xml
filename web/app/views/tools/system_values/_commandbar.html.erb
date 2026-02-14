@@ -1,272 +1,144 @@
 <% overlay_query_expr ||= "''" %>
-<% metric_shortlist = Array(@metric_finder_shortlist) %>
-<% metric_shortlist_values_json = metric_shortlist.map { |option| option[:value].to_s }.to_json %>
 
-<%
-  shortlist_refresh_expr = "@get('#{tools_system_values_sse_refresh_path}?' + (#{overlay_query_expr}))"
-
-  metric_query_input_expr = "clearTimeout(window.__systemValuesFinderDebounce); window.__systemValuesFinderDebounce = setTimeout(() => { #{shortlist_refresh_expr}; }, 140);"
-
-  metric_shortlist_keyboard_expr = <<~JS.squish
-    const shortlistValues = #{metric_shortlist_values_json};
-
-    if ((evt.key === 'ArrowDown' || evt.key === 'ArrowUp') && shortlistValues.length) {
-      evt.preventDefault();
-
-      let cursorIndex = Number($svmetricfindercursorindex || 0);
-      if (!Number.isFinite(cursorIndex) || cursorIndex < 0 || cursorIndex >= shortlistValues.length) {
-        cursorIndex = 0;
-      }
-
-      const step = evt.key === 'ArrowDown' ? 1 : -1;
-      cursorIndex = (cursorIndex + step + shortlistValues.length) % shortlistValues.length;
-      $svmetricfindercursorindex = cursorIndex;
-      $svmetricfindercursor = shortlistValues[cursorIndex];
-      return;
-    }
-
-    if (evt.key === 'Enter') {
-      evt.preventDefault();
-      const targetValue = ($svmetricfindercursor && String($svmetricfindercursor)) || shortlistValues[0] || '';
-      if (!targetValue) {
-        #{shortlist_refresh_expr};
-        return;
-      }
-
-      let cursorIndex = shortlistValues.indexOf(targetValue);
-      if (cursorIndex < 0) { cursorIndex = 0; }
-      $svmetricfindercursorindex = cursorIndex;
-      $svmetricfindercursor = targetValue;
-      el.dispatchEvent(new CustomEvent('system-values-jump', { bubbles: true, detail: { value: targetValue, cursorIndex: cursorIndex } }));
-    }
-  JS
-%>
-
-<div class="flex-1 min-w-0 space-y-3">
-  <div>
-    <h1 class="text-sm font-semibold tracking-wide uppercase">System Values</h1>
-    <p class="text-[11px] text-muted-foreground">League constants, tax brackets, salary scales, rookie scale grid</p>
-  </div>
-
+<div class="flex-1 min-w-0">
   <form
     method="get"
     action="<%= tools_system_values_path %>"
-    class="flex flex-wrap items-end gap-3"
+    class="flex items-start gap-4 min-w-0 overflow-x-auto pb-1"
     role="group"
     aria-label="System Values controls"
     data-on:submit="evt.preventDefault(); @get('<%= tools_system_values_sse_refresh_path %>?' + (<%= overlay_query_expr %>));"
   >
-    <div class="space-y-1">
-      <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-year-select">Season</label>
-      <select
-        id="system-values-year-select"
-        name="year"
-        class="h-7 rounded border border-border bg-muted/50 px-2 text-xs"
-        data-bind="svyear"
-      >
-        <% @available_years.each do |candidate_year| %>
-          <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @selected_year %>><%= format_year_label(candidate_year) %></option>
-        <% end %>
-      </select>
-    </div>
+    <input type="hidden" name="metric_finder_query" value="<%= @metric_finder_query %>" data-bind="svmetricfinderquery" />
+    <input type="hidden" name="metric_finder_cursor" value="<%= @metric_finder_cursor_value %>" data-bind="svmetricfindercursor" />
 
-    <div class="space-y-1">
-      <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-baseline-year-select">Baseline</label>
-      <select
-        id="system-values-baseline-year-select"
-        name="baseline_year"
-        class="h-7 rounded border border-border bg-muted/50 px-2 text-xs"
-        data-bind="svbaseline"
-      >
-        <% @available_years.each do |candidate_year| %>
-          <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @baseline_year %>><%= format_year_label(candidate_year) %></option>
-        <% end %>
-      </select>
-    </div>
-
-    <div class="space-y-1">
-      <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-from-year-select">From</label>
-      <select
-        id="system-values-from-year-select"
-        name="from_year"
-        class="h-7 rounded border border-border bg-muted/50 px-2 text-xs font-mono tabular-nums"
-        data-bind="svfrom"
-      >
-        <% @available_years.each do |candidate_year| %>
-          <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @from_year %>><%= candidate_year %></option>
-        <% end %>
-      </select>
-    </div>
-
-    <div class="space-y-1">
-      <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-to-year-select">To</label>
-      <select
-        id="system-values-to-year-select"
-        name="to_year"
-        class="h-7 rounded border border-border bg-muted/50 px-2 text-xs font-mono tabular-nums"
-        data-bind="svto"
-      >
-        <% @available_years.each do |candidate_year| %>
-          <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @to_year %>><%= candidate_year %></option>
-        <% end %>
-      </select>
-    </div>
-
-    <button type="submit" class="h-7 px-2 rounded border border-border bg-muted/50 text-xs font-medium hover:bg-muted">Apply</button>
-
-    <button
-      type="button"
-      class="h-7 px-2 rounded border border-border bg-background text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted"
-      data-show="$svoverlaysection !== ''"
-      style="display: none;"
-      data-on:click="$svmetricfinder=''; $svoverlaysection=''; $svoverlaymetric=''; $svoverlayyear=''; $svoverlaylower=''; $svoverlayupper=''; @get('<%= tools_system_values_sidebar_clear_path %>')"
-    >Clear drill-in</button>
-
-    <div class="h-7 w-px bg-border self-end mx-1"></div>
-
-    <div
-      class="space-y-1 min-w-[24rem]"
-      data-on:system-values-jump="
-        const raw = (evt.detail && evt.detail.value) ? String(evt.detail.value) : '';
-        if (!raw) { return; }
-
-        const parts = raw.split('|');
-        if (parts.length < 6) { return; }
-
-        const section = parts[0];
-        const metric = parts[1];
-        const year = parts[2];
-        const lower = parts[3] || '';
-        const upper = parts[4] || '';
-        const anchorId = parts[5] || '';
-
-        if (section === 'system') { $showsystemvalues = true; }
-        if (section === 'tax') { $showtaxrates = true; }
-        if (section === 'minimum') { $showsalaryscales = true; }
-        if (section === 'rookie') { $showrookiescales = true; }
-
-        if (evt.detail && Number.isFinite(Number(evt.detail.cursorIndex))) {
-          $svmetricfindercursorindex = Number(evt.detail.cursorIndex);
-        }
-
-        $svmetricfinder = raw;
-        $svmetricfindercursor = raw;
-        $svoverlaysection = section;
-        $svoverlaymetric = metric;
-        $svoverlayyear = year;
-        $svoverlaylower = lower;
-        $svoverlayupper = upper;
-        $activesection = section;
-
-        const scroller = document.getElementById('maincanvas');
-        const target = anchorId ? document.getElementById(anchorId) : null;
-        if (scroller && target) {
-          scroller.scrollTo({ top: Math.max(target.offsetTop - 52, 0), behavior: 'smooth' });
-        }
-
-        @get('<%= tools_system_values_sidebar_metric_path %>?' + (<%= overlay_query_expr %>));
-      "
-    >
-      <div class="flex items-center justify-between gap-2">
-        <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70" for="system-values-metric-finder-query">Metric finder</label>
-        <span class="inline-flex items-center rounded border border-border/70 bg-background px-1.5 py-0.5 text-[9px] font-mono tabular-nums text-muted-foreground/80">Cmd/Ctrl+K</span>
-      </div>
+    <div class="min-w-[24rem] space-y-1">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Season Lens</div>
       <div class="flex items-center gap-1.5">
-        <input
-          id="system-values-metric-finder-query"
-          type="search"
-          placeholder="Type metric intent (cap, apron, YOS, pick...)"
-          class="h-7 min-w-[21rem] rounded border border-border bg-muted/50 px-2 text-xs"
-          value="<%= @metric_finder_query %>"
-          data-bind="svmetricfinderquery"
-          data-on:input="$svmetricfindercursor=''; $svmetricfindercursorindex=0; <%= metric_query_input_expr %>"
-          data-on:keydown="<%= metric_shortlist_keyboard_expr %>"
-        />
+        <select
+          id="system-values-year-select"
+          name="year"
+          class="h-7 w-[6.5rem] rounded border border-border bg-muted/50 px-2 text-xs font-mono tabular-nums"
+          data-bind="svyear"
+        >
+          <% @available_years.each do |candidate_year| %>
+            <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @selected_year %>><%= format_year_label(candidate_year) %></option>
+          <% end %>
+        </select>
 
-        <button
-          type="button"
-          class="h-7 px-2 rounded border border-border bg-background text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted"
-          data-on:click="const targetValue = $svmetricfindercursor || ''; if (!targetValue) { return; } el.dispatchEvent(new CustomEvent('system-values-jump', { bubbles: true, detail: { value: targetValue, cursorIndex: Number($svmetricfindercursorindex || 0) } }));"
-        >Open</button>
+        <span class="text-[10px] uppercase tracking-wide text-muted-foreground/70">vs</span>
 
-        <button
-          type="button"
-          class="h-7 px-2 rounded border border-border bg-background text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted"
-          data-on:click="$svmetricfinderquery=''; $svmetricfindercursor=''; $svmetricfindercursorindex=0; @get('<%= tools_system_values_sse_refresh_path %>?' + (<%= overlay_query_expr %>));"
-        >Clear</button>
-      </div>
+        <select
+          id="system-values-baseline-year-select"
+          name="baseline_year"
+          class="h-7 w-[6.5rem] rounded border border-border bg-muted/50 px-2 text-xs font-mono tabular-nums"
+          data-bind="svbaseline"
+        >
+          <% @available_years.each do |candidate_year| %>
+            <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @baseline_year %>><%= format_year_label(candidate_year) %></option>
+          <% end %>
+        </select>
 
-      <div class="flex items-center gap-1.5 min-h-[20px]">
-        <% if metric_shortlist.any? %>
-          <div id="system-values-metric-shortlist" class="flex items-center gap-1.5 overflow-x-auto pr-1">
-            <% metric_shortlist.each_with_index do |option, idx| %>
-              <% cursor_value = option[:value].to_s %>
-              <% match_reason = option[:match_reason].to_s.presence || "context" %>
-              <% reason_badge_classes = case match_reason
-              when "exact"
-                "border-emerald-300/70 dark:border-emerald-500/50 bg-emerald-50/70 dark:bg-emerald-900/25 text-emerald-700 dark:text-emerald-300"
-              when "prefix"
-                "border-blue-300/70 dark:border-blue-500/50 bg-blue-50/70 dark:bg-blue-900/25 text-blue-700 dark:text-blue-300"
-              else
-                "border-amber-300/70 dark:border-amber-500/50 bg-amber-50/70 dark:bg-amber-900/25 text-amber-700 dark:text-amber-300"
-              end %>
-              <button
-                type="button"
-                class="cursor-pointer h-5 px-1.5 rounded border border-border/70 bg-background text-[10px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors whitespace-nowrap"
-                data-class="{ 'border-foreground/40 bg-yellow-50/70 dark:bg-yellow-900/20 text-foreground': $svmetricfindercursor === '<%= cursor_value %>' }"
-                data-on:mouseenter="$svmetricfindercursorindex=<%= idx %>; $svmetricfindercursor='<%= cursor_value %>'"
-                data-on:focus="$svmetricfindercursorindex=<%= idx %>; $svmetricfindercursor='<%= cursor_value %>'"
-                data-on:click="$svmetricfindercursorindex=<%= idx %>; $svmetricfindercursor='<%= cursor_value %>'; el.dispatchEvent(new CustomEvent('system-values-jump', { bubbles: true, detail: { value: '<%= cursor_value %>', cursorIndex: <%= idx %> } }));"
-              >
-                <span class="font-mono tabular-nums">#<%= idx + 1 %></span>
-                <span class="mx-1">·</span>
-                <span class="font-medium text-foreground"><%= option[:metric_label] %></span>
-                <span class="mx-1">·</span>
-                <span><%= option[:context_label] %></span>
-                <span class="mx-1">·</span>
-                <span data-system-values-match-reason="<%= match_reason %>" class="inline-flex items-center rounded border px-1 py-0.5 text-[9px] uppercase tracking-wide <%= reason_badge_classes %>"><%= match_reason %></span>
-              </button>
-            <% end %>
-          </div>
-        <% elsif @metric_finder_query.present? %>
-          <span class="text-[10px] text-muted-foreground/70">No shortlist matches in current year/lens.</span>
-        <% end %>
-      </div>
+        <span class="text-[10px] uppercase tracking-wide text-muted-foreground/70">range</span>
 
-      <div class="text-[10px] text-muted-foreground/70 tabular-nums">
-        <% if @metric_finder_query.present? %>
-          <span><%= metric_shortlist.size %> shortlist rows · exact/prefix/context badges · ↑/↓ pick · Enter opens overlay · Cmd/Ctrl+K focus</span>
-        <% else %>
-          <span>Cmd/Ctrl+K focuses finder · type intent for ranked shortlist · Enter opens overlay.</span>
-        <% end %>
+        <select
+          id="system-values-from-year-select"
+          name="from_year"
+          class="h-7 w-[5.25rem] rounded border border-border bg-muted/50 px-2 text-xs font-mono tabular-nums"
+          data-bind="svfrom"
+        >
+          <% @available_years.each do |candidate_year| %>
+            <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @from_year %>><%= candidate_year %></option>
+          <% end %>
+        </select>
+
+        <span class="text-[10px] uppercase tracking-wide text-muted-foreground/70">→</span>
+
+        <select
+          id="system-values-to-year-select"
+          name="to_year"
+          class="h-7 w-[5.25rem] rounded border border-border bg-muted/50 px-2 text-xs font-mono tabular-nums"
+          data-bind="svto"
+        >
+          <% @available_years.each do |candidate_year| %>
+            <option value="<%= candidate_year %>" <%= "selected" if candidate_year == @to_year %>><%= candidate_year %></option>
+          <% end %>
+        </select>
+
+        <button type="submit" class="h-7 px-2 rounded border border-border bg-muted/50 text-xs font-medium hover:bg-muted">Apply</button>
       </div>
     </div>
 
-    <div class="h-7 w-px bg-border self-end mx-1"></div>
+    <div class="h-20 w-px bg-border self-center shrink-0"></div>
 
-    <div class="space-y-1">
+    <div class="min-w-[15rem] space-y-1">
       <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Visible sections</div>
-      <div class="flex flex-wrap items-center gap-3">
-        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80">
+      <div class="grid grid-cols-2 gap-x-3 gap-y-1">
+        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80 cursor-pointer select-none">
           <input type="checkbox" class="size-3.5 accent-primary" data-bind="showsystemvalues" />
           System
         </label>
-        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80">
+        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80 cursor-pointer select-none">
           <input type="checkbox" class="size-3.5 accent-primary" data-bind="showtaxrates" />
           Tax Rates
         </label>
-        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80">
+        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80 cursor-pointer select-none">
           <input type="checkbox" class="size-3.5 accent-primary" data-bind="showsalaryscales" />
-          Minimum Salary
+          Minimum
         </label>
-        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80">
+        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80 cursor-pointer select-none">
           <input type="checkbox" class="size-3.5 accent-primary" data-bind="showrookiescales" />
-          Rookie Scale
+          Rookie
         </label>
       </div>
     </div>
 
-    <div class="text-[10px] font-medium text-muted-foreground/80 self-end pb-1"><%= @comparison_label %></div>
+    <div class="h-20 w-px bg-border self-center shrink-0"></div>
+
+    <div class="min-w-[17rem] space-y-1">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Drill-in</div>
+      <div class="flex items-center gap-1.5 h-7">
+        <span
+          class="inline-flex items-center rounded border border-border/70 bg-background px-2 h-7 text-[11px] text-muted-foreground"
+          data-show="$svoverlaysection === ''"
+        >No active selection</span>
+
+        <span
+          class="inline-flex items-center rounded border border-amber-500/50 bg-amber-100/60 dark:bg-amber-900/20 px-2 h-7 text-[11px] font-mono tabular-nums text-foreground"
+          data-show="$svoverlaysection !== ''"
+          style="display: none;"
+          data-text="($svoverlaysection || '').toUpperCase() + ' · ' + ($svoverlaymetric || '') + ' · ' + ($svoverlayyear || '')"
+        ></span>
+
+        <button
+          type="button"
+          class="h-7 px-2 rounded border border-border bg-background text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted"
+          data-show="$svoverlaysection !== ''"
+          style="display: none;"
+          data-on:click="$svmetricfinder=''; $svoverlaysection=''; $svoverlaymetric=''; $svoverlayyear=''; $svoverlaylower=''; $svoverlayupper=''; @get('<%= tools_system_values_sidebar_clear_path %>')"
+        >Clear</button>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-1.5">
+        <% @section_shift_cards.each do |card| %>
+          <% card_class = case card[:variant]
+          when "positive"
+            "text-emerald-700 dark:text-emerald-300 border-emerald-300/70 dark:border-emerald-500/40 bg-emerald-50/60 dark:bg-emerald-900/20"
+          when "negative"
+            "text-red-700 dark:text-red-300 border-red-300/70 dark:border-red-500/40 bg-red-50/60 dark:bg-red-900/20"
+          when "neutral"
+            "text-foreground border-border/80 bg-background"
+          else
+            "text-muted-foreground border-border/70 bg-background"
+          end %>
+
+          <span class="h-5 px-1.5 rounded border text-[10px] font-mono tabular-nums inline-flex items-center gap-1 <%= card_class %>">
+            <span class="font-semibold"><%= card[:label] %></span>
+            <span><%= card[:metric_label] %> <%= card[:delta_label] %></span>
+          </span>
+        <% end %>
+      </div>
+    </div>
   </form>
 </div>
 

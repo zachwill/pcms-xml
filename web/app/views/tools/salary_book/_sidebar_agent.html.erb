@@ -14,6 +14,8 @@
 <% agent_name = agent["name"] %>
 <% agency_name = agent["agency_name"] %>
 <% rollup ||= {} %>
+<% sidebar_back_button_partial = local_assigns.fetch(:sidebar_back_button_partial, "tools/salary_book/sidebar_back_button") %>
+<% sidebar_back_button_locals = local_assigns.fetch(:sidebar_back_button_locals, {}) %>
 
 <%
   initials = agent_initials(agent_name)
@@ -124,7 +126,7 @@
 <div id="rightpanel-overlay" class="h-full">
   <%# Sticky header %>
   <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
-    <%= render partial: "tools/salary_book/sidebar_back_button" %>
+    <%= render partial: sidebar_back_button_partial, locals: sidebar_back_button_locals %>
 
     <a
       class="text-xs text-muted-foreground hover:text-foreground hover:underline"

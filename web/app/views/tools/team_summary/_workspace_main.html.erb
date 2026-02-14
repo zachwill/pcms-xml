@@ -12,13 +12,10 @@
     "sort=#{ERB::Util.url_encode(@sort.to_s)}"
   ].join("&")
 
-  compare_signal_query_expr = "&team_finder_query=' + encodeURIComponent($tsteamfinderquery || '') + '&selected=' + encodeURIComponent($selectedteam || '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '')"
-
   header_sort_state_query_expr = "'year=' + encodeURIComponent($tsyear) +
     '&conference=' + encodeURIComponent(($tsconferenceeast && $tsconferencewest) ? 'all' : ($tsconferenceeast ? 'Eastern' : ($tsconferencewest ? 'Western' : 'all'))) +
     '&pressure=' + encodeURIComponent($tspressure) +
     '&sort=' + encodeURIComponent(($tssortmetric === 'team' ? 'team_asc' : ($tssortmetric === 'tax_overage' ? ($tssortasc ? 'tax_overage_asc' : 'tax_overage_desc') : ($tssortasc ? 'cap_space_asc' : 'cap_space_desc')))) +
-    '&team_finder_query=' + encodeURIComponent($tsteamfinderquery || '') +
     '&selected=' + encodeURIComponent($selectedteam || '') +
     '&compare_a=' + encodeURIComponent($comparea || '') +
     '&compare_b=' + encodeURIComponent($compareb || '')"
@@ -41,7 +38,7 @@
     <div class="p-3 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No teams match the current filters.</div>
   </div>
 <% else %>
-  <div class="min-w-max overscroll-contain" style="min-width: <%= team_summary_table_min_width_px %>px;">
+  <div class="relative min-w-max overscroll-contain" style="min-width: <%= team_summary_table_min_width_px %>px;">
     <div
       class="sticky top-0 z-30 bg-background will-change-transform
              shadow-[0_1px_3px_0_rgb(0_0_0/0.08),0_1px_2px_-1px_rgb(0_0_0/0.08)]"
@@ -50,7 +47,6 @@
                   text-[10px] uppercase tracking-wide font-medium text-muted-foreground/90 select-none cursor-default">
         <div
           class="w-52 shrink-0 pl-4 sticky left-0 z-[2] bg-muted relative
-                 before:absolute before:right-0 before:top-0 before:bottom-0 before:w-[6px] before:bg-gradient-to-r before:from-[rgba(0,0,0,0.08)] before:to-transparent
                  after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/60"
         >
           Team / Context
@@ -64,8 +60,8 @@
             data-on:click="<%= cap_sort_refresh_expr %>"
           >
             <span>Cap Space</span>
-            <span class="font-mono" data-show="$tssortmetric === 'cap_space' && !$tssortasc" style="display: none;">↓</span>
-            <span class="font-mono" data-show="$tssortmetric === 'cap_space' && $tssortasc" style="display: none;">↑</span>
+            <span class="leading-none" data-show="$tssortmetric === 'cap_space' && !$tssortasc" style="display: none;">↓</span>
+            <span class="leading-none" data-show="$tssortmetric === 'cap_space' && $tssortasc" style="display: none;">↑</span>
           </button>
         </div>
         <div class="w-24 shrink-0 text-right pr-3">Tax Total</div>
@@ -78,8 +74,8 @@
             data-on:click="<%= tax_sort_refresh_expr %>"
           >
             <span>Tax Overage</span>
-            <span class="font-mono" data-show="$tssortmetric === 'tax_overage' && !$tssortasc" style="display: none;">↓</span>
-            <span class="font-mono" data-show="$tssortmetric === 'tax_overage' && $tssortasc" style="display: none;">↑</span>
+            <span class="leading-none" data-show="$tssortmetric === 'tax_overage' && !$tssortasc" style="display: none;">↓</span>
+            <span class="leading-none" data-show="$tssortmetric === 'tax_overage' && $tssortasc" style="display: none;">↑</span>
           </button>
         </div>
         <div class="w-24 shrink-0 text-right pr-3">Room Tax</div>
@@ -91,6 +87,13 @@
         <div class="w-16 shrink-0 text-right pr-3">2W</div>
       </div>
     </div>
+
+    <div
+      data-team-summary-sticky-shadow
+      class="absolute top-0 bottom-0 pointer-events-none z-[25] transition-opacity duration-150 opacity-0"
+      style="left: <%= sticky_team_column_px %>px; width: 6px; background: linear-gradient(to right, rgba(0, 0, 0, 0.06), transparent);"
+      aria-hidden="true"
+    ></div>
 
     <div class="[&>*:first-child]:mt-1">
       <% @rows.each do |row| %>
@@ -121,8 +124,6 @@
 
         <% team_code = row["team_code"].to_s.upcase %>
         <% sidebar_path = tools_team_summary_sidebar_path(team_code: team_code) %>
-        <% pin_slot_a_expr = "@get('#{tools_team_summary_sse_compare_path}?#{sidebar_state_query}&action=pin&slot=a&team_code=#{ERB::Util.url_encode(team_code)}#{compare_signal_query_expr}')" %>
-        <% pin_slot_b_expr = "@get('#{tools_team_summary_sse_compare_path}?#{sidebar_state_query}&action=pin&slot=b&team_code=#{ERB::Util.url_encode(team_code)}#{compare_signal_query_expr}')" %>
 
         <div
           id="team-summary-row-<%= team_code.downcase %>"
@@ -130,13 +131,12 @@
           role="button"
           tabindex="0"
           data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $selectedteam === '<%= team_code %>', 'ring-1 ring-inset ring-indigo-500/50': $comparea === '<%= team_code %>' || $compareb === '<%= team_code %>' }"
-          data-on:click="$selectedteam = '<%= team_code %>'; @get('<%= sidebar_path %>?<%= sidebar_state_query %>&team_finder_query=' + encodeURIComponent($tsteamfinderquery || '') + '&selected=<%= team_code %>&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || ''))"
-          data-on:keydown="if ((evt.key === 'Enter' || evt.key === ' ') && !(evt.target && evt.target.closest('a,button,input,select,textarea'))) { evt.preventDefault(); $selectedteam = '<%= team_code %>'; @get('<%= sidebar_path %>?<%= sidebar_state_query %>&team_finder_query=' + encodeURIComponent($tsteamfinderquery || '') + '&selected=<%= team_code %>&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '')); }"
+          data-on:click="$selectedteam = '<%= team_code %>'; @get('<%= sidebar_path %>?<%= sidebar_state_query %>&selected=<%= team_code %>&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || ''))"
+          data-on:keydown="if ((evt.key === 'Enter' || evt.key === ' ') && !(evt.target && evt.target.closest('a,button,input,select,textarea'))) { evt.preventDefault(); $selectedteam = '<%= team_code %>'; @get('<%= sidebar_path %>?<%= sidebar_state_query %>&selected=<%= team_code %>&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '')); }"
         >
           <div
             class="w-52 shrink-0 pl-4 sticky left-0 z-20 relative bg-background transition-colors duration-75
                    group-hover:bg-yellow-50/70 dark:group-hover:bg-yellow-900/10
-                   before:absolute before:right-0 before:top-0 before:bottom-0 before:w-[6px] before:bg-gradient-to-r before:from-[rgba(0,0,0,0.08)] before:to-transparent
                    after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/50"
             data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $selectedteam === '<%= team_code %>' }"
           >
@@ -167,7 +167,7 @@
                 ><%= row["team_name"] %></a>
               </div>
 
-              <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1 pr-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums">
+              <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1 pr-2 leading-none text-[10px] text-muted-foreground/80">
                 <div class="min-w-0 flex items-start gap-1 overflow-hidden">
                   <span class="font-medium"><%= team_code %></span>
                   <span>•</span>
@@ -176,25 +176,6 @@
                   <span class="inline-flex items-center rounded border border-emerald-500/40 bg-emerald-500/10 px-1 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300" data-show="$compareb === '<%= team_code %>'" style="display: none;">B</span>
                 </div>
 
-                <div class="ml-1 flex items-center gap-1 shrink-0" data-on:click="evt.stopPropagation()" data-on:keydown="evt.stopPropagation()">
-                  <button
-                    type="button"
-                    class="cursor-pointer h-4 px-1 rounded border border-border/70 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-                    aria-label="Pin <%= row['team_name'] %> to compare slot A"
-                    title="Pin to compare slot A"
-                    data-class="{ 'border-indigo-500/60 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300': $comparea === '<%= team_code %>' }"
-                    data-on:click="evt.stopPropagation(); <%= pin_slot_a_expr %>"
-                  >Pin A</button>
-
-                  <button
-                    type="button"
-                    class="cursor-pointer h-4 px-1 rounded border border-border/70 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-                    aria-label="Pin <%= row['team_name'] %> to compare slot B"
-                    title="Pin to compare slot B"
-                    data-class="{ 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300': $compareb === '<%= team_code %>' }"
-                    data-on:click="evt.stopPropagation(); <%= pin_slot_b_expr %>"
-                  >Pin B</button>
-                </div>
               </div>
             </div>
           </div>
@@ -202,56 +183,56 @@
           <div class="w-24 shrink-0 h-10 px-3 flex items-center">
             <div class="entity-cell-two-line w-full">
               <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= format_compact_currency(row["cap_total"]) %></div>
-              <div class="entity-cell-secondary justify-end font-mono tabular-nums"><%= cap_pct_of_cap %></div>
+              <div class="entity-cell-secondary justify-end tabular-nums"><%= cap_pct_of_cap %></div>
             </div>
           </div>
 
           <div class="w-24 shrink-0 h-10 px-3 flex items-center">
             <div class="entity-cell-two-line w-full">
               <div class="entity-cell-primary justify-end font-mono tabular-nums <%= cap_space >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' %>"><%= format_room_amount(cap_space) %></div>
-              <div class="entity-cell-secondary justify-end font-mono tabular-nums"><%= cap_space >= 0 ? 'under cap' : 'over cap' %></div>
+              <div class="entity-cell-secondary justify-end tabular-nums"><%= cap_space >= 0 ? 'under cap' : 'over cap' %></div>
             </div>
           </div>
 
           <div class="w-24 shrink-0 h-10 px-3 flex items-center">
             <div class="entity-cell-two-line w-full">
               <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= format_compact_currency(row["tax_total"]) %></div>
-              <div class="entity-cell-secondary justify-end font-mono tabular-nums"><%= tax_pct_of_line %></div>
+              <div class="entity-cell-secondary justify-end tabular-nums"><%= tax_pct_of_line %></div>
             </div>
           </div>
 
           <div class="w-24 shrink-0 h-10 px-3 flex items-center">
             <div class="entity-cell-two-line w-full">
               <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= format_compact_currency(row["tax_level_amount"]) %></div>
-              <div class="entity-cell-secondary justify-end font-mono tabular-nums">threshold</div>
+              <div class="entity-cell-secondary justify-end tabular-nums">threshold</div>
             </div>
           </div>
 
           <div class="w-24 shrink-0 h-10 px-3 flex items-center">
             <div class="entity-cell-two-line w-full">
               <div class="entity-cell-primary justify-end font-mono tabular-nums <%= tax_overage > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground' %>"><%= tax_overage > 0 ? format_compact_currency(tax_overage) : '—' %></div>
-              <div class="entity-cell-secondary justify-end font-mono tabular-nums"><%= tax_overage > 0 ? 'over line' : 'under line' %></div>
+              <div class="entity-cell-secondary justify-end tabular-nums"><%= tax_overage > 0 ? 'over line' : 'under line' %></div>
             </div>
           </div>
 
           <div class="w-24 shrink-0 h-10 px-3 flex items-center">
             <div class="entity-cell-two-line w-full">
               <div class="entity-cell-primary justify-end font-mono tabular-nums <%= room_tax && room_tax < 0 ? 'text-red-600 dark:text-red-400' : '' %>"><%= room_tax.nil? ? '—' : format_room_amount(room_tax) %></div>
-              <div class="entity-cell-secondary justify-end font-mono tabular-nums"><%= room_tax.nil? ? '—' : (room_tax < 0 ? 'over tax' : 'under tax') %></div>
+              <div class="entity-cell-secondary justify-end tabular-nums"><%= room_tax.nil? ? '—' : (room_tax < 0 ? 'over tax' : 'under tax') %></div>
             </div>
           </div>
 
           <div class="w-24 shrink-0 h-10 px-3 flex items-center">
             <div class="entity-cell-two-line w-full">
               <div class="entity-cell-primary justify-end font-mono tabular-nums <%= room_a1 && room_a1 < 0 ? 'text-red-600 dark:text-red-400' : '' %>"><%= room_a1.nil? ? '—' : format_room_amount(room_a1) %></div>
-              <div class="entity-cell-secondary justify-end font-mono tabular-nums"><%= room_a1.nil? ? '—' : (room_a1 < 0 ? 'over A1' : 'under A1') %></div>
+              <div class="entity-cell-secondary justify-end tabular-nums"><%= room_a1.nil? ? '—' : (room_a1 < 0 ? 'over A1' : 'under A1') %></div>
             </div>
           </div>
 
           <div class="w-24 shrink-0 h-10 px-3 flex items-center">
             <div class="entity-cell-two-line w-full">
               <div class="entity-cell-primary justify-end font-mono tabular-nums <%= room_a2 && room_a2 < 0 ? 'text-red-600 dark:text-red-400' : '' %>"><%= room_a2.nil? ? '—' : format_room_amount(room_a2) %></div>
-              <div class="entity-cell-secondary justify-end font-mono tabular-nums"><%= room_a2.nil? ? '—' : (room_a2 < 0 ? 'over A2' : 'under A2') %></div>
+              <div class="entity-cell-secondary justify-end tabular-nums"><%= room_a2.nil? ? '—' : (room_a2 < 0 ? 'over A2' : 'under A2') %></div>
             </div>
           </div>
 
@@ -280,21 +261,21 @@
           <div class="w-24 shrink-0 h-10 px-3 flex items-center">
             <div class="entity-cell-two-line w-full">
               <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= luxury_tax_owed > 0 ? format_compact_currency(luxury_tax_owed) : '—' %></div>
-              <div class="entity-cell-secondary justify-end font-mono tabular-nums"><%= luxury_tax_owed > 0 ? 'owed' : 'no tax' %></div>
+              <div class="entity-cell-secondary justify-end tabular-nums"><%= luxury_tax_owed > 0 ? 'owed' : 'no tax' %></div>
             </div>
           </div>
 
           <div class="w-16 shrink-0 h-10 px-3 flex items-center">
             <div class="entity-cell-two-line w-full">
               <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= row["roster_row_count"] %></div>
-              <div class="entity-cell-secondary justify-end font-mono tabular-nums">standard</div>
+              <div class="entity-cell-secondary justify-end tabular-nums">standard</div>
             </div>
           </div>
 
           <div class="w-16 shrink-0 h-10 px-3 flex items-center">
             <div class="entity-cell-two-line w-full">
               <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= row["two_way_row_count"] %></div>
-              <div class="entity-cell-secondary justify-end font-mono tabular-nums">two-way</div>
+              <div class="entity-cell-secondary justify-end tabular-nums">two-way</div>
             </div>
           </div>
         </div>

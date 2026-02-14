@@ -216,11 +216,11 @@ module Tools
         SELECT DISTINCT salary_year
         FROM (
           SELECT salary_year FROM pcms.league_system_values WHERE league_lk = 'NBA'
-          UNION
+          UNION ALL
           SELECT salary_year FROM pcms.league_tax_rates WHERE league_lk = 'NBA'
-          UNION
+          UNION ALL
           SELECT salary_year FROM pcms.league_salary_scales WHERE league_lk = 'NBA'
-          UNION
+          UNION ALL
           SELECT salary_year FROM pcms.rookie_scale_amounts WHERE league_lk = 'NBA' AND salary_year >= 1900
         ) years
         ORDER BY salary_year
@@ -407,17 +407,27 @@ module Tools
       @league_salary_scales = fetch_league_salary_scales(@from_year, @to_year)
       @rookie_scale_amounts = fetch_rookie_scale_amounts(@from_year, @to_year)
 
-      @selected_system_values_row = fetch_league_system_values(@selected_year, @selected_year).first
-      @baseline_system_values_row = fetch_league_system_values(@baseline_year, @baseline_year).first
+      @selected_system_values_row = @league_system_values.find { |row| row["salary_year"].to_i == @selected_year.to_i }
+      @baseline_system_values_row = @league_system_values.find { |row| row["salary_year"].to_i == @baseline_year.to_i }
 
-      @selected_tax_rate_rows = fetch_league_tax_rates(@selected_year, @selected_year)
-      @baseline_tax_rate_rows = fetch_league_tax_rates(@baseline_year, @baseline_year)
+      @selected_tax_rate_rows = @league_tax_rates.select { |row| row["salary_year"].to_i == @selected_year.to_i }
+      @baseline_tax_rate_rows = @league_tax_rates.select { |row| row["salary_year"].to_i == @baseline_year.to_i }
 
-      @selected_salary_scale_rows = fetch_league_salary_scales(@selected_year, @selected_year)
-      @baseline_salary_scale_rows = fetch_league_salary_scales(@baseline_year, @baseline_year)
+      @selected_salary_scale_rows = @league_salary_scales.select { |row| row["salary_year"].to_i == @selected_year.to_i }
+      @baseline_salary_scale_rows = @league_salary_scales.select { |row| row["salary_year"].to_i == @baseline_year.to_i }
 
-      @selected_rookie_scale_rows = fetch_rookie_scale_amounts(@selected_year, @selected_year)
-      @baseline_rookie_scale_rows = fetch_rookie_scale_amounts(@baseline_year, @baseline_year)
+      @selected_rookie_scale_rows = @rookie_scale_amounts.select { |row| row["salary_year"].to_i == @selected_year.to_i }
+      @baseline_rookie_scale_rows = @rookie_scale_amounts.select { |row| row["salary_year"].to_i == @baseline_year.to_i }
+
+      # Fallback queries only when selected/baseline years were intentionally excluded by range.
+      @selected_system_values_row ||= fetch_league_system_values(@selected_year, @selected_year).first
+      @baseline_system_values_row ||= fetch_league_system_values(@baseline_year, @baseline_year).first
+      @selected_tax_rate_rows = fetch_league_tax_rates(@selected_year, @selected_year) if @selected_tax_rate_rows.empty?
+      @baseline_tax_rate_rows = fetch_league_tax_rates(@baseline_year, @baseline_year) if @baseline_tax_rate_rows.empty?
+      @selected_salary_scale_rows = fetch_league_salary_scales(@selected_year, @selected_year) if @selected_salary_scale_rows.empty?
+      @baseline_salary_scale_rows = fetch_league_salary_scales(@baseline_year, @baseline_year) if @baseline_salary_scale_rows.empty?
+      @selected_rookie_scale_rows = fetch_rookie_scale_amounts(@selected_year, @selected_year) if @selected_rookie_scale_rows.empty?
+      @baseline_rookie_scale_rows = fetch_rookie_scale_amounts(@baseline_year, @baseline_year) if @baseline_rookie_scale_rows.empty?
 
       resolve_section_visibility!
 

@@ -23,30 +23,6 @@
 
   normalize_active_section_expr = "const visibleSections = [ { key: 'system', visible: $showsystemvalues }, { key: 'tax', visible: $showtaxrates }, { key: 'minimum', visible: $showsalaryscales }, { key: 'rookie', visible: $showrookiescales } ]; const activeStillVisible = visibleSections.find((section) => section.key === $activesection && section.visible); if (!activeStillVisible) { const firstVisible = visibleSections.find((section) => section.visible); const nextActive = firstVisible ? firstVisible.key : ''; if ($activesection !== nextActive) { $activesection = nextActive; } }"
 
-  keyboard_handler_expr = <<~JS.squish
-    const key = String(evt.key || '');
-    const target = evt.target;
-    const isEditable = !!(target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable));
-
-    const isFinderShortcut = (evt.metaKey || evt.ctrlKey) && !evt.shiftKey && !evt.altKey && key.toLowerCase() === 'k';
-    if (isFinderShortcut) {
-      const finder = document.getElementById('system-values-metric-finder-query');
-      if (!finder) { return; }
-      evt.preventDefault();
-      finder.focus();
-      finder.select();
-      return;
-    }
-
-    if (key !== 'Escape' || isEditable) { return; }
-
-    const clearButton = el.querySelector('[data-system-values-overlay-clear]');
-    if (!clearButton) { return; }
-
-    evt.preventDefault();
-    clearButton.click();
-  JS
-
   root_effect_expr = "#{normalize_active_section_expr} #{sync_url_expr}"
 
   signals_literal = {
@@ -77,7 +53,6 @@
   style="height: 100dvh;"
   data-signals='<%= signals_literal %>'
   data-effect="<%= root_effect_expr %>"
-  data-on:keydown="<%= keyboard_handler_expr %>"
 >
   <div id="flash"></div>
 
@@ -91,7 +66,7 @@
   <div id="viewport" class="flex flex-1 overflow-hidden relative">
     <main
       id="maincanvas"
-      class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-8"
+      class="flex-1 min-h-0 overflow-auto pb-8"
       data-on:scroll="
         const sections = [
           { key: 'system', id: 'section-system', visible: $showsystemvalues },

@@ -58,12 +58,13 @@
   current_year = SalaryBookHelper::SALARY_YEARS.first
   next_year = SalaryBookHelper::SALARY_YEARS[1]
 
-  refresh_base = "/tools/two-way-utility/sse/refresh?#{@state_query}"
-  compare_state_suffix_expr = "'&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '') + '&intent_cursor=' + encodeURIComponent($twintentcursor || '') + '&intent_cursor_index=' + encodeURIComponent($twintentcursorindex || 0)"
-  pin_a_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=pin&compare_slot=a&player_id=#{player_id}')"
-  pin_b_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=pin&compare_slot=b&player_id=#{player_id}')"
-  clear_a_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=clear_slot&compare_slot=a')"
-  clear_b_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=clear_slot&compare_slot=b')"
+  agent_sidebar_path = nil
+  agent_sidebar_open_expr = nil
+  if player["agent_id"].present?
+    agent_sidebar_path = "/tools/two-way-utility/sidebar/agent/#{player['agent_id']}?player_id=#{player_id}"
+    agent_sidebar_path = "#{agent_sidebar_path}&#{@state_query}" if @state_query.present?
+    agent_sidebar_open_expr = "$overlaytype = 'agent'; $overlayid = '#{player['agent_id']}'; @get('#{agent_sidebar_path}')"
+  end
 %>
 
 <div id="rightpanel-overlay" class="h-full bg-background border-l border-border/70">
@@ -112,46 +113,6 @@
       <div class="min-w-0 space-y-1">
         <h2 class="text-base font-semibold truncate"><%= player_name %></h2>
         <div class="text-[11px] text-muted-foreground/80 tabular-nums"><%= team_code %> · <%= team_name %></div>
-
-        <div class="flex flex-wrap items-center gap-1.5" data-on:click="evt.stopPropagation()" data-on:keydown="evt.stopPropagation()">
-          <button
-            type="button"
-            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            aria-label="Pin <%= player_name %> to compare slot A"
-            title="Pin to compare slot A"
-            data-class="{ 'border-indigo-500/60 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300': $comparea === '<%= player_id %>' }"
-            data-on:click="<%= pin_a_expr %>"
-          >Pin A</button>
-
-          <button
-            type="button"
-            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            aria-label="Pin <%= player_name %> to compare slot B"
-            title="Pin to compare slot B"
-            data-class="{ 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300': $compareb === '<%= player_id %>' }"
-            data-on:click="<%= pin_b_expr %>"
-          >Pin B</button>
-
-          <button
-            type="button"
-            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            data-show="$comparea === '<%= player_id %>'"
-            style="display: none;"
-            aria-label="Clear compare slot A"
-            title="Clear compare slot A"
-            data-on:click="<%= clear_a_expr %>"
-          >Clear A</button>
-
-          <button
-            type="button"
-            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            data-show="$compareb === '<%= player_id %>'"
-            style="display: none;"
-            aria-label="Clear compare slot B"
-            title="Clear compare slot B"
-            data-on:click="<%= clear_b_expr %>"
-          >Clear B</button>
-        </div>
       </div>
     </div>
 
@@ -193,7 +154,18 @@
       <div class="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/80">Contract context</div>
       <div class="flex items-center justify-between"><span class="text-muted-foreground"><%= format_year_label(current_year) %></span><span class="font-mono tabular-nums"><%= cap_2025.present? ? format_salary(cap_2025) : "—" %></span></div>
       <div class="flex items-center justify-between"><span class="text-muted-foreground"><%= format_year_label(next_year) %></span><span class="font-mono tabular-nums"><%= cap_2026.present? ? format_salary(cap_2026) : "—" %></span></div>
-      <div class="flex items-center justify-between"><span class="text-muted-foreground">Agent</span><span class="font-medium"><%= player["agent_name"].presence || "—" %></span></div>
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-muted-foreground">Agent</span>
+        <% if player["agent_name"].present? && agent_sidebar_open_expr.present? %>
+          <button
+            type="button"
+            class="cursor-pointer font-medium text-right hover:underline"
+            data-on:click="<%= agent_sidebar_open_expr %>"
+          ><%= player["agent_name"] %></button>
+        <% else %>
+          <span class="font-medium"><%= player["agent_name"].presence || "—" %></span>
+        <% end %>
+      </div>
       <div class="flex items-center justify-between"><span class="text-muted-foreground">Agency</span><span class="font-medium"><%= player["agency_name"].presence || "—" %></span></div>
     </div>
 
@@ -202,9 +174,14 @@
       <a class="block text-blue-600 dark:text-blue-400 hover:underline" href="<%= player_href(player_id) %>">Open player page</a>
       <a class="block text-blue-600 dark:text-blue-400 hover:underline" href="<%= team_href(team_code: team_code, team_id: team_id) %>">Open team page (<%= team_code %>)</a>
       <% if player["agent_id"].present? %>
+        <button
+          type="button"
+          class="cursor-pointer block text-blue-600 dark:text-blue-400 hover:underline"
+          data-on:click="<%= agent_sidebar_open_expr %>"
+        >Open agent in sidebar</button>
         <a class="block text-blue-600 dark:text-blue-400 hover:underline" href="<%= agent_href(player['agent_id']) %>">Open agent page</a>
       <% end %>
-      <a class="block text-blue-600 dark:text-blue-400 hover:underline" href="<%= tools_two_way_utility_path(conference: @conference, team: @team, risk: @risk, intent: @intent) %>">Share this risk lens</a>
+      <a class="block text-blue-600 dark:text-blue-400 hover:underline" href="<%= tools_two_way_utility_path(conference: @conference, team: @team, risk: @risk) %>">Share this risk lens</a>
     </div>
   </div>
 </div>

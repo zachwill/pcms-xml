@@ -1,192 +1,54 @@
 <%
-  pane_query_expr = "'conference=' + encodeURIComponent($twconference) +
-    '&team=' + encodeURIComponent($twteam) +
-    '&risk=' + encodeURIComponent($twrisk) +
-    '&intent=' + encodeURIComponent($twintent || '')"
+  pane_query_expr = "'conference=' + encodeURIComponent($twconference || 'all') +
+    '&team=' + encodeURIComponent($twteam || '') +
+    '&risk=' + encodeURIComponent($twrisk || 'all')"
 
-  intent_cursor_query_expr = "'intent_cursor=' + encodeURIComponent($twintentcursor || '') +
-    '&intent_cursor_index=' + encodeURIComponent($twintentcursorindex || 0)"
-
-  compare_query_expr = "'compare_a=' + encodeURIComponent($comparea || '') +
-    '&compare_b=' + encodeURIComponent($compareb || '')"
-
-  selected_overlay_query_expr = "'selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '')"
-  refresh_query_expr = "(#{pane_query_expr}) + '&' + (#{intent_cursor_query_expr}) + '&' + (#{compare_query_expr}) + '&' + (#{selected_overlay_query_expr})"
-
+  refresh_query_expr = "(#{pane_query_expr}) + '&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '')"
   refresh_expr = "@get('/tools/two-way-utility/sse/refresh?' + (#{refresh_query_expr}))"
-  submit_intent_expr = "evt.preventDefault(); #{refresh_expr}"
-  clear_intent_expr = "$twintent = ''; $twintentcursor = ''; $twintentcursorindex = 0; #{refresh_expr}"
-  intent_input_refresh_expr = "$twintentcursor = ''; $twintentcursorindex = 0; clearTimeout(window.__twoWayIntentDebounce); window.__twoWayIntentDebounce = setTimeout(() => { #{refresh_expr}; }, 140);"
 
-  intent_shortlist = Array(@intent_shortlist)
-  intent_shortlist_ids_json = intent_shortlist.map { |entry| entry[:player_id].to_s }.to_json
-
-  keyboard_shortlist_expr = <<~JS.squish
-    const shortlistIds = #{intent_shortlist_ids_json};
-    if (!shortlistIds.length) {
-      if (evt.key === 'Enter') {
-        evt.preventDefault();
-        #{refresh_expr};
-      }
-      return;
-    }
-
-    let cursorIndex = Number($twintentcursorindex || 0);
-    if (!Number.isFinite(cursorIndex) || cursorIndex < 0 || cursorIndex >= shortlistIds.length) {
-      cursorIndex = 0;
-    }
-
-    if (evt.key === 'ArrowDown' || evt.key === 'ArrowUp') {
-      evt.preventDefault();
-      const step = evt.key === 'ArrowDown' ? 1 : -1;
-      cursorIndex = (cursorIndex + step + shortlistIds.length) % shortlistIds.length;
-      $twintentcursorindex = cursorIndex;
-      $twintentcursor = shortlistIds[cursorIndex];
-      return;
-    }
-
-    if (evt.key === 'Enter') {
-      evt.preventDefault();
-      const targetId = shortlistIds[cursorIndex] || shortlistIds[0];
-      if (!targetId) { return; }
-      $twintentcursorindex = cursorIndex;
-      $twintentcursor = targetId;
-      $overlaytype = 'player';
-      $overlayid = targetId;
-      @get('/tools/two-way-utility/sidebar/' + targetId + '?' + (#{pane_query_expr}));
-    }
-  JS
-
-  team_options = Array(@team_options)
+  eastern_teams = Array(@teams_by_conference["Eastern"])
+  western_teams = Array(@teams_by_conference["Western"])
 %>
 
-<header id="commandbar" class="shrink-0 z-40 border-b border-border bg-background h-[130px] px-4 pt-3 flex items-start gap-4 select-none">
-  <div class="min-w-[7rem] space-y-1" role="radiogroup" aria-label="Conference">
-    <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Conference</div>
-    <% [["all", "All"], ["Eastern", "East"], ["Western", "West"]].each do |value, label| %>
-      <label class="flex items-center gap-1.5 cursor-pointer">
-        <input
-          type="radio"
-          name="two-way-conference"
-          value="<%= value %>"
-          class="size-3.5 accent-primary"
-          <%= "checked" if @conference == value %>
-          data-bind="twconference"
-          data-on:change="if (el.checked) { <%= refresh_expr %>; }"
-        />
-        <span class="text-[11px] leading-none select-none" data-class="{ 'text-foreground font-semibold': $twconference === '<%= value %>', 'text-muted-foreground': $twconference !== '<%= value %>' }"><%= label %></span>
-      </label>
-    <% end %>
-  </div>
-
-  <div class="h-20 w-px bg-border self-center"></div>
-
-  <form class="min-w-[16.5rem] space-y-1" data-on:submit="<%= submit_intent_expr %>">
-    <div class="flex items-center justify-between gap-2">
-      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Player intent</div>
-      <span class="inline-flex items-center rounded border border-border/70 bg-background px-1.5 py-0.5 text-[9px] font-mono tabular-nums text-muted-foreground/80">Cmd/Ctrl+K</span>
-    </div>
-    <div class="flex items-center gap-1.5">
-      <input
-        id="two-way-intent-input"
-        type="search"
-        placeholder="name or player_id"
-        class="h-7 w-40 rounded border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground/70"
-        value="<%= @intent %>"
-        data-bind="twintent"
-        data-on:input="<%= intent_input_refresh_expr %>"
-        data-on:keydown="<%= keyboard_shortlist_expr %>"
-      />
-      <button
-        type="submit"
-        class="cursor-pointer h-7 px-2 rounded border border-border bg-muted/40 text-[11px] text-foreground hover:bg-muted transition-colors"
-      >Apply</button>
-      <button
-        type="button"
-        class="cursor-pointer h-7 px-2 rounded border border-border bg-background text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-        data-on:click="<%= clear_intent_expr %>"
-      >Clear</button>
+<header id="commandbar" class="shrink-0 h-[130px] border-b border-border bg-background flex items-start px-4 pt-3 gap-4">
+  <div class="flex gap-4" role="navigation" aria-label="Teams">
+    <div class="space-y-1">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Eastern</div>
+      <div class="grid grid-cols-5 gap-1">
+        <% eastern_teams.each do |team| %>
+          <% code = team[:code].to_s.upcase %>
+          <button
+            type="button"
+            class="cursor-pointer relative h-7 px-2 rounded text-xs font-medium transition-all duration-150 border outline-none inline-flex items-center justify-center"
+            data-on:click="$twconference = 'all'; $twteam = ($twteam === '<%= code %>' ? '' : '<%= code %>'); <%= refresh_expr %>;"
+            data-class="{
+              'bg-primary text-primary-foreground border-primary shadow-sm': $twteam === '<%= code %>',
+              'bg-muted/50 hover:bg-muted text-foreground border-border hover:border-foreground/20': $twteam !== '<%= code %>'
+            }"
+            title="<%= team[:name] %>"
+          ><%= code %></button>
+        <% end %>
+      </div>
     </div>
 
-    <div class="flex items-center gap-1.5 min-h-[18px]">
-      <% if intent_shortlist.any? %>
-        <div id="two-way-intent-shortlist" class="flex items-center gap-1.5 overflow-x-auto pr-1">
-          <% intent_shortlist.each_with_index do |entry, idx| %>
-            <% row_id = entry[:player_id].to_s %>
-            <% risk_chip = case entry[:risk_tier].to_s
-               when "critical" then "text-red-700 dark:text-red-300"
-               when "warning" then "text-orange-700 dark:text-orange-300"
-               when "estimate" then "text-muted-foreground"
-               else "text-muted-foreground"
-               end %>
-            <% match_reason = entry[:match_reason].to_s.presence || "contains" %>
-            <% match_reason_label = case match_reason
-               when "id_exact" then "id exact"
-               when "name_prefix" then "name prefix"
-               else "contains"
-               end %>
-            <% match_reason_badge_classes = case match_reason
-               when "id_exact"
-                 "border-emerald-300/70 dark:border-emerald-500/50 bg-emerald-50/70 dark:bg-emerald-900/25 text-emerald-700 dark:text-emerald-300"
-               when "name_prefix"
-                 "border-blue-300/70 dark:border-blue-500/50 bg-blue-50/70 dark:bg-blue-900/25 text-blue-700 dark:text-blue-300"
-               else
-                 "border-amber-300/70 dark:border-amber-500/50 bg-amber-50/70 dark:bg-amber-900/25 text-amber-700 dark:text-amber-300"
-               end %>
-            <button
-              type="button"
-              class="cursor-pointer h-4 px-1.5 rounded border border-border/70 bg-background text-[10px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors whitespace-nowrap"
-              data-class="{ 'border-foreground/40 bg-yellow-50/70 dark:bg-yellow-900/20 text-foreground': $twintentcursor === '<%= row_id %>' }"
-              data-on:mouseenter="$twintentcursorindex = <%= idx %>; $twintentcursor = '<%= row_id %>'"
-              data-on:focus="$twintentcursorindex = <%= idx %>; $twintentcursor = '<%= row_id %>'"
-              data-on:click="$twintentcursorindex = <%= idx %>; $twintentcursor = '<%= row_id %>'; $overlaytype = 'player'; $overlayid = '<%= row_id %>'; @get('/tools/two-way-utility/sidebar/<%= row_id %>?' + (<%= pane_query_expr %>))"
-            >
-              <span class="font-mono tabular-nums">#<%= idx + 1 %></span>
-              <span class="mx-1">·</span>
-              <span class="font-medium text-foreground"><%= entry[:player_name] %></span>
-              <span class="mx-1">·</span>
-              <span><%= entry[:team_code] %></span>
-              <span class="mx-1">·</span>
-              <span class="font-mono tabular-nums <%= risk_chip %>"><%= entry[:remaining_active_list_games].presence || "—" %>L</span>
-              <span class="mx-1">·</span>
-              <span data-two-way-match-reason="<%= match_reason %>" class="inline-flex items-center rounded border px-1 py-0.5 text-[9px] uppercase tracking-wide <%= match_reason_badge_classes %>"><%= match_reason_label %></span>
-            </button>
-          <% end %>
-        </div>
-      <% elsif @intent.present? %>
-        <span class="text-[10px] text-muted-foreground/70">No shortlist matches in current lens.</span>
-      <% end %>
+    <div class="space-y-1">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Western</div>
+      <div class="grid grid-cols-5 gap-1">
+        <% western_teams.each do |team| %>
+          <% code = team[:code].to_s.upcase %>
+          <button
+            type="button"
+            class="cursor-pointer relative h-7 px-2 rounded text-xs font-medium transition-all duration-150 border outline-none inline-flex items-center justify-center"
+            data-on:click="$twconference = 'all'; $twteam = ($twteam === '<%= code %>' ? '' : '<%= code %>'); <%= refresh_expr %>;"
+            data-class="{
+              'bg-primary text-primary-foreground border-primary shadow-sm': $twteam === '<%= code %>',
+              'bg-muted/50 hover:bg-muted text-foreground border-border hover:border-foreground/20': $twteam !== '<%= code %>'
+            }"
+            title="<%= team[:name] %>"
+          ><%= code %></button>
+        <% end %>
+      </div>
     </div>
-
-    <div class="text-[10px] text-muted-foreground/70 tabular-nums">
-      <%= @sidebar_summary[:row_count].to_i %> rows in view
-      <% if @intent.present? %>
-        <span class="ml-1">· id exact/name prefix/contains · ↑/↓ pick · Enter opens overlay · Cmd/Ctrl+K focus</span>
-      <% else %>
-        <span class="ml-1">· Cmd/Ctrl+K focuses intent input</span>
-      <% end %>
-    </div>
-  </form>
-
-  <div class="h-20 w-px bg-border self-center"></div>
-
-  <div class="min-w-[12rem] space-y-1">
-    <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Team</div>
-    <select
-      id="two-way-team-select"
-      class="h-7 w-56 rounded border border-border bg-background px-2 text-xs text-foreground"
-      data-bind="twteam"
-      data-on:change="<%= refresh_expr %>"
-    >
-      <option value="">All teams</option>
-      <% team_options.each do |team_option| %>
-        <% code = team_option[:code].to_s.upcase %>
-        <option value="<%= code %>" <%= "selected" if @team == code %>>
-          <%= code %> · <%= team_option[:name] %>
-        </option>
-      <% end %>
-    </select>
-    <div class="text-[10px] text-muted-foreground/70 tabular-nums"><%= @sidebar_summary[:team_count].to_i %> teams in scope</div>
   </div>
 
   <div class="h-20 w-px bg-border self-center"></div>
@@ -217,7 +79,7 @@
       <span class="entity-chip entity-chip--danger justify-center"><%= @sidebar_summary[:critical_count].to_i %> critical</span>
       <span class="entity-chip entity-chip--warning justify-center"><%= @sidebar_summary[:low_remaining_count].to_i %> ≤20</span>
       <span class="entity-chip entity-chip--muted justify-center"><%= @sidebar_summary[:estimate_count].to_i %> est.</span>
-      <span class="entity-chip entity-chip--muted justify-center"><%= @sidebar_summary[:team_count].to_i %> teams</span>
+      <span class="entity-chip entity-chip--muted justify-center"><%= @sidebar_summary[:row_count].to_i %> rows</span>
     </div>
   </div>
 

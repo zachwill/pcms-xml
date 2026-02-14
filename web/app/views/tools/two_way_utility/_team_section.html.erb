@@ -2,7 +2,6 @@
 <% team_meta ||= {} %>
 <% team_capacity ||= {} %>
 <% state_query ||= "" %>
-<% intent_query = local_assigns[:intent_query].to_s.strip %>
 
 <% team_row = players.first || {} %>
 <% team_name = team_row["team_name"].presence || team_meta["team_name"].presence || team_code %>
@@ -52,9 +51,6 @@ end %>
           </div>
           <div class="h-[16px] -mt-px flex items-start min-w-0 gap-1.5">
             <span class="text-[10px] leading-none tabular-nums text-muted-foreground/80 truncate"><%= conference_name %> Conference</span>
-            <% if intent_query.present? %>
-              <span class="entity-chip entity-chip--accent"><%= players.size %> intent</span>
-            <% end %>
           </div>
         </div>
       </div>
@@ -149,7 +145,7 @@ end %>
   <div class="[&>*:first-child]:mt-1">
     <% if players.any? %>
       <% players.each do |player| %>
-        <%= render partial: "tools/two_way_utility/player_row", locals: { player: player, state_query: state_query, intent_query: intent_query } %>
+        <%= render partial: "tools/two_way_utility/player_row", locals: { player: player, state_query: state_query } %>
       <% end %>
     <% else %>
       <div class="h-10 px-4 flex items-center text-xs text-muted-foreground border-b border-border/50">

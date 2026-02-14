@@ -4,7 +4,6 @@ module Tools
 
     RISK_LENSES = %w[all warning critical estimate].freeze
     CONFERENCE_LENSES = ["all", "Eastern", "Western"].freeze
-    INTENT_SHORTLIST_LIMIT = 5
 
     # GET /tools/two-way-utility
     def show
@@ -39,6 +38,48 @@ module Tools
       HTML
     end
 
+    # GET /tools/two-way-utility/sidebar/agent/:id
+    def sidebar_agent
+      load_workspace_state!
+
+      agent_id = Integer(params[:id])
+      raise ActiveRecord::RecordNotFound if agent_id <= 0
+
+      source_player_id = normalize_player_id_param(params[:player_id])
+      source_player = if source_player_id.present?
+        @rows.find { |row| row["player_id"].to_i == source_player_id } || fetch_player_row(source_player_id)
+      end
+
+      agent = fetch_agent(agent_id)
+      raise ActiveRecord::RecordNotFound unless agent
+
+      clients = fetch_agent_clients(agent_id)
+      rollup = fetch_agent_rollup(agent_id)
+
+      render partial: "tools/salary_book/sidebar_agent", locals: {
+        agent:,
+        clients:,
+        rollup:,
+        sidebar_back_button_partial: "tools/two_way_utility/sidebar_back_button",
+        sidebar_back_button_locals: {
+          source_player_id:,
+          source_player_name: source_player&.dig("player_name"),
+          state_query: @state_query
+        }
+      }, layout: false
+    rescue ArgumentError
+      raise ActiveRecord::RecordNotFound
+    rescue ActiveRecord::StatementInvalid => e
+      render html: <<~HTML.html_safe, layout: false
+        <div id="rightpanel-overlay" class="h-full p-4">
+          <div class="rounded border border-border bg-muted/20 p-3">
+            <div class="text-sm font-medium text-destructive">Two-Way agent sidebar failed</div>
+            <pre class="mt-2 text-xs text-muted-foreground overflow-x-auto">#{ERB::Util.h(e.message)}</pre>
+          </div>
+        </div>
+      HTML
+    end
+
     # GET /tools/two-way-utility/sidebar/clear
     def sidebar_clear
       render partial: "tools/two_way_utility/rightpanel_clear", layout: false
@@ -53,7 +94,6 @@ module Tools
     # - #rightpanel-overlay (preserved when selected row remains visible)
     def refresh
       load_workspace_state!
-      apply_compare_action!
 
       requested_overlay_id = requested_overlay_id_param
       overlay_html, resolved_overlay_type, resolved_overlay_id = refreshed_overlay_payload(
@@ -82,11 +122,6 @@ module Tools
           twconference: @conference,
           twteam: @team.to_s,
           twrisk: @risk,
-          twintent: @intent.to_s,
-          twintentcursor: @intent_shortlist_cursor_id.to_s,
-          twintentcursorindex: @intent_shortlist_cursor_index.to_i,
-          comparea: @compare_a_id.to_s,
-          compareb: @compare_b_id.to_s,
           overlaytype: resolved_overlay_type,
           overlayid: resolved_overlay_id
         )
@@ -107,26 +142,19 @@ module Tools
       @conference = resolve_conference(params[:conference])
       @team = resolve_team(params[:team])
       @risk = resolve_risk(params[:risk])
-      @intent = resolve_intent(params[:intent])
-      @requested_intent_cursor = resolve_intent_cursor(params[:intent_cursor])
-      @requested_intent_cursor_index = resolve_intent_cursor_index(params[:intent_cursor_index])
 
-      @rows = fetch_rows(conference: @conference, team: @team, risk: @risk, intent: @intent)
+      @rows = fetch_rows(conference: @conference, team: @team, risk: @risk)
       @rows_by_team = @rows.group_by { |row| row["team_code"] }
 
       @teams_by_conference, @team_meta_by_code = fetch_teams
       @team_capacity_by_code = fetch_team_capacity_by_code
       @team_options = build_team_options(@teams_by_conference, @rows_by_team.keys)
       @team_codes = resolve_team_codes(@team_options, @rows_by_team.keys, @team)
+      @team_records_by_code = fetch_team_records_by_code(@rows_by_team.keys)
 
       @state_query = build_state_query
-      @compare_a_id = normalize_player_id_param(params[:compare_a])
-      @compare_b_id = normalize_player_id_param(params[:compare_b])
-      normalize_compare_slots!
-      hydrate_compare_rows!
       @selected_player_id = normalize_selected_player_id_param(params[:selected_id])
       build_sidebar_summary!(selected_player_id: @selected_player_id)
-      build_intent_shortlist!
     end
 
     def apply_boot_error!(error)
@@ -134,9 +162,6 @@ module Tools
       @conference = "all"
       @team = nil
       @risk = "all"
-      @intent = ""
-      @requested_intent_cursor = ""
-      @requested_intent_cursor_index = nil
       @rows = []
       @rows_by_team = {}
       @teams_by_conference = { "Eastern" => [], "Western" => [] }
@@ -144,16 +169,10 @@ module Tools
       @team_capacity_by_code = {}
       @team_options = []
       @team_codes = []
+      @team_records_by_code = {}
       @state_query = build_state_query
-      @compare_a_id = nil
-      @compare_b_id = nil
-      @compare_a_row = nil
-      @compare_b_row = nil
       @selected_player_id = nil
       build_sidebar_summary!(selected_player_id: @selected_player_id)
-      @intent_shortlist = []
-      @intent_shortlist_cursor_id = ""
-      @intent_shortlist_cursor_index = 0
     end
 
     def resolve_conference(value)
@@ -171,38 +190,6 @@ module Tools
       RISK_LENSES.include?(normalized) ? normalized : "all"
     end
 
-    def resolve_intent(value)
-      value.to_s.strip.tr("\u0000", "")[0, 80]
-    end
-
-    def resolve_intent_cursor(value)
-      cursor = value.to_s.strip
-      return "" if cursor.blank?
-
-      cursor.match?(/\A\d+\z/) ? cursor : ""
-    end
-
-    def resolve_intent_cursor_index(value)
-      index = Integer(value.to_s.strip, 10)
-      index >= 0 ? index : nil
-    rescue ArgumentError, TypeError
-      nil
-    end
-
-    def resolve_compare_action(value)
-      normalized = value.to_s.strip
-      return normalized if %w[pin clear_slot clear_all].include?(normalized)
-
-      nil
-    end
-
-    def resolve_compare_slot(value)
-      normalized = value.to_s.strip.downcase
-      return normalized if %w[a b].include?(normalized)
-
-      nil
-    end
-
     def normalize_player_id_param(raw)
       player_id = Integer(raw.to_s.strip, 10)
       player_id.positive? ? player_id : nil
@@ -210,73 +197,11 @@ module Tools
       nil
     end
 
-    def normalize_compare_slots!
-      if @compare_a_id.present? && @compare_a_id == @compare_b_id
-        @compare_b_id = nil
-      end
-    end
-
-    def hydrate_compare_rows!
-      @compare_a_row = row_for_compare_slot(@compare_a_id)
-      @compare_b_row = row_for_compare_slot(@compare_b_id)
-
-      @compare_a_id = nil if @compare_a_id.present? && @compare_a_row.blank?
-      @compare_b_id = nil if @compare_b_id.present? && @compare_b_row.blank?
-      normalize_compare_slots!
-
-      @compare_a_row = nil if @compare_a_id.blank?
-      @compare_b_row = nil if @compare_b_id.blank?
-    end
-
-    def row_for_compare_slot(player_id)
-      normalized_id = player_id.to_i
-      return nil if normalized_id <= 0
-
-      @rows.find { |row| row["player_id"].to_i == normalized_id } || fetch_player_row(normalized_id)
-    end
-
-    def apply_compare_action!
-      compare_action_param = params[:compare_action].presence || request.query_parameters["action"]
-      compare_slot_param = params[:compare_slot].presence || request.query_parameters["slot"]
-
-      action = resolve_compare_action(compare_action_param)
-      slot = resolve_compare_slot(compare_slot_param)
-      player_id = normalize_player_id_param(params[:player_id])
-
-      case action
-      when "pin"
-        return if slot.blank? || player_id.blank?
-
-        if slot == "a"
-          @compare_a_id = player_id
-          @compare_b_id = nil if @compare_b_id == player_id
-        else
-          @compare_b_id = player_id
-          @compare_a_id = nil if @compare_a_id == player_id
-        end
-      when "clear_slot"
-        return if slot.blank?
-
-        if slot == "a"
-          @compare_a_id = nil
-        else
-          @compare_b_id = nil
-        end
-      when "clear_all"
-        @compare_a_id = nil
-        @compare_b_id = nil
-      end
-
-      normalize_compare_slots!
-      hydrate_compare_rows!
-    end
-
     def build_state_query
       Rack::Utils.build_query(
         conference: @conference.to_s,
         team: @team.to_s,
-        risk: @risk.to_s,
-        intent: @intent.to_s
+        risk: @risk.to_s
       )
     end
 
@@ -291,7 +216,7 @@ module Tools
       (options & row_codes) + (row_codes - options)
     end
 
-    def fetch_rows(conference:, team:, risk:, intent:)
+    def fetch_rows(conference:, team:, risk:)
       where_clauses = []
       where_clauses << "tw.conference_name = #{conn.quote(conference)}" if conference != "all"
       where_clauses << "tw.team_code = #{conn.quote(team)}" if team.present?
@@ -303,11 +228,6 @@ module Tools
         where_clauses << "COALESCE(tw.remaining_active_list_games, 999) <= 20"
       when "estimate"
         where_clauses << "COALESCE(tw.active_list_games_limit_is_estimate, false) = true"
-      end
-
-      if intent.present?
-        intent_like = conn.quote("%#{intent}%")
-        where_clauses << "(tw.player_name ILIKE #{intent_like} OR tw.player_id::text ILIKE #{intent_like})"
       end
 
       where_sql = where_clauses.any? ? where_clauses.join(" AND ") : "TRUE"
@@ -457,6 +377,114 @@ module Tools
       row.present? ? decorate_row(row) : nil
     end
 
+    def fetch_agent(agent_id)
+      id_sql = conn.quote(agent_id)
+
+      conn.exec_query(<<~SQL).first
+        SELECT
+          agent_id,
+          full_name AS name,
+          agency_id,
+          agency_name
+        FROM pcms.agents
+        WHERE agent_id = #{id_sql}
+        LIMIT 1
+      SQL
+    end
+
+    def fetch_agent_clients(agent_id)
+      id_sql = conn.quote(agent_id)
+
+      conn.exec_query(<<~SQL).to_a
+        SELECT
+          s.player_id,
+          COALESCE(
+            NULLIF(TRIM(CONCAT_WS(' ', p.display_first_name, p.display_last_name)), ''),
+            s.player_name
+          ) AS player_name,
+          p.display_first_name,
+          p.display_last_name,
+          COALESCE(NULLIF(s.person_team_code, ''), s.team_code) AS team_code,
+          s.age,
+          p.years_of_service,
+          s.cap_2025::numeric,
+          s.cap_2026::numeric,
+          s.cap_2027::numeric,
+          s.cap_2028::numeric,
+          s.cap_2029::numeric,
+          s.cap_2030::numeric,
+          COALESCE(s.is_two_way, false)::boolean AS is_two_way,
+          COALESCE(s.is_no_trade, false)::boolean AS is_no_trade,
+          COALESCE(s.is_trade_bonus, false)::boolean AS is_trade_bonus,
+          COALESCE(s.is_min_contract, false)::boolean AS is_min_contract,
+          COALESCE(s.is_trade_restricted_now, false)::boolean AS is_trade_restricted_now,
+          s.option_2025,
+          s.option_2026,
+          s.option_2027,
+          s.option_2028,
+          s.option_2029,
+          s.option_2030,
+          s.is_non_guaranteed_2025,
+          s.is_non_guaranteed_2026,
+          s.is_non_guaranteed_2027,
+          s.is_non_guaranteed_2028,
+          s.is_non_guaranteed_2029,
+          s.is_non_guaranteed_2030,
+          s.contract_type_code,
+          t.team_id,
+          t.team_name
+        FROM pcms.salary_book_warehouse s
+        LEFT JOIN pcms.people p ON s.player_id = p.person_id
+        LEFT JOIN pcms.teams t ON s.team_code = t.team_code AND t.league_lk = 'NBA'
+        WHERE s.agent_id = #{id_sql}
+        ORDER BY s.cap_2025 DESC NULLS LAST, player_name
+      SQL
+    end
+
+    def fetch_agent_rollup(agent_id)
+      id_sql = conn.quote(agent_id)
+
+      conn.exec_query(<<~SQL).first || {}
+        SELECT
+          standard_count,
+          two_way_count,
+          client_count AS total_count,
+          team_count,
+
+          cap_2025_total AS book_2025,
+          cap_2026_total AS book_2026,
+          cap_2027_total AS book_2027,
+
+          rookie_scale_count,
+          min_contract_count,
+          no_trade_count,
+          trade_kicker_count,
+          trade_restricted_count,
+
+          expiring_2025,
+          expiring_2026,
+          expiring_2027,
+
+          player_option_count,
+          team_option_count,
+
+          max_contract_count,
+          prior_year_nba_now_free_agent_count,
+
+          cap_2025_total_percentile,
+          cap_2026_total_percentile,
+          cap_2027_total_percentile,
+          client_count_percentile,
+          max_contract_count_percentile,
+          team_count_percentile,
+          standard_count_percentile,
+          two_way_count_percentile
+        FROM pcms.agents_warehouse
+        WHERE agent_id = #{id_sql}
+        LIMIT 1
+      SQL
+    end
+
     def decorate_row(row)
       used = row["games_on_active_list"]&.to_f
       limit = row["active_list_games_limit"]&.to_f
@@ -534,6 +562,57 @@ module Tools
       rows.each_with_object({}) { |row, by_code| by_code[row["team_code"]] = row }
     end
 
+    def fetch_team_records_by_code(team_codes)
+      codes = Array(team_codes).map(&:to_s).map(&:upcase).select { |code| code.match?(/\A[A-Z]{3}\z/) }.uniq
+      return {} if codes.empty?
+
+      codes_sql = codes.map { |code| conn.quote(code) }.join(", ")
+
+      rows = conn.exec_query(<<~SQL).to_a
+        WITH target_season AS (
+          SELECT MAX(s.season_year) AS season_year
+          FROM nba.standings s
+          WHERE s.league_id = '00'
+            AND s.season_type = 'Regular Season'
+        ),
+        latest_dates AS (
+          SELECT
+            s.team_id,
+            MAX(s.standing_date) AS standing_date
+          FROM nba.standings s
+          JOIN target_season ts
+            ON ts.season_year = s.season_year
+          WHERE s.league_id = '00'
+            AND s.season_type = 'Regular Season'
+          GROUP BY s.team_id
+        )
+        SELECT
+          COALESCE(t.team_code, s.team_tricode) AS team_code,
+          s.record
+        FROM nba.standings s
+        JOIN target_season ts
+          ON ts.season_year = s.season_year
+        JOIN latest_dates ld
+          ON ld.team_id = s.team_id
+         AND ld.standing_date = s.standing_date
+        LEFT JOIN pcms.teams t
+          ON t.team_id = s.team_id
+         AND t.league_lk = 'NBA'
+        WHERE s.league_id = '00'
+          AND s.season_type = 'Regular Season'
+          AND COALESCE(t.team_code, s.team_tricode) IN (#{codes_sql})
+      SQL
+
+      rows.each_with_object({}) do |row, map|
+        code = row["team_code"].to_s.upcase
+        next if code.blank?
+
+        map[code] = row["record"].presence || "—"
+      end
+    rescue ActiveRecord::StatementInvalid
+      {}
+    end
+
     def build_team_options(teams_by_conference, warehouse_team_codes)
       ordered_codes = %w[Eastern Western].flat_map do |conference|
         teams_by_conference.fetch(conference, []).map { |team| team[:code] }
@@ -580,15 +659,12 @@ module Tools
       end
 
       active_filters = []
-      active_filters << %(Intent: "#{@intent}") if @intent.present?
       active_filters << "Conference: #{@conference}" unless @conference == "all"
       active_filters << "Team: #{@team}" if @team.present?
       active_filters << "Risk: #{risk_filter_label(@risk)}" unless @risk == "all"
 
       @sidebar_summary = {
         row_count: rows.size,
-        intent: @intent.to_s,
-        intent_active: @intent.present?,
         team_count: @rows_by_team.keys.size,
         critical_count:,
         warning_count:,
@@ -597,79 +673,6 @@ module Tools
         active_filters:,
         quick_rows:
       }
-    end
-
-    def build_intent_shortlist!
-      query = @intent.to_s.strip.downcase
-      if query.blank?
-        @intent_shortlist = []
-        @intent_shortlist_cursor_id = ""
-        @intent_shortlist_cursor_index = 0
-        return
-      end
-
-      ranked_rows = Array(@rows)
-        .filter_map do |row|
-          match = intent_shortlist_match_details(row:, query:)
-          next unless match
-
-          {
-            score: match.fetch(:score),
-            reason: match.fetch(:reason),
-            risk_priority: risk_sort_priority(row["risk_tier"]),
-            remaining_games: row["remaining_active_list_games"].presence || 999,
-            used_pct: -(row["games_used_pct"] || 0).to_f,
-            team_code: row["team_code"].to_s,
-            player_name: row["player_name"].to_s,
-            row:
-          }
-        end
-        .sort_by { |entry| [entry[:score], entry[:risk_priority], entry[:remaining_games], entry[:used_pct], entry[:team_code], entry[:player_name]] }
-        .first(INTENT_SHORTLIST_LIMIT)
-
-      @intent_shortlist = ranked_rows.map do |entry|
-        row = entry.fetch(:row)
-        {
-          player_id: row["player_id"].to_i,
-          player_name: row["player_name"].to_s,
-          team_code: row["team_code"].to_s,
-          risk_tier: row["risk_tier"].to_s,
-          remaining_active_list_games: row["remaining_active_list_games"],
-          games_used_pct: row["games_used_pct"],
-          match_reason: entry.fetch(:reason)
-        }
-      end
-
-      shortlist_ids = @intent_shortlist.map { |entry| entry[:player_id].to_s }
-
-      if @requested_intent_cursor.present? && shortlist_ids.include?(@requested_intent_cursor)
-        @intent_shortlist_cursor_id = @requested_intent_cursor
-        requested_index = @requested_intent_cursor_index
-
-        @intent_shortlist_cursor_index = if requested_index.present? && requested_index >= 0 && requested_index < shortlist_ids.length && shortlist_ids[requested_index] == @requested_intent_cursor
-          requested_index
-        else
-          shortlist_ids.index(@requested_intent_cursor) || 0
-        end
-      else
-        @intent_shortlist_cursor_id = shortlist_ids.first.to_s
-        @intent_shortlist_cursor_index = 0
-      end
-    end
-
-    def intent_shortlist_match_details(row:, query:)
-      player_name = row["player_name"].to_s.downcase
-      player_id = row["player_id"].to_s
-
-      return { score: 0, reason: "id_exact" } if player_id == query
-      return { score: 1, reason: "name_prefix" } if player_name.start_with?(query)
-
-      tokens = player_name.split(/[^a-z0-9]+/)
-      return { score: 2, reason: "name_prefix" } if tokens.any? { |token| token.start_with?(query) }
-
-      return { score: 3, reason: "contains" } if player_name.include?(query) || player_id.include?(query)
-
-      nil
     end
 
     def normalize_selected_player_id_param(raw)

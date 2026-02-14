@@ -1,88 +1,31 @@
 <%
   summary = @sidebar_summary || {}
   quick_rows = Array(summary[:quick_rows])
+  team_records_by_code = @team_records_by_code || {}
 
-  compare_slots = [
-    { key: "a", label: "Slot A", player_id: @compare_a_id, row: @compare_a_row, tone: "indigo" },
-    { key: "b", label: "Slot B", player_id: @compare_b_id, row: @compare_b_row, tone: "emerald" }
-  ]
+  critical_rows = quick_rows.select { |row| row["risk_tier"].to_s == "critical" }
+  warning_rows = quick_rows.select { |row| row["risk_tier"].to_s == "warning" }
+  estimate_rows = quick_rows.select { |row| row["risk_tier"].to_s == "estimate" }
 
-  compare_ready = @compare_a_row.present? && @compare_b_row.present?
-  used_pct_label = ->(row) do
-    ratio = row["games_used_pct"]&.to_f
-    ratio.present? ? "#{(ratio * 100).round}%" : "—"
+  team_pressure_rows = Array(@rows_by_team).map do |team_code, rows|
+    rows = Array(rows)
+    meta = @team_meta_by_code[team_code] || {}
+
+    {
+      team_code:,
+      team_name: (meta["team_name"] || team_code),
+      team_logo_url: team_logo_url(meta["team_id"]),
+      record: team_records_by_code[team_code].presence || "—",
+      total: rows.size,
+      critical: rows.count { |row| row["risk_tier"].to_s == "critical" },
+      warning: rows.count { |row| row["risk_tier"].to_s == "warning" },
+      estimate: rows.count { |row| row["risk_tier"].to_s == "estimate" }
+    }
   end
 
-  limit_basis_label = ->(row) { row["active_list_games_limit_is_estimate"] ? "Estimated limit" : "Hard limit" }
-  threshold_posture = lambda do |row|
-    remaining = row["remaining_active_list_games"]
-
-    if remaining.present?
-      remaining_value = remaining.to_i
-
-      if remaining_value <= 10
-        { label: "≤10 left", chip_class: "entity-chip entity-chip--danger", detail: "critical threshold posture (≤10 left)" }
-      elsif remaining_value <= 20
-        { label: "≤20 left", chip_class: "entity-chip entity-chip--warning", detail: "warning threshold posture (≤20 left)" }
-      else
-        { label: ">20 left", chip_class: "entity-chip entity-chip--muted", detail: "above warning threshold (>20 left)" }
-      end
-    else
-      { label: "Threshold n/a", chip_class: "entity-chip entity-chip--muted", detail: "threshold context unavailable" }
-    end
-  end
-
-  risk_source_summary = ->(row) { "#{limit_basis_label.call(row).downcase} · #{threshold_posture.call(row)[:detail]}" }
-
-  refresh_base = "/tools/two-way-utility/sse/refresh?#{@state_query}"
-  compare_state_suffix_expr = "'&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '') + '&intent_cursor=' + encodeURIComponent($twintentcursor || '') + '&intent_cursor_index=' + encodeURIComponent($twintentcursorindex || 0)"
-
-  if compare_ready
-    remaining_delta = @compare_b_row["remaining_active_list_games"].to_i - @compare_a_row["remaining_active_list_games"].to_i
-    used_pct_delta = ((@compare_b_row["games_used_pct"].to_f - @compare_a_row["games_used_pct"].to_f) * 100.0)
-
-    signing_a = format_date_short(@compare_a_row["signing_date"])
-    signing_b = format_date_short(@compare_b_row["signing_date"])
-
-    compare_a_limit_basis = limit_basis_label.call(@compare_a_row)
-    compare_b_limit_basis = limit_basis_label.call(@compare_b_row)
-    compare_a_threshold = threshold_posture.call(@compare_a_row)
-    compare_b_threshold = threshold_posture.call(@compare_b_row)
-
-    delta_limit_basis_summary = if compare_a_limit_basis == compare_b_limit_basis
-      "Signal basis: both players are #{compare_a_limit_basis.downcase}."
-    else
-      "Signal basis: #{@compare_a_row["player_name"]} is #{compare_a_limit_basis.downcase}; #{@compare_b_row["player_name"]} is #{compare_b_limit_basis.downcase}."
-    end
-
-    delta_remaining_label = if compare_a_limit_basis == "Hard limit" && compare_b_limit_basis == "Hard limit"
-      "Remaining games (hard-limit)"
-    else
-      "Remaining games (estimate-aware)"
-    end
-
-    delta_threshold_summary = "Threshold posture — #{@compare_a_row["player_name"]}: #{compare_a_threshold[:detail]} · #{@compare_b_row["player_name"]}: #{compare_b_threshold[:detail]}"
-
-    signing_delta_label = begin
-      if @compare_a_row["signing_date"].present? && @compare_b_row["signing_date"].present?
-        a_date = Date.parse(@compare_a_row["signing_date"].to_s)
-        b_date = Date.parse(@compare_b_row["signing_date"].to_s)
-        diff_days = (b_date - a_date).to_i
-
-        if diff_days.zero?
-          "same signing day"
-        elsif diff_days.positive?
-          "#{diff_days}d later"
-        else
-          "#{diff_days.abs}d earlier"
-        end
-      else
-        "insufficient date context"
-      end
-    rescue ArgumentError
-      "insufficient date context"
-    end
-  end
+  team_pressure_rows = team_pressure_rows.sort_by do |row|
+    [-row[:critical], -row[:warning], -row[:total], row[:team_code].to_s]
+  end.first(10)
 %>
 
 <div id="rightpanel-base" class="space-y-4">
@@ -98,7 +41,7 @@
     <div class="grid grid-cols-2 gap-1.5">
       <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Critical", value: summary[:critical_count].to_i.to_s, class_name: "w-full", variant: (summary[:critical_count].to_i.positive? ? "negative" : "muted") } %>
       <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "≤20 Left", value: summary[:low_remaining_count].to_i.to_s, class_name: "w-full", variant: (summary[:low_remaining_count].to_i.positive? ? "negative" : "muted") } %>
-      <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Warning", value: summary[:warning_count].to_i.to_s, class_name: "w-full" } %>
+      <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Warning", value: summary[:warning_count].to_i.to_s, class_name: "w-full", variant: (summary[:warning_count].to_i.positive? ? "default" : "muted") } %>
       <%= render partial: "tools/salary_book/kpi_cell", locals: { label: "Est. Limit", value: summary[:estimate_count].to_i.to_s, class_name: "w-full", variant: (summary[:estimate_count].to_i.positive? ? "default" : "muted") } %>
     </div>
 
@@ -111,96 +54,49 @@
     <% end %>
   </div>
 
-  <div class="rounded-lg border border-border bg-background p-3 space-y-2">
-    <div class="flex items-center justify-between gap-2">
-      <div>
-        <div class="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/80">Compare board</div>
-        <div class="text-[11px] text-muted-foreground">Pin A / Pin B from rows to hold two at-risk players while you keep scanning.</div>
-      </div>
+  <div class="rounded-lg border border-border bg-background">
+    <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Team pressure</div>
 
-      <% if @compare_a_id.present? || @compare_b_id.present? %>
-        <button
-          type="button"
-          class="cursor-pointer text-[10px] text-muted-foreground hover:text-foreground hover:underline"
-          data-on:click="@get('<%= refresh_base %>' + (<%= compare_state_suffix_expr %>) + '&compare_action=clear_all')"
-        >Clear all</button>
-      <% end %>
-    </div>
-
-    <div class="grid grid-cols-2 gap-2">
-      <% compare_slots.each do |slot| %>
-        <% row = slot[:row] %>
-        <% slot_code = slot[:player_id].to_s %>
-        <% slot_signal = slot[:key] == "a" ? "$comparea" : "$compareb" %>
-        <% tone_classes = slot[:tone] == "indigo" ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" %>
-
-        <div class="rounded border border-border px-2 py-2 space-y-1.5 min-h-[88px]">
-          <div class="flex items-center justify-between gap-2">
-            <span class="inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide <%= tone_classes %>"><%= slot[:label] %></span>
-            <% if slot[:player_id].present? %>
-              <button
-                type="button"
-                class="cursor-pointer text-[10px] text-muted-foreground hover:text-foreground hover:underline"
-                data-on:click="@get('<%= refresh_base %>' + (<%= compare_state_suffix_expr %>) + '&compare_action=clear_slot&compare_slot=<%= slot[:key] %>')"
-              >Clear</button>
-            <% end %>
+    <% if team_pressure_rows.any? %>
+      <div class="divide-y divide-border">
+        <% team_pressure_rows.each do |row| %>
+          <div class="px-3 py-2 text-xs">
+            <div class="flex items-center justify-between gap-2">
+              <span class="min-w-0 flex items-center gap-2">
+                <span class="w-5 h-5 rounded border border-border bg-background flex items-center justify-center overflow-hidden shrink-0">
+                  <% if row[:team_logo_url].present? %>
+                    <img src="<%= row[:team_logo_url] %>" alt="" class="w-full h-full object-contain" loading="lazy" decoding="async" />
+                  <% else %>
+                    <span class="text-[9px] font-semibold text-muted-foreground"><%= row[:team_code] %></span>
+                  <% end %>
+                </span>
+                <span class="font-medium text-foreground truncate"><%= row[:team_name] %></span>
+              </span>
+              <span class="font-mono tabular-nums text-muted-foreground"><%= row[:record] %></span>
+            </div>
+            <div class="mt-1 flex items-center gap-1.5 text-[10px] tabular-nums text-muted-foreground">
+              <span class="entity-chip entity-chip--danger"><%= row[:critical] %> critical</span>
+              <span class="entity-chip entity-chip--warning"><%= row[:warning] %> warning</span>
+              <span class="entity-chip entity-chip--muted"><%= row[:total] %> rows</span>
+            </div>
           </div>
-
-          <% if row.present? %>
-            <% row_id = row["player_id"].to_s %>
-            <% open_expr = "$overlaytype = 'player'; $overlayid = '#{row_id}'; @get('/tools/two-way-utility/sidebar/#{row_id}?#{@state_query}')" %>
-            <button
-              type="button"
-              class="cursor-pointer w-full text-left"
-              data-on:click="<%= open_expr %>"
-            >
-              <% limit_basis = limit_basis_label.call(row) %>
-              <% threshold_context = threshold_posture.call(row) %>
-              <div class="text-xs font-medium truncate"><%= row["player_name"] %></div>
-              <div class="text-[10px] text-muted-foreground/80 tabular-nums"><%= row["team_code"] %> · <%= row["remaining_active_list_games"].presence || "—" %> left</div>
-              <div class="text-[10px] text-muted-foreground/80 tabular-nums">Used <%= used_pct_label.call(row) %> · Signed <%= format_date_short(row["signing_date"]).presence || "—" %></div>
-              <div class="text-[10px] text-muted-foreground/80">Risk source: <%= risk_source_summary.call(row) %>.</div>
-              <div class="mt-1 flex flex-wrap items-center gap-1">
-                <span class="entity-chip entity-chip--muted"><%= limit_basis %></span>
-                <span class="<%= threshold_context[:chip_class] %>"><%= threshold_context[:label] %></span>
-                <span class="entity-chip entity-chip--muted" data-show="<%= slot_signal %> === '<%= row_id %>'" style="display: none;">Pinned</span>
-              </div>
-            </button>
-          <% else %>
-            <div class="text-[11px] text-muted-foreground italic">No player pinned.</div>
-          <% end %>
-        </div>
-      <% end %>
-    </div>
-
-    <% if compare_ready %>
-      <div class="rounded border border-border/60 bg-muted/20 px-2.5 py-2 text-[11px] tabular-nums space-y-1.5">
-        <div class="font-medium text-muted-foreground"><%= @compare_b_row["player_name"] %> vs <%= @compare_a_row["player_name"] %> delta</div>
-        <div class="text-[10px] text-muted-foreground/80"><%= delta_limit_basis_summary %></div>
-        <div class="flex items-center justify-between gap-3">
-          <span class="text-muted-foreground"><%= delta_remaining_label %></span>
-          <span class="font-medium <%= remaining_delta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' %>"><%= remaining_delta >= 0 ? '+' : '' %><%= remaining_delta %></span>
-        </div>
-        <div class="flex items-center justify-between gap-3">
-          <span class="text-muted-foreground">Used %</span>
-          <span class="font-medium <%= used_pct_delta <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' %>"><%= used_pct_delta.positive? ? '+' : '' %><%= used_pct_delta.round %>pp</span>
-        </div>
-        <div class="flex items-center justify-between gap-3">
-          <span class="text-muted-foreground">Signing context</span>
-          <span class="font-medium text-right"><%= signing_delta_label %></span>
-        </div>
-        <div class="text-[10px] text-muted-foreground/80"><%= delta_threshold_summary %></div>
-        <div class="text-[10px] text-muted-foreground/80"><%= @compare_a_row["player_name"] %>: <%= signing_a.presence || '—' %> · <%= @compare_b_row["player_name"] %>: <%= signing_b.presence || '—' %></div>
+        <% end %>
       </div>
+    <% else %>
+      <div class="p-3 text-sm text-muted-foreground">No teams in scope.</div>
     <% end %>
   </div>
 
-  <% if quick_rows.any? %>
-    <div class="rounded-lg border border-border bg-background">
-      <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick risk queue</div>
+  <div class="rounded-lg border border-border bg-background">
+    <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick risk queue</div>
+
+    <% if quick_rows.any? %>
       <div class="divide-y divide-border">
         <% quick_rows.each do |row| %>
           <% row_id = row["player_id"].to_s %>
+          <% team_code = row["team_code"].to_s.upcase %>
+          <% team_meta = @team_meta_by_code[team_code] || {} %>
+          <% team_logo = team_logo_url(team_meta["team_id"]) %>
           <% open_expr = "$overlaytype = 'player'; $overlayid = '#{row_id}'; @get('/tools/two-way-utility/sidebar/#{row_id}?#{@state_query}')" %>
           <% risk_tier = row["risk_tier"].to_s %>
           <% risk_chip_class = case risk_tier
@@ -223,29 +119,39 @@
             data-on:click="<%= open_expr %>"
           >
             <div class="entity-cell-two-line">
-              <div class="entity-cell-primary justify-between gap-2">
-                <span class="font-medium truncate"><%= row["player_name"] %></span>
-                <span class="text-[10px] tabular-nums text-muted-foreground"><%= row["team_code"] %></span>
+              <div class="entity-cell-primary gap-2">
+                <span class="min-w-0 flex items-center gap-1.5">
+                  <span class="w-4 h-4 rounded border border-border bg-background flex items-center justify-center overflow-hidden shrink-0">
+                    <% if team_logo.present? %>
+                      <img src="<%= team_logo %>" alt="" class="w-full h-full object-contain" loading="lazy" decoding="async" />
+                    <% else %>
+                      <span class="text-[8px] font-semibold text-muted-foreground"><%= team_code %></span>
+                    <% end %>
+                  </span>
+                  <span class="font-medium truncate"><%= row["player_name"] %></span>
+                </span>
               </div>
               <div class="entity-cell-secondary justify-between gap-2">
-                <span class="font-mono tabular-nums"><%= row["remaining_active_list_games"].presence || "—" %> left</span>
-                <span class="flex items-center gap-1">
-                  <span class="<%= risk_chip_class %>"><%= risk_label %></span>
-                  <span
-                    class="entity-chip entity-chip--muted"
-                    data-show="$overlaytype === 'player' && $overlayid === '<%= row_id %>'"
-                    style="display: none;"
-                  >Selected</span>
-                </span>
+                <span class="font-mono tabular-nums"><%= team_code %> · <%= row["remaining_active_list_games"].presence || "—" %> left</span>
+                <span class="<%= risk_chip_class %>"><%= risk_label %></span>
               </div>
             </div>
           </button>
         <% end %>
       </div>
-    </div>
-  <% else %>
-    <div class="p-4 rounded-lg border border-border bg-muted/20 text-sm text-muted-foreground">
-      No at-risk two-way rows in the current filter set.
+    <% else %>
+      <div class="p-4 text-sm text-muted-foreground">No at-risk two-way rows in the current lens.</div>
+    <% end %>
+  </div>
+
+  <% if critical_rows.any? || warning_rows.any? || estimate_rows.any? %>
+    <div class="rounded-lg border border-border bg-background p-3 space-y-2">
+      <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Risk mix</div>
+      <div class="text-[11px] text-muted-foreground tabular-nums">
+        Critical <span class="font-medium text-foreground"><%= critical_rows.size %></span>
+        · Warning <span class="font-medium text-foreground"><%= warning_rows.size %></span>
+        · Estimate <span class="font-medium text-foreground"><%= estimate_rows.size %></span>
+      </div>
     </div>
   <% end %>
 </div>
