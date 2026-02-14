@@ -1,11 +1,10 @@
 # Design Evolution Backlog (`web/`)
 
 North star:
-- Entity **index pages** are explorer workbenches (fast scan, tight pivots, dense rows).
-- Entity **detail pages** are decision dossiers (what changed, why it matters, what to do next).
-- Canonical pattern remains `#commandbar` + `#maincanvas` + sidebar layers where applicable.
-- Salary Book remains read-only reference quality, except approved Tankathon partial work.
-- Tool surfaces continue evolving in parallel (System Values / Two-Way / Team Summary).
+- Entity index pages are explorer workbenches (fast scan, dense rows, low-friction pivots).
+- Entity detail pages are decision dossiers (what changed, why it matters, what to do next).
+- Canonical Datastar patch boundaries remain stable: `#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`.
+- Salary Book is read-only reference quality except explicit Tankathon allow-list work.
 
 Rubric (1-5):
 1) Scan speed
@@ -14,500 +13,281 @@ Rubric (1-5):
 4) Density/readability balance
 5) Navigation/pivots
 
-## Audit snapshot (2026-02-13)
+Guardrails:
+- Default: do **not** modify Salary Book files.
+- Allowed exception only: `web/app/views/tools/salary_book/_maincanvas_tankathon_frame.html.erb`.
+- Do not modify Salary Book controllers/helpers/tests.
 
-- Index convergence wave succeeded: `/agents`, `/players`, `/teams`, `/agencies`, `/drafts`, `/draft-selections`, `/transactions`, `/trades` now largely operate in flex-row workbench grammar.
-- Tankathon exception succeeded in approved Salary Book frame file.
-- Biggest remaining UX gap is now **entity detail pages** (`/players/:slug`, `/agents/:slug`, `/teams/:slug`, etc.), which still contain many table-heavy sections and weaker “next action” flow.
+Execution mode:
+- Current priority is **entity detail page elevation**.
+- INDEX and TOOL work continues in parallel where high leverage.
+- ENTITY work is explicitly approved in this queue.
 
-## Supervisor correction — track lock (2026-02-13, evening pass)
+Supervisor override: ENTITY
+[ENTITY-OVERRIDE]
 
-Review inputs checked:
-- `.ralph/DESIGN.md`
-- `git log --oneline -8`
-- `git diff --name-only HEAD~4 -- web/`
-- `web/AGENTS.md`
-- `web/docs/design_guide.md`
-- `web/docs/datastar_sse_playbook.md`
-- `reference/sites/INTERACTION_MODELS.md`
+---
 
-Recent commit audit (last 4):
-- `56677d6` — `/draft-picks/:slug` detail lane redesign (**flow-level**, but `ENTITY` track)
-- `81d2141` — `/draft-selections/:slug` provenance lane redesign (**flow-level**, but `ENTITY` track)
-- `4d8a581` — `/agencies/:slug` de-table workspace lanes (**flow-level**, but `ENTITY` track)
-- `253de4a` — `/tools/two-way-utility` keyboard shortlist + overlay open (**flow-level**, `TOOL` track)
-
-Supervisor verdict:
-- Quality check: work is meaningful UX/interaction evolution (not cosmetic lint churn).
-- Guardrail check: passed — no forbidden Salary Book paths touched.
-- Datastar boundary check: passed — multi-region updates still use one SSE refresh (`/tools/two-way-utility/sse/refresh`, `/transactions/sse/refresh`), and single overlay opens remain `text/html`.
-- Revert action: none required (no low-value cosmetic sweep detected).
-
-Drift detected:
-- Track discipline drift: last 4 commits mixed **3× `ENTITY` detail + 1× `TOOL`**. Current loop must prioritize **`[INDEX]` convergence** and **`[TOOL]` evolution** only.
-
-Corrective TODOs for next worker cycle (mandatory):
-- Freeze `ENTITY` detail work unless explicitly supervisor-approved.
-- Next 2 commits must be exactly one `[INDEX]` and one `[TOOL]` (one surface + one user flow each).
-- Commit title schema required: `design: [TRACK] /surface flow-outcome`.
-- Every task entry must include patch targets (`#commandbar/#maincanvas/#rightpanel-base/#rightpanel-overlay` as applicable), response type (`text/html` vs `text/event-stream`), and before/after rubric scores.
-- Prefer flow outcomes (knobs, scan speed, pivots, drill-ins) over class-only visual polish.
-
-### Immediate supervisor-gated queue (INDEX/TOOL only from here forward)
-
-- [x] [P0] [INDEX] /transactions — explorer commandbar knobs + severity-first scan lanes
-  - User flow: scan latest movement → narrow by impact/type → drill into one transaction in sidebar without leaving index context.
+- [ ] [P0] [ENTITY] /trades/:id — remove remaining table islands and finish full lane grammar
+  - Problem: trade detail still contains table islands in lower sections, causing scan-mode resets after the upgraded top board.
+  - Hypothesis: finishing lane grammar end-to-end will make whole-page trade analysis consistent and faster.
   - Scope (files):
-    - `web/app/controllers/entities/transactions_controller.rb`
-    - `web/app/controllers/entities/transactions_sse_controller.rb`
-    - `web/app/views/entities/transactions/index.html.erb`
-    - `web/app/views/entities/transactions/_results.html.erb`
-    - `web/app/views/entities/transactions/_rightpanel_base.html.erb`
-    - `web/test/integration/entities_transactions_index_test.rb`
-  - Patch targets: `#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`
-  - Response type: multi-region filter/lens refresh remains one `text/event-stream` response (`Entities::TransactionsSseController#refresh`).
-  - What changed (files):
-    - Added URL-stable `impact` knob wiring (`all/critical/high/medium/low`) in `index.html.erb` and server state parsing in `transactions_controller.rb`; propagated through SSE signal patching (`txnimpact`) in `transactions_sse_controller.rb`.
-    - Enriched transaction index rows with ledger + artifact rollups (cap/tax/apron deltas, ledger row count, exception/dead-money/budget counts), computed severity tiers server-side, and applied severity-lens filtering before render.
-    - Rebuilt `transactions/_results.html.erb` into severity-first scan lanes (critical → low), with nested date buckets, impact chips, and compact delta lines (`Max Δ`, `Cap`, `Tax`, `Apron`) while preserving one-click pivots to transaction/player/team and sidebar drill-ins.
-    - Reworked `transactions/_rightpanel_base.html.erb` into severity-aware snapshot + quick feed lanes so the sidebar mirrors the same impact grammar as main scan.
-    - Added focused integration coverage in `entities_transactions_index_test.rb` for commandbar impact knob presence, severity lane rendering, single-SSE multi-region refresh behavior, and overlay preserve/clear behavior under impact filtering.
-  - Why this improves the flow:
-    - First-pass triage now starts with impact severity instead of flat date-only scanning, so high-risk movement is visible immediately.
-    - Narrowing by impact + type is now explicit and URL/share-state stable.
-    - Row-level compact delta signatures reduce drill-ins needed to identify meaningful transactions.
-    - Sidebar quick feed uses the same severity grammar, improving predictability between scan and drill-in.
-  - Rubric (before → after):
-    - Scan speed: 3 → 5
-    - Information hierarchy: 3 → 5
-    - Interaction predictability: 4 → 5
-    - Density/readability: 4 → 4
-    - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add optional severity threshold customization (e.g., user-selectable dollar cutoffs) without breaking default canonical lane definitions.
-    - Add lane-level quick toggles (`dead-money only`, `exception-usage only`) as secondary refinements on top of the primary impact lens.
-
-- [x] [P0] [TOOL] /tools/two-way-utility — keyboard shortlist + one-keystroke overlay open
-  - User flow: type intent → pick top match via keyboard → open player overlay while keeping team section context.
-  - Scope (implemented files):
-    - `web/app/controllers/tools/two_way_utility_controller.rb`
-    - `web/app/views/tools/two_way_utility/show.html.erb`
-    - `web/app/views/tools/two_way_utility/_commandbar.html.erb`
-    - `web/app/views/tools/two_way_utility/_workspace_main.html.erb`
-    - `web/test/integration/tools_two_way_utility_test.rb`
-  - Patch targets: `#commandbar`, `#maincanvas`, `#rightpanel-overlay`
-  - Response rule: commandbar+overlay or main+overlay updates use one `text/event-stream` refresh; single overlay open continues as `text/html` via `/tools/two-way-utility/sidebar/:id`.
-  - What changed (files):
-    - Added server-ranked intent shortlist derivation (`INTENT_SHORTLIST_LIMIT`, ranking score, risk-aware tie-breakers) and default shortlist cursor state in `two_way_utility_controller.rb`; wired cursor signals into SSE refresh payload (`twintentcursor`, `twintentcursorindex`).
-    - Extended workspace signals in `show.html.erb` to include shortlist cursor defaults so initial render and subsequent SSE refreshes share the same keyboard state contract.
-    - Rebuilt commandbar intent block in `_commandbar.html.erb` to support keyboard-first shortlist flow: debounced intent refresh, inline ranked shortlist chips, arrow-key cursor movement, and Enter-to-open overlay (`/sidebar/:id`) without leaving the team board context.
-    - Updated top-of-board guidance copy in `_workspace_main.html.erb` to advertise shortlist keyboard grammar while intent is active.
-    - Expanded `tools_two_way_utility_test.rb` assertions to cover shortlist rendering, keyboard wiring presence, and SSE signal propagation for shortlist cursor state.
-  - Why this improves the flow:
-    - Intent search now resolves to a ranked shortlist directly in the commandbar, so users can triage likely targets before scrolling through team sections.
-    - Enter now opens the currently highlighted shortlist row in one keystroke, preserving maincanvas team grouping and compare-board pins.
-    - Cursor state is server-synchronized across SSE refreshes, making keyboard behavior deterministic after every lens/intent update.
-  - Rubric (before → after):
+    - `web/app/views/entities/trades/show.html.erb`
+    - `web/test/integration/entities_trades_show_test.rb`
+  - Patch targets: `#maincanvas` (`#player-items`, `#pick-cash`, `#transactions`, `#endnotes`)
+  - Response type: `text/html` full-page show render.
+  - Acceptance criteria:
+    - No `<table>` markup remains in `web/app/views/entities/trades/show.html.erb`.
+    - Remaining sections use dense OUT/IN-aware lane grammar with direct pivots.
+    - Existing anchors/local-nav targets remain stable.
+  - Rubric (before → target):
     - Scan speed: 4 → 5
     - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add optional explicit shortcut hints/focus trap (`Ctrl+K` style) so users can jump to intent input and shortlist without pointer movement.
-    - Add server-returned match-reason labels (`prefix`, `id exact`, `substring`) to make shortlist ranking rationale visible for ambiguous queries.
-
----
-
-- [x] [P1] [ENTITY] /players/:slug — replace table-heavy contract sections with dense flex dossier lanes
-  - Problem: Contract history, guarantees, incentives, and ledger sections still read like disconnected spreadsheet tables.
-  - Hypothesis: Converting to unified flex-row dossier lanes will reduce context switching and improve “what matters now” comprehension.
-  - Scope (files):
-    - web/app/views/entities/players/_section_contract_history.html.erb
-    - web/app/views/entities/players/_section_guarantees.html.erb
-    - web/app/views/entities/players/_section_incentives.html.erb
-    - web/app/views/entities/players/_section_ledger.html.erb
-    - web/test/integration/entities_players_show_test.rb
-  - What changed (files):
-    - Replaced all table markup in the four target player dossier sections with dense flex-row lane layouts using consistent identity + metric cells (`entity-cell-two-line`).
-    - Added explicit high-signal chips/flags across lanes (PO/TO/ETO, FULL/PARTIAL/NON guarantees, No-Trade, Trade Bonus, conditional protections, likely/unlikely incentives).
-    - Added focused integration coverage in `entities_players_show_test.rb` to assert lane rendering, absence of `<table>` in targeted sections, and visibility of key flags.
-  - Why this improves the flow:
-    - Contract reading now follows one scan grammar across chronology → guarantees → incentives → ledger, reducing mode-switching between differently shaped tables.
-    - Year/event identity is anchored in left lanes while money/flags stay in predictable right metric cells, making “what matters now” faster to parse.
-    - Pivots (team/transaction/trade links) remain inline in the same row context instead of buried in wide table columns.
-  - Acceptance criteria:
-    - No `<table>` markup remains in the four target player section partials.
-    - Section rows use consistent identity + metric cell grammar (year/event/action + money/flags).
-    - High-signal flags (option, no-trade, trade bonus, guarantee type) are visible at row glance.
-  - Rubric (before → after):
-    - Scan speed: 3 → 5
-    - Information hierarchy: 3 → 5
-    - Interaction predictability: 4 → 5
-    - Density/readability: 3 → 4
-    - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add a compact “next decisions” rail near constraints/contract horizon so the same lane grammar surfaces upcoming option/expiry triggers first.
-    - Consider harmonizing Vitals/Connections/Team History onto the same lane grammar to complete full-page dossier consistency.
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [x] [P1] [ENTITY] /players/:slug — add “next decisions” rail (options, expirings, guarantee triggers)
-  - Problem: The page surfaces lots of history but does not foreground immediate decision points.
-  - Hypothesis: A compact decision rail near header/constraints will improve planning speed and downstream pivots.
+- [ ] [P1] [ENTITY] /players/:slug — add decision-lens chips (`urgent/upcoming/later`) with URL-stable state
+  - Problem: decision rail is strong but long lists still require manual scanning.
+  - Hypothesis: lens chips + URL persistence will improve repeat decision workflows.
   - Scope (files):
-    - web/app/views/entities/players/show.html.erb
-    - web/app/views/entities/players/_section_constraints.html.erb
-    - web/app/views/entities/players/_section_contract.html.erb
-    - web/app/views/entities/players/_rightpanel_base.html.erb
-    - web/test/integration/entities_players_show_test.rb
-  - What changed (files):
-    - Added a new top-level section rail at `web/app/views/entities/players/_section_next_decisions.html.erb`, wired into `show.html.erb` (full + deferred skeleton + local nav) and bootstrap rendering via `web/app/controllers/entities/players_sse_controller.rb`.
-    - Added a shared decision-item builder in `web/app/helpers/entities_helper.rb` (`player_next_decision_items`) that composes option windows, expirings, partial/non-guarantee branches, and protection-condition triggers with urgency labels.
-    - Updated `web/app/views/entities/players/_section_constraints.html.erb` and `_section_contract.html.erb` to expose rail handoff cues (“Jump to next decisions” + decision counts) so planning flow starts near posture and contract horizon.
-    - Updated `web/app/views/entities/players/_rightpanel_base.html.erb` (player-show branch) to add a compact decision shortlist with direct team / transaction / trade pivots.
-    - Expanded `web/test/integration/entities_players_show_test.rb` to assert the new `#next-decisions` section, no table markup, decision labels/urgency cues, and pivot-link presence.
-  - Why this improves the flow:
-    - Immediate decisions are now first-class and scanable by season + urgency instead of buried across contract, guarantees, and ledger sections.
-    - Users can jump from constraints → decision rail → deep section anchors without losing context, reducing backtracking.
-    - Every decision lane now carries direct pivots (team + transaction/trade where available), tightening analysis-to-action flow.
+    - `web/app/views/entities/players/_section_next_decisions.html.erb`
+    - `web/app/views/entities/players/show.html.erb`
+    - `web/app/helpers/entities_helper.rb`
+    - `web/test/integration/entities_players_show_test.rb`
+  - Patch targets: `#maincanvas` (`#next-decisions`)
+  - Response type: `text/html` full-page show render.
   - Acceptance criteria:
-    - Decision rail lists upcoming option/expiry/trigger items with season labels and urgency cues.
-    - Each decision item has direct pivot links (team, transaction/trade where available).
-    - Local nav + decision rail maintain stable anchors for fast jump/read.
-  - Rubric (before → after):
-    - Scan speed: 3 → 5
-    - Information hierarchy: 3 → 5
+    - Decision lenses filter displayed items without breaking section anchors.
+    - Lens state survives reload/share via query or hash state.
+    - Rail preserves direct team/transaction/trade pivots under filtering.
+  - Rubric (before → target):
+    - Scan speed: 4 → 5
+    - Information hierarchy: 4 → 5
+    - Interaction predictability: 4 → 5
+    - Density/readability: 4 → 4
+    - Navigation/pivots: 5 → 5
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [ENTITY] /teams/:slug — add transaction-id cross-highlighting between activity and apron provenance
+  - Problem: users still manually correlate apron trigger transactions with activity rows.
+  - Hypothesis: shared transaction-id highlighting will make causal tracing nearly instant.
+  - Scope (files):
+    - `web/app/views/entities/teams/_section_activity.html.erb`
+    - `web/app/views/entities/teams/_section_apron_provenance.html.erb`
+    - `web/app/views/entities/teams/show.html.erb`
+    - `web/test/integration/entities_teams_show_test.rb`
+  - Patch targets: `#maincanvas` (`#activity`, `#apron-provenance`)
+  - Response type: `text/html` full-page show render.
+  - Acceptance criteria:
+    - Shared transaction references are visually linked across both sections.
+    - Hover/focus on a tx link in one section highlights matching rows in the other.
+    - No regression in existing pivots/anchors.
+  - Rubric (before → target):
+    - Scan speed: 4 → 5
+    - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add rail-level filters (`Urgent`, `Upcoming`, `Later`) and persist lens state in URL hash/query.
-    - Replace fallback ledger linking for some trigger rows with explicit source linkage when contract trigger → transaction mapping becomes available in warehouse.
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [x] [P1] [ENTITY] /agents/:slug — convert table/card mix into sectioned flex workbench with client cohorts
-  - Problem: Agent page mixes cards and multiple tables, making large client books hard to triage quickly.
-  - Hypothesis: Cohort-based flex lanes (max-level, expiring, restricted, two-way) will speed portfolio reading.
+- [ ] [P1] [ENTITY] /agents/:slug — add cohort filters and URL-synced cohort state
+  - Problem: cohort lanes exist but large books still need quick cohort-only narrowing.
+  - Hypothesis: cohort filter chips with URL sync will tighten agent portfolio triage.
   - Scope (files):
-    - web/app/views/entities/agents/show.html.erb
-    - web/app/views/entities/agents/_sticky_header.html.erb
-    - web/test/integration/entities_agents_show_test.rb
-  - What changed (files):
-    - Rebuilt `web/app/views/entities/agents/show.html.erb` into sectioned lane grammar: posture + book horizon + new `#client-cohorts` + lane-based team footprint + lane-based full client roster + lane-based historical trend (replacing prior table/card-heavy primary flow).
-    - Added reusable dense row partial `web/app/views/entities/agents/_client_lane.html.erb` to keep cohort and full-roster rows consistent (identity + cap/decision metrics + status chips + direct player/team pivots).
-    - Updated `web/app/views/entities/agents/_sticky_header.html.erb` to support compact `posture_chips` so risk/posture cues (max/expiring/restricted/options) stay visible while scanning.
-    - Added focused integration coverage in `web/test/integration/entities_agents_show_test.rb` that stubs the workspace payload and asserts cohort sections, lane rendering, pivot-link presence, and absence of `<table>` markup in key client sections.
-  - Why this improves the flow:
-    - Portfolio triage now starts from explicit cohorts (max-level, expiring, restricted, two-way) instead of forcing users to scan a single mixed roster table.
-    - Cohort headers surface count + cap rollups immediately, so users can prioritize where negotiation/risk work is concentrated.
-    - A single dense lane grammar across cohorts + full roster + team footprint reduces mode switching and preserves one-click pivots to player/team pages.
+    - `web/app/views/entities/agents/show.html.erb`
+    - `web/app/views/entities/agents/_client_lane.html.erb`
+    - `web/test/integration/entities_agents_show_test.rb`
+  - Patch targets: `#maincanvas` (`#client-cohorts`, full roster section)
+  - Response type: `text/html` full-page show render.
   - Acceptance criteria:
-    - Key client sections use flex-row lanes instead of table markup.
-    - Cohort headers show counts + cap rollups and preserve direct player/team pivots.
-    - Header/posture chips remain dense and immediately legible.
-  - Rubric (before → after):
-    - Scan speed: 3 → 5
-    - Information hierarchy: 3 → 5
+    - Users can filter to one or more cohorts (max, expiring, restricted, two-way).
+    - Active cohort state is reflected in URL and survives reload.
+    - Cohort counts and cap rollups update consistently with filter state.
+  - Rubric (before → target):
+    - Scan speed: 4 → 5
+    - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
-    - Density/readability: 3 → 4
+    - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add cohort filters/toggles (`show overlap`, `hide empty cohorts`) with URL-persisted state for faster repeat workflows.
-    - Add cohort-level pivot actions (open cohort in Salary Book for active team/year lens) to tighten workbench→tool handoff.
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [x] [P1] [ENTITY] /teams/:slug — de-table activity, two-way, and apron provenance into causal flow lanes
-  - Problem: Team detail still has table-heavy operational sections that fragment the cap story.
-  - Hypothesis: Converting these sections to dense flow lanes will improve “what changed and why” understanding.
+- [ ] [P1] [ENTITY] /agencies/:slug — add agency cohort slices mirroring upgraded agent dossier grammar
+  - Problem: agency lanes are cleaner now, but negotiation-risk cohorts are not explicit.
+  - Hypothesis: cohort slices at agency scope will improve immediate footprint interpretation.
   - Scope (files):
-    - web/app/views/entities/teams/_section_activity.html.erb
-    - web/app/views/entities/teams/_section_two_way.html.erb
-    - web/app/views/entities/teams/_section_apron_provenance.html.erb
-    - web/app/views/entities/teams/show.html.erb
-    - web/app/controllers/entities/teams_sse_controller.rb
-    - web/test/integration/entities_teams_show_test.rb
-  - What changed (files):
-    - Rebuilt `web/app/views/entities/teams/_section_activity.html.erb` into lane-based “event → consequence” rows for both ledger and exception usage, with direct player / transaction / trade pivots and inline cap/tax/apron deltas.
-    - Rebuilt `web/app/views/entities/teams/_section_two_way.html.erb` into a capacity posture lane + watchlist usage lanes (games used, limit, runway urgency, standard-slot context) and direct handoff link to Two-Way Utility.
-    - Rebuilt `web/app/views/entities/teams/_section_apron_provenance.html.erb` into provenance lanes that surface trigger reason, apron level, A1/A2 transaction lineage, and active constraints in one scan path.
-    - Updated `web/app/views/entities/teams/show.html.erb` and `web/app/controllers/entities/teams_sse_controller.rb` section ordering to keep the operational flow contiguous (`activity` → `two-way` → `apron-provenance`) in both initial render and bootstrap.
-    - Added focused coverage in `web/test/integration/entities_teams_show_test.rb` asserting lane rendering, no table markup in the three target sections, key causal labels, and preserved pivots.
-  - Why this improves the flow:
-    - Team operators can now read each operational row as one causal line (action source + references + cap/tax/apron effect) without horizontal table scanning.
-    - Two-way decisions are tied to explicit runway urgency and immediately connected to downstream tools, reducing context-switch friction.
-    - Apron provenance now reads as a decision chain (reason → level → constraints → triggering tx), making “why this restriction exists” answerable at a glance.
+    - `web/app/views/entities/agencies/show.html.erb`
+    - `web/test/integration/entities_agencies_show_test.rb`
+  - Patch targets: `#maincanvas` (`#agent-roster`, `#historical`)
+  - Response type: `text/html` full-page show render.
   - Acceptance criteria:
-    - No `<table>` markup remains in the three target team section partials.
-    - Rows expose event/action → cap/tax/apron consequence in one line of sight.
-    - Related pivots (player/transaction/trade) are preserved or improved.
-  - Rubric (before → after):
-    - Scan speed: 3 → 5
-    - Information hierarchy: 3 → 5
+    - Agency roster exposes cohort slices (`max`, `expiring`, `restricted`, `option-heavy`).
+    - Slice headers show counts + cap totals and preserve pivots.
+    - Historical section can be viewed through active slice context.
+  - Rubric (before → target):
+    - Scan speed: 4 → 5
+    - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
-    - Density/readability: 3 → 4
+    - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add quick lane filters in activity (`cap only`, `tax only`, `apron only`) to shrink long ledgers without leaving the section.
-    - Add cross-highlighting between apron provenance rows and matching activity transactions (shared transaction ID emphasis) for instant cause tracing.
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [x] [P1] [ENTITY] /transactions/:id — redesign from static record view to causal transaction timeline
-  - Problem: Transaction detail is comprehensive but hard to parse causally (parties, ledger effects, artifacts are separated and table-dense).
-  - Hypothesis: Timeline-style lanes with explicit cause/effect chips will make transaction interpretation much faster.
+- [ ] [P2] [ENTITY] /transactions/:id — add timeline phase filters and optional raw-row expansion
+  - Problem: causal timeline is strong, but very dense transactions still need lightweight narrowing.
+  - Hypothesis: phase filters + raw expanders will keep default readability while preserving audit depth.
   - Scope (files):
-    - web/app/views/entities/transactions/show.html.erb
-    - web/test/integration/entities_transactions_show_test.rb
-  - What changed (files):
-    - Rebuilt `web/app/views/entities/transactions/show.html.erb` into a single causal timeline section that reads in ordered phases (`1 · Transaction facts` → `2 · Parties + routing` → `3 · Ledger deltas` → `4 · Cap artifacts`) using dense lane rows instead of table blocks.
-    - Added per-lane cause/effect metric cells (`Cap Δ`, `Tax Δ`, `Apron Δ`, `MTS Δ`) and surfaced direct pivots (team/player/transaction/trade) inside each lane so users can move from interpretation to drill-in without context loss.
-    - Reworked trade context and endnotes into lane grammar to keep the same scan model throughout the page rather than falling back to nested tables.
-    - Added focused integration coverage in `web/test/integration/entities_transactions_show_test.rb` asserting timeline phase labels, no `<table>` markup in primary timeline/trade sections, and presence of team/player/trade/transaction pivots.
-  - Why this improves the flow:
-    - Users now follow one explicit narrative path from “what happened” to “who it touched” to “financial consequences” to “cap artifacts,” reducing section-jumping and mental stitching.
-    - Every lane now carries immediate related pivots, so the transaction page behaves like a decision dossier instead of a static audit dump.
-    - Dense lane grammar preserves information density while making chronology and causality legible in one vertical scan.
+    - `web/app/views/entities/transactions/show.html.erb`
+    - `web/test/integration/entities_transactions_show_test.rb`
+  - Patch targets: `#maincanvas` (`#causal-timeline`)
+  - Response type: `text/html` full-page show render.
   - Acceptance criteria:
-    - Page presents chronological/causal lane from transaction facts → parties → ledger deltas → cap artifacts.
-    - Core sections avoid large table blocks for primary read path.
-    - “Open related trade/player/team” pivots are visible in each lane.
-  - Rubric (before → after):
-    - Scan speed: 2 → 5
-    - Information hierarchy: 3 → 5
+    - Phase chips (`facts/parties/ledger/artifacts`) filter lanes in-page.
+    - Each phase supports collapsed-by-default raw-row expansion.
+    - Deep-link state (active phase) is URL-stable.
+  - Rubric (before → target):
+    - Scan speed: 4 → 5
+    - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
-    - Density/readability: 3 → 4
-    - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add timeline lane filters (`facts`, `parties`, `ledger`, `artifacts`) with URL-persisted state for very large transactions.
-    - Add optional “show raw warehouse rows” expansion beneath each phase for audit/debug workflows without polluting the default primary scan path.
+    - Density/readability: 4 → 4
+    - Navigation/pivots: 5 → 5
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [x] [P1] [ENTITY] /trades/:id — reframe trade detail as team-centric OUT/IN impact board
-  - Problem: Trade detail contains rich data but requires too much table scanning to understand team-by-team directionality.
-  - Hypothesis: Team-centric OUT/IN lanes with net impact cues will reduce drill burden and improve legal/cap interpretation.
+- [ ] [P2] [ENTITY] /draft-selections/:slug — add provenance lane filters (`deep/conditional/swap`) and team exposure summary
+  - Problem: provenance lanes are improved but long chains still require full-scroll parsing.
+  - Hypothesis: lane filters plus top exposure summary will accelerate ownership-risk calls.
   - Scope (files):
-    - web/app/views/entities/trades/show.html.erb
-    - web/test/integration/entities_trades_show_test.rb
-  - What changed (files):
-    - Rebuilt `#leg-breakdown` in `web/app/views/entities/trades/show.html.erb` from a single summary table into a team-centric impact board with per-team OUT/IN/net cues, salary/cash deltas, and inline asset lanes.
-    - Added team-level lane composition logic at the top of `show.html.erb` to aggregate outgoing/incoming players, picks, cash, and related transactions so each team lane reads as one impact snapshot.
-    - Rebuilt `#trade-groups` in `show.html.erb` into legal lanes (by group + team) that keep signed-method + generated/acquired exception context in the same row grammar, plus a lane-style team exception registry.
-    - Added focused integration coverage in `web/test/integration/entities_trades_show_test.rb` asserting no table markup in `#leg-breakdown`/`#trade-groups`, visibility of OUT/IN/net cues, and preserved player/pick/transaction/team pivots.
-  - Why this improves the flow:
-    - Users now start with directionality (OUT vs IN vs net) per team before drilling into raw row audits, eliminating the previous “decode tables first” step.
-    - Asset pivots (player, pick, transaction) are now embedded directly in each team lane, so analysis stays team-contextual rather than bouncing across isolated sections.
-    - Legal trade-group interpretation is now aligned with the same team lane grammar, making cap-legal context readable without switching scanning modes.
+    - `web/app/views/entities/draft_selections/show.html.erb`
+    - `web/test/integration/entities_draft_selections_show_test.rb`
+  - Patch targets: `#maincanvas` (`#provenance`)
+  - Response type: `text/html` full-page show render.
   - Acceptance criteria:
-    - Leg breakdown and trade-group sections are readable in team-centric lane grammar.
-    - OUT/IN/net cues are visible before reading deep details.
-    - Transaction, player, and pick pivots are preserved in each lane.
-  - Rubric (before → after):
-    - Scan speed: 2 → 5
-    - Information hierarchy: 3 → 5
+    - Filter chips narrow lane rows by chain depth/flag type.
+    - Summary strip surfaces exposed teams and deepest hop count.
+    - Existing transaction/trade pivots remain unchanged.
+  - Rubric (before → target):
+    - Scan speed: 4 → 5
+    - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
-    - Density/readability: 3 → 4
+    - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add lane-level toggles (`assets only`, `transactions only`, `legal only`) with URL-persisted state for large multi-team trades.
-    - Add explicit TPE direction mapping (OUT vs IN) once warehouse rows expose directional exception flow in trade details.
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [x] [P2] [ENTITY] /agencies/:slug — de-table roster/distribution/historical sections into flex lanes
-  - Problem: Agency detail remained table-dominant, which slowed cross-agent + cross-team footprint scanning.
-  - Hypothesis: Dense flex lanes with rollup-aware headers would improve fast triage and preserve pivots.
-  - Scope (implemented files):
-    - web/app/views/entities/agencies/show.html.erb
-    - web/test/integration/entities_agencies_show_test.rb
-  - Patch targets: `#maincanvas` (entity show section stack)
-  - Response type: full-page `text/html` show render (`Entities::AgenciesController#show`)
-  - What changed (files):
-    - Rebuilt `show.html.erb` roster/team/historical primary read paths from `<table>` markup into lane grammar (`entity-cell-two-line` rows + dense flex metric cells) while keeping existing section anchors (`#agent-roster`, `#team-distribution`, `#historical`).
-    - Added rollup-first section headers for each target block (agent counts with active/inactive posture, represented team/client/cap totals, season range + top-client cap totals) so scan starts with concentration signals before row detail.
-    - Converted historical subsections (“Book by season”, “Top clients by cap (2025)”) to lane rows with inline intensity bars and preserved direct player/agent/team pivots.
-    - Added team slug prefetch on agency show to keep team pivots canonical when available.
-    - Added focused integration coverage in `entities_agencies_show_test.rb` asserting lane rendering, absence of `<table>` in target sections, stable anchors, and preserved `/agents` + `/players` + `/teams` links.
-  - Why this improves the flow:
-    - The agency footprint now reads in one vertical lane grammar across roster → distribution → history, reducing table-mode switching.
-    - Rollup headers expose where concentration/risk sits before users drill into row-level details.
-    - Direct pivots stay embedded in every row, so users can jump to agent/player/team context without leaving scan momentum.
-  - Rubric (before → after):
-    - Scan speed: 3 → 5
-    - Information hierarchy: 3 → 5
-    - Interaction predictability: 4 → 5
-    - Density/readability: 3 → 4
-    - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add optional historical lens toggles (`cap` / `tax` / `apron`) to reduce cognitive load on long season ranges.
-    - Add cohort slices inside agency roster lanes (`max-level`, `expiring`, `restricted`) for faster negotiation-risk triage at agency scope.
-  - Guardrails:
-    - Do not modify Salary Book files.
-
-- [x] [P2] [ENTITY] /draft-selections/:slug — convert provenance section to severity-first chain lanes
-  - Problem: Draft selection detail still buries provenance complexity in a table.
-  - Hypothesis: Severity-first chain lanes (clean / with trade / deep chain) will make ownership risk obvious immediately.
+- [ ] [P2] [ENTITY] /draft-picks/:slug — add rule-lane filters and chain-map hop highlighting
+  - Problem: new rule lanes are clearer, but large rule sets still need faster narrowing and hop tracing.
+  - Hypothesis: rule filters + hop highlighting will shorten protection interpretation loops.
   - Scope (files):
-    - web/app/views/entities/draft_selections/show.html.erb
-    - web/test/integration/entities_draft_selections_show_test.rb
-  - Patch targets: `#maincanvas` (`#provenance` section on entity show)
-  - Response type: full-page `text/html` show render (`Entities::DraftSelectionsController#show`)
-  - What changed (files):
-    - Rebuilt `web/app/views/entities/draft_selections/show.html.erb` provenance section from table markup into severity-first chain lanes ordered as `Deep chain → With trade → Clean`, with a top risk snapshot chip row (`Clean/With trade/Deep chain`) and chain depth signal (`P0+`).
-    - Added lane-level chain rendering with hop markers (`P1`, `P2`, ...), explicit `From → To` route cells, one-click trade pivots, date visibility, and inline flag chips (`swap`, `future`, `conditional`, conditional type).
-    - Preserved and foregrounded transaction/trade pivots at section footer so canonical transaction context remains one click from provenance scan.
-    - Added focused integration coverage in `web/test/integration/entities_draft_selections_show_test.rb` asserting severity lane labels, absence of `<table>` in `#provenance`, route legibility (`From → To`), and preserved `/transactions`, `/trades`, and `/teams` pivots.
-  - Why this improves the flow:
-    - Provenance complexity is now triaged by severity first, so contested ownership chains surface immediately instead of requiring horizontal table parsing.
-    - Chain hops now read as a vertical causal story (hop/date/route/flags) with direct links, reducing back-and-forth interpretation effort.
-    - The same section now supports both quick risk scan (lane headers/chips) and detailed audit (hop rows) without leaving page context.
-  - Rubric (before → after):
-    - Scan speed: 3 → 5
-    - Information hierarchy: 3 → 5
+    - `web/app/views/entities/draft_picks/show.html.erb`
+    - `web/test/integration/entities_draft_picks_show_test.rb`
+  - Patch targets: `#maincanvas` (`#protections`, `#trade-chain`)
+  - Response type: `text/html` full-page show render.
+  - Acceptance criteria:
+    - Rule chips (`all/conditional/swap/flagged`) filter lane rows.
+    - Selecting a rule lane highlights corresponding hops in chain map.
+    - Trade/team pivots continue to work from filtered view.
+  - Rubric (before → target):
+    - Scan speed: 4 → 5
+    - Information hierarchy: 4 → 5
     - Interaction predictability: 4 → 5
-    - Density/readability: 3 → 4
+    - Density/readability: 4 → 4
     - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add optional lane filter chips (`all`, `deep only`, `conditional only`) with URL-stable state for very long historical chains.
-    - Add cross-highlight between provenance hops and matching trade rows on `/trades/:id` once shared chain identifiers are exposed in the detail payload.
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [x] [P2] [ENTITY] /draft-picks/:slug — redesign protections + trade chain into rule lanes and chain map
-  - Problem: Draft pick detail is thorough but table-heavy and hard to interpret quickly under conditional complexity.
-  - Hypothesis: Rule-oriented lanes plus compact chain map will improve comprehension of protections/swaps.
-  - Scope (files):
-    - web/app/views/entities/draft_picks/show.html.erb
-    - web/test/integration/entities_draft_picks_show_test.rb
-  - Patch targets: `#maincanvas` (`#protections`, `#trade-chain`, local-nav labels)
-  - Response type: full-page `text/html` show render (`Entities::DraftPicksController#show`)
-  - What changed (files):
-    - Rebuilt `#protections` in `web/app/views/entities/draft_picks/show.html.erb` from table markup into rule lanes (`Conditional protections`, `Swap rights`, `Direct conveyance`, `Forfeiture / review`) with lane rollups, explicit conditional/swap/forfeited/review chips, and dense row grammar (`entity-cell-two-line`).
-    - Added per-rule counterparty route visibility (counterparty, pool, via chain) and inline trade pivots sourced from referenced endnotes so ownership context no longer requires column-by-column table scanning.
-    - Reframed `#trade-chain` into a compact chain map (team-node route + hop depth + original/current owner chips) plus hop lanes (`Conditional`, `Swap`, `Direct`) with `From → To`, original-owner, trade pivot, and flag cells in one scan path.
-    - Added focused integration coverage in `web/test/integration/entities_draft_picks_show_test.rb` to assert no `<table>` markup in `#protections`/`#trade-chain`, presence of rule-lane + chain-map labels, explicit conditional/swap flags, and preserved `/teams/*` + `/trades/*` pivots.
-  - Why this improves the flow:
-    - Protection interpretation now starts from rule intent (conditional vs swap vs direct vs flagged) instead of deciphering a flat asset grid.
-    - Counterparty and original-owner context is surfaced in lane headers and per-row route cells, reducing backtracking across sections.
-    - Chain map + hop lanes gives a quick ownership route summary and still preserves detailed audit pivots in the same vertical scan.
-  - Rubric (before → after):
-    - Scan speed: 3 → 5
-    - Information hierarchy: 3 → 5
-    - Interaction predictability: 4 → 5
-    - Density/readability: 3 → 4
-    - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add lane filter chips (`all`, `conditional only`, `swap only`, `flagged`) with URL-stable state for long pick-rule payloads.
-    - Add cross-highlight between rule-lane rows and matching hop rows once shared chain identifiers are available in draft pick assets.
-  - Guardrails:
-    - Do not modify Salary Book files.
-
-- [x] [P1] [INDEX] /players — contract-horizon knobs + urgency-first scan lanes
-  - Problem: `/players` remained strong as a directory, but immediate decision pressure (near-horizon options/expirings/guarantees) was still buried behind constraint-heavy grouping.
-  - Hypothesis: Explicit urgency knobs + urgency-lane grouping + mirrored sidebar quick feed would improve triage speed without losing existing compare/overlay workflows.
+- [ ] [P2] [INDEX] /players — add secondary urgency sub-lenses (`option-only`, `expiring-only`, `non-guaranteed-only`)
+  - Problem: urgency lanes are strong, but analysts still need narrower follow-up controls.
+  - Hypothesis: sub-lenses on top of urgency will reduce false-positive scanning in large result sets.
   - Scope (files):
     - `web/app/controllers/entities/players_controller.rb`
     - `web/app/controllers/entities/players_sse_controller.rb`
     - `web/app/views/entities/players/index.html.erb`
     - `web/app/views/entities/players/_workspace_main.html.erb`
-    - `web/app/views/entities/players/_rightpanel_base.html.erb`
-    - `web/app/views/entities/players/_rightpanel_overlay_player.html.erb`
     - `web/test/integration/entities_players_index_test.rb`
-  - Patch targets: `#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`
-  - Response type: multi-region filter/urgency refresh remains one `text/event-stream` response (`Entities::PlayersSseController#refresh`); single player overlay open remains `text/html`.
-  - What changed (files):
-    - Added URL-stable urgency lens wiring (`all/urgent/upcoming/stable`) in `index.html.erb`, controller filter parsing (`@urgency_lens`), and SSE signal propagation (`playerurgency`) in `players_sse_controller.rb`.
-    - Extended `players_controller.rb` index row derivation with next-horizon option/non-guarantee signals, server-side urgency classification (`urgent/upcoming/stable` + reason text), urgency filtering, and urgency-lane builders reused by both maincanvas and sidebar quick feed.
-    - Rebuilt `players/_workspace_main.html.erb` into urgency-first scan lanes (`#players-section-urgent|upcoming|stable`) while preserving dense row pivots (player/team/agent links), one-click overlay open, and compare slot pinning.
-    - Reworked `players/_rightpanel_base.html.erb` snapshot to surface urgency KPI counts and added mirrored urgency quick feed lanes so sidebar triage grammar matches maincanvas.
-    - Updated `players/_rightpanel_overlay_player.html.erb` refresh query contract to carry `urgency` so compare pin/clear actions preserve current urgency lens state.
-    - Expanded `entities_players_index_test.rb` assertions for urgency knob presence, urgency-lane rendering, SSE `playerurgency` signal propagation, and urgent-lens filtering behavior.
-  - Why this improves the flow:
-    - Triage now starts at urgency level (urgent → upcoming → stable) instead of forcing users to infer urgency from mixed constraint buckets.
-    - Contract horizon and urgency are now explicitly coupled in server-classified row reasons, reducing “open overlay just to understand pressure” steps.
-    - Sidebar quick feed now mirrors maincanvas urgency grammar, making scan-to-drill behavior more predictable.
-  - Verification:
-    - `cd web && bundle exec ruby -Itest test/integration/entities_players_index_test.rb -n '/refresh/'`
-    - `cd web && bundle exec ruby -Itest test/integration/entities_players_index_test.rb -n '/sidebar returns/'`
-  - Rubric (before → after):
-    - Scan speed: 4 → 5
-    - Information hierarchy: 4 → 5
-    - Interaction predictability: 4 → 5
-    - Density/readability: 4 → 4
-    - Navigation/pivots: 4 → 5
-  - Follow-up tasks discovered:
-    - Add secondary urgency sub-lenses (`option-only`, `expiring-only`, `non-guaranteed-only`) layered beneath primary urgency lanes.
-    - Consider lane-level sort override (`largest cap at-risk`, `soonest trigger`) while keeping URL-stable and SSE-single-response behavior.
-  - Guardrails:
-    - Do not modify Salary Book files.
-
-- [x] [P1] [TOOL] /tools/system-values — add keyboard-first metric finder shortlist
-  - Problem: Finder works, but still biases pointer-heavy selection for known metrics.
-  - Hypothesis: Ranked typeahead + Enter open will complete find-and-open in one flow.
-  - Scope (files):
-    - `web/app/controllers/tools/system_values_controller.rb`
-    - `web/app/views/tools/system_values/show.html.erb`
-    - `web/app/views/tools/system_values/_commandbar.html.erb`
-    - `web/app/views/tools/system_values/_rightpanel_base.html.erb`
-    - `web/test/integration/tools_system_values_test.rb`
-  - Patch targets: `#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`
-  - Response type: finder query/shortlist refresh remains one `text/event-stream` response (`Tools::SystemValuesController#refresh`) so commandbar + maincanvas + rightpanel stay synchronized; single metric overlay open remains `text/html` via `/tools/system-values/sidebar/metric`.
-  - What changed (files):
-    - Added server-side metric shortlist state in `system_values_controller.rb`: query/cursor parsing, ranked shortlist derivation (`METRIC_SHORTLIST_LIMIT` + metric/context scoring), cursor preservation across refreshes, and SSE signal propagation (`svmetricfinderquery`, `svmetricfindercursor`, `svmetricfindercursorindex`).
-    - Extended URL/state query contracts in `system_values_controller.rb` and `show.html.erb` to carry finder query + cursor so refreshes and history state keep finder and overlay context aligned.
-    - Rebuilt commandbar finder UX in `_commandbar.html.erb` from pointer-first `<select>` to keyboard-first typeahead + ranked shortlist chips with `↑/↓` cursor movement and Enter-to-open overlay via one shortcut flow.
-    - Updated `_rightpanel_base.html.erb` finder card to surface shortlist state (active query + ranked count + keyboard hint) and explicit active overlay target context.
-    - Expanded `tools_system_values_test.rb` assertions for shortlist render/wiring, keyboard hint wiring, new finder signals, and URL query synchronization through SSE refresh.
-  - Why this improves the flow:
-    - Known-metric drill-in now starts with typing intent and stays on keyboard through shortlist pick + Enter open.
-    - Finder state and overlay state are now server-synchronized and URL-stable across SSE refreshes, reducing desync after lens/year changes.
-    - Commandbar shortlist and sidebar state now share one interaction grammar (highlighted cursor ↔ active overlay target), improving predictability.
-  - Verification:
-    - `cd web && bundle exec ruby -Itest test/integration/tools_system_values_test.rb`
-  - Rubric (before → after):
-    - Scan speed: 4 → 5
+  - Patch targets: `#commandbar`, `#maincanvas`, `#rightpanel-base`
+  - Response type: one `text/event-stream` response for multi-region refresh.
+  - Acceptance criteria:
+    - Sub-lens controls are discoverable and URL-stable.
+    - Lane counts + rows reflect primary urgency + secondary sub-lens intersection.
+    - Overlay preservation behavior remains correct under sub-lens changes.
+  - Rubric (before → target):
+    - Scan speed: 5 → 5
     - Information hierarchy: 5 → 5
-    - Interaction predictability: 4 → 5
+    - Interaction predictability: 5 → 5
     - Density/readability: 4 → 4
     - Navigation/pivots: 5 → 5
-  - Follow-up tasks discovered:
-    - Add explicit global shortcut/focus handoff (`Ctrl/Cmd+K`) to jump focus into metric finder input.
-    - Add server-returned match-reason badges (`metric exact`, `prefix`, `context`) in shortlist rows for ambiguous queries.
   - Guardrails:
     - Do not modify Salary Book files.
 
-- [x] [P3] [PROCESS] design loop hygiene — enforce commit title schema and forbidden Salary Book path guard
-  - Problem: Recent history includes inconsistent commit naming and historical risk of forbidden Salary Book path touches.
-  - Hypothesis: Hard checks in loop/supervisor step will reduce drift and cleanup churn.
+- [ ] [P2] [TOOL] /tools/system-values — add global shortcut focus (`Cmd/Ctrl+K`) and match-reason badges
+  - Problem: keyboard shortlist exists, but first focus and result rationale are still implicit.
+  - Hypothesis: explicit shortcut + reason badges will speed confident metric selection.
   - Scope (files):
-    - agents/design.ts
-    - web/app/views/tools/salary_book/_maincanvas_tankathon_frame.html.erb (allow-list reference only)
-  - Patch targets: N/A (process guardrail task)
-  - Response type: N/A
-  - What changed (files):
-    - Reworked `agents/design.ts` supervisor wiring from prompt-only auditing to hard-gated supervision with deterministic guard checks executed before supervisor prompting.
-    - Added explicit loop guardrail evaluators in `agents/design.ts` for commit-title schema enforcement (`design: [TRACK] /surface flow-outcome`), forbidden Salary Book path detection (with Tankathon allow-list), and `[ENTITY]` task/commit blocking unless explicit override marker is present.
-    - Added explicit failure logging paths (`[Design Guard][FAIL]` / `[Supervisor Guard][FAIL]`) and hard-stop behavior so invalid tasks/commits fail fast instead of silently drifting.
-    - Updated worker/supervisor/generate prompt commit instructions in `agents/design.ts` to align with the enforced schema (`design: [PROCESS] /supervisor review`, `design: [PROCESS] /backlog generate evolution backlog`).
-  - Why this improves the flow:
-    - Guardrails now fail at loop runtime instead of relying on supervisor interpretation alone, reducing cleanup/revert cycles.
-    - Commit hygiene is machine-enforced, so commit history becomes reliably parseable by track/surface outcome.
-    - Salary Book protection is now backed by path-level hard checks, lowering accidental-touch risk.
-    - `[ENTITY]` drift now requires explicit override breadcrumbs in the task file, keeping the queue aligned with INDEX/TOOL priority.
-  - Verification:
-    - `bun agents/design.ts --dry-run --once`
-  - Rubric (before → after):
-    - Scan speed: 3 → 3
-    - Information hierarchy: 4 → 4
-    - Interaction predictability: 3 → 5
+    - `web/app/views/tools/system_values/show.html.erb`
+    - `web/app/views/tools/system_values/_commandbar.html.erb`
+    - `web/app/controllers/tools/system_values_controller.rb`
+    - `web/test/integration/tools_system_values_test.rb`
+  - Patch targets: `#commandbar`, `#rightpanel-base`
+  - Response type: one `text/event-stream` response for multi-region refresh.
+  - Acceptance criteria:
+    - `Cmd/Ctrl+K` focuses finder from anywhere in the page.
+    - Shortlist rows show match reason badges (`exact/prefix/context`).
+    - Finder + overlay state remain synchronized after shortcut-driven open.
+  - Rubric (before → target):
+    - Scan speed: 5 → 5
+    - Information hierarchy: 5 → 5
+    - Interaction predictability: 5 → 5
     - Density/readability: 4 → 4
-    - Navigation/pivots: 3 → 3
-  - Follow-up tasks discovered:
-    - Consider adding the same guardrail helper pattern to other loops that have strict commit-path contracts.
-    - Consider recording guardrail failure summaries to a persistent log file for supervisor trend audits.
+    - Navigation/pivots: 5 → 5
   - Guardrails:
-    - Salary Book exception: only edit `web/app/views/tools/salary_book/_maincanvas_tankathon_frame.html.erb`.
-    - Do not modify any other Salary Book files/controllers/helpers/tests.
+    - Do not modify Salary Book files.
+
+- [ ] [P2] [TOOL] /tools/two-way-utility — add global intent focus shortcut and match rationale labels
+  - Problem: shortlist open works, but intent initiation and ranking rationale remain opaque for edge queries.
+  - Hypothesis: explicit shortcut + reason labels will reduce query iteration loops.
+  - Scope (files):
+    - `web/app/views/tools/two_way_utility/show.html.erb`
+    - `web/app/views/tools/two_way_utility/_commandbar.html.erb`
+    - `web/app/controllers/tools/two_way_utility_controller.rb`
+    - `web/test/integration/tools_two_way_utility_test.rb`
+  - Patch targets: `#commandbar`, `#maincanvas`, `#rightpanel-overlay`
+  - Response type: one `text/event-stream` refresh for multi-region updates; overlay open remains `text/html`.
+  - Acceptance criteria:
+    - `Cmd/Ctrl+K` focuses intent input from board context.
+    - Shortlist displays reason labels (`name prefix`, `id exact`, `contains`).
+    - Enter-to-open remains deterministic after cursor movement and refresh.
+  - Rubric (before → target):
+    - Scan speed: 5 → 5
+    - Information hierarchy: 5 → 5
+    - Interaction predictability: 5 → 5
+    - Density/readability: 4 → 4
+    - Navigation/pivots: 5 → 5
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P3] [PROCESS] design backlog hygiene — keep DESIGN.md active-only and archive done work to git history
+  - Problem: backlog files bloat quickly and increase startup/token cost for the loop.
+  - Hypothesis: an explicit active-only policy prevents context-window waste and drift.
+  - Scope (files):
+    - `.ralph/DESIGN.md`
+    - `agents/design.ts`
+  - Patch targets: N/A
+  - Response type: N/A
+  - Acceptance criteria:
+    - `DESIGN.md` contains only active unchecked tasks.
+    - Any done-task summaries are one short audit note or omitted entirely.
+    - Loop prompt reminds agent not to reintroduce completed blocks.
+  - Rubric (before → target):
+    - Scan speed: 3 → 5
+    - Information hierarchy: 4 → 5
+    - Interaction predictability: 4 → 5
+    - Density/readability: 3 → 5
+    - Navigation/pivots: 3 → 4
+  - Guardrails:
+    - Do not modify Salary Book files.
