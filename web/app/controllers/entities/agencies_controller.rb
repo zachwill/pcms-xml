@@ -4,6 +4,7 @@ module Entities
     ACTIVITY_LENSES = %w[all active inactive inactive_live_book live_book_risk].freeze
     SORT_KEYS = %w[book clients agents teams max expirings options name].freeze
     AGENT_LENS_SORT_KEYS = %w[book clients teams max expirings options name].freeze
+    SHOW_COHORT_FILTERS = %w[max expiring restricted option_heavy].freeze
 
     helper_method :agents_lens_pivot_href, :agents_lens_pivot_sort_key
 
@@ -51,12 +52,13 @@ module Entities
 
       canonical = Slug.find_by(entity_type: "agency", entity_id: record.entity_id, canonical: true)
       if canonical && canonical.slug != record.slug
-        redirect_to agency_path(canonical.slug), status: :moved_permanently
+        redirect_to agency_path(canonical.slug, **request.query_parameters), status: :moved_permanently
         return
       end
 
       @agency_id = record.entity_id
       @agency_slug = record.slug
+      load_show_cohort_filters!
 
       conn = ActiveRecord::Base.connection
       id_sql = conn.quote(@agency_id)
@@ -131,7 +133,7 @@ module Entities
         LIMIT 12
       SQL
 
-      @top_clients = conn.exec_query(<<~SQL).to_a
+      @clients = conn.exec_query(<<~SQL).to_a
         SELECT
           sbw.player_id,
           sbw.player_name,
@@ -141,7 +143,21 @@ module Entities
           sbw.agent_id,
           ag.full_name AS agent_name,
           sbw.cap_2025::numeric AS cap_2025,
-          sbw.total_salary_from_2025::numeric AS total_salary_from_2025
+          sbw.cap_2026::numeric AS cap_2026,
+          sbw.cap_2027::numeric AS cap_2027,
+          sbw.cap_2028::numeric AS cap_2028,
+          sbw.cap_2029::numeric AS cap_2029,
+          sbw.cap_2030::numeric AS cap_2030,
+          sbw.total_salary_from_2025::numeric AS total_salary_from_2025,
+          sbw.pct_cap_2025,
+          COALESCE(sbw.is_two_way, false)::boolean AS is_two_way,
+          COALESCE(sbw.is_no_trade, false)::boolean AS is_no_trade,
+          COALESCE(sbw.is_trade_bonus, false)::boolean AS is_trade_bonus,
+          COALESCE(sbw.is_trade_restricted_now, false)::boolean AS is_trade_restricted_now,
+          sbw.option_2025,
+          sbw.option_2026,
+          sbw.option_2027,
+          sbw.option_2028
         FROM pcms.agents ag
         JOIN pcms.salary_book_warehouse sbw
           ON sbw.agent_id = ag.agent_id
@@ -150,16 +166,15 @@ module Entities
          AND t.league_lk = 'NBA'
         WHERE ag.agency_id = #{id_sql}
         ORDER BY sbw.cap_2025 DESC NULLS LAST, sbw.player_name
-        LIMIT 20
       SQL
 
-      @book_by_year = conn.exec_query(<<~SQL).to_a
+      @client_yearly_footprint = conn.exec_query(<<~SQL).to_a
         SELECT
+          sbw.player_id,
           sby.salary_year,
-          COUNT(*)::integer AS player_count,
-          COALESCE(SUM(sby.cap_amount), 0)::bigint AS cap_total,
-          COALESCE(SUM(sby.tax_amount), 0)::bigint AS tax_total,
-          COALESCE(SUM(sby.apron_amount), 0)::bigint AS apron_total
+          sby.cap_amount::numeric AS cap_amount,
+          sby.tax_amount::numeric AS tax_amount,
+          sby.apron_amount::numeric AS apron_amount
         FROM pcms.agents ag
         JOIN pcms.salary_book_warehouse sbw
           ON sbw.agent_id = ag.agent_id
@@ -167,8 +182,7 @@ module Entities
           ON sby.player_id = sbw.player_id
         WHERE ag.agency_id = #{id_sql}
           AND sby.salary_year BETWEEN 2025 AND 2030
-        GROUP BY sby.salary_year
-        ORDER BY sby.salary_year
+        ORDER BY sby.salary_year, sbw.player_id
       SQL
 
       render :show
@@ -234,6 +248,22 @@ module Entities
     end
 
     private
+
+    def load_show_cohort_filters!
+      @show_cohort_filters = normalize_show_cohort_filters(params[:cohorts])
+    end
+
+    def normalize_show_cohort_filters(raw_filters)
+      tokens = Array(raw_filters)
+      tokens = [raw_filters] if tokens.empty?
+
+      tokens
+        .flat_map { |value| value.to_s.split(",") }
+        .map { |value| value.to_s.strip.downcase.tr("-", "_") }
+        .reject(&:blank?)
+        .select { |value| SHOW_COHORT_FILTERS.include?(value) }
+        .uniq
+    end
 
     def load_index_workspace_state!
       setup_index_filters!
