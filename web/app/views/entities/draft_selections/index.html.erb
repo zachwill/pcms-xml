@@ -1,6 +1,9 @@
 <% content_for :title, "Draft selections" %>
 
 <%
+  initial_overlay_type = @initial_overlay_type.to_s.presence || "none"
+  initial_overlay_id = @initial_overlay_id.to_s
+
   pane_query_expr = "'q=' + encodeURIComponent($draftselectionquery) +
     '&year=' + encodeURIComponent($draftselectionyear) +
     '&round=' + encodeURIComponent($draftselectionround) +
@@ -15,7 +18,7 @@
   submit_search_expr = "evt.preventDefault(); #{refresh_expr}"
   clear_search_expr = "$draftselectionquery = ''; #{refresh_expr}"
 
-  signals_literal = "{ draftselectionquery: #{@query.to_json}, draftselectionyear: #{@year_lens.to_json}, draftselectionround: #{@round_lens.to_json}, draftselectionteam: #{@team_lens.to_json}, draftselectionsort: #{@sort.to_json}, draftselectionlens: #{@lens.to_json}, overlaytype: 'none', overlayid: '' }"
+  signals_literal = "{ draftselectionquery: #{@query.to_json}, draftselectionyear: #{@year_lens.to_json}, draftselectionround: #{@round_lens.to_json}, draftselectionteam: #{@team_lens.to_json}, draftselectionsort: #{@sort.to_json}, draftselectionlens: #{@lens.to_json}, overlaytype: #{initial_overlay_type.to_json}, overlayid: #{initial_overlay_id.to_json} }"
 %>
 
 <div id="draft-selections-workspace" class="h-screen w-screen flex flex-col overflow-hidden bg-background" data-signals="<%= signals_literal %>">
@@ -164,7 +167,11 @@
         <%= render partial: "entities/draft_selections/rightpanel_base" %>
       </div>
 
-      <div id="rightpanel-overlay"></div>
+      <% if @initial_overlay_partial.present? %>
+        <%= render partial: @initial_overlay_partial, locals: (@initial_overlay_locals || {}) %>
+      <% else %>
+        <div id="rightpanel-overlay"></div>
+      <% end %>
     </aside>
   </div>
 </div>

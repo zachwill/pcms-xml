@@ -7,6 +7,7 @@ module Entities
     # GET /draft-selections
     def index
       load_index_workspace_state!
+      hydrate_initial_overlay_from_params!
       render :index
     end
 
@@ -365,6 +366,34 @@ module Entities
         filters: filters,
         top_rows: rows.first(14)
       }
+    end
+
+    def hydrate_initial_overlay_from_params!
+      @initial_overlay_type = "none"
+      @initial_overlay_id = ""
+      @initial_overlay_partial = nil
+      @initial_overlay_locals = {}
+
+      requested_overlay_id = requested_overlay_id_param
+      return if requested_overlay_id.blank?
+      return unless selected_overlay_visible?(overlay_id: requested_overlay_id)
+
+      @initial_overlay_partial = "entities/draft_selections/rightpanel_overlay_selection"
+      @initial_overlay_locals = load_sidebar_selection_payload(requested_overlay_id)
+      @initial_overlay_type = "selection"
+      @initial_overlay_id = requested_overlay_id.to_s
+    rescue ActiveRecord::RecordNotFound
+      @initial_overlay_type = "none"
+      @initial_overlay_id = ""
+      @initial_overlay_partial = nil
+      @initial_overlay_locals = {}
+    end
+
+    def requested_overlay_id_param
+      overlay_id = Integer(params[:selected_id], 10)
+      overlay_id.positive? ? overlay_id : nil
+    rescue ArgumentError, TypeError
+      nil
     end
 
     def selections_order_sql

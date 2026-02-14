@@ -125,26 +125,24 @@ Audit note (2026-02-14) — completed [P1] [INDEX] drafts/index rightpanel prove
   - Density/readability: 3 → 4
   - Navigation/pivots: 4 → 5
 - Follow-up discovered:
-  - Apply the same first-load overlay hydration + lane-native provenance treatment to `draft_selections/index` (existing [P2] task below).
+  - Apply the same first-load overlay hydration + lane-native provenance treatment to `draft_selections/index`.
 
-- [ ] [P2] [INDEX] draft_selections/index — remove provenance table island + support selected overlay deep-link bootstrap
-  - Problem: Draft Selections overlay still uses provenance table presentation and index boot cannot restore `selected_id` overlay context, creating mismatch with other index workbench continuity patterns.
-  - Hypothesis: Lane-native provenance rendering and initial selected-id hydration will improve provenance-first workflows and shared-link reliability.
-  - Scope (files):
-    - `web/app/views/entities/draft_selections/_rightpanel_overlay_selection.html.erb`
-    - `web/app/views/entities/draft_selections/index.html.erb`
-    - `web/app/controllers/entities/draft_selections_controller.rb`
-    - `web/app/controllers/entities/draft_selections_sse_controller.rb`
-  - Acceptance criteria:
-    - Overlay provenance chain renders as lane/list rows with compact swap/future/conditional flags.
-    - `/draft-selections?selected_id=<txn_id>` opens matching overlay on initial load when row is in-scope.
-    - Refresh/filter changes preserve or clear overlay strictly by row visibility; no dangling selected signal.
-    - Pivots to draft selection, draft pick, transaction, trade, team, and player remain clear and low-friction.
-  - Rubric (before → target):
-    - Scan speed: 3 → 4
-    - Information hierarchy: 3 → 4
-    - Interaction predictability: 2 → 4
-    - Density/readability: 3 → 4
-    - Navigation/pivots: 4 → 5
-  - Guardrails:
-    - No Salary Book edits outside the Tankathon allow-list.
+Audit note (2026-02-14) — completed [P2] [INDEX] draft_selections/index provenance lanes + selected overlay URL bootstrap
+- What changed (files):
+  - `web/app/controllers/entities/draft_selections_controller.rb`
+  - `web/app/controllers/entities/draft_selections_sse_controller.rb`
+  - `web/app/views/entities/draft_selections/index.html.erb`
+  - `web/app/views/entities/draft_selections/_rightpanel_overlay_selection.html.erb`
+  - `web/test/integration/entities_draft_selections_index_test.rb`
+- Why this improves flow:
+  - Draft Selections now restores overlay drill-in on initial page load from `selected_id` when the row remains in-scope, matching index continuity behavior used on adjacent explorer surfaces.
+  - Overlay provenance chain moved from table island to lane-native rows with severity chips plus compact swap/future/conditional flags, making contested ownership trails scannable without horizontal table parsing.
+  - Existing SSE refresh semantics remain stable: selected overlay persists only while row visibility remains valid, otherwise clear state is patched with no dangling selection signal.
+- Rubric (before → after):
+  - Scan speed: 3 → 4
+  - Information hierarchy: 3 → 4
+  - Interaction predictability: 2 → 4
+  - Density/readability: 3 → 4
+  - Navigation/pivots: 4 → 5
+- Follow-up discovered:
+  - Consider extracting a shared partial/helper for draft provenance lane rows used by both `drafts` and `draft_selections` overlays to reduce duplicate severity/flag rendering logic.

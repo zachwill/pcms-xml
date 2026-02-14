@@ -39,7 +39,7 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
           ["team_code", "team_id", "team_name"],
           [["POR", 1_610_612_757, "Portland Trail Blazers"]]
         )
-      elsif sql.include?("FROM pcms.draft_pick_trades dpt") && sql.include?("SELECT\n          dpt.id")
+      elsif sql.include?("FROM pcms.draft_pick_trades dpt") && sql.include?("dpt.conditional_type_lk")
         ActiveRecord::Result.new(
           ["id", "trade_id", "trade_date", "from_team_code", "to_team_code", "original_team_code", "is_swap", "is_future", "is_conditional", "conditional_type_lk"],
           [[91001, 88001, "2025-02-07", "BOS", "POR", "BOS", false, true, true, "TOP4"]]
@@ -153,14 +153,37 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_includes response.body, 'id="rightpanel-overlay"'
       assert_includes response.body, "Open draft-selection page"
+      assert_includes response.body, "Conditional TOP4"
       assert_includes response.body, "/draft-selections/777001"
       assert_includes response.body, "/transactions/777001"
       assert_includes response.body, "/trades/88001"
+      assert_not_includes response.body, "<table"
 
       get "/draft-selections/sidebar/clear", headers: modern_headers
 
       assert_response :success
       assert_equal '<div id="rightpanel-overlay"></div>', response.body.strip
+    end
+  end
+
+  test "draft selections index hydrates selected overlay from URL when selected row is visible" do
+    with_fake_connection do
+      get "/draft-selections", params: {
+        q: "",
+        year: "2026",
+        round: "all",
+        team: "",
+        sort: "provenance",
+        lens: "all",
+        selected_id: "777001"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.body, "Open draft-selection page"
+      assert_includes response.body, "Conditional TOP4"
+      assert_includes response.body, 'overlaytype: &quot;selection&quot;'
+      assert_includes response.body, 'overlayid: &quot;777001&quot;'
+      assert_not_includes response.body, "<table"
     end
   end
 

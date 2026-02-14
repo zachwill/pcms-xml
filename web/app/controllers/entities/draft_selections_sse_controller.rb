@@ -42,13 +42,6 @@ module Entities
 
     private
 
-    def requested_overlay_id_param
-      overlay_id = Integer(params[:selected_id], 10)
-      overlay_id.positive? ? overlay_id : nil
-    rescue ArgumentError, TypeError
-      nil
-    end
-
     def refreshed_overlay_payload(requested_overlay_id:)
       return [overlay_clear_html, "none", ""] unless selected_overlay_visible?(overlay_id: requested_overlay_id)
 
