@@ -17,12 +17,19 @@ class EntitiesTradesShowTest < ActionDispatch::IntegrationTest
 
       leg_breakdown = section_fragment(response.body, "leg-breakdown")
       trade_groups = section_fragment(response.body, "trade-groups")
+      player_items = section_fragment(response.body, "player-items")
+      pick_cash = section_fragment(response.body, "pick-cash")
+      transactions = section_fragment(response.body, "transactions")
+      endnotes = section_fragment(response.body, "endnotes")
 
       assert leg_breakdown.present?
       assert trade_groups.present?
+      assert player_items.present?
+      assert pick_cash.present?
+      assert transactions.present?
+      assert endnotes.present?
 
-      assert_no_match(/<table/i, leg_breakdown)
-      assert_no_match(/<table/i, trade_groups)
+      assert_no_match(/<table/i, response.body)
 
       assert_includes leg_breakdown, "Team-centric OUT/IN impact board"
       assert_includes leg_breakdown, "OUT"
@@ -36,10 +43,24 @@ class EntitiesTradesShowTest < ActionDispatch::IntegrationTest
       assert_includes trade_groups, "Acquired"
       assert_includes trade_groups, "Team exception registry"
 
+      assert_includes player_items, "Player line items"
+      assert_includes player_items, "OUT"
+      assert_includes player_items, "IN"
+      assert_includes pick_cash, "Draft pick lanes"
+      assert_includes pick_cash, "Cash lanes"
+      assert_includes transactions, "Transactions in this trade"
+      assert_includes transactions, "OUT BOS"
+      assert_includes transactions, "IN POR"
+      assert_includes endnotes, "No endnotes linked to this trade id."
+
       assert_match(%r{href="/players/101"}, leg_breakdown)
+      assert_match(%r{href="/players/101"}, player_items)
       assert_match(%r{href="/draft-selections"}, leg_breakdown)
+      assert_match(%r{href="/draft-selections"}, pick_cash)
       assert_match(%r{href="/transactions/700001"}, leg_breakdown)
+      assert_match(%r{href="/transactions/700001"}, transactions)
       assert_match(%r{href="/teams/}, leg_breakdown)
+      assert_match(%r{href="/teams/}, player_items)
       assert_match(%r{href="#team-exception-5001"}, trade_groups)
     end
   end

@@ -28,7 +28,7 @@ Supervisor override: ENTITY
 
 ---
 
-- [ ] [P0] [ENTITY] /trades/:id — remove remaining table islands and finish full lane grammar
+- [x] [P0] [ENTITY] /trades/:id — remove remaining table islands and finish full lane grammar
   - Problem: trade detail still contains table islands in lower sections, causing scan-mode resets after the upgraded top board.
   - Hypothesis: finishing lane grammar end-to-end will make whole-page trade analysis consistent and faster.
   - Scope (files):
@@ -48,6 +48,20 @@ Supervisor override: ENTITY
     - Navigation/pivots: 4 → 5
   - Guardrails:
     - Do not modify Salary Book files.
+  - Completed (2026-02-14):
+    - What changed (files):
+      - `web/app/views/entities/trades/show.html.erb`: converted `#player-items`, `#pick-cash`, `#transactions`, and `#endnotes` to lane-based rows; also converted `#pick-trades` to lane rows so the page has zero `<table>` islands.
+      - `web/test/integration/entities_trades_show_test.rb`: expanded assertions to enforce no `<table>` in full trade show response and validate lower-lane OUT/IN grammar + pivots.
+    - Why this improves the flow:
+      - Trade analysis now stays in one continuous scan grammar from top board through lower modules (no table-mode reset), with direct pivots preserved on every lane.
+    - Rubric (before → after):
+      - Scan speed: 4 → 5
+      - Information hierarchy: 4 → 5
+      - Interaction predictability: 4 → 5
+      - Density/readability: 4 → 4
+      - Navigation/pivots: 4 → 5
+    - Follow-up tasks discovered:
+      - Consider extracting shared lane-row partials for trade detail sections to reduce repeated OUT/IN chip + metadata patterns.
 
 - [ ] [P1] [ENTITY] /players/:slug — add decision-lens chips (`urgent/upcoming/later`) with URL-stable state
   - Problem: decision rail is strong but long lists still require manual scanning.
