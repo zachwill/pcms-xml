@@ -143,7 +143,7 @@ Supervisor override: ENTITY
     - Follow-up tasks discovered:
       - Consider adding a compact "active transaction: #id" chip near section headers while highlighting is active to improve keyboard-only wayfinding across long sections.
 
-- [ ] [P1] [ENTITY] /agents/:slug — add cohort filters and URL-synced cohort state
+- [x] [P1] [ENTITY] /agents/:slug — add cohort filters and URL-synced cohort state
   - Problem: cohort lanes exist but large books still need quick cohort-only narrowing.
   - Hypothesis: cohort filter chips with URL sync will tighten agent portfolio triage.
   - Scope (files):
@@ -164,6 +164,22 @@ Supervisor override: ENTITY
     - Navigation/pivots: 4 → 5
   - Guardrails:
     - Do not modify Salary Book files.
+  - Completed (2026-02-14):
+    - What changed (files):
+      - `web/app/controllers/entities/agents_controller.rb`: added normalized multi-select cohort query parsing (`cohorts=max,restricted,...`) for agent show, and preserved query params on canonical slug redirects so cohort state survives non-canonical entry.
+      - `web/app/views/entities/agents/show.html.erb`: added cohort filter chips with URL-synced toggle links, filtered cohort-lane rendering, and filtered roster rendering (`Filtered clients`) with state-aware counts/rollups.
+      - `web/app/views/entities/agents/_client_lane.html.erb`: added optional cohort-match hint chips so filtered roster rows explain why each player is included.
+      - `web/test/integration/entities_agents_show_test.rb`: expanded coverage for cohort-filter link generation and query-driven narrowing across both `#client-cohorts` and `#clients` sections.
+    - Why this improves the flow:
+      - Agent triage is now shareable and repeatable: analysts can jump directly to max/expiring/restricted/two-way slices, combine cohorts in one view, and reload/bookmark URLs without losing context. Cohort counters and cap rollups now stay aligned with the active lens state.
+    - Rubric (before → after):
+      - Scan speed: 4 → 5
+      - Information hierarchy: 4 → 5
+      - Interaction predictability: 4 → 5
+      - Density/readability: 4 → 4
+      - Navigation/pivots: 4 → 5
+    - Follow-up tasks discovered:
+      - Consider persisting active cohort chips into local-nav link targets (or adding a compact "active filters" chip near the local nav) to keep cohort context visible deeper in long agent pages.
 
 - [ ] [P1] [ENTITY] /agencies/:slug — add agency cohort slices mirroring upgraded agent dossier grammar
   - Problem: agency lanes are cleaner now, but negotiation-risk cohorts are not explicit.

@@ -4,6 +4,7 @@ module Entities
     AGENT_SORT_KEYS = %w[book clients teams max expirings options name].freeze
     AGENCY_SORT_KEYS = %w[book clients agents teams max expirings options name].freeze
     OVERLAY_TYPES = %w[agent agency].freeze
+    SHOW_COHORT_FILTERS = %w[max expiring restricted two_way].freeze
 
     # GET /agents
     def index
@@ -64,12 +65,13 @@ module Entities
 
       canonical = Slug.find_by(entity_type: "agent", entity_id: record.entity_id, canonical: true)
       if canonical && canonical.slug != record.slug
-        redirect_to agent_path(canonical.slug), status: :moved_permanently
+        redirect_to agent_path(canonical.slug, **request.query_parameters), status: :moved_permanently
         return
       end
 
       @agent_id = record.entity_id
       @agent_slug = record.slug
+      load_show_cohort_filters!
 
       conn = ActiveRecord::Base.connection
       id_sql = conn.quote(@agent_id)
@@ -289,6 +291,22 @@ module Entities
     end
 
     private
+
+    def load_show_cohort_filters!
+      @show_cohort_filters = normalize_show_cohort_filters(params[:cohorts])
+    end
+
+    def normalize_show_cohort_filters(raw_filters)
+      tokens = Array(raw_filters)
+      tokens = [raw_filters] if tokens.empty?
+
+      tokens
+        .flat_map { |value| value.to_s.split(",") }
+        .map { |value| value.to_s.strip.downcase.tr("-", "_") }
+        .reject(&:blank?)
+        .select { |value| SHOW_COHORT_FILTERS.include?(value) }
+        .uniq
+    end
 
     def setup_directory_filters!
       @directory_kind = params[:kind].to_s == "agencies" ? "agencies" : "agents"

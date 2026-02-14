@@ -144,6 +144,12 @@
 
     detail_parts = [age_str, yos_str, client["contract_type_code"].presence].compact
 
+    cohort_memberships = []
+    cohort_memberships << { key: "two_way", label: "2W" } if client["is_two_way"]
+    cohort_memberships << { key: "max", label: "Max" } if is_max_level
+    cohort_memberships << { key: "expiring", label: "Exp ≤27" } if is_expiring_window
+    cohort_memberships << { key: "restricted", label: "Restricted" } if is_restricted
+
     {
       player_id: client["player_id"],
       player_name: client["player_name"],
@@ -156,6 +162,8 @@
       decision_classes: (next_option&.dig(:decision_classes) || "text-muted-foreground"),
       detail_line: detail_parts.join(" · "),
       chips: chips,
+      cohort_memberships: cohort_memberships,
+      cohort_keys: cohort_memberships.map { |membership| membership[:key] },
       is_two_way: client["is_two_way"],
       is_max_level: is_max_level,
       is_restricted: is_restricted,
@@ -165,32 +173,59 @@
 
   sorted_client_rows = client_rows.sort_by { |row| [-(row[:cap_2025].to_f), row[:player_name].to_s] }
 
-  client_cohorts = [
+  active_cohort_filters = Array(@show_cohort_filters)
+    .map { |value| value.to_s.strip.downcase.tr("-", "_") }
+    .reject(&:blank?)
+    .select { |value| %w[max expiring restricted two_way].include?(value) }
+    .uniq
+  active_cohort_filter_lookup = active_cohort_filters.index_with(true)
+
+  cohort_definitions = [
     {
+      key: "max",
       id: "cohort-max",
       title: "Max-level anchors",
       subtitle: "Largest leverage contracts in this book.",
-      rows: sorted_client_rows.select { |row| row[:is_max_level] }
+      match: ->(row) { row[:is_max_level] }
     },
     {
+      key: "expiring",
       id: "cohort-expiring",
       title: "Expiring through 2027",
       subtitle: "Near-term free agency windows requiring negotiation sequencing.",
-      rows: sorted_client_rows.select { |row| row[:is_expiring_window] }
+      match: ->(row) { row[:is_expiring_window] }
     },
     {
+      key: "restricted",
       id: "cohort-restricted",
       title: "Restricted / no-trade / kicker",
       subtitle: "Movement constraints and transaction-sensitive clients.",
-      rows: sorted_client_rows.select { |row| row[:is_restricted] }
+      match: ->(row) { row[:is_restricted] }
     },
     {
+      key: "two_way",
       id: "cohort-two-way",
       title: "Two-way clients",
       subtitle: "Conversion and roster-slot watchlist.",
-      rows: sorted_client_rows.select { |row| row[:is_two_way] }
+      match: ->(row) { row[:is_two_way] }
     }
   ]
+
+  cohort_rows_by_key = cohort_definitions.to_h do |definition|
+    [definition[:key], sorted_client_rows.select { |row| definition[:match].call(row) }]
+  end
+
+  visible_cohort_definitions = if active_cohort_filters.any?
+    cohort_definitions.select { |definition| active_cohort_filter_lookup[definition[:key]] }
+  else
+    cohort_definitions
+  end
+
+  filtered_client_rows = if active_cohort_filters.any?
+    sorted_client_rows.select { |row| (row[:cohort_keys] & active_cohort_filters).any? }
+  else
+    sorted_client_rows
+  end
 %>
 
 <div id="agent-show" class="min-h-screen w-full bg-background">
@@ -330,13 +365,40 @@
         <section id="client-cohorts" class="scroll-mt-24 space-y-3">
           <div class="flex items-center justify-between">
             <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Client cohorts</h2>
-            <span class="text-[10px] text-muted-foreground tabular-nums">4 cohorts · <%= client_count %> clients</span>
+            <% if active_cohort_filters.any? %>
+              <span class="text-[10px] text-muted-foreground tabular-nums"><%= visible_cohort_definitions.size %> of <%= cohort_definitions.size %> cohorts · <%= filtered_client_rows.size %> matching clients</span>
+            <% else %>
+              <span class="text-[10px] text-muted-foreground tabular-nums"><%= cohort_definitions.size %> cohorts · <%= client_count %> clients</span>
+            <% end %>
+          </div>
+
+          <div class="flex flex-wrap gap-1.5 text-[10px] uppercase tracking-wide">
+            <a
+              href="<%= agent_path(@agent_slug, anchor: 'client-cohorts') %>"
+              class="rounded border px-2 py-0.5 transition-colors <%= active_cohort_filters.empty? ? 'border-primary bg-primary/10 text-primary font-semibold' : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/20' %>"
+            >All cohorts</a>
+
+            <% cohort_definitions.each do |definition| %>
+              <% cohort_rows = cohort_rows_by_key.fetch(definition[:key], []) %>
+              <% filter_active = active_cohort_filter_lookup[definition[:key]] %>
+              <% next_filters = filter_active ? (active_cohort_filters - [definition[:key]]) : (active_cohort_filters + [definition[:key]]) %>
+              <% cohort_href = agent_path(@agent_slug, cohorts: (next_filters.any? ? next_filters.join(",") : nil), anchor: "client-cohorts") %>
+
+              <a
+                href="<%= cohort_href %>"
+                class="rounded border px-2 py-0.5 transition-colors <%= filter_active ? 'border-primary bg-primary/10 text-primary font-semibold' : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/20' %>"
+              >
+                <span><%= definition[:title] %></span>
+                <span class="ml-1 font-mono tabular-nums"><%= cohort_rows.size %></span>
+              </a>
+            <% end %>
           </div>
 
           <div class="space-y-4">
-            <% client_cohorts.each do |cohort| %>
-              <% cohort_cap_total = cohort[:rows].sum { |row| row[:cap_2025].to_f } %>
-              <% cohort_salary_total = cohort[:rows].sum { |row| row[:total_salary_from_2025].to_f } %>
+            <% visible_cohort_definitions.each do |cohort| %>
+              <% cohort_rows = cohort_rows_by_key.fetch(cohort[:key], []) %>
+              <% cohort_cap_total = cohort_rows.sum { |row| row[:cap_2025].to_f } %>
+              <% cohort_salary_total = cohort_rows.sum { |row| row[:total_salary_from_2025].to_f } %>
 
               <article id="<%= cohort[:id] %>" class="rounded-lg border border-border overflow-hidden">
                 <header class="px-3 py-2 border-b border-border/60 bg-muted/20">
@@ -346,7 +408,7 @@
                       <p class="text-[10px] text-muted-foreground/80"><%= cohort[:subtitle] %></p>
                     </div>
                     <div class="text-right tabular-nums">
-                      <div class="text-xs font-semibold"><%= cohort[:rows].size %> client<%= cohort[:rows].size == 1 ? "" : "s" %></div>
+                      <div class="text-xs font-semibold"><%= cohort_rows.size %> client<%= cohort_rows.size == 1 ? "" : "s" %></div>
                       <div class="text-[10px] text-muted-foreground">
                         <span class="font-mono"><%= cohort_cap_total.positive? ? format_salary(cohort_cap_total) : "—" %></span>
                         ·
@@ -356,9 +418,9 @@
                   </div>
                 </header>
 
-                <% if cohort[:rows].any? %>
+                <% if cohort_rows.any? %>
                   <div class="divide-y divide-border/50">
-                    <% cohort[:rows].each do |client_row| %>
+                    <% cohort_rows.each do |client_row| %>
                       <%= render partial: "entities/agents/client_lane", locals: { client_row: client_row } %>
                     <% end %>
                   </div>
@@ -423,12 +485,19 @@
 
         <section id="clients" class="scroll-mt-24 space-y-3">
           <div class="flex items-center justify-between">
-            <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">All clients</h2>
-            <span class="text-[10px] text-muted-foreground tabular-nums"><%= client_count %> player<%= client_count != 1 ? "s" : "" %></span>
+            <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground"><%= active_cohort_filters.any? ? "Filtered clients" : "All clients" %></h2>
+            <% if active_cohort_filters.any? %>
+              <span class="text-[10px] text-muted-foreground tabular-nums"><%= filtered_client_rows.size %> of <%= client_count %> players</span>
+            <% else %>
+              <span class="text-[10px] text-muted-foreground tabular-nums"><%= client_count %> player<%= client_count != 1 ? "s" : "" %></span>
+            <% end %>
           </div>
 
-          <% if sorted_client_rows.empty? %>
-            <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">No clients found.</div>
+          <% if filtered_client_rows.empty? %>
+            <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">
+              No clients match the active cohort filters.
+              <a href="<%= agent_path(@agent_slug, anchor: 'client-cohorts') %>" class="not-italic hover:underline">Show all cohorts</a>
+            </div>
           <% else %>
             <div class="rounded-lg border border-border overflow-hidden">
               <div class="bg-muted/20 border-b border-border/60">
@@ -442,8 +511,10 @@
               </div>
 
               <div class="divide-y divide-border/50">
-                <% sorted_client_rows.each do |client_row| %>
-                  <%= render partial: "entities/agents/client_lane", locals: { client_row: client_row } %>
+                <% filtered_client_rows.each do |client_row| %>
+                  <% row_tone_class = active_cohort_filters.any? ? "bg-violet-50/40 dark:bg-violet-900/10" : "" %>
+                  <% cohort_hint_labels = client_row[:cohort_memberships].filter_map { |membership| membership[:label] if active_cohort_filter_lookup[membership[:key]] } %>
+                  <%= render partial: "entities/agents/client_lane", locals: { client_row: client_row, row_tone_class: row_tone_class, cohort_hint_labels: cohort_hint_labels } %>
                 <% end %>
               </div>
             </div>

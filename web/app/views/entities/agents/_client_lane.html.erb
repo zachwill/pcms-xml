@@ -1,5 +1,6 @@
 <% client = client_row %>
 <% row_tone_class = local_assigns[:row_tone_class].to_s %>
+<% cohort_hint_labels = Array(local_assigns[:cohort_hint_labels]).map(&:to_s).reject(&:blank?) %>
 
 <div class="group transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 <%= row_tone_class %>">
   <div class="flex items-center gap-2 px-3 py-1.5 text-xs">
@@ -50,15 +51,25 @@
     </div>
 
     <div class="min-w-0 flex-1 flex justify-end">
-      <% if client[:chips].any? %>
-        <div class="flex flex-wrap justify-end gap-1">
-          <% client[:chips].each do |chip| %>
-            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide leading-none <%= chip[:classes] %>"><%= chip[:label] %></span>
-          <% end %>
-        </div>
-      <% else %>
-        <span class="text-[10px] text-muted-foreground/50">No active flags</span>
-      <% end %>
+      <div class="flex flex-col items-end gap-1">
+        <% if cohort_hint_labels.any? %>
+          <div class="flex flex-wrap justify-end gap-1">
+            <% cohort_hint_labels.each do |label| %>
+              <span class="entity-chip entity-chip--accent"><%= label %></span>
+            <% end %>
+          </div>
+        <% end %>
+
+        <% if client[:chips].any? %>
+          <div class="flex flex-wrap justify-end gap-1">
+            <% client[:chips].each do |chip| %>
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide leading-none <%= chip[:classes] %>"><%= chip[:label] %></span>
+            <% end %>
+          </div>
+        <% else %>
+          <span class="text-[10px] text-muted-foreground/50">No active flags</span>
+        <% end %>
+      </div>
     </div>
   </div>
 </div>

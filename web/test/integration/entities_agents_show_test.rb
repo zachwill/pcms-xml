@@ -30,6 +30,8 @@ class EntitiesAgentsShowTest < ActionDispatch::IntegrationTest
       assert_includes cohorts, "Two-way clients"
       assert_includes cohorts, "Alpha Guard"
       assert_includes cohorts, "POR"
+      assert_includes cohorts, "href=\"/agents/alpha-agent?cohorts=max#client-cohorts\""
+      assert_includes cohorts, "href=\"/agents/alpha-agent?cohorts=two_way#client-cohorts\""
 
       assert_match(%r{href="/players/}, cohorts)
       assert_match(%r{href="/teams/}, cohorts)
@@ -37,6 +39,34 @@ class EntitiesAgentsShowTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "expiring ≤27"
       assert_includes response.body, "id=\"agent-header\""
       assert_includes response.body, "All clients"
+    end
+  end
+
+  test "agent show applies cohort query filters across cohort lanes and roster" do
+    with_stubbed_agent_workspace do
+      get "/agents/alpha-agent?cohorts=max,restricted", headers: modern_headers
+
+      assert_response :success
+
+      cohorts = section_fragment(response.body, "client-cohorts")
+      roster = section_fragment(response.body, "clients")
+
+      assert cohorts.present?
+      assert roster.present?
+
+      assert_includes cohorts, "2 of 4 cohorts"
+      assert_includes cohorts, "2 matching clients"
+      assert_includes cohorts, "Max-level anchors"
+      assert_includes cohorts, "Restricted / no-trade / kicker"
+      assert_no_match(/id=\"cohort-expiring\"/, cohorts)
+      assert_no_match(/id=\"cohort-two-way\"/, cohorts)
+
+      assert_includes roster, "Filtered clients"
+      assert_includes roster, "2 of 3 players"
+      assert_includes roster, "Alpha Guard"
+      assert_includes roster, "Beta Wing"
+      assert_no_match(/Gamma Prospect/, roster)
+      assert_includes response.body, "href=\"/agents/alpha-agent#client-cohorts\""
     end
   end
 
@@ -64,6 +94,14 @@ class EntitiesAgentsShowTest < ActionDispatch::IntegrationTest
           "is_active" => true,
           "is_certified" => true
         }
+
+        raw_cohorts = Array(params[:cohorts])
+        raw_cohorts = [params[:cohorts]] if raw_cohorts.empty?
+        @show_cohort_filters = raw_cohorts
+          .flat_map { |value| value.to_s.split(",") }
+          .map { |value| value.to_s.strip.downcase.tr("-", "_") }
+          .select { |value| %w[max expiring restricted two_way].include?(value) }
+          .uniq
 
         @clients = [
           {
