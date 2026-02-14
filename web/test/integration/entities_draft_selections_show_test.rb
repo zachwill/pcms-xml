@@ -9,7 +9,7 @@ class EntitiesDraftSelectionsShowTest < ActionDispatch::IntegrationTest
     host! "localhost"
   end
 
-  test "draft selection show renders provenance as severity-first chain lanes with direct pivots" do
+  test "draft selection show renders provenance lane filters with team exposure summary and pivots" do
     with_stubbed_draft_selection_show do
       get "/draft-selections/draft-2028-r1-p8-flow-guard", headers: modern_headers
 
@@ -20,22 +20,28 @@ class EntitiesDraftSelectionsShowTest < ActionDispatch::IntegrationTest
 
       assert_no_match(/<table/i, provenance)
 
-      assert_includes provenance, "Severity-first chain lanes"
-      assert_includes provenance, "Deep chain"
-      assert_includes provenance, "With trade"
-      assert_includes provenance, "Clean"
+      assert_includes provenance, "id=\"provenance-lanes\""
+      assert_includes provenance, "Team exposure summary"
+      assert_includes provenance, "Lane filters"
+      assert_includes provenance, "Filter chain rows by hop depth or flag type."
+      assert_includes provenance, "Deepest hop"
+      assert_includes provenance, "P3"
+      assert_includes provenance, "BOS · 5x"
+      assert_includes provenance, "POR · 2x"
+      assert_includes provenance, "LAL · 2x"
+      assert_includes provenance, "provenance_lens"
+      assert_includes provenance, "$provenancelens === 'deep'"
+      assert_includes provenance, "deep"
+      assert_includes provenance, "conditional"
+      assert_includes provenance, "swap"
       assert_includes provenance, "From → To"
       assert_includes provenance, "Trade pivot"
-      assert_includes provenance, "rows: 2"
-      assert_includes provenance, "rows: 1"
 
       assert_match(%r{href="/trades/88001"}, provenance)
       assert_match(%r{href="/trades/88002"}, provenance)
       assert_match(%r{href="/transactions/777001"}, provenance)
       assert_match(%r{href="/teams/bos"}, provenance)
       assert_match(%r{href="/teams/por"}, provenance)
-      assert_includes provenance, "conditional"
-      assert_includes provenance, "swap"
     end
   end
 

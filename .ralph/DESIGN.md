@@ -264,7 +264,7 @@ Supervisor review (2026-02-14):
     - Follow-up tasks discovered:
       - Consider per-row raw toggles for extremely dense artifact phases so users can expand just one row without opening all raw rows in that phase.
 
-- [ ] [P2] [ENTITY] /draft-selections/:slug — add provenance lane filters (`deep/conditional/swap`) and team exposure summary
+- [x] [P2] [ENTITY] /draft-selections/:slug — add provenance lane filters (`deep/conditional/swap`) and team exposure summary
   - Problem: provenance lanes are improved but long chains still require full-scroll parsing.
   - Hypothesis: lane filters plus top exposure summary will accelerate ownership-risk calls.
   - Scope (files):
@@ -284,6 +284,20 @@ Supervisor review (2026-02-14):
     - Navigation/pivots: 4 → 5
   - Guardrails:
     - Do not modify Salary Book files.
+  - Completed (2026-02-14):
+    - What changed (files):
+      - `web/app/views/entities/draft_selections/show.html.erb`: replaced severity-only provenance lanes with a filterable provenance board (`all/deep/conditional/swap`), added URL-synced lane chip behavior, and introduced a top team-exposure summary strip with exposed-team touch counts + deepest-hop KPI.
+      - `web/test/integration/entities_draft_selections_show_test.rb`: updated show assertions to validate lane-filter wiring, exposure summary content, and preserved trade/transaction/team pivots in the provenance section.
+    - Why this improves the flow:
+      - Users can now isolate deep, conditional, or swap hops in one click instead of rescanning long mixed chains, while the exposure strip immediately surfaces which teams appear most in the chain and how deep the ownership trail runs.
+    - Rubric (before → after):
+      - Scan speed: 4 → 5
+      - Information hierarchy: 4 → 5
+      - Interaction predictability: 4 → 5
+      - Density/readability: 4 → 4
+      - Navigation/pivots: 4 → 5
+    - Follow-up tasks discovered:
+      - Consider mirroring the same lane-filter state + exposure chips in the draft-selection rightpanel overlay to keep provenance triage consistent between index drill-ins and full entity pages.
 
 - [ ] [P2] [ENTITY] /draft-picks/:slug — add rule-lane filters and chain-map hop highlighting
   - Problem: new rule lanes are clearer, but large rule sets still need faster narrowing and hop tracing.
