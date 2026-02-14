@@ -4,16 +4,19 @@
     '&risk=' + encodeURIComponent($twrisk) +
     '&intent=' + encodeURIComponent($twintent || '')"
 
+  intent_cursor_query_expr = "'intent_cursor=' + encodeURIComponent($twintentcursor || '') +
+    '&intent_cursor_index=' + encodeURIComponent($twintentcursorindex || 0)"
+
   compare_query_expr = "'compare_a=' + encodeURIComponent($comparea || '') +
     '&compare_b=' + encodeURIComponent($compareb || '')"
 
   selected_overlay_query_expr = "'selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '')"
-  refresh_query_expr = "(#{pane_query_expr}) + '&' + (#{compare_query_expr}) + '&' + (#{selected_overlay_query_expr})"
+  refresh_query_expr = "(#{pane_query_expr}) + '&' + (#{intent_cursor_query_expr}) + '&' + (#{compare_query_expr}) + '&' + (#{selected_overlay_query_expr})"
 
   refresh_expr = "@get('/tools/two-way-utility/sse/refresh?' + (#{refresh_query_expr}))"
   submit_intent_expr = "evt.preventDefault(); #{refresh_expr}"
-  clear_intent_expr = "$twintent = ''; #{refresh_expr}"
-  intent_input_refresh_expr = "clearTimeout(window.__twoWayIntentDebounce); window.__twoWayIntentDebounce = setTimeout(() => { #{refresh_expr}; }, 140);"
+  clear_intent_expr = "$twintent = ''; $twintentcursor = ''; $twintentcursorindex = 0; #{refresh_expr}"
+  intent_input_refresh_expr = "$twintentcursor = ''; $twintentcursorindex = 0; clearTimeout(window.__twoWayIntentDebounce); window.__twoWayIntentDebounce = setTimeout(() => { #{refresh_expr}; }, 140);"
 
   intent_shortlist = Array(@intent_shortlist)
   intent_shortlist_ids_json = intent_shortlist.map { |entry| entry[:player_id].to_s }.to_json
@@ -79,7 +82,10 @@
   <div class="h-20 w-px bg-border self-center"></div>
 
   <form class="min-w-[16.5rem] space-y-1" data-on:submit="<%= submit_intent_expr %>">
-    <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Player intent</div>
+    <div class="flex items-center justify-between gap-2">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Player intent</div>
+      <span class="inline-flex items-center rounded border border-border/70 bg-background px-1.5 py-0.5 text-[9px] font-mono tabular-nums text-muted-foreground/80">Cmd/Ctrl+K</span>
+    </div>
     <div class="flex items-center gap-1.5">
       <input
         id="two-way-intent-input"
@@ -113,6 +119,20 @@
                when "estimate" then "text-muted-foreground"
                else "text-muted-foreground"
                end %>
+            <% match_reason = entry[:match_reason].to_s.presence || "contains" %>
+            <% match_reason_label = case match_reason
+               when "id_exact" then "id exact"
+               when "name_prefix" then "name prefix"
+               else "contains"
+               end %>
+            <% match_reason_badge_classes = case match_reason
+               when "id_exact"
+                 "border-emerald-300/70 dark:border-emerald-500/50 bg-emerald-50/70 dark:bg-emerald-900/25 text-emerald-700 dark:text-emerald-300"
+               when "name_prefix"
+                 "border-blue-300/70 dark:border-blue-500/50 bg-blue-50/70 dark:bg-blue-900/25 text-blue-700 dark:text-blue-300"
+               else
+                 "border-amber-300/70 dark:border-amber-500/50 bg-amber-50/70 dark:bg-amber-900/25 text-amber-700 dark:text-amber-300"
+               end %>
             <button
               type="button"
               class="cursor-pointer h-4 px-1.5 rounded border border-border/70 bg-background text-[10px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors whitespace-nowrap"
@@ -128,6 +148,8 @@
               <span><%= entry[:team_code] %></span>
               <span class="mx-1">·</span>
               <span class="font-mono tabular-nums <%= risk_chip %>"><%= entry[:remaining_active_list_games].presence || "—" %>L</span>
+              <span class="mx-1">·</span>
+              <span data-two-way-match-reason="<%= match_reason %>" class="inline-flex items-center rounded border px-1 py-0.5 text-[9px] uppercase tracking-wide <%= match_reason_badge_classes %>"><%= match_reason_label %></span>
             </button>
           <% end %>
         </div>
@@ -139,7 +161,9 @@
     <div class="text-[10px] text-muted-foreground/70 tabular-nums">
       <%= @sidebar_summary[:row_count].to_i %> rows in view
       <% if @intent.present? %>
-        <span class="ml-1">· ↑/↓ pick · Enter opens overlay</span>
+        <span class="ml-1">· id exact/name prefix/contains · ↑/↓ pick · Enter opens overlay · Cmd/Ctrl+K focus</span>
+      <% else %>
+        <span class="ml-1">· Cmd/Ctrl+K focuses intent input</span>
       <% end %>
     </div>
   </form>

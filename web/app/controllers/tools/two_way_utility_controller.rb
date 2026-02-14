@@ -83,8 +83,8 @@ module Tools
           twteam: @team.to_s,
           twrisk: @risk,
           twintent: @intent.to_s,
-          twintentcursor: @intent_shortlist_default_id.to_s,
-          twintentcursorindex: 0,
+          twintentcursor: @intent_shortlist_cursor_id.to_s,
+          twintentcursorindex: @intent_shortlist_cursor_index.to_i,
           comparea: @compare_a_id.to_s,
           compareb: @compare_b_id.to_s,
           overlaytype: resolved_overlay_type,
@@ -108,6 +108,8 @@ module Tools
       @team = resolve_team(params[:team])
       @risk = resolve_risk(params[:risk])
       @intent = resolve_intent(params[:intent])
+      @requested_intent_cursor = resolve_intent_cursor(params[:intent_cursor])
+      @requested_intent_cursor_index = resolve_intent_cursor_index(params[:intent_cursor_index])
 
       @rows = fetch_rows(conference: @conference, team: @team, risk: @risk, intent: @intent)
       @rows_by_team = @rows.group_by { |row| row["team_code"] }
@@ -133,6 +135,8 @@ module Tools
       @team = nil
       @risk = "all"
       @intent = ""
+      @requested_intent_cursor = ""
+      @requested_intent_cursor_index = nil
       @rows = []
       @rows_by_team = {}
       @teams_by_conference = { "Eastern" => [], "Western" => [] }
@@ -148,7 +152,8 @@ module Tools
       @selected_player_id = nil
       build_sidebar_summary!(selected_player_id: @selected_player_id)
       @intent_shortlist = []
-      @intent_shortlist_default_id = ""
+      @intent_shortlist_cursor_id = ""
+      @intent_shortlist_cursor_index = 0
     end
 
     def resolve_conference(value)
@@ -168,6 +173,20 @@ module Tools
 
     def resolve_intent(value)
       value.to_s.strip.tr("\u0000", "")[0, 80]
+    end
+
+    def resolve_intent_cursor(value)
+      cursor = value.to_s.strip
+      return "" if cursor.blank?
+
+      cursor.match?(/\A\d+\z/) ? cursor : ""
+    end
+
+    def resolve_intent_cursor_index(value)
+      index = Integer(value.to_s.strip, 10)
+      index >= 0 ? index : nil
+    rescue ArgumentError, TypeError
+      nil
     end
 
     def resolve_compare_action(value)
@@ -584,52 +603,73 @@ module Tools
       query = @intent.to_s.strip.downcase
       if query.blank?
         @intent_shortlist = []
-        @intent_shortlist_default_id = ""
+        @intent_shortlist_cursor_id = ""
+        @intent_shortlist_cursor_index = 0
         return
       end
 
       ranked_rows = Array(@rows)
-        .map do |row|
-          [
-            intent_shortlist_score(row:, query:),
-            risk_sort_priority(row["risk_tier"]),
-            row["remaining_active_list_games"].presence || 999,
-            -(row["games_used_pct"] || 0).to_f,
-            row["team_code"].to_s,
-            row["player_name"].to_s,
-            row
-          ]
+        .filter_map do |row|
+          match = intent_shortlist_match_details(row:, query:)
+          next unless match
+
+          {
+            score: match.fetch(:score),
+            reason: match.fetch(:reason),
+            risk_priority: risk_sort_priority(row["risk_tier"]),
+            remaining_games: row["remaining_active_list_games"].presence || 999,
+            used_pct: -(row["games_used_pct"] || 0).to_f,
+            team_code: row["team_code"].to_s,
+            player_name: row["player_name"].to_s,
+            row:
+          }
         end
-        .sort_by { |entry| entry[0..5] }
+        .sort_by { |entry| [entry[:score], entry[:risk_priority], entry[:remaining_games], entry[:used_pct], entry[:team_code], entry[:player_name]] }
         .first(INTENT_SHORTLIST_LIMIT)
 
       @intent_shortlist = ranked_rows.map do |entry|
-        row = entry.last
+        row = entry.fetch(:row)
         {
           player_id: row["player_id"].to_i,
           player_name: row["player_name"].to_s,
           team_code: row["team_code"].to_s,
           risk_tier: row["risk_tier"].to_s,
           remaining_active_list_games: row["remaining_active_list_games"],
-          games_used_pct: row["games_used_pct"]
+          games_used_pct: row["games_used_pct"],
+          match_reason: entry.fetch(:reason)
         }
       end
 
-      @intent_shortlist_default_id = @intent_shortlist.first&.dig(:player_id).to_s
+      shortlist_ids = @intent_shortlist.map { |entry| entry[:player_id].to_s }
+
+      if @requested_intent_cursor.present? && shortlist_ids.include?(@requested_intent_cursor)
+        @intent_shortlist_cursor_id = @requested_intent_cursor
+        requested_index = @requested_intent_cursor_index
+
+        @intent_shortlist_cursor_index = if requested_index.present? && requested_index >= 0 && requested_index < shortlist_ids.length && shortlist_ids[requested_index] == @requested_intent_cursor
+          requested_index
+        else
+          shortlist_ids.index(@requested_intent_cursor) || 0
+        end
+      else
+        @intent_shortlist_cursor_id = shortlist_ids.first.to_s
+        @intent_shortlist_cursor_index = 0
+      end
     end
 
-    def intent_shortlist_score(row:, query:)
+    def intent_shortlist_match_details(row:, query:)
       player_name = row["player_name"].to_s.downcase
       player_id = row["player_id"].to_s
 
-      return 0 if player_id == query
-      return 1 if player_name == query
-      return 2 if player_name.start_with?(query)
+      return { score: 0, reason: "id_exact" } if player_id == query
+      return { score: 1, reason: "name_prefix" } if player_name.start_with?(query)
 
       tokens = player_name.split(/[^a-z0-9]+/)
-      return 3 if tokens.any? { |token| token.start_with?(query) }
+      return { score: 2, reason: "name_prefix" } if tokens.any? { |token| token.start_with?(query) }
 
-      player_name.include?(query) ? 4 : 5
+      return { score: 3, reason: "contains" } if player_name.include?(query) || player_id.include?(query)
+
+      nil
     end
 
     def normalize_selected_player_id_param(raw)

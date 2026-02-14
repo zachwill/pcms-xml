@@ -11,13 +11,15 @@
 
   sync_url_expr = "const nextUrl = '/tools/two-way-utility?' + (#{pane_query_expr}) + '&' + (#{compare_query_expr}); if ((window.location.pathname + window.location.search) !== nextUrl) { window.history.replaceState({}, '', nextUrl); }"
 
+  shortcut_focus_expr = "const isShortcut = (evt.metaKey || evt.ctrlKey) && !evt.shiftKey && !evt.altKey && String(evt.key || '').toLowerCase() === 'k'; if (!isShortcut) { return; } const finder = document.getElementById('two-way-intent-input'); if (!finder) { return; } evt.preventDefault(); finder.focus(); finder.select();"
+
   signals_literal = {
     twconference: @conference.to_s,
     twteam: @team.to_s,
     twrisk: @risk.to_s,
     twintent: @intent.to_s,
-    twintentcursor: @intent_shortlist_default_id.to_s,
-    twintentcursorindex: 0,
+    twintentcursor: @intent_shortlist_cursor_id.to_s,
+    twintentcursorindex: @intent_shortlist_cursor_index.to_i,
     comparea: @compare_a_id.to_s,
     compareb: @compare_b_id.to_s,
     overlaytype: "none",
@@ -31,6 +33,7 @@
   style="height: 100dvh;"
   data-signals='<%= signals_literal %>'
   data-effect="<%= sync_url_expr %>"
+  data-on:keydown="<%= shortcut_focus_expr %>"
 >
   <div id="flash"></div>
 

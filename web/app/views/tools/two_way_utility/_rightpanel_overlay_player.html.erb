@@ -59,7 +59,7 @@
   next_year = SalaryBookHelper::SALARY_YEARS[1]
 
   refresh_base = "/tools/two-way-utility/sse/refresh?#{@state_query}"
-  compare_state_suffix_expr = "'&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '')"
+  compare_state_suffix_expr = "'&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '') + '&intent_cursor=' + encodeURIComponent($twintentcursor || '') + '&intent_cursor_index=' + encodeURIComponent($twintentcursorindex || 0)"
   pin_a_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=pin&compare_slot=a&player_id=#{player_id}')"
   pin_b_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=pin&compare_slot=b&player_id=#{player_id}')"
   clear_a_expr = "@get('#{refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=clear_slot&compare_slot=a')"

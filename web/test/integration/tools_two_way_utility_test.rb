@@ -230,6 +230,26 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "Compare board"
       assert_includes response.body, ">Pin A</button>"
       assert_includes response.body, ">Pin B</button>"
+      assert_includes response.body, "Cmd/Ctrl+K"
+    end
+  end
+
+  test "two-way utility show wires cmd ctrl+k intent focus" do
+    with_fake_connection do
+      get "/tools/two-way-utility", params: {
+        conference: "all",
+        team: "",
+        risk: "all",
+        intent: ""
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_equal "text/html", response.media_type
+      assert_includes response.body, 'id="two-way-utility-workspace"'
+      assert_includes response.body, "toLowerCase() ==="
+      assert_includes response.body, "two-way-intent-input"
+      assert_includes response.body, "finder.focus(); finder.select();"
+      assert_includes response.body, "Cmd/Ctrl+K"
     end
   end
 
@@ -298,7 +318,7 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "two-way utility commandbar refresh keeps selected-id and intent context in request params" do
+  test "two-way utility commandbar refresh keeps selected-id, intent, and cursor context in request params" do
     with_fake_connection do
       get "/tools/two-way-utility/sse/refresh", params: {
         conference: "all",
@@ -314,6 +334,10 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "compare_b="
       assert_includes response.body, "intent="
       assert_includes response.body, "$twintent"
+      assert_includes response.body, "intent_cursor="
+      assert_includes response.body, "intent_cursor_index="
+      assert_includes response.body, "$twintentcursor"
+      assert_includes response.body, "$twintentcursorindex"
     end
   end
 
@@ -335,11 +359,42 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "Intent matches"
       assert_includes response.body, "INTENT"
       assert_includes response.body, 'id="two-way-intent-shortlist"'
+      assert_includes response.body, "id exact/name prefix/contains"
       assert_includes response.body, "↑/↓ pick · Enter opens overlay"
       assert_includes response.body, "ArrowDown"
+      assert_includes response.body, 'data-two-way-match-reason="name_prefix"'
+      assert_includes response.body, "name prefix"
       assert_includes response.body, '"twintent":"Warning"'
       assert_includes response.body, '"twintentcursor":"1002"'
       assert_includes response.body, '"twintentcursorindex":0'
+    end
+  end
+
+  test "two-way utility intent shortlist labels id exact and contains rationale" do
+    with_fake_connection do
+      get "/tools/two-way-utility/sse/refresh", params: {
+        conference: "all",
+        team: "",
+        risk: "all",
+        intent: "1002"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'data-two-way-match-reason="id_exact"'
+      assert_includes response.body, "id exact"
+
+      get "/tools/two-way-utility/sse/refresh", params: {
+        conference: "all",
+        team: "",
+        risk: "all",
+        intent: "mate"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, 'data-two-way-match-reason="contains"'
+      assert_includes response.body, "contains"
     end
   end
 
@@ -359,6 +414,28 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_includes response.body, '"overlaytype":"player"'
       assert_includes response.body, '"overlayid":"1002"'
       assert_includes response.body, '"twintent":"Warning"'
+    end
+  end
+
+  test "two-way utility refresh preserves requested intent cursor across refresh" do
+    with_fake_connection do
+      get "/tools/two-way-utility/sse/refresh", params: {
+        conference: "all",
+        team: "",
+        risk: "all",
+        intent: "1",
+        intent_cursor: "1002",
+        intent_cursor_index: "1"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, '"twintent":"1"'
+      assert_includes response.body, '"twintentcursor":"1002"'
+      assert_includes response.body, '"twintentcursorindex":1'
+      assert_includes response.body, "intent_cursor="
+      assert_includes response.body, "$twintentcursor"
+      assert_includes response.body, "$twintentcursorindex"
     end
   end
 

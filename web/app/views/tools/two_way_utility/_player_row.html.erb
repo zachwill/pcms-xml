@@ -134,7 +134,7 @@ end %>
 
 <% open_expr = "$overlaytype = 'player'; $overlayid = '#{player_id}'; @get('/tools/two-way-utility/sidebar/#{player_id}?#{state_query}')" %>
 <% compare_refresh_base = "/tools/two-way-utility/sse/refresh?#{state_query}" %>
-<% compare_state_suffix_expr = "'&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '')" %>
+<% compare_state_suffix_expr = "'&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '') + '&intent_cursor=' + encodeURIComponent($twintentcursor || '') + '&intent_cursor_index=' + encodeURIComponent($twintentcursorindex || 0)" %>
 <% pin_a_expr = "@get('#{compare_refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=pin&compare_slot=a&player_id=#{player_id}')" %>
 <% pin_b_expr = "@get('#{compare_refresh_base}' + (#{compare_state_suffix_expr}) + '&compare_action=pin&compare_slot=b&player_id=#{player_id}')" %>
 

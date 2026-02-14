@@ -35,7 +35,7 @@
   risk_source_summary = ->(row) { "#{limit_basis_label.call(row).downcase} · #{threshold_posture.call(row)[:detail]}" }
 
   refresh_base = "/tools/two-way-utility/sse/refresh?#{@state_query}"
-  compare_state_suffix_expr = "'&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '')"
+  compare_state_suffix_expr = "'&selected_id=' + encodeURIComponent($overlaytype === 'player' ? $overlayid : '') + '&compare_a=' + encodeURIComponent($comparea || '') + '&compare_b=' + encodeURIComponent($compareb || '') + '&intent_cursor=' + encodeURIComponent($twintentcursor || '') + '&intent_cursor_index=' + encodeURIComponent($twintentcursorindex || 0)"
 
   if compare_ready
     remaining_delta = @compare_b_row["remaining_active_list_games"].to_i - @compare_a_row["remaining_active_list_games"].to_i

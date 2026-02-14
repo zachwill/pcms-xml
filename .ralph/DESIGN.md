@@ -421,7 +421,7 @@ Supervisor review (2026-02-14):
     - Follow-up tasks discovered:
       - Consider extracting a shared tool-level keyboard-shortcut helper (for `Cmd/Ctrl+K` focus patterns) before applying the same interaction grammar to Two-Way Utility.
 
-- [ ] [P2] [TOOL] /tools/two-way-utility — add global intent focus shortcut and match rationale labels
+- [x] [P2] [TOOL] /tools/two-way-utility — add global intent focus shortcut and match rationale labels
   - Problem: shortlist open works, but intent initiation and ranking rationale remain opaque for edge queries.
   - Hypothesis: explicit shortcut + reason labels will reduce query iteration loops.
   - Scope (files):
@@ -443,6 +443,27 @@ Supervisor review (2026-02-14):
     - Navigation/pivots: 5 → 5
   - Guardrails:
     - Do not modify Salary Book files.
+  - Completed (2026-02-14):
+    - What changed (files):
+      - `web/app/views/tools/two_way_utility/show.html.erb`: added workspace-level `data-on:keydown` handling so `Cmd/Ctrl+K` focuses/selects `#two-way-intent-input` from anywhere in the board shell.
+      - `web/app/views/tools/two_way_utility/_commandbar.html.erb`: added visible `Cmd/Ctrl+K` affordance, expanded shortlist rows with rationale badges (`id exact` / `name prefix` / `contains`), and carried `intent_cursor` + `intent_cursor_index` through refresh requests so cursor intent state round-trips with every SSE refresh.
+      - `web/app/controllers/tools/two_way_utility_controller.rb`: introduced scored intent-match classification with explicit `match_reason`, added cursor-param normalization (`intent_cursor`, `intent_cursor_index`), and now restores shortlist cursor deterministically when the requested row remains in shortlist after refresh.
+      - `web/app/views/tools/two_way_utility/_player_row.html.erb`: preserved shortlist cursor params on compare pin requests fired from main-board rows.
+      - `web/app/views/tools/two_way_utility/_rightpanel_base.html.erb`: preserved shortlist cursor params on compare clear/pin requests triggered from sidebar compare controls.
+      - `web/app/views/tools/two_way_utility/_rightpanel_overlay_player.html.erb`: preserved shortlist cursor params on overlay pin/clear actions so overlay-driven refreshes do not reset commandbar cursor intent.
+      - `web/test/integration/tools_two_way_utility_test.rb`: added coverage for show-level shortcut wiring, shortlist rationale badges across `id exact`/`name prefix`/`contains`, and cursor-preservation behavior across refresh.
+    - Why this improves the flow:
+      - Analysts can launch intent search from any surface via keyboard, see why each shortlist candidate ranked, and trust Enter-to-open even after intermediate refreshes because cursor state is now preserved instead of silently resetting.
+    - Verification:
+      - `cd web && bundle exec ruby -Itest test/integration/tools_two_way_utility_test.rb`
+    - Rubric (before → after):
+      - Scan speed: 5 → 5
+      - Information hierarchy: 5 → 5
+      - Interaction predictability: 5 → 5
+      - Density/readability: 4 → 4
+      - Navigation/pivots: 5 → 5
+    - Follow-up tasks discovered:
+      - Consider extracting a shared tool-level shortlist cursor/state helper so System Values and Two-Way Utility can reuse one keyboard + cursor persistence contract.
 
 - [ ] [P3] [PROCESS] design backlog hygiene — keep DESIGN.md active-only and archive done work to git history
   - Problem: backlog files bloat quickly and increase startup/token cost for the loop.
