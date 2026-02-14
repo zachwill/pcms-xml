@@ -1,3 +1,8 @@
+const isEditableTarget = (target) => {
+  if (!target) return false;
+  return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable;
+};
+
 const init = () => {
   const root = document.getElementById("team-summary");
   if (!root) return;
@@ -6,7 +11,7 @@ const init = () => {
     if (event.key !== "Escape") return;
 
     const target = event.target;
-    if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+    if (isEditableTarget(target)) return;
 
     const clearButton = root.querySelector("[data-team-summary-overlay-clear]");
     if (!clearButton) return;

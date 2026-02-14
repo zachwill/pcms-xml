@@ -311,6 +311,9 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="system-values"'
       assert_includes response.body, "toLowerCase() ==="
       assert_includes response.body, "finder.focus(); finder.select();"
+      assert_includes response.body, "key !== &#39;Escape&#39; || isEditable"
+      assert_includes response.body, "target.isContentEditable"
+      assert_includes response.body, "[data-system-values-overlay-clear]"
       assert_includes response.body, 'id="system-values-metric-finder-query"'
       assert_includes response.body, "Cmd/Ctrl+K"
     end
@@ -359,6 +362,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_equal "text/html", response.media_type
       assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, "data-system-values-overlay-clear"
       assert_includes response.body, "League System Values"
       assert_includes response.body, "Salary Cap"
       assert_includes response.body, "Source table: pcms.league_system_values"

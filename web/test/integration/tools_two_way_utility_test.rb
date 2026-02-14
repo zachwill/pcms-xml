@@ -247,6 +247,9 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_equal "text/html", response.media_type
       assert_includes response.body, 'id="two-way-utility-workspace"'
       assert_includes response.body, "toLowerCase() ==="
+      assert_includes response.body, "key !== &#39;Escape&#39; || isEditable"
+      assert_includes response.body, "target.isContentEditable"
+      assert_includes response.body, "[data-two-way-overlay-clear]"
       assert_includes response.body, "two-way-intent-input"
       assert_includes response.body, "finder.focus(); finder.select();"
       assert_includes response.body, "Cmd/Ctrl+K"
@@ -302,6 +305,7 @@ class ToolsTwoWayUtilityTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_equal "text/html", response.media_type
       assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, "data-two-way-overlay-clear"
       assert_includes response.body, "Usage trend"
       assert_includes response.body, "Open player page"
       assert_includes response.body, "Open team page"

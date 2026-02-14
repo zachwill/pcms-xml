@@ -65,27 +65,27 @@ Audit note (2026-02-14) — completed [P2] [TOOL] Team Summary commandbar team-f
 - Follow-up discovered:
   - Consider upgrading Team Finder from datalist matching to ranked shortlist chips (+ arrow-key cursor) if team filters/lenses expand further.
 
-- [ ] [P2] [TOOL] Tool overlay behavior parity — unify keyboard close semantics across tools
-  - Problem: Team Summary has explicit Escape-to-close behavior, while System Values and Two-Way Utility overlays rely on click-only close, creating inconsistent overlay control expectations.
-  - Hypothesis: Consistent Escape-to-close behavior (while preserving input focus exceptions) will improve interaction predictability across planning tools.
-  - Scope (files):
-    - `web/app/views/tools/system_values/show.html.erb`
-    - `web/app/views/tools/two_way_utility/show.html.erb`
-    - `web/app/views/tools/system_values/_rightpanel_overlay_metric.html.erb`
-    - `web/app/views/tools/two_way_utility/_rightpanel_overlay_player.html.erb`
-    - `web/app/javascript/tools/team_summary.js`
-  - Acceptance criteria:
-    - Escape closes active overlay in System Values and Two-Way Utility when focus is not in editable inputs.
-    - Cmd/Ctrl+K finder shortcuts continue to work as-is on both tools.
-    - Overlay close still uses canonical `#rightpanel-overlay` patch/clear behavior; no modal stacks introduced.
-  - Rubric (before → target):
-    - Scan speed: 4 → 4
-    - Information hierarchy: 4 → 4
-    - Interaction predictability: 3 → 5
-    - Density/readability: 4 → 4
-    - Navigation/pivots: 3 → 3
-  - Guardrails:
-    - No Salary Book edits outside the Tankathon allow-list.
+Audit note (2026-02-14) — completed [P2] [TOOL] Tool overlay behavior parity (Escape close semantics)
+- What changed (files):
+  - `web/app/views/tools/system_values/show.html.erb`
+  - `web/app/views/tools/two_way_utility/show.html.erb`
+  - `web/app/views/tools/system_values/_rightpanel_overlay_metric.html.erb`
+  - `web/app/views/tools/two_way_utility/_rightpanel_overlay_player.html.erb`
+  - `web/app/javascript/tools/team_summary.js`
+  - `web/test/integration/tools_system_values_test.rb`
+  - `web/test/integration/tools_two_way_utility_test.rb`
+- Why this improves flow:
+  - System Values and Two-Way Utility now support Escape-to-close overlays with the same non-editable-focus guard used in Team Summary semantics.
+  - Close behavior routes through each tool’s canonical sidebar-clear control, keeping `#rightpanel-overlay` patch/clear behavior consistent with existing Datastar boundaries.
+  - Cmd/Ctrl+K finder shortcuts remain intact on both tools while Escape now behaves predictably across tool overlays.
+- Rubric (before → after):
+  - Scan speed: 4 → 4
+  - Information hierarchy: 4 → 4
+  - Interaction predictability: 3 → 5
+  - Density/readability: 4 → 4
+  - Navigation/pivots: 3 → 3
+- Follow-up discovered:
+  - Consider extracting a small shared keyboard utility for overlay-close + finder-shortcut guards to reduce duplicated inline keydown expressions across tool shells.
 
 - [ ] [P1] [ENTITY] teams/show — convert roster + cap horizon table islands into dossier lane flow
   - Problem: `teams/show` still relies on legacy table-heavy blocks for roster accounting and cap horizon, which breaks lane-style dossier continuity and slows scan-to-pivot decision flow.
