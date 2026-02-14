@@ -10,6 +10,7 @@ module Entities
     # and pick grid (team × year × round ownership matrix).
     def index
       load_index_state!
+      hydrate_initial_overlay_from_params!
       render :index
     end
 
@@ -846,6 +847,44 @@ module Entities
       else
         "All rows"
       end
+    end
+
+    def hydrate_initial_overlay_from_params!
+      @initial_overlay_type = "none"
+      @initial_overlay_key = ""
+      @initial_overlay_partial = nil
+      @initial_overlay_locals = {}
+
+      context = requested_overlay_context
+      return if context.blank?
+      return unless selected_overlay_visible?(context: context)
+
+      case context[:type]
+      when "pick"
+        @initial_overlay_partial = "entities/drafts/rightpanel_overlay_pick"
+        @initial_overlay_locals = load_sidebar_pick_payload(
+          team_code: context[:team_code],
+          draft_year: context[:draft_year],
+          draft_round: context[:draft_round]
+        )
+        @initial_overlay_type = "pick"
+        @initial_overlay_key = overlay_key_for_pick(
+          team_code: context[:team_code],
+          draft_year: context[:draft_year],
+          draft_round: context[:draft_round]
+        )
+      when "selection"
+        transaction_id = context[:transaction_id].to_i
+        @initial_overlay_partial = "entities/drafts/rightpanel_overlay_selection"
+        @initial_overlay_locals = load_sidebar_selection_payload(transaction_id)
+        @initial_overlay_type = "selection"
+        @initial_overlay_key = "selection-#{transaction_id}"
+      end
+    rescue ActiveRecord::RecordNotFound
+      @initial_overlay_type = "none"
+      @initial_overlay_key = ""
+      @initial_overlay_partial = nil
+      @initial_overlay_locals = {}
     end
 
     def requested_overlay_context

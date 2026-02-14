@@ -1,6 +1,9 @@
 <% content_for :title, "Drafts" %>
 
 <%
+  initial_overlay_type = @initial_overlay_type.to_s.presence || "none"
+  initial_overlay_key = @initial_overlay_key.to_s
+
   pane_query_expr = "'view=' + encodeURIComponent($draftview) +
     '&year=' + encodeURIComponent($draftyear) +
     '&round=' + encodeURIComponent($draftround) +
@@ -14,7 +17,7 @@
 
   refresh_expr = "@get('/drafts/sse/refresh?' + (#{refresh_query_expr})); window.history.replaceState({}, '', '/drafts?' + (#{pane_query_expr}))"
 
-  signals_literal = "{ draftview: #{@view.to_json}, draftyear: #{@year.to_json}, draftround: #{@round.to_json}, draftteam: #{(@team || '').to_json}, draftsort: #{@sort.to_json}, draftlens: #{@lens.to_json}, overlaytype: 'none', overlaykey: '' }"
+  signals_literal = "{ draftview: #{@view.to_json}, draftyear: #{@year.to_json}, draftround: #{@round.to_json}, draftteam: #{(@team || '').to_json}, draftsort: #{@sort.to_json}, draftlens: #{@lens.to_json}, overlaytype: #{initial_overlay_type.to_json}, overlaykey: #{initial_overlay_key.to_json} }"
 %>
 
 <div id="drafts-workspace" class="h-screen w-screen flex flex-col overflow-hidden bg-background" data-signals="<%= signals_literal %>">
@@ -187,7 +190,11 @@
         <%= render partial: "entities/drafts/rightpanel_base" %>
       </div>
 
-      <div id="rightpanel-overlay"></div>
+      <% if @initial_overlay_partial.present? %>
+        <%= render partial: @initial_overlay_partial, locals: (@initial_overlay_locals || {}) %>
+      <% else %>
+        <div id="rightpanel-overlay"></div>
+      <% end %>
     </aside>
   </div>
 </div>

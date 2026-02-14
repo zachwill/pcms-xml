@@ -286,6 +286,28 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "drafts index hydrates selected overlay from URL when row remains visible" do
+    with_fake_connection do
+      get "/drafts", params: {
+        view: "picks",
+        year: "2027",
+        round: "all",
+        team: "",
+        sort: "provenance",
+        lens: "at_risk",
+        selected_type: "pick",
+        selected_key: "pick-BOS-2027-1"
+      }, headers: modern_headers
+
+      assert_response :success
+      assert_includes response.body, "Open canonical draft-pick page"
+      assert_includes response.body, "Conditional TOP4"
+      assert_includes response.body, 'overlaytype: &quot;pick&quot;'
+      assert_includes response.body, 'overlaykey: &quot;pick-BOS-2027-1&quot;'
+      assert_not_includes response.body, "<table"
+    end
+  end
+
   test "drafts grid refresh surfaces ownership risk tiers before drill-in" do
     with_fake_connection do
       get "/drafts/sse/refresh", params: { view: "grid", year: "2027", round: "all", team: "", sort: "risk", lens: "all" }, headers: modern_headers
@@ -341,10 +363,12 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, "Ownership risk legend"
       assert_includes response.body, "Open canonical draft-pick page"
+      assert_includes response.body, "Conditional TOP4"
       assert_includes response.body, '"draftsort":"provenance"'
       assert_includes response.body, '"draftlens":"at_risk"'
       assert_includes response.body, '"overlaytype":"pick"'
       assert_includes response.body, '"overlaykey":"grid-BOS-2027-1"'
+      assert_not_includes response.body, "<table"
     end
   end
 
@@ -365,10 +389,12 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, 'id="draft-selections-flex-header"'
       assert_includes response.body, "Open canonical draft-selection page"
+      assert_includes response.body, "Conditional TOP4"
       assert_includes response.body, '"draftsort":"risk"'
       assert_includes response.body, '"draftlens":"at_risk"'
       assert_includes response.body, '"overlaytype":"selection"'
       assert_includes response.body, '"overlaykey":"selection-777001"'
+      assert_not_includes response.body, "<table"
     end
   end
 
@@ -398,12 +424,16 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_includes response.body, 'id="rightpanel-overlay"'
       assert_includes response.body, "Open canonical draft-pick page"
+      assert_includes response.body, "Conditional TOP4"
+      assert_not_includes response.body, "<table"
 
       get "/drafts/sidebar/selection/777001", headers: modern_headers
 
       assert_response :success
       assert_includes response.body, 'id="rightpanel-overlay"'
       assert_includes response.body, "Open canonical draft-selection page"
+      assert_includes response.body, "Conditional TOP4"
+      assert_not_includes response.body, "<table"
 
       get "/drafts/sidebar/clear", headers: modern_headers
 

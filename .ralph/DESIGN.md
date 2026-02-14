@@ -107,28 +107,25 @@ Audit note (2026-02-14) — completed [P1] [ENTITY] teams/show roster + cap hori
 - Follow-up discovered:
   - Consider adding lightweight sort/lens toggles within roster accounting buckets (amount/type/expiry) once query-param restoration patterns are defined for entity detail sections.
 
-- [ ] [P1] [INDEX] drafts/index — make rightpanel provenance drill-ins lane-native + URL-restorable
-  - Problem: Draft pick/selection overlays still present provenance in table islands and index boot does not restore overlay-open state from query params, reducing continuity in contested-pick review.
-  - Hypothesis: Lane-native provenance rendering plus first-load URL hydration will make ownership-chain triage faster and predictable across refresh/share workflows.
-  - Scope (files):
-    - `web/app/views/entities/drafts/_rightpanel_overlay_pick.html.erb`
-    - `web/app/views/entities/drafts/_rightpanel_overlay_selection.html.erb`
-    - `web/app/views/entities/drafts/index.html.erb`
-    - `web/app/controllers/entities/drafts_controller.rb`
-    - `web/app/controllers/entities/drafts_sse_controller.rb`
-  - Acceptance criteria:
-    - Provenance chains in both draft overlays render as lane/list rows with concise severity/flag cues.
-    - `/drafts?selected_type=...&selected_key=...` restores overlay-open context on initial page load when target row/cell is in-scope.
-    - SSE refresh preserves overlay when still visible and clears it when filtered out (no stale overlay payload/signals).
-    - Canonical pivots (trade/transaction/team/player/draft-pick/draft-selection) remain one-click and keyboard reachable.
-  - Rubric (before → target):
-    - Scan speed: 3 → 4
-    - Information hierarchy: 3 → 4
-    - Interaction predictability: 2 → 4
-    - Density/readability: 3 → 4
-    - Navigation/pivots: 4 → 5
-  - Guardrails:
-    - No Salary Book edits outside the Tankathon allow-list.
+Audit note (2026-02-14) — completed [P1] [INDEX] drafts/index rightpanel provenance drill-ins lane-native + URL-restorable
+- What changed (files):
+  - `web/app/controllers/entities/drafts_controller.rb`
+  - `web/app/views/entities/drafts/index.html.erb`
+  - `web/app/views/entities/drafts/_rightpanel_overlay_pick.html.erb`
+  - `web/app/views/entities/drafts/_rightpanel_overlay_selection.html.erb`
+  - `web/test/integration/entities_pane_endpoints_test.rb`
+- Why this improves flow:
+  - Draft pick + selection overlays now render provenance as lane-native rows (no table island), with explicit severity chips and compact swap/future/conditional flags for faster chain triage.
+  - Drafts index now hydrates overlay-open state on first load from `selected_type` + `selected_key` when the target row/cell is in-scope, so refresh/share workflows preserve drill-in continuity.
+  - Existing SSE refresh behavior remains aligned with the same visibility contract (preserve when visible, clear when filtered out).
+- Rubric (before → after):
+  - Scan speed: 3 → 4
+  - Information hierarchy: 3 → 4
+  - Interaction predictability: 2 → 4
+  - Density/readability: 3 → 4
+  - Navigation/pivots: 4 → 5
+- Follow-up discovered:
+  - Apply the same first-load overlay hydration + lane-native provenance treatment to `draft_selections/index` (existing [P2] task below).
 
 - [ ] [P2] [INDEX] draft_selections/index — remove provenance table island + support selected overlay deep-link bootstrap
   - Problem: Draft Selections overlay still uses provenance table presentation and index boot cannot restore `selected_id` overlay context, creating mismatch with other index workbench continuity patterns.
