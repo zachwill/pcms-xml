@@ -10,9 +10,7 @@ module Entities
     # - #rightpanel-base
     # - #rightpanel-overlay (preserved when selected row remains visible)
     def refresh
-      setup_directory_filters!
-      load_directory_rows!
-      build_sidebar_summary!
+      load_directory_workspace_state!
 
       requested_overlay_type, requested_overlay_id = requested_overlay_context
       overlay_html, resolved_overlay_type, resolved_overlay_id = refreshed_overlay_payload(

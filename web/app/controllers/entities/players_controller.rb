@@ -62,12 +62,7 @@ module Entities
       resolve_player_from_slug!(params[:slug])
       return if performed?
 
-      if @defer_heavy_load
-        load_player_header_snapshot!
-        seed_empty_player_workspace!
-      else
-        load_player_workspace_data!
-      end
+      load_player_show_workspace_data!
 
       render :show
     end
@@ -171,59 +166,15 @@ module Entities
       @player_slug = record.slug
     end
 
-    def load_player_header_snapshot!
-      @player = queries.fetch_player_header(@player_id)
-      raise ActiveRecord::RecordNotFound unless @player
+    def load_player_show_workspace_data!
+      state = Players::ShowWorkspaceData.new(
+        queries: queries,
+        player_id: @player_id
+      ).build(defer_heavy_load: @defer_heavy_load)
 
-      # Salary-book context (team + agent + contract flags) to enable link graph pivots.
-      @salary_book_row = queries.fetch_salary_book_row(@player_id)
-
-      # Draft selection (historical) — player → draft → team link.
-      @draft_selection = queries.fetch_draft_selection(@player_id)
-    end
-
-    def seed_empty_player_workspace!
-      @team_history_rows = []
-      @salary_book_yearly_rows = []
-      @contract_chronology_rows = []
-      @contract_version_rows = []
-      @salary_rows = []
-      @protection_rows = []
-      @protection_condition_rows = []
-      @bonus_rows = []
-      @bonus_max_rows = []
-      @payment_schedule_rows = []
-      @ledger_entries = []
-    end
-
-    def load_player_workspace_data!
-      load_player_header_snapshot!
-
-      @team_history_rows = queries.fetch_team_history(@player_id)
-      @salary_book_yearly_rows = queries.fetch_salary_book_yearly(@player_id)
-      @contract_chronology_rows = queries.fetch_contract_chronology(@player_id)
-      @contract_version_rows = queries.fetch_contract_versions(@player_id)
-
-      @salary_rows = []
-      @protection_rows = []
-      @protection_condition_rows = []
-      @bonus_rows = []
-      @bonus_max_rows = []
-      @payment_schedule_rows = []
-
-      if @salary_book_row.present? && @salary_book_row["contract_id"].present? && @salary_book_row["version_number"].present?
-        contract_id = @salary_book_row["contract_id"]
-        version_number = @salary_book_row["version_number"]
-
-        @salary_rows = queries.fetch_salaries(contract_id:, version_number:)
-        @protection_rows = queries.fetch_protections(contract_id:, version_number:)
-        @protection_condition_rows = queries.fetch_protection_conditions(contract_id:, version_number:)
-        @bonus_rows = queries.fetch_bonuses(contract_id:, version_number:)
-        @bonus_max_rows = queries.fetch_bonus_maximums(contract_id:, version_number:)
-        @payment_schedule_rows = queries.fetch_payment_schedules(contract_id:, version_number:)
+      state.each do |key, value|
+        instance_variable_set("@#{key}", value)
       end
-
-      @ledger_entries = queries.fetch_ledger_entries(@player_id)
     end
   end
 end

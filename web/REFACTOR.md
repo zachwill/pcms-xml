@@ -25,13 +25,13 @@ MVP is working well — entities, tools, Datastar patches, SSE, sidebar overlays
 |------------|-------|----------|
 | `tools/salary_book_controller.rb` | 385 (was 1,293) | ✅ In progress |
 | `tools/system_values_controller.rb` | 362 (was 1,240) | ✅ Query + workspace service extraction done |
-| `entities/players_controller.rb` | 229 (was 1,196) | ✅ Query + index workspace service extraction done |
-| `entities/drafts_controller.rb` | 647 (was 1,018) | ✅ Query extraction done; controller slimming ongoing |
-| `entities/transactions_controller.rb` | 500 (was ~951) | ✅ Query extraction done; controller slimming ongoing |
-| `entities/teams_controller.rb` | 485 (was 927) | ✅ Query extraction done; controller slimming ongoing |
-| `entities/trades_controller.rb` | 295 (was 772) | ✅ Query extraction done; controller slimming ongoing |
-| `entities/agents_controller.rb` | 477 (was 874) | ✅ Query extraction done; controller slimming ongoing |
-| `tools/two_way_utility_controller.rb` | 422 (was 740) | ✅ Query extraction done; controller slimming ongoing |
+| `entities/players_controller.rb` | 180 (was 1,196) | ✅ Query + index/show workspace service extraction done |
+| `entities/drafts_controller.rb` | 240 (was 1,018) | ✅ Query + index workspace service extraction done |
+| `entities/transactions_controller.rb` | 111 (was ~951) | ✅ Query + index workspace service extraction done |
+| `entities/teams_controller.rb` | 217 (was 927) | ✅ Query + index/show workspace service extraction done |
+| `entities/trades_controller.rb` | 98 (was 772) | ✅ Query + index workspace service extraction done |
+| `entities/agents_controller.rb` | 219 (was 874) | ✅ Query + directory/show workspace service extraction done |
+| `tools/two_way_utility_controller.rb` | 249 (was 740) | ✅ Query + workspace service extraction done |
 
 **Target:** Controllers should be ≤200 lines. They call into query/service objects and render.
 
@@ -194,9 +194,18 @@ Focus on the three 1,000+ line controllers first:
 - [x] `SalaryBookQueries` — extracted from `salary_book_controller.rb` (controller now ~385 LOC)
 - [x] `SystemValuesQueries` — extracted SQL/data fetches from `system_values_controller.rb` (controller now ~362 LOC)
 - [x] `SystemValues::WorkspaceDerivedState` — extracted overlay/metric-finder/quick-card derivation out of controller
-- [x] `PlayerQueries` — extracted SQL/data fetches from `players_controller.rb` (controller now ~229 LOC)
+- [x] `PlayerQueries` — extracted SQL/data fetches from `players_controller.rb` (controller now ~180 LOC)
 - [x] `Players::IndexWorkspaceState` — extracted index filter/urgency/sidebar derivation out of `players_controller.rb`
-- [x] `TwoWayUtilityQueries` — extracted SQL/data fetches from `two_way_utility_controller.rb` (controller now ~422 LOC)
+- [x] `Players::ShowWorkspaceData` — extracted show workspace data loading/deferred hydration out of `players_controller.rb` (controller now ~180 LOC)
+- [x] `TwoWayUtilityQueries` — extracted SQL/data fetches from `two_way_utility_controller.rb` (controller now ~249 LOC)
+- [x] `Tools::TwoWayUtility::WorkspaceState` — extracted workspace filters/derivation/sidebar summary out of `two_way_utility_controller.rb` (controller now ~249 LOC)
+- [x] `Transactions::IndexWorkspaceState` — extracted index filter/severity/sidebar derivation out of `transactions_controller.rb` (controller now ~111 LOC)
+- [x] `Teams::IndexWorkspaceState` — extracted index filter/pressure/compare/sidebar derivation out of `teams_controller.rb` (controller now ~217 LOC)
+- [x] `Teams::ShowWorkspaceData` — extracted show workspace hydration/deferred loading out of `teams_controller.rb` (controller now ~217 LOC)
+- [x] `Agents::DirectoryWorkspaceState` — extracted directory filters/row loading/sidebar summarization out of `agents_controller.rb` (controller now ~219 LOC)
+- [x] `Agents::ShowWorkspaceData` — extracted show workspace hydration out of `agents_controller.rb` (controller now ~219 LOC)
+- [x] `Drafts::IndexWorkspaceState` — extracted index filter/grid-risk/sidebar derivation out of `drafts_controller.rb` (controller now ~240 LOC)
+- [x] `Trades::IndexWorkspaceState` — extracted index filter/composition/sidebar derivation out of `trades_controller.rb` (controller now ~98 LOC)
 
 **Gate:** Each controller drops below 400 lines. Existing behavior unchanged.
 
@@ -234,14 +243,23 @@ Focus on the three 1,000+ line controllers first:
 ### Phase 6 — Decompose remaining controllers + view partial cleanup
 
 - [x] Extract query object for drafts (`DraftQueries`)
+- [x] Extract index workspace service for drafts (`Drafts::IndexWorkspaceState`)
 - [x] Extract query object for transactions (`TransactionQueries`)
 - [x] Extract query object for teams (`TeamQueries`)
 - [x] Extract query object for agents (`AgentQueries`)
 - [x] Extract query object for trades (`TradeQueries`)
+- [x] Extract index workspace service for trades (`Trades::IndexWorkspaceState`)
+- [x] Extract index workspace service for transactions (`Transactions::IndexWorkspaceState`)
+- [x] Extract index workspace service for teams (`Teams::IndexWorkspaceState`)
+- [x] Extract show workspace service for teams (`Teams::ShowWorkspaceData`)
+- [x] Extract directory workspace service for agents (`Agents::DirectoryWorkspaceState`)
+- [x] Extract show workspace service for agents (`Agents::ShowWorkspaceData`)
+- [x] Extract show workspace service for players (`Players::ShowWorkspaceData`)
+- [x] Extract workspace service for two-way utility (`Tools::TwoWayUtility::WorkspaceState`)
 - [ ] Break 250+ line partials into sub-partials
 - [ ] Establish shared partial library for common row patterns (identity cells, money cells, date cells)
 
-**Gate:** Controllers ≤ 300 lines outside intentional exceptions; large partials decomposed.
+**Gate:** Controllers ≤ 300 lines achieved for drafts/transactions/teams/agents/trades/two-way; large partial decomposition still pending.
 
 ---
 
