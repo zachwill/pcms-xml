@@ -170,10 +170,6 @@ module Tools
 
     private
 
-    def conn
-      ActiveRecord::Base.connection
-    end
-
     def state_query_expr
       "'year=' + encodeURIComponent($svyear) + " \
         "'&baseline_year=' + encodeURIComponent($svbaseline) + " \
@@ -212,19 +208,7 @@ module Tools
     end
 
     def fetch_available_years
-      conn.exec_query(<<~SQL).rows.flatten.map(&:to_i)
-        SELECT DISTINCT salary_year
-        FROM (
-          SELECT salary_year FROM pcms.league_system_values WHERE league_lk = 'NBA'
-          UNION ALL
-          SELECT salary_year FROM pcms.league_tax_rates WHERE league_lk = 'NBA'
-          UNION ALL
-          SELECT salary_year FROM pcms.league_salary_scales WHERE league_lk = 'NBA'
-          UNION ALL
-          SELECT salary_year FROM pcms.rookie_scale_amounts WHERE league_lk = 'NBA' AND salary_year >= 1900
-        ) years
-        ORDER BY salary_year
-      SQL
+      SystemValuesQueries.fetch_available_years
     end
 
     def resolve_selected_year(available_years)
@@ -300,100 +284,19 @@ module Tools
     end
 
     def fetch_league_system_values(from_year, to_year)
-      conn.exec_query(<<~SQL).to_a
-        SELECT
-          salary_year,
-          salary_cap_amount,
-          tax_level_amount,
-          tax_apron_amount,
-          tax_apron2_amount,
-          minimum_team_salary_amount,
-          maximum_salary_25_pct,
-          maximum_salary_30_pct,
-          maximum_salary_35_pct,
-          non_taxpayer_mid_level_amount,
-          taxpayer_mid_level_amount,
-          room_mid_level_amount,
-          bi_annual_amount,
-          tpe_dollar_allowance,
-          max_trade_cash_amount,
-          international_player_payment_limit,
-          refreshed_at
-        FROM (
-          SELECT
-            salary_year,
-            salary_cap_amount,
-            tax_level_amount,
-            tax_apron_amount,
-            tax_apron2_amount,
-            minimum_team_salary_amount,
-            maximum_salary_25_pct,
-            maximum_salary_30_pct,
-            maximum_salary_35_pct,
-            non_taxpayer_mid_level_amount,
-            taxpayer_mid_level_amount,
-            room_mid_level_amount,
-            bi_annual_amount,
-            tpe_dollar_allowance,
-            max_trade_cash_amount,
-            international_player_payment_limit,
-            ingested_at AS refreshed_at
-          FROM pcms.league_system_values
-          WHERE league_lk = 'NBA'
-            AND salary_year BETWEEN #{conn.quote(from_year)} AND #{conn.quote(to_year)}
-        ) values_rows
-        ORDER BY salary_year
-      SQL
+      SystemValuesQueries.fetch_league_system_values(from_year, to_year)
     end
 
     def fetch_league_tax_rates(from_year, to_year)
-      conn.exec_query(<<~SQL).to_a
-        SELECT
-          salary_year,
-          lower_limit,
-          upper_limit,
-          tax_rate_non_repeater,
-          tax_rate_repeater,
-          base_charge_non_repeater,
-          base_charge_repeater
-        FROM pcms.league_tax_rates
-        WHERE league_lk = 'NBA'
-          AND salary_year BETWEEN #{conn.quote(from_year)} AND #{conn.quote(to_year)}
-        ORDER BY salary_year, lower_limit
-      SQL
+      SystemValuesQueries.fetch_league_tax_rates(from_year, to_year)
     end
 
     def fetch_league_salary_scales(from_year, to_year)
-      conn.exec_query(<<~SQL).to_a
-        SELECT
-          salary_year,
-          years_of_service,
-          minimum_salary_amount
-        FROM pcms.league_salary_scales
-        WHERE league_lk = 'NBA'
-          AND salary_year BETWEEN #{conn.quote(from_year)} AND #{conn.quote(to_year)}
-        ORDER BY salary_year, years_of_service
-      SQL
+      SystemValuesQueries.fetch_league_salary_scales(from_year, to_year)
     end
 
     def fetch_rookie_scale_amounts(from_year, to_year)
-      conn.exec_query(<<~SQL).to_a
-        SELECT
-          salary_year,
-          pick_number,
-          salary_year_1,
-          salary_year_2,
-          option_amount_year_3,
-          option_amount_year_4,
-          option_pct_year_3,
-          option_pct_year_4,
-          is_active
-        FROM pcms.rookie_scale_amounts
-        WHERE league_lk = 'NBA'
-          AND salary_year >= 1900
-          AND salary_year BETWEEN #{conn.quote(from_year)} AND #{conn.quote(to_year)}
-        ORDER BY salary_year, pick_number
-      SQL
+      SystemValuesQueries.fetch_rookie_scale_amounts(from_year, to_year)
     end
 
     def load_workspace_state!
@@ -484,7 +387,7 @@ module Tools
       @metric_finder_cursor_index = 0
       @comparison_label = "Comparing #{helpers.format_year_label(@selected_year)} against #{helpers.format_year_label(@baseline_year)} baseline"
       @overlay_payload = nil
-      @overlay_signals = empty_overlay_signals
+      @overlay_signals = SystemValuesService.empty_overlay_signals
       @state_params = {
         year: @selected_year,
         baseline_year: @baseline_year,
@@ -524,7 +427,7 @@ module Tools
           upper: @overlay_payload.fetch(:overlay_upper)
         }
       else
-        empty_overlay_signals
+        SystemValuesService.empty_overlay_signals
       end
 
       @active_metric_finder_value = metric_finder_value_for_overlay(@overlay_signals)
@@ -579,7 +482,7 @@ module Tools
       return nil if metric.blank? || year.blank? || lower.nil?
 
       focus_row = @league_tax_rates.find do |row|
-        row["salary_year"].to_i == year.to_i && tax_bracket_match?(row, lower:, upper:)
+        row["salary_year"].to_i == year.to_i && SystemValuesService.tax_bracket_match?(row, lower:, upper:)
       end
       return nil unless focus_row
 
@@ -644,8 +547,8 @@ module Tools
           lower = focus_row["lower_limit"]&.to_f
           upper = focus_row["upper_limit"]&.to_f
 
-          selected_row = tax_row_for_bracket(@selected_tax_rate_rows, lower:, upper:)
-          baseline_row = tax_row_for_bracket(@baseline_tax_rate_rows, lower:, upper:)
+          selected_row = SystemValuesService.tax_row_for_bracket(@selected_tax_rate_rows, lower:, upper:)
+          baseline_row = SystemValuesService.tax_row_for_bracket(@baseline_tax_rate_rows, lower:, upper:)
 
           lower_raw = focus_row["lower_limit"]
           upper_raw = focus_row["upper_limit"]
@@ -662,8 +565,8 @@ module Tools
           ]
         when "minimum"
           yos = context.fetch(:yos)
-          selected_row = minimum_row_for_yos(@selected_salary_scale_rows, yos:)
-          baseline_row = minimum_row_for_yos(@baseline_salary_scale_rows, yos:)
+          selected_row = SystemValuesService.minimum_row_for_yos(@selected_salary_scale_rows, yos:)
+          baseline_row = SystemValuesService.minimum_row_for_yos(@baseline_salary_scale_rows, yos:)
 
           [
             selected_row&.[](metric),
@@ -675,10 +578,15 @@ module Tools
           ]
         when "rookie"
           pick = context.fetch(:pick)
-          selected_row = rookie_row_for_pick(@selected_rookie_scale_rows, pick:)
-          baseline_row = rookie_row_for_pick(@baseline_rookie_scale_rows, pick:)
+          selected_row = SystemValuesService.rookie_row_for_pick(@selected_rookie_scale_rows, pick:)
+          baseline_row = SystemValuesService.rookie_row_for_pick(@baseline_rookie_scale_rows, pick:)
 
-          rookie_detail_rows = build_rookie_overlay_detail_rows(selected_row:, baseline_row:)
+          rookie_detail_rows = SystemValuesService.build_rookie_overlay_detail_rows(
+            selected_row:, baseline_row:,
+            metric_definitions: ROOKIE_METRIC_DEFINITIONS,
+            format_value: method(:format_metric_value),
+            format_delta: method(:format_metric_delta)
+          )
 
           [
             selected_row&.[](metric),
@@ -700,8 +608,8 @@ module Tools
         end
 
       focus_value = focus_row[metric]
-      selected_delta = numeric_delta(selected_value, baseline_value)
-      focus_delta = numeric_delta(focus_value, focus_baseline_value)
+      selected_delta = SystemValuesService.numeric_delta(selected_value, baseline_value)
+      focus_delta = SystemValuesService.numeric_delta(focus_value, focus_baseline_value)
 
       selected_year_label = helpers.format_year_label(@selected_year)
       baseline_year_label = helpers.format_year_label(@baseline_year)
@@ -743,9 +651,9 @@ module Tools
         baseline_value_label: format_metric_value(baseline_value, kind),
         focus_value_label: format_metric_value(focus_value, kind),
         selected_delta_label: format_metric_delta(selected_delta, kind),
-        selected_delta_variant: delta_variant(selected_delta),
+        selected_delta_variant: SystemValuesService.delta_variant(selected_delta),
         focus_delta_label: format_metric_delta(focus_delta, kind),
-        focus_delta_variant: delta_variant(focus_delta),
+        focus_delta_variant: SystemValuesService.delta_variant(focus_delta),
         summary_line:,
         focus_line:,
         context_label:,
@@ -776,59 +684,6 @@ module Tools
       }
     end
 
-    def tax_row_for_bracket(rows, lower:, upper:)
-      Array(rows).find { |row| tax_bracket_match?(row, lower:, upper:) }
-    end
-
-    def minimum_row_for_yos(rows, yos:)
-      Array(rows).find { |row| row["years_of_service"].to_i == yos.to_i }
-    end
-
-    def rookie_row_for_pick(rows, pick:)
-      Array(rows).find { |row| row["pick_number"].to_i == pick.to_i }
-    end
-
-    def build_rookie_overlay_detail_rows(selected_row:, baseline_row:)
-      ROOKIE_METRIC_DEFINITIONS.map do |metric_key, definition|
-        selected_value = selected_row&.[](metric_key)
-        baseline_value = baseline_row&.[](metric_key)
-        delta = numeric_delta(selected_value, baseline_value)
-
-        {
-          metric: metric_key,
-          label: definition.fetch(:label),
-          selected_value_label: format_metric_value(selected_value, definition.fetch(:kind)),
-          baseline_value_label: format_metric_value(baseline_value, definition.fetch(:kind)),
-          delta_label: format_metric_delta(delta, definition.fetch(:kind)),
-          delta_variant: delta_variant(delta)
-        }
-      end
-    end
-
-    def tax_bracket_match?(row, lower:, upper:)
-      row_lower = row["lower_limit"]
-      row_upper = row["upper_limit"]
-
-      return false if row_lower.nil?
-      return false unless row_lower.to_f == lower.to_f
-
-      if upper.nil?
-        row_upper.nil?
-      else
-        row_upper.present? && row_upper.to_f == upper.to_f
-      end
-    end
-
-    def empty_overlay_signals
-      {
-        section: "",
-        metric: "",
-        year: "",
-        lower: "",
-        upper: ""
-      }
-    end
-
     def resolve_metric_finder_query(value)
       value.to_s.strip.tr("\u0000", "")[0, 80]
     end
@@ -848,7 +703,7 @@ module Tools
       end
 
       ranked = @metric_finder_options.each_with_index.filter_map do |option, index|
-        match = metric_shortlist_match_details(option:, query:)
+        match = SystemValuesService.metric_shortlist_match_details(option:, query:)
         next unless match
 
         [
@@ -878,22 +733,6 @@ module Tools
       @metric_finder_cursor_index = shortlist.find_index { |option| option[:value] == @metric_finder_cursor_value } || 0
     end
 
-    def metric_shortlist_match_details(option:, query:)
-      metric_label = option[:metric_label].to_s.downcase
-      context_label = option[:context_label].to_s.downcase
-      full_label = option[:label].to_s.downcase
-
-      return { score: 0, reason: "exact" } if [metric_label, context_label, full_label].include?(query)
-      return { score: 1, reason: "prefix" } if metric_label.start_with?(query)
-
-      metric_tokens = metric_label.split(/[^a-z0-9%]+/)
-      return { score: 2, reason: "prefix" } if metric_tokens.any? { |token| token.start_with?(query) }
-      return { score: 3, reason: "context" } if context_label.start_with?(query)
-      return { score: 4, reason: "context" } if [metric_label, context_label, full_label].any? { |value| value.include?(query) }
-
-      nil
-    end
-
     def build_metric_finder_options
       options = []
       selected_year_label = helpers.format_year_label(@selected_year)
@@ -905,13 +744,13 @@ module Tools
           section_label: METRIC_FINDER_SECTION_LABELS.fetch("system"),
           metric_label: definition.fetch(:label),
           context_label: selected_year_label,
-          value: metric_finder_value(
+          value: SystemValuesService.metric_finder_value(
             section: "system",
             metric: metric_key,
             year: @selected_year,
             lower: "",
             upper: "",
-            anchor_id: system_row_anchor(@selected_year)
+            anchor_id: SystemValuesService.system_row_anchor(@selected_year)
           ),
           label: "#{definition.fetch(:label)} · #{selected_year_label} · #{format_metric_value(selected_value, definition.fetch(:kind))}"
         }
@@ -933,13 +772,13 @@ module Tools
             section_label: METRIC_FINDER_SECTION_LABELS.fetch("tax"),
             metric_label: definition.fetch(:label),
             context_label: "#{bracket_label} · #{selected_year_label}",
-            value: metric_finder_value(
+            value: SystemValuesService.metric_finder_value(
               section: "tax",
               metric: metric_key,
               year: @selected_year,
               lower: lower_token,
               upper: upper_token,
-              anchor_id: tax_row_anchor(@selected_year, lower: lower_token, upper: upper_token)
+              anchor_id: SystemValuesService.tax_row_anchor(@selected_year, lower: lower_token, upper: upper_token)
             ),
             label: "#{definition.fetch(:label)} · #{bracket_label} · #{selected_year_label}"
           }
@@ -955,13 +794,13 @@ module Tools
           section_label: METRIC_FINDER_SECTION_LABELS.fetch("minimum"),
           metric_label: "Minimum Salary",
           context_label: "YOS #{yos} · #{selected_year_label}",
-          value: metric_finder_value(
+          value: SystemValuesService.metric_finder_value(
             section: "minimum",
             metric: "minimum_salary_amount",
             year: @selected_year,
             lower: yos,
             upper: "",
-            anchor_id: minimum_row_anchor(@selected_year, yos:)
+            anchor_id: SystemValuesService.minimum_row_anchor(@selected_year, yos:)
           ),
           label: "YOS #{yos} · #{selected_year_label} · #{format_metric_value(value, :currency)}"
         }
@@ -978,13 +817,13 @@ module Tools
             section_label: METRIC_FINDER_SECTION_LABELS.fetch("rookie"),
             metric_label: definition.fetch(:label),
             context_label: "Pick #{pick} · #{selected_year_label}",
-            value: metric_finder_value(
+            value: SystemValuesService.metric_finder_value(
               section: "rookie",
               metric: metric_key,
               year: @selected_year,
               lower: pick,
               upper: "",
-              anchor_id: rookie_row_anchor(@selected_year, pick:)
+              anchor_id: SystemValuesService.rookie_row_anchor(@selected_year, pick:)
             ),
             label: "Pick #{pick} · #{definition.fetch(:label)} · #{selected_year_label} · #{format_metric_value(value, definition.fetch(:kind))}"
           }
@@ -1005,41 +844,19 @@ module Tools
 
       anchor_id = case section
       when "system"
-        system_row_anchor(year)
+        SystemValuesService.system_row_anchor(year)
       when "tax"
-        tax_row_anchor(year, lower:, upper:)
+        SystemValuesService.tax_row_anchor(year, lower:, upper:)
       when "minimum"
-        minimum_row_anchor(year, yos: lower)
+        SystemValuesService.minimum_row_anchor(year, yos: lower)
       when "rookie"
-        rookie_row_anchor(year, pick: lower)
+        SystemValuesService.rookie_row_anchor(year, pick: lower)
       end
 
       return "" if anchor_id.blank?
 
-      candidate = metric_finder_value(section:, metric:, year:, lower:, upper:, anchor_id:)
+      candidate = SystemValuesService.metric_finder_value(section:, metric:, year:, lower:, upper:, anchor_id:)
       @metric_finder_options.any? { |option| option[:value] == candidate } ? candidate : ""
-    end
-
-    def metric_finder_value(section:, metric:, year:, lower:, upper:, anchor_id:)
-      [ section, metric, year.to_s, lower.to_s, upper.to_s, anchor_id.to_s ].join("|")
-    end
-
-    def system_row_anchor(year)
-      "sv-row-system-#{year.to_i}"
-    end
-
-    def tax_row_anchor(year, lower:, upper:)
-      lower_token = lower.to_s.presence || "0"
-      upper_token = upper.to_s.presence || "inf"
-      "sv-row-tax-#{year.to_i}-#{lower_token}-#{upper_token}"
-    end
-
-    def minimum_row_anchor(year, yos:)
-      "sv-row-minimum-#{year.to_i}-yos-#{yos.to_i}"
-    end
-
-    def rookie_row_anchor(year, pick:)
-      "sv-row-rookie-#{year.to_i}-pick-#{pick.to_i}"
     end
 
     def build_quick_metric_cards
@@ -1054,7 +871,7 @@ module Tools
         definition = SYSTEM_METRIC_DEFINITIONS.fetch(metric)
         selected_value = @selected_system_values_row&.[](metric)
         baseline_value = @baseline_system_values_row&.[](metric)
-        delta = numeric_delta(selected_value, baseline_value)
+        delta = SystemValuesService.numeric_delta(selected_value, baseline_value)
 
         cards << {
           section: "system",
@@ -1065,7 +882,7 @@ module Tools
           upper: "",
           value_label: format_metric_value(selected_value, definition.fetch(:kind)),
           delta_label: format_metric_delta(delta, definition.fetch(:kind)),
-          delta_variant: delta_variant(delta)
+          delta_variant: SystemValuesService.delta_variant(delta)
         }
       end
 
@@ -1077,8 +894,8 @@ module Tools
         lower = top_bracket["lower_limit"]
         upper = top_bracket["upper_limit"]
 
-        baseline_bracket = tax_row_for_bracket(@baseline_tax_rate_rows, lower: lower.to_f, upper: upper&.to_f)
-        delta = numeric_delta(top_bracket[metric], baseline_bracket&.[](metric))
+        baseline_bracket = SystemValuesService.tax_row_for_bracket(@baseline_tax_rate_rows, lower: lower.to_f, upper: upper&.to_f)
+        delta = SystemValuesService.numeric_delta(top_bracket[metric], baseline_bracket&.[](metric))
 
         lower_label = helpers.format_compact_currency(lower)
         upper_label = upper.present? ? helpers.format_compact_currency(upper) : "∞"
@@ -1092,7 +909,7 @@ module Tools
           upper: upper.present? ? format("%.0f", upper.to_f) : "",
           value_label: format_metric_value(top_bracket[metric], definition.fetch(:kind)),
           delta_label: format_metric_delta(delta, definition.fetch(:kind)),
-          delta_variant: delta_variant(delta)
+          delta_variant: SystemValuesService.delta_variant(delta)
         }
       end
 
@@ -1138,47 +955,39 @@ module Tools
       end
     end
 
-    def delta_variant(delta)
-      return "muted" if delta.nil?
-      return "positive" if delta.to_f.positive?
-      return "negative" if delta.to_f.negative?
-
-      "neutral"
-    end
-
     def build_section_shift_cards
-      minimum_selected = minimum_salary_row(@selected_salary_scale_rows)
-      minimum_baseline = minimum_salary_row(@baseline_salary_scale_rows)
-      rookie_selected = rookie_pick_one_row(@selected_rookie_scale_rows)
-      rookie_baseline = rookie_pick_one_row(@baseline_rookie_scale_rows)
+      minimum_selected = SystemValuesService.minimum_salary_row(@selected_salary_scale_rows)
+      minimum_baseline = SystemValuesService.minimum_salary_row(@baseline_salary_scale_rows)
+      rookie_selected = SystemValuesService.rookie_pick_one_row(@selected_rookie_scale_rows)
+      rookie_baseline = SystemValuesService.rookie_pick_one_row(@baseline_rookie_scale_rows)
 
       [
         build_shift_card(
           key: "system",
           label: "System",
           metric_label: "Cap",
-          delta: numeric_delta(@selected_system_values_row&.[]("salary_cap_amount"), @baseline_system_values_row&.[]("salary_cap_amount")),
+          delta: SystemValuesService.numeric_delta(@selected_system_values_row&.[]("salary_cap_amount"), @baseline_system_values_row&.[]("salary_cap_amount")),
           formatter: :currency
         ),
         build_shift_card(
           key: "tax",
           label: "Tax",
           metric_label: "Top NR",
-          delta: numeric_delta(top_tax_rate(@selected_tax_rate_rows, "tax_rate_non_repeater"), top_tax_rate(@baseline_tax_rate_rows, "tax_rate_non_repeater")),
+          delta: SystemValuesService.numeric_delta(SystemValuesService.top_tax_rate(@selected_tax_rate_rows, "tax_rate_non_repeater"), SystemValuesService.top_tax_rate(@baseline_tax_rate_rows, "tax_rate_non_repeater")),
           formatter: :rate
         ),
         build_shift_card(
           key: "minimum",
           label: "Minimum",
           metric_label: "YOS 0",
-          delta: numeric_delta(minimum_selected&.[]("minimum_salary_amount"), minimum_baseline&.[]("minimum_salary_amount")),
+          delta: SystemValuesService.numeric_delta(minimum_selected&.[]("minimum_salary_amount"), minimum_baseline&.[]("minimum_salary_amount")),
           formatter: :currency
         ),
         build_shift_card(
           key: "rookie",
           label: "Rookie",
           metric_label: "Pick 1",
-          delta: numeric_delta(rookie_selected&.[]("salary_year_1"), rookie_baseline&.[]("salary_year_1")),
+          delta: SystemValuesService.numeric_delta(rookie_selected&.[]("salary_year_1"), rookie_baseline&.[]("salary_year_1")),
           formatter: :currency
         )
       ]
@@ -1190,26 +999,8 @@ module Tools
         label:,
         metric_label:,
         delta_label: format_shift_delta(delta, formatter),
-        variant: shift_variant(delta)
+        variant: SystemValuesService.shift_variant(delta)
       }
-    end
-
-    def top_tax_rate(rows, column)
-      rows.map { |row| row[column] }.compact.map(&:to_f).max
-    end
-
-    def minimum_salary_row(rows)
-      rows.min_by { |row| row["years_of_service"].to_i }
-    end
-
-    def rookie_pick_one_row(rows)
-      rows.find { |row| row["pick_number"].to_i == 1 } || rows.min_by { |row| row["pick_number"].to_i }
-    end
-
-    def numeric_delta(selected_value, baseline_value)
-      return nil if selected_value.nil? || baseline_value.nil?
-
-      selected_value.to_f - baseline_value.to_f
     end
 
     def format_shift_delta(delta, formatter)
@@ -1227,14 +1018,6 @@ module Tools
       else
         delta.to_s
       end
-    end
-
-    def shift_variant(delta)
-      return "muted" if delta.nil?
-      return "positive" if delta.positive?
-      return "negative" if delta.negative?
-
-      "neutral"
     end
   end
 end
