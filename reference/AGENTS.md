@@ -30,6 +30,9 @@ Sean's **current Excel workbook** exported as JSON files + detailed specs. Use t
 ### `TODO.md`
 Tracks validation work comparing our `pcms.*` warehouse tables to Sean's Excel outputs.
 
+### `rails-architecture.md` — Durable Rails Architecture Principles
+Tacit knowledge about building long-lived Rails apps: layer collapse, I/O boundary discipline, extracting abstractions from pressure (not theory), keeping ergonomics Rails-like. Applies to the `web/` app and any future Rails work.
+
 ### Legacy Files
 - `excel-salary-book.txt` — Text-dump of a Python project for generating salary-cap Excel workbooks
 - `xpcms.txt` — Text-dump of an alternate PCMS ingestion tool

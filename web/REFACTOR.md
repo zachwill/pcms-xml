@@ -1,313 +1,264 @@
-# Salary Book "Apps Can Take Over" Refactor Audit
+# Rails Restructuring Roadmap
 
-**Scope:** `web/` (Rails + Datastar implementation)
-
-**Status:** Audit/planning only (no implementation in this doc)
+MVP is working well — entities, tools, Datastar patches, SSE, sidebar overlays all function. This roadmap captures the structural improvements needed to iterate confidently toward v1.
 
 ---
 
-## Goal
+## What we got right in the MVP
 
-Support a Salary Book command bar where some filters are actually **Apps** that can:
-
-1. take over `#maincanvas`
-2. take over sidebar base (`#rightpanel-base`) and optionally overlay behavior
-3. replace app-specific knobs/filters
-4. optionally disable or ignore team buttons
-
-This doc captures what is currently coupled and what likely needs to change.
+- **Datastar + server HTML** pattern is correct and should stay
+- **Entity / Tool split** helped MVP move quickly, but cross-surface features now justify flattening this boundary (migrate gradually)
+- **SSE controllers** are well-sized (70–130 lines) — good reference pattern
+- **Patch boundary IDs** (`#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`) are stable
+- **SQL-first business logic** (`pcms.fn_*`, warehouses) keeps CBA math out of Ruby — keep it there
+- **Slug model** and entity URL structure (`/players/:slug`, `/teams/:slug`) are clean
 
 ---
 
-## Executive summary
+## What needs restructuring
 
-This is feasible without a full rewrite, but there is one major assumption to unwind:
+### 1) Fat controllers → extract query objects + service objects
 
-- Salary Book is currently hardwired as a **single app mode** ("Salaries") across controller, team-switch transport, view composition, and URL state.
+**Problem:** Most controllers are 600–1,300 lines. They inline SQL query construction, row-level annotation, sorting/filtering logic, and response formatting.
 
-So this is a **moderate refactor** of orchestration/state/partials, not a DB math rewrite.
+| Controller | Lines | Priority |
+|------------|-------|----------|
+| `tools/salary_book_controller.rb` | 385 (was 1,293) | ✅ In progress |
+| `tools/system_values_controller.rb` | 362 (was 1,240) | ✅ Query + workspace service extraction done |
+| `entities/players_controller.rb` | 229 (was 1,196) | ✅ Query + index workspace service extraction done |
+| `entities/drafts_controller.rb` | 647 (was 1,018) | ✅ Query extraction done; controller slimming ongoing |
+| `entities/transactions_controller.rb` | 500 (was ~951) | ✅ Query extraction done; controller slimming ongoing |
+| `entities/teams_controller.rb` | 485 (was 927) | ✅ Query extraction done; controller slimming ongoing |
+| `entities/trades_controller.rb` | 295 (was 772) | ✅ Query extraction done; controller slimming ongoing |
+| `entities/agents_controller.rb` | 477 (was 874) | ✅ Query extraction done; controller slimming ongoing |
+| `tools/two_way_utility_controller.rb` | 422 (was 740) | ✅ Query extraction done; controller slimming ongoing |
+
+**Target:** Controllers should be ≤200 lines. They call into query/service objects and render.
+
+**Pattern:**
+
+```
+app/
+  queries/                      # SQL query builders (return result sets)
+    salary_book_queries.rb
+    player_queries.rb
+    ...
+  services/                     # Multi-step orchestration
+    salary_book/
+      team_frame_builder.rb
+      sidebar_builder.rb
+    ...
+```
+
+Each query class encapsulates one SQL concern. Controllers become thin orchestration:
+
+```ruby
+# Before (inline in controller)
+def show
+  rows = ActiveRecord::Base.connection.select_all(<<~SQL)
+    SELECT ... FROM pcms.salary_book_warehouse ...
+  SQL
+  # 80 lines of annotation, sorting, grouping
+end
+
+# After
+def show
+  @frame = SalaryBook::TeamFrameBuilder.call(team: params[:team], year: params[:year])
+end
+```
+
+### 2) Missing model / domain layer
+
+**Problem:** Only `Slug` model exists. All data access is raw SQL in controllers. No place to put shared query logic, computed attributes, or cross-controller reuse.
+
+**Action:** Introduce lightweight read-only models or plain Ruby domain objects for core concepts:
+
+```
+app/models/
+  salary_entry.rb        # Wraps a salary_book_warehouse row
+  team_cap_sheet.rb      # Team-level cap summary
+  draft_asset.rb         # Pick ownership record
+  trade_record.rb        # Trade with annotations
+```
+
+These don't need full ActiveRecord — `Struct`, `Data`, or read-only AR models work fine. The point is a named object with computed methods instead of hash manipulation in controllers.
+
+### 3) Helper bloat → presenters or view models
+
+**Problem:** `salary_book_helper.rb` is 641 lines. `entities_helper.rb` is 336 lines. Helpers are grab-bags of formatting, conditional logic, and HTML generation.
+
+**Action:** Move display logic into presenter objects or view-specific helpers:
+
+```
+app/presenters/
+  player_row_presenter.rb
+  salary_book_sidebar_presenter.rb
+  cap_hold_presenter.rb
+```
+
+Or, at minimum, split the monolithic helpers:
+
+```
+app/helpers/
+  salary_book/
+    formatting_helper.rb
+    sidebar_helper.rb
+    filter_helper.rb
+```
+
+### 4) View partial decomposition
+
+**Problem:** Several partials are 250–500 lines:
+
+| Partial | Lines |
+|---------|-------|
+| `salary_book/_sidebar_player.html.erb` | 494 |
+| `salary_book/_sidebar_agent.html.erb` | 368 |
+| `players/_workspace_main.html.erb` | 345 |
+| `salary_book/show.html.erb` | 332 |
+| `players/_rightpanel_base.html.erb` | 270 |
+| `salary_book/_player_row.html.erb` | 260 |
+| `salary_book/_sidebar_team_tab_cap.html.erb` | 256 |
+| `salary_book/_team_section.html.erb` | 249 |
+
+**Target:** Partials should be ≤100 lines. Extract sub-partials for logical sections (contract details, guarantee rows, agent info, etc.).
+
+### 5) Test coverage
+
+**Problem:** Only one test exists (`test/models/slug_test.rb`). No controller tests, no integration tests, no system tests.
+
+**Priority tests to add (in order):**
+
+1. **Controller smoke tests** — each action returns 200 (requires DB fixtures or factory setup)
+2. **Query object tests** — once extracted, test SQL builders in isolation
+3. **Helper / presenter tests** — formatting and display logic
+4. **Integration tests** — key user flows (team switch, sidebar drill-in, entity navigation)
+
+Test infrastructure decisions:
+- [ ] Decide on fixture strategy (SQL fixtures from warehouse snapshots vs factory_bot)
+- [ ] Set up `test/queries/` mirroring `app/queries/`
+- [ ] Consider `test/integration/` for Datastar patch flow tests
+
+### 6) Route organization
+
+**Current state:** Routes are well-organized but verbose (160+ lines). As entity count grows, consider:
+
+- [ ] Extract entity routes into a shared concern/helper (`draw :entities`)
+- [ ] Use `resources` where the pattern fits (sidebar, SSE, pane are consistent across entities)
+- [ ] Add a migration route plan for intentional URL cleanup while flattening `tools/` and `entities/` internals
+
+### 7) Namespace flattening: move beyond `entities/` vs `tools/`
+
+**Problem:** The original split was useful early, but current features increasingly span both surfaces. Keeping strict directory/module boundaries now creates duplication and awkward cross-calls.
+
+**Action:** Gradually lift controllers/views/helpers to a flatter top-level organization, starting with `tools/`, then `entities/`, while preserving behavior and patch boundaries.
+
+Possible target shape:
+
+```
+app/controllers/
+  salary_book_controller.rb
+  system_values_controller.rb
+  players_controller.rb
+  teams_controller.rb
+  ...
+
+app/views/
+  salary_book/*
+  players/*
+  teams/*
+  ...
+```
+
+Migration guardrails:
+- [ ] Prefer correct URL design over legacy compatibility (pre-production)
+- [ ] Keep Datastar patch IDs unchanged (`#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`)
+- [ ] Avoid big-bang rewrites; move one feature area at a time
+
+### 8) JavaScript organization
+
+**Current state:** JS is minimal and well-scoped (one file per tool/entity workspace). This is fine for now.
+
+**Future:** If JS grows, consider:
+- [ ] Shared utility module for common Datastar signal patterns
+- [ ] Extract scroll/measure/sync helpers into a shared module
 
 ---
 
-## What is currently coupled (and why it matters)
+## Sequencing (recommended order)
 
-## 1) App selector is placeholder-only today
+### Phase 1 — Extract query objects from the biggest controllers
 
-- File: `web/app/views/tools/salary_book/show.html.erb`
-- "Apps" radios exist (`Injuries`, `Salaries`, `Tankathon`), but only Salaries is active.
-- No `activeapp` signal and no `app` server param are wired.
+Focus on the three 1,000+ line controllers first:
 
-**Impact:** UI suggests multi-app, runtime is single-app.
+- [x] `SalaryBookQueries` — extracted from `salary_book_controller.rb` (controller now ~385 LOC)
+- [x] `SystemValuesQueries` — extracted SQL/data fetches from `system_values_controller.rb` (controller now ~362 LOC)
+- [x] `SystemValues::WorkspaceDerivedState` — extracted overlay/metric-finder/quick-card derivation out of controller
+- [x] `PlayerQueries` — extracted SQL/data fetches from `players_controller.rb` (controller now ~229 LOC)
+- [x] `Players::IndexWorkspaceState` — extracted index filter/urgency/sidebar derivation out of `players_controller.rb`
+- [x] `TwoWayUtilityQueries` — extracted SQL/data fetches from `two_way_utility_controller.rb` (controller now ~422 LOC)
 
----
+**Gate:** Each controller drops below 400 lines. Existing behavior unchanged.
 
-## 2) Team switching transport is salary-specific
+### Phase 2 — Introduce presenters for sidebar/overlay views
 
-- Team buttons always call:
-  - `/tools/salary-book/switch-team?team=...&year=...`
-- File: `web/app/controllers/tools/salary_book_switch_controller.rb`
-  - `switch_team` always renders:
-    - `tools/salary_book/maincanvas_team_frame`
-    - `tools/salary_book/sidebar_team`
+- [ ] `PlayerSidebarPresenter` — extract from `_sidebar_player.html.erb` + helper
+- [ ] `AgentSidebarPresenter` — extract from `_sidebar_agent.html.erb` + helper
+- [ ] `SalaryBookHelper` → split into focused modules
 
-**Impact:** if another app owns main/sidebar, current switch endpoint is wrong by design.
+**Gate:** `salary_book_helper.rb` < 200 lines. Sidebar partials < 150 lines each.
 
----
+### Phase 3 — Add controller smoke tests
 
-## 3) Initial load always preloads salary payload
+- [ ] Set up test fixtures / factory approach
+- [ ] Smoke tests for all current controllers/actions
 
-- File: `web/app/controllers/tools/salary_book_controller.rb#show`
-- Always fetches players + cap holds + exceptions + dead money + picks + team summaries.
+**Gate:** test command passes with coverage of every public action.
 
-**Impact:** non-salary app modes would over-fetch and over-render salary data.
+### Phase 4 — Flatten namespace for `tools/` first
 
----
+- [ ] Move `tools/*` internals toward top-level feature namespaces
+- [ ] Redesign tool URLs to remove `/tools` prefix where it hurts clarity (no legacy compatibility requirement)
+- [ ] Keep Datastar patch boundaries/IDs unchanged
 
-## 4) Command bar knobs are salary-specific + inline
+**Gate:** Tool features no longer require `tools/`-specific directory/module boundaries, and URLs reflect final product structure.
 
-- File: `web/app/views/tools/salary_book/show.html.erb`
-- Current filter/knob groups are all salary-lens controls.
+### Phase 5 — Flatten namespace for `entities/`
 
-**Impact:** app-specific controls cannot cleanly swap in/out yet.
+- [ ] Apply the same lift-up pattern used for tools
+- [ ] Remove duplicated cross-surface logic introduced by strict split
+- [ ] Normalize entity URLs only where it improves correctness/consistency (no compatibility constraints pre-production)
 
----
+**Gate:** Entity features run from flattened structure with parity and cleaner URL structure.
 
-## 5) URL state only tracks `team` + `year`
+### Phase 6 — Decompose remaining controllers + view partial cleanup
 
-- Team click updates URL with `?team=...&year=...`.
-- No `app` in URL.
+- [x] Extract query object for drafts (`DraftQueries`)
+- [x] Extract query object for transactions (`TransactionQueries`)
+- [x] Extract query object for teams (`TeamQueries`)
+- [x] Extract query object for agents (`AgentQueries`)
+- [x] Extract query object for trades (`TradeQueries`)
+- [ ] Break 250+ line partials into sub-partials
+- [ ] Establish shared partial library for common row patterns (identity cells, money cells, date cells)
 
-**Impact:** app selection cannot be deep-linked/restored, and history can drift.
-
----
-
-## 6) Hidden sidebar loader assumes salary cap-tab workflow
-
-- File: `web/app/views/tools/salary_book/show.html.erb`
-- `#salarybook-sidebar-loader` auto-fetches `/sidebar/team/cap` based on `selectedseason`.
-
-**Impact:** this background behavior should only run for salary app.
-
----
-
-## 7) Some signals are dead or partially wired
-
-Defined in root `data-signals`, but not functionally used end-to-end:
-
-- `displaycashvscap`
-- `displayctg`
-
-**Impact:** signal namespace is already crowded; app-state additions should clean this up, not add more drift.
+**Gate:** Controllers ≤ 300 lines outside intentional exceptions; large partials decomposed.
 
 ---
 
-## 8) Commandbar JS rebinding risk after morphs
+## What NOT to change
 
-- File: `web/app/javascript/shared/commandbar_navigation.js`
-- Initializes on `DOMContentLoaded`/`pageshow`, not explicitly on Datastar morphs.
-
-**Impact:** if app switches patch `#commandbar`, listeners can go stale unless re-init/delegation strategy is added.
-
----
-
-## Recommended target architecture
-
-## A) Treat App selection as navigation-level state
-
-Per current interaction guidance, if app switch changes main surface/sidebar ownership, this is not a simple display lens.
-
-Use explicit app state:
-
-- URL: `?app=salaries|injuries|tankathon` (or equivalent keys)
-- Datastar signal: `activeapp`
-- Server: `params[:app]` normalized/canonicalized
+- **Datastar as UI runtime** — no Turbo/Hotwire/Stimulus
+- **Server HTML responses** — no JSON API layer
+- **SQL-first business logic** — CBA math stays in `pcms.fn_*`
+- **Patch boundary IDs** — keep `#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay` stable
+- **URL quality bar** — prefer clean, final-form URL design over temporary legacy path compatibility
+- **SSE controller pattern** — these are already well-structured
 
 ---
 
-## B) Add an app registry (single source of truth)
-
-Create a server-side registry describing per-app capabilities, e.g.:
-
-- supports team buttons?
-- supports team switch SSE?
-- commandbar controls partial
-- main canvas partial
-- sidebar base partial
-- should overlay be preserved/cleared on app switch?
-
-This avoids hardcoded `if app == ...` branching scattered across views/controllers.
-
----
-
-## C) Keep canonical patch boundaries stable
-
-Continue to patch by existing IDs:
-
-- `#commandbar`
-- `#maincanvas`
-- `#rightpanel-base`
-- `#rightpanel-overlay`
-- `#flash`
-
-If app switch updates 2+ regions, return one SSE response with ordered patches.
-
----
-
-## D) Separate app switch from team switch
-
-- **Team switch** should be valid only when active app supports it.
-- **App switch** should have a dedicated path/handler that can patch commandbar + main + sidebar in one response.
-
-Possible approach:
-
-- Keep `/switch-team` for team-aware apps (initially Salaries only)
-- Add `/sse/switch-app` for app transitions
-
----
-
-## E) Gate salary-only side effects
-
-Salary-only behavior should run only when `activeapp === 'salaries'`:
-
-- sidebar cap-year loader (`#salarybook-sidebar-loader`)
-- salary-specific knobs
-- salary-specific SSE fetches
-- season hover/lock flows if they are irrelevant in non-salary apps
-
----
-
-## F) Team buttons: disable policy should be app-driven
-
-For apps that do not use team context:
-
-- render disabled visual state and `aria-disabled="true"`
-- avoid firing team switch requests
-- optionally preserve selected team in state (for returning to Salaries)
-
----
-
-## G) URL and history policy
-
-On app switch, preserve relevant params when possible:
-
-- always keep `app`
-- keep `team` only if app uses team context
-- keep `year` if app uses salary-year concept
-
-Avoid `replaceState` calls that drop unknown params.
-
----
-
-## Likely file change map
-
-## Existing files likely to change
-
-- `web/app/views/tools/salary_book/show.html.erb`
-  - introduce app-aware command bar/main/sidebar composition
-  - add `activeapp` signal
-  - gate salary-only loader/effects
-- `web/app/controllers/tools/salary_book_controller.rb`
-  - parse/normalize `app`
-  - branch initial payload strategy by app
-- `web/app/controllers/tools/salary_book_switch_controller.rb`
-  - add app-switch SSE endpoint and/or make `switch_team` app-aware
-- `web/config/routes.rb`
-  - route(s) for app-switch interactions
-- `web/app/javascript/shared/commandbar_navigation.js`
-  - ensure rebinding/delegation works after commandbar morphs
-
-## New partials recommended
-
-Under `web/app/views/tools/salary_book/`, likely split into app-specific slices:
-
-- commandbar app controls partial(s)
-- maincanvas app partial(s)
-- sidebar base app partial(s)
-
----
-
-## Suggested rollout plan (low-risk sequencing)
-
-## Phase 1 — Introduce app state with no behavioral change
-
-- Add normalized `app` param + `activeapp` signal
-- Default to `salaries`
-- Keep current rendering behavior unchanged
-
-## Phase 2 — Partialize commandbar and gate salary-only controls
-
-- Move salary filters into salary-only partial
-- Keep team grid common (for now), with app-aware disabled policy hooks
-
-## Phase 3 — Add app-switch SSE orchestration
-
-- Add dedicated app-switch action returning ordered multi-region patches
-- Patch at least: `#commandbar`, `#maincanvas`, `#rightpanel-base`
-- Decide and enforce overlay policy on app switch (clear vs preserve)
-
-## Phase 4 — Make team switch app-aware
-
-- If app supports team context, allow team switch
-- If not, no-op/disabled
-- Ensure URL sync and history are consistent
-
-## Phase 5 — Land first non-salary app mode
-
-- Implement one real app takeover path (e.g., Injuries placeholder with full-shell ownership)
-- Validate orchestration before adding more apps
-
----
-
-## Risk areas and mitigations
-
-## Risk: stale cross-app signal state
-
-**Mitigation:** explicit reset map on app switch (what signals persist vs reset).
-
-## Risk: request cancellation interactions
-
-Datastar cancellation is per-element; cross-element requests can still overlap in surprising ways.
-
-**Mitigation:** keep heavy interactions on dedicated elements and avoid simultaneous conflicting fetches.
-
-## Risk: commandbar listeners lost after morph
-
-**Mitigation:** idempotent init + explicit re-init after commandbar patch, or event delegation.
-
-## Risk: overlay/base inconsistency during app switches
-
-**Mitigation:** define a strict rule:
-- either always clear `#rightpanel-overlay` on app switch,
-- or preserve only when app family is compatible.
-
-## Risk: URL/history drift
-
-**Mitigation:** centralized URL builder that merges params and enforces canonical app/team/year policy.
-
----
-
-## Acceptance criteria for refactor completion
-
-1. App switch can replace commandbar controls + main canvas + sidebar base in one interaction.
-2. Team buttons can be app-disabled cleanly (visual + behavioral + accessibility).
-3. Salary-only background loaders never fire in non-salary apps.
-4. URL deep-links restore correct app context.
-5. Switching app/team never leaves stale overlay/base mismatch.
-6. Existing Salaries behavior remains unchanged when `app=salaries`.
-
----
-
-## Open product decisions (needed before implementation)
-
-1. **Overlay policy on app switch:** always clear or conditionally preserve?
-2. **Team context persistence:** when app disables teams, do we still remember last active team?
-3. **URL semantics:** required params per app (`team`, `year`, etc.)?
-4. **App taxonomy:** are Apps first-class navigation destinations or commandbar-local modes?
-
----
-
-## Net assessment
-
-- **Effort:** Medium
-- **Risk:** Medium (state orchestration and patch sequencing), low SQL risk
-- **Main refactor theme:** convert single-mode Salary Book shell into app-aware shell orchestration while preserving existing Datastar patch boundaries.
+## Related docs
+
+- `web/REFACTOR.md` — Salary Book "apps can take over" refactor (specific feature)
+- `web/AGENTS.md` — hard rules, decision trees, Datastar conventions
+- `web/docs/design_guide.md` — visual patterns and shell anatomy
+- `web/docs/datastar_sse_playbook.md` — SSE response templates
