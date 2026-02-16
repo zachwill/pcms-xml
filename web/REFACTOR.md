@@ -1,282 +1,180 @@
-# Rails Restructuring Roadmap
+# Rails Restructuring Roadmap (Current)
 
-MVP is working well — entities, tools, Datastar patches, SSE, sidebar overlays all function. This roadmap captures the structural improvements needed to iterate confidently toward v1.
+This file tracks what is **actually left** after the namespace flattening work.
 
----
-
-## What we got right in the MVP
-
-- **Datastar + server HTML** pattern is correct and should stay
-- **Entity / Tool split** helped MVP move quickly, but cross-surface features now justify flattening this boundary (migrate gradually)
-- **SSE controllers** are well-sized (70–130 lines) — good reference pattern
-- **Patch boundary IDs** (`#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`) are stable
-- **SQL-first business logic** (`pcms.fn_*`, warehouses) keeps CBA math out of Ruby — keep it there
-- **Slug model** and entity URL structure (`/players/:slug`, `/teams/:slug`) are clean
+_Last updated: 2026-02-15_
 
 ---
 
-## What needs restructuring
+## Current architecture snapshot
 
-### 1) Fat controllers → extract query objects + service objects
+The app is now flattened at the top level:
 
-**Problem:** Most controllers are 600–1,300 lines. They inline SQL query construction, row-level annotation, sorting/filtering logic, and response formatting.
+- Controllers live in `app/controllers/*` (no `tools/` or `entities/` controller namespaces)
+- Views live in `app/views/<feature>/*` (no `app/views/tools/*` or `app/views/entities/*` roots)
+- Shared entity/tool partials are under `app/views/shared/*`
+- Routes are top-level (no `scope module: :entities`, no `namespace :tools`)
+- Salary Book canonical path is `/` (`salary_book_path`)
 
-| Controller | Lines | Priority |
-|------------|-------|----------|
-| `tools/salary_book_controller.rb` | 385 (was 1,293) | ✅ In progress |
-| `tools/system_values_controller.rb` | 362 (was 1,240) | ✅ Query + workspace service extraction done |
-| `entities/players_controller.rb` | 180 (was 1,196) | ✅ Query + index/show workspace service extraction done |
-| `entities/drafts_controller.rb` | 240 (was 1,018) | ✅ Query + index workspace service extraction done |
-| `entities/transactions_controller.rb` | 111 (was ~951) | ✅ Query + index workspace service extraction done |
-| `entities/teams_controller.rb` | 217 (was 927) | ✅ Query + index/show workspace service extraction done |
-| `entities/trades_controller.rb` | 98 (was 772) | ✅ Query + index workspace service extraction done |
-| `entities/agents_controller.rb` | 219 (was 874) | ✅ Query + directory/show workspace service extraction done |
-| `tools/two_way_utility_controller.rb` | 249 (was 740) | ✅ Query + workspace service extraction done |
+Important invariants remain unchanged:
 
-**Target:** Controllers should be ≤200 lines. They call into query/service objects and render.
-
-**Pattern:**
-
-```
-app/
-  queries/                      # SQL query builders (return result sets)
-    salary_book_queries.rb
-    player_queries.rb
-    ...
-  services/                     # Multi-step orchestration
-    salary_book/
-      team_frame_builder.rb
-      sidebar_builder.rb
-    ...
-```
-
-Each query class encapsulates one SQL concern. Controllers become thin orchestration:
-
-```ruby
-# Before (inline in controller)
-def show
-  rows = ActiveRecord::Base.connection.select_all(<<~SQL)
-    SELECT ... FROM pcms.salary_book_warehouse ...
-  SQL
-  # 80 lines of annotation, sorting, grouping
-end
-
-# After
-def show
-  @frame = SalaryBook::TeamFrameBuilder.call(team: params[:team], year: params[:year])
-end
-```
-
-### 2) Missing model / domain layer
-
-**Problem:** Only `Slug` model exists. All data access is raw SQL in controllers. No place to put shared query logic, computed attributes, or cross-controller reuse.
-
-**Action:** Introduce lightweight read-only models or plain Ruby domain objects for core concepts:
-
-```
-app/models/
-  salary_entry.rb        # Wraps a salary_book_warehouse row
-  team_cap_sheet.rb      # Team-level cap summary
-  draft_asset.rb         # Pick ownership record
-  trade_record.rb        # Trade with annotations
-```
-
-These don't need full ActiveRecord — `Struct`, `Data`, or read-only AR models work fine. The point is a named object with computed methods instead of hash manipulation in controllers.
-
-### 3) Helper bloat → presenters or view models
-
-**Problem:** `salary_book_helper.rb` is 641 lines. `entities_helper.rb` is 336 lines. Helpers are grab-bags of formatting, conditional logic, and HTML generation.
-
-**Action:** Move display logic into presenter objects or view-specific helpers:
-
-```
-app/presenters/
-  player_row_presenter.rb
-  salary_book_sidebar_presenter.rb
-  cap_hold_presenter.rb
-```
-
-Or, at minimum, split the monolithic helpers:
-
-```
-app/helpers/
-  salary_book/
-    formatting_helper.rb
-    sidebar_helper.rb
-    filter_helper.rb
-```
-
-### 4) View partial decomposition
-
-**Problem:** Several partials are 250–500 lines:
-
-| Partial | Lines |
-|---------|-------|
-| `salary_book/_sidebar_player.html.erb` | 494 |
-| `salary_book/_sidebar_agent.html.erb` | 368 |
-| `players/_workspace_main.html.erb` | 345 |
-| `salary_book/show.html.erb` | 332 |
-| `players/_rightpanel_base.html.erb` | 270 |
-| `salary_book/_player_row.html.erb` | 260 |
-| `salary_book/_sidebar_team_tab_cap.html.erb` | 256 |
-| `salary_book/_team_section.html.erb` | 249 |
-
-**Target:** Partials should be ≤100 lines. Extract sub-partials for logical sections (contract details, guarantee rows, agent info, etc.).
-
-### 5) Test coverage
-
-**Problem:** Only one test exists (`test/models/slug_test.rb`). No controller tests, no integration tests, no system tests.
-
-**Priority tests to add (in order):**
-
-1. **Controller smoke tests** — each action returns 200 (requires DB fixtures or factory setup)
-2. **Query object tests** — once extracted, test SQL builders in isolation
-3. **Helper / presenter tests** — formatting and display logic
-4. **Integration tests** — key user flows (team switch, sidebar drill-in, entity navigation)
-
-Test infrastructure decisions:
-- [ ] Decide on fixture strategy (SQL fixtures from warehouse snapshots vs factory_bot)
-- [ ] Set up `test/queries/` mirroring `app/queries/`
-- [ ] Consider `test/integration/` for Datastar patch flow tests
-
-### 6) Route organization
-
-**Current state:** Routes are well-organized but verbose (160+ lines). As entity count grows, consider:
-
-- [ ] Extract entity routes into a shared concern/helper (`draw :entities`)
-- [ ] Use `resources` where the pattern fits (sidebar, SSE, pane are consistent across entities)
-- [ ] Add a migration route plan for intentional URL cleanup while flattening `tools/` and `entities/` internals
-
-### 7) Namespace flattening: move beyond `entities/` vs `tools/`
-
-**Problem:** The original split was useful early, but current features increasingly span both surfaces. Keeping strict directory/module boundaries now creates duplication and awkward cross-calls.
-
-**Action:** Gradually lift controllers/views/helpers to a flatter top-level organization, starting with `tools/`, then `entities/`, while preserving behavior and patch boundaries.
-
-Possible target shape:
-
-```
-app/controllers/
-  salary_book_controller.rb
-  system_values_controller.rb
-  players_controller.rb
-  teams_controller.rb
-  ...
-
-app/views/
-  salary_book/*
-  players/*
-  teams/*
-  ...
-```
-
-Migration guardrails:
-- [ ] Prefer correct URL design over legacy compatibility (pre-production)
-- [ ] Keep Datastar patch IDs unchanged (`#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`)
-- [ ] Avoid big-bang rewrites; move one feature area at a time
-
-### 8) JavaScript organization
-
-**Current state:** JS is minimal and well-scoped (one file per tool/entity workspace). This is fine for now.
-
-**Future:** If JS grows, consider:
-- [ ] Shared utility module for common Datastar signal patterns
-- [ ] Extract scroll/measure/sync helpers into a shared module
+- Datastar runtime + server-rendered HTML
+- SQL-first business logic (`pcms.fn_*`, warehouses)
+- Stable patch boundary IDs (`#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`, `#flash`)
 
 ---
 
-## Sequencing (recommended order)
+## Completed milestones
 
-### Phase 1 — Extract query objects from the biggest controllers
+### ✅ Namespace flattening
 
-Focus on the three 1,000+ line controllers first:
+- `tools/*` internals moved up and de-namespaced
+- `entities/*` internals moved up and de-namespaced
+- JS entry modules moved to top-level (`salary_book`, `system_values`, `team_summary`, `two_way_utility`, `workspace`)
+- Route helpers and render partial paths updated to flattened structure
 
-- [x] `SalaryBookQueries` — extracted from `salary_book_controller.rb` (controller now ~385 LOC)
-- [x] `SystemValuesQueries` — extracted SQL/data fetches from `system_values_controller.rb` (controller now ~362 LOC)
-- [x] `SystemValues::WorkspaceDerivedState` — extracted overlay/metric-finder/quick-card derivation out of controller
-- [x] `PlayerQueries` — extracted SQL/data fetches from `players_controller.rb` (controller now ~180 LOC)
-- [x] `Players::IndexWorkspaceState` — extracted index filter/urgency/sidebar derivation out of `players_controller.rb`
-- [x] `Players::ShowWorkspaceData` — extracted show workspace data loading/deferred hydration out of `players_controller.rb` (controller now ~180 LOC)
-- [x] `TwoWayUtilityQueries` — extracted SQL/data fetches from `two_way_utility_controller.rb` (controller now ~249 LOC)
-- [x] `Tools::TwoWayUtility::WorkspaceState` — extracted workspace filters/derivation/sidebar summary out of `two_way_utility_controller.rb` (controller now ~249 LOC)
-- [x] `Transactions::IndexWorkspaceState` — extracted index filter/severity/sidebar derivation out of `transactions_controller.rb` (controller now ~111 LOC)
-- [x] `Teams::IndexWorkspaceState` — extracted index filter/pressure/compare/sidebar derivation out of `teams_controller.rb` (controller now ~217 LOC)
-- [x] `Teams::ShowWorkspaceData` — extracted show workspace hydration/deferred loading out of `teams_controller.rb` (controller now ~217 LOC)
-- [x] `Agents::DirectoryWorkspaceState` — extracted directory filters/row loading/sidebar summarization out of `agents_controller.rb` (controller now ~219 LOC)
-- [x] `Agents::ShowWorkspaceData` — extracted show workspace hydration out of `agents_controller.rb` (controller now ~219 LOC)
-- [x] `Drafts::IndexWorkspaceState` — extracted index filter/grid-risk/sidebar derivation out of `drafts_controller.rb` (controller now ~240 LOC)
-- [x] `Trades::IndexWorkspaceState` — extracted index filter/composition/sidebar derivation out of `trades_controller.rb` (controller now ~98 LOC)
+### ✅ URL cleanup
 
-**Gate:** Each controller drops below 400 lines. Existing behavior unchanged.
+- Salary Book canonical URL is `/`
+- `/salary-book` remains available as a direct route
+- `/tools/*` prefix removed from active app navigation and internal links
 
-### Phase 2 — Introduce presenters for sidebar/overlay views
+### ✅ Query/service extraction foundation
 
-- [ ] `PlayerSidebarPresenter` — extract from `_sidebar_player.html.erb` + helper
-- [ ] `AgentSidebarPresenter` — extract from `_sidebar_agent.html.erb` + helper
-- [ ] `SalaryBookHelper` → split into focused modules
+Query objects/services exist for the key feature areas (`app/queries`, `app/services`) and are actively used by controllers.
 
-**Gate:** `salary_book_helper.rb` < 200 lines. Sidebar partials < 150 lines each.
+### ✅ Baseline integration tests exist
 
-### Phase 3 — Add controller smoke tests
-
-- [ ] Set up test fixtures / factory approach
-- [ ] Smoke tests for all current controllers/actions
-
-**Gate:** test command passes with coverage of every public action.
-
-### Phase 4 — Flatten namespace for `tools/` first
-
-- [ ] Move `tools/*` internals toward top-level feature namespaces
-- [ ] Redesign tool URLs to remove `/tools` prefix where it hurts clarity (no legacy compatibility requirement)
-- [ ] Keep Datastar patch boundaries/IDs unchanged
-
-**Gate:** Tool features no longer require `tools/`-specific directory/module boundaries, and URLs reflect final product structure.
-
-### Phase 5 — Flatten namespace for `entities/`
-
-- [ ] Apply the same lift-up pattern used for tools
-- [ ] Remove duplicated cross-surface logic introduced by strict split
-- [ ] Normalize entity URLs only where it improves correctness/consistency (no compatibility constraints pre-production)
-
-**Gate:** Entity features run from flattened structure with parity and cleaner URL structure.
-
-### Phase 6 — Decompose remaining controllers + view partial cleanup
-
-- [x] Extract query object for drafts (`DraftQueries`)
-- [x] Extract index workspace service for drafts (`Drafts::IndexWorkspaceState`)
-- [x] Extract query object for transactions (`TransactionQueries`)
-- [x] Extract query object for teams (`TeamQueries`)
-- [x] Extract query object for agents (`AgentQueries`)
-- [x] Extract query object for trades (`TradeQueries`)
-- [x] Extract index workspace service for trades (`Trades::IndexWorkspaceState`)
-- [x] Extract index workspace service for transactions (`Transactions::IndexWorkspaceState`)
-- [x] Extract index workspace service for teams (`Teams::IndexWorkspaceState`)
-- [x] Extract show workspace service for teams (`Teams::ShowWorkspaceData`)
-- [x] Extract directory workspace service for agents (`Agents::DirectoryWorkspaceState`)
-- [x] Extract show workspace service for agents (`Agents::ShowWorkspaceData`)
-- [x] Extract show workspace service for players (`Players::ShowWorkspaceData`)
-- [x] Extract workspace service for two-way utility (`Tools::TwoWayUtility::WorkspaceState`)
-- [ ] Break 250+ line partials into sub-partials
-- [ ] Establish shared partial library for common row patterns (identity cells, money cells, date cells)
-
-**Gate:** Controllers ≤ 300 lines achieved for drafts/transactions/teams/agents/trades/two-way; large partial decomposition still pending.
+`test/integration/` now has broad coverage across major surfaces (entities + tools), instead of only a single model test.
 
 ---
 
-## What NOT to change
+## What still needs restructuring
 
-- **Datastar as UI runtime** — no Turbo/Hotwire/Stimulus
-- **Server HTML responses** — no JSON API layer
-- **SQL-first business logic** — CBA math stays in `pcms.fn_*`
-- **Patch boundary IDs** — keep `#commandbar`, `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay` stable
-- **URL quality bar** — prefer clean, final-form URL design over temporary legacy path compatibility
-- **SSE controller pattern** — these are already well-structured
+## 1) Finish controller slimming (highest priority)
+
+Controllers still over target size:
+
+| Controller | LOC |
+|---|---:|
+| `draft_selections_controller.rb` | 613 |
+| `agencies_controller.rb` | 598 |
+| `team_summary_controller.rb` | 551 |
+| `salary_book_controller.rb` | 383 |
+| `system_values_controller.rb` | 360 |
+
+Target:
+
+- Index/overlay orchestration in controllers
+- SQL and derivation moved to queries/services
+- Bring controllers toward ≤200 LOC where practical
+
+## 2) Helper bloat → presenters / focused helper modules
+
+Current helper sizes:
+
+- `app/helpers/salary_book_helper.rb` ~805 LOC
+- `app/helpers/entities_helper.rb` ~336 LOC
+
+Action:
+
+- Extract presenter/view-model objects for sidebar-heavy rendering
+- Split helper responsibilities by concern (`formatting`, `badges`, `rows`, etc.)
+
+## 3) Partial decomposition (large ERB files)
+
+Largest files still need decomposition:
+
+- `salary_book/_sidebar_player.html.erb` (550)
+- `salary_book/_sidebar_agent.html.erb` (427)
+- `players/_workspace_main.html.erb` (381)
+- `salary_book/show.html.erb` (362)
+- `salary_book/_sidebar_pick.html.erb` (361)
+- `teams/_workspace_main.html.erb` (352)
+
+Target:
+
+- Keep most partials ≤100–150 LOC
+- Extract repeatable row/cell units into shared partials under `app/views/shared/*`
+
+## 4) Introduce lightweight domain objects
+
+Still heavily hash-based in render paths.
+
+Action:
+
+- Add plain Ruby read models/value objects for repeated concepts (cap sheet rows, draft assets, trade summaries, etc.)
+- Keep these lightweight and read-oriented
+
+## 5) Test strategy: deepen from integration-only baseline
+
+Current state is better (integration tests exist), but still missing layered confidence.
+
+Next additions:
+
+1. Controller smoke matrix (all public actions)
+2. Query object tests under `test/queries/*`
+3. Service tests under `test/services/*`
+4. Presenter/helper unit tests for formatting and conditional display logic
+
+## 6) Route file ergonomics
+
+Behavior is correct, but route file is large.
+
+Optional cleanup:
+
+- Extract route groups via `draw`/concerns for readability
+- Keep current URL contracts unchanged while reorganizing declarations
+
+---
+
+## Recommended sequencing from here
+
+### Phase A — Controller extraction pass
+
+Focus in order:
+
+1. `draft_selections_controller.rb`
+2. `agencies_controller.rb`
+3. `team_summary_controller.rb`
+4. `salary_book_controller.rb`
+5. `system_values_controller.rb`
+
+Gate: no controller >400 LOC; top 3 materially reduced.
+
+### Phase B — Sidebar presenter extraction
+
+- `PlayerSidebarPresenter`
+- `AgentSidebarPresenter`
+- helper split for `salary_book_helper`
+
+Gate: `salary_book_helper.rb` reduced substantially (<300 first checkpoint).
+
+### Phase C — Partial decomposition + shared row library
+
+Start with Salary Book sidebar + Teams/Players workspace partials.
+
+Gate: no partial >250 LOC in the targeted surfaces.
+
+### Phase D — Test deepening
+
+Add query/service/controller tests around the newly extracted units.
+
+Gate: integration + unit layers both green in CI/local.
+
+---
+
+## What not to change
+
+- Do not introduce Turbo/Hotwire/Stimulus
+- Do not move business logic into JS
+- Do not reimplement cap/CBA math in Ruby
+- Do not change Datastar patch boundary IDs
 
 ---
 
 ## Related docs
 
-- `web/REFACTOR.md` — Salary Book "apps can take over" refactor (specific feature)
-- `web/AGENTS.md` — hard rules, decision trees, Datastar conventions
-- `web/docs/design_guide.md` — visual patterns and shell anatomy
-- `web/docs/datastar_sse_playbook.md` — SSE response templates
+- `web/AGENTS.md` (hard rules + patch boundaries)
+- `web/docs/design_guide.md`
+- `web/docs/datastar_sse_playbook.md`
