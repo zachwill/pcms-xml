@@ -81,7 +81,7 @@ class EntitiesAgenciesShowTest < ActionDispatch::IntegrationTest
   end
 
   def with_stubbed_agency_show
-    controller_class = Entities::AgenciesController
+    controller_class = AgenciesController
 
     controller_class.class_eval do
       alias_method :__agencies_show_test_original_show__, :show

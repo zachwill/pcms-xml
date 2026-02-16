@@ -1,383 +1,193 @@
 class SalaryBookController < ApplicationController
-    CURRENT_SALARY_YEAR = 2025
-    # Canonical year horizon for the salary book (keep in sync with SalaryBookHelper::SALARY_YEARS).
-    SALARY_YEARS = (2025..2030).to_a.freeze
-    AVAILABLE_VIEWS = %w[injuries salary-book tankathon].freeze
-    DEFAULT_VIEW = "salary-book"
+  CURRENT_SALARY_YEAR = 2025
+  # Canonical year horizon for the salary book (keep in sync with SalaryBookHelper::SALARY_YEARS).
+  SALARY_YEARS = (2025..2030).to_a.freeze
+  AVAILABLE_VIEWS = %w[injuries salary-book tankathon].freeze
+  DEFAULT_VIEW = "salary-book"
 
-    # GET /salary-book
-    def show
-      @salary_year = salary_year_param
-      @salary_years = SALARY_YEARS
-      @initial_view = salary_book_view_param
+  delegate :fetch_team_index_rows,
+    :build_team_maps,
+    :fetch_team_players,
+    :fetch_team_support_payload,
+    :fetch_tankathon_payload,
+    to: :queries
 
-      team_rows = queries.fetch_team_index_rows(@salary_year)
-      @team_codes = team_rows.map { |row| row["team_code"] }.compact
-      @teams_by_conference, @team_meta_by_code = queries.build_team_maps(team_rows)
+  # GET /salary-book
+  def show
+    assign_state!(workspace_state.build)
+  rescue ActiveRecord::StatementInvalid => e
+    assign_state!(workspace_state.fallback(error: e))
+  end
 
-      requested = params[:team]
-      default_team_code = "POR"
-      @initial_team = if requested.present? && valid_team_code?(requested)
-        requested.to_s.strip.upcase
-      elsif @team_codes.include?(default_team_code)
-        default_team_code
-      else
-        @team_codes.first
-      end
+  # GET /salary-book/frame?view=tankathon&team=BOS&year=2025
+  # Patchable main frame used by view switches.
+  def frame
+    payload = frame_state.build
+    render partial: payload.fetch(:partial), locals: payload.fetch(:locals), layout: false
+  rescue ActiveRecord::StatementInvalid => e
+    payload = frame_state.fallback(error: e)
+    render partial: payload.fetch(:partial), locals: payload.fetch(:locals), layout: false
+  end
 
-      @initial_team_meta = @initial_team ? (@team_meta_by_code[@initial_team] || {}) : {}
+  # GET /salary-book/sidebar/team?team=BOS
+  # Base team sidebar shell (header + tabs + cap/stats payload).
+  # Draft/Rights tabs are lazy-loaded via dedicated endpoints.
+  def sidebar_team
+    team_code = normalize_team_code(params[:team])
+    year = salary_year_param
 
-      @initial_players = []
-      @initial_cap_holds = []
-      @initial_exceptions = []
-      @initial_dead_money = []
-      @initial_picks = []
-      @initial_team_summary = nil
-      @initial_team_summaries_by_year = {}
-      @initial_tankathon_rows = []
-      @initial_tankathon_standing_date = nil
-      @initial_tankathon_season_year = nil
-      @initial_tankathon_season_label = nil
+    render partial: "salary_book/sidebar_team", locals: team_sidebar_state.build(team_code:, year:), layout: false
+  end
 
-      if @initial_team.present?
-        @initial_players = queries.fetch_team_players(@initial_team)
+  # GET /salary-book/sidebar/team/cap?team=BOS&year=2026
+  # Lightweight hover/year patch: only updates the Cap tab content.
+  def sidebar_team_cap
+    team_code = normalize_team_code(params[:team])
+    year = salary_year_param
 
-        payload = queries.fetch_team_support_payload(@initial_team, base_year: @salary_year)
-        @initial_cap_holds = payload[:cap_holds]
-        @initial_exceptions = payload[:exceptions]
-        @initial_dead_money = payload[:dead_money]
-        @initial_picks = payload[:picks]
-        @initial_team_summaries_by_year = payload[:team_summaries]
-        @initial_team_meta = payload[:team_meta].presence || @initial_team_meta
-        @initial_team_summary = @initial_team_summaries_by_year[@salary_year] || @initial_team_summaries_by_year[SALARY_YEARS.first]
-      end
+    render partial: "salary_book/sidebar_team_tab_cap", locals: team_sidebar_state.cap_tab(team_code:, year:), layout: false
+  end
 
-      if @initial_view == "tankathon"
-        tankathon_payload = queries.fetch_tankathon_payload(@salary_year)
-        @initial_tankathon_rows = tankathon_payload[:rows]
-        @initial_tankathon_standing_date = tankathon_payload[:standing_date]
-        @initial_tankathon_season_year = tankathon_payload[:season_year]
-        @initial_tankathon_season_label = tankathon_payload[:season_label]
-      end
-    rescue ActiveRecord::StatementInvalid => e
-      # Useful when a dev DB hasn't been hydrated with the pcms.* schema yet.
-      @boot_error = e.message
-      @salary_year = salary_year_param
-      @salary_years = SALARY_YEARS
-      @initial_view = salary_book_view_param
-      @team_codes = []
-      @teams_by_conference = { "Eastern" => [], "Western" => [] }
-      @team_meta_by_code = {}
-      @initial_team = nil
-      @initial_team_summary = nil
-      @initial_team_meta = {}
-      @initial_team_summaries_by_year = {}
-      @initial_tankathon_rows = []
-      @initial_tankathon_standing_date = nil
-      @initial_tankathon_season_year = nil
-      @initial_tankathon_season_label = nil
-      @initial_players = []
-      @initial_cap_holds = []
-      @initial_exceptions = []
-      @initial_dead_money = []
-      @initial_picks = []
+  # GET /salary-book/sidebar/team/draft?team=BOS&year=2025
+  # Lazy-loaded Draft tab payload (future years only, starting after selected year).
+  def sidebar_team_draft
+    team_code = normalize_team_code(params[:team])
+    year = salary_year_param
+
+    render partial: "salary_book/sidebar_team_tab_draft", locals: team_sidebar_state.draft_tab(team_code:, year:), layout: false
+  end
+
+  # GET /salary-book/sidebar/team/rights?team=BOS
+  # Lazy-loaded Rights tab payload.
+  def sidebar_team_rights
+    team_code = normalize_team_code(params[:team])
+
+    render partial: "salary_book/sidebar_team_tab_rights", locals: team_sidebar_state.rights_tab(team_code:), layout: false
+  end
+
+  # GET /salary-book/sidebar/player/:id
+  def sidebar_player
+    player_id = Integer(params[:id])
+    player = queries.fetch_player(player_id)
+    raise ActiveRecord::RecordNotFound unless player
+
+    render partial: "salary_book/sidebar_player", locals: { player: }, layout: false
+  rescue ArgumentError
+    raise ActiveRecord::RecordNotFound
+  end
+
+  # GET /salary-book/sidebar/clear
+  def sidebar_clear
+    render partial: "salary_book/sidebar_clear", layout: false
+  end
+
+  # GET /salary-book/combobox/players/search?team=BOS&q=jay&limit=12&seq=3
+  # Returns server-rendered popup/list HTML for the Salary Book player combobox.
+  def combobox_players_search
+    locals = combobox_players_state.build
+    render partial: "salary_book/combobox_players_popup", locals:, layout: false
+  rescue ActiveRecord::StatementInvalid => e
+    locals = combobox_players_state.fallback(error: e)
+    render partial: "salary_book/combobox_players_popup", locals:, layout: false
+  end
+
+  # GET /salary-book/sidebar/agent/:id
+  def sidebar_agent
+    agent_id = Integer(params[:id])
+    agent = queries.fetch_agent(agent_id)
+    raise ActiveRecord::RecordNotFound unless agent
+
+    clients = queries.fetch_agent_clients(agent_id)
+    rollup = queries.fetch_agent_rollup(agent_id)
+
+    render partial: "salary_book/sidebar_agent", locals: { agent:, clients:, rollup: }, layout: false
+  rescue ArgumentError
+    raise ActiveRecord::RecordNotFound
+  end
+
+  # GET /salary-book/sidebar/pick?team=BOS&year=2025&round=1
+  def sidebar_pick
+    render partial: "salary_book/sidebar_pick", locals: sidebar_pick_state.build, layout: false
+  end
+
+  private
+
+  def assign_state!(state)
+    state.each do |key, value|
+      instance_variable_set("@#{key}", value)
     end
+  end
 
-    # GET /salary-book/frame?view=tankathon&team=BOS&year=2025
-    # Patchable main frame used by view switches.
-    def frame
-      team_code = normalize_team_code(params[:team])
-      year = salary_year_param
-      view = salary_book_view_param
+  def salary_year_param
+    raw = params[:year].presence
+    return CURRENT_SALARY_YEAR unless raw
 
-      if view == "tankathon"
-        tankathon_payload = queries.fetch_tankathon_payload(year)
+    year = Integer(raw)
+    SALARY_YEARS.include?(year) ? year : CURRENT_SALARY_YEAR
+  rescue ArgumentError, TypeError
+    CURRENT_SALARY_YEAR
+  end
 
-        render partial: "salary_book/maincanvas_tankathon_frame", locals: {
-          team_code:,
-          year:,
-          standings_rows: tankathon_payload[:rows],
-          standing_date: tankathon_payload[:standing_date],
-          season_year: tankathon_payload[:season_year],
-          season_label: tankathon_payload[:season_label],
-          error_message: nil
-        }, layout: false
-        return
-      end
+  def salary_book_view_param
+    raw = params[:view].to_s.strip.downcase
+    AVAILABLE_VIEWS.include?(raw) ? raw : DEFAULT_VIEW
+  end
 
-      if view == "injuries"
-        team_rows = queries.fetch_team_index_rows(year)
-        team_codes = team_rows.map { |row| row["team_code"] }.compact
-        _, team_meta_by_code = queries.build_team_maps(team_rows)
+  def valid_team_code?(raw)
+    raw.to_s.strip.upcase.match?(/\A[A-Z]{3}\z/)
+  end
 
-        render partial: "salary_book/maincanvas_injuries_frame", locals: {
-          team_code:,
-          team_codes:,
-          team_meta_by_code:,
-          year:,
-          error_message: nil
-        }, layout: false
-        return
-      end
+  def normalize_team_code(raw)
+    team = raw.to_s.strip.upcase
+    raise ActiveRecord::RecordNotFound unless valid_team_code?(team)
 
-      players = queries.fetch_team_players(team_code)
-      payload = queries.fetch_team_support_payload(team_code, base_year: year)
+    team
+  end
 
-      render partial: "salary_book/maincanvas_team_frame", locals: {
-        boot_error: nil,
-        team_code:,
-        players:,
-        cap_holds: payload[:cap_holds],
-        exceptions: payload[:exceptions],
-        dead_money: payload[:dead_money],
-        picks: payload[:picks],
-        team_summaries: payload[:team_summaries],
-        team_meta: payload[:team_meta],
-        year:,
-        salary_years: SALARY_YEARS,
-        empty_message: nil
-      }, layout: false
-    rescue ActiveRecord::StatementInvalid => e
-      if view == "tankathon"
-        render partial: "salary_book/maincanvas_tankathon_frame", locals: {
-          team_code:,
-          year:,
-          standings_rows: [],
-          standing_date: nil,
-          season_year: nil,
-          season_label: nil,
-          error_message: e.message
-        }, layout: false
-      elsif view == "injuries"
-        render partial: "salary_book/maincanvas_injuries_frame", locals: {
-          team_code:,
-          team_codes: [],
-          team_meta_by_code: {},
-          year:,
-          error_message: e.message
-        }, layout: false
-      else
-        render partial: "salary_book/maincanvas_team_frame", locals: {
-          boot_error: e.message,
-          team_code: nil,
-          players: [],
-          cap_holds: [],
-          exceptions: [],
-          dead_money: [],
-          picks: [],
-          team_summaries: {},
-          team_meta: {},
-          year:,
-          salary_years: SALARY_YEARS,
-          empty_message: nil
-        }, layout: false
-      end
-    end
+  def workspace_state
+    @workspace_state ||= ::SalaryBook::WorkspaceState.new(
+      params: params,
+      queries: queries,
+      salary_years: SALARY_YEARS,
+      current_salary_year: CURRENT_SALARY_YEAR,
+      available_views: AVAILABLE_VIEWS,
+      default_view: DEFAULT_VIEW,
+      default_team_code: "POR"
+    )
+  end
 
-    # GET /salary-book/sidebar/team?team=BOS
-    # Base team sidebar shell (header + tabs + cap/stats payload).
-    # Draft/Rights tabs are lazy-loaded via dedicated endpoints.
-    def sidebar_team
-      team_code = normalize_team_code(params[:team])
-      year = salary_year_param
+  def frame_state
+    @frame_state ||= ::SalaryBook::FrameState.new(
+      params: params,
+      queries: queries,
+      salary_years: SALARY_YEARS,
+      current_salary_year: CURRENT_SALARY_YEAR,
+      available_views: AVAILABLE_VIEWS,
+      default_view: DEFAULT_VIEW
+    )
+  end
 
-      # Multi-year summaries for cap tab + stats tab
-      summaries_by_year = queries.fetch_all_team_summaries([team_code])[team_code] || {}
+  def team_sidebar_state
+    @team_sidebar_state ||= ::SalaryBook::TeamSidebarState.new(queries: queries)
+  end
 
-      # Current year summary (includes computed cap_space + apron aliases)
-      summary = summaries_by_year[year] || {}
+  def combobox_players_state
+    @combobox_players_state ||= ::SalaryBook::ComboboxPlayersState.new(params: params, queries: queries)
+  end
 
-      # Team metadata (name, conference, logo)
-      team_meta = queries.fetch_team_meta(team_code)
+  def sidebar_pick_state
+    @sidebar_pick_state ||= ::SalaryBook::SidebarPickState.new(
+      params: params,
+      queries: queries,
+      current_salary_year: CURRENT_SALARY_YEAR
+    )
+  end
 
-      render partial: "salary_book/sidebar_team", locals: {
-        team_code:,
-        summary:,
-        team_meta:,
-        summaries_by_year:,
-        year:
-      }, layout: false
-    end
-
-    # GET /salary-book/sidebar/team/cap?team=BOS&year=2026
-    # Lightweight hover/year patch: only updates the Cap tab content.
-    def sidebar_team_cap
-      team_code = normalize_team_code(params[:team])
-      year = salary_year_param
-
-      summaries_by_year = queries.fetch_all_team_summaries([team_code])[team_code] || {}
-      summary = summaries_by_year[year] || {}
-
-      render partial: "salary_book/sidebar_team_tab_cap", locals: {
-        summary:,
-        summaries_by_year:,
-        year:
-      }, layout: false
-    end
-
-    # GET /salary-book/sidebar/team/draft?team=BOS&year=2025
-    # Lazy-loaded Draft tab payload (future years only, starting after selected year).
-    def sidebar_team_draft
-      team_code = normalize_team_code(params[:team])
-      year = salary_year_param
-      draft_start_year = year + 1
-
-      draft_assets = queries.fetch_sidebar_draft_assets(team_code, start_year: draft_start_year)
-
-      render partial: "salary_book/sidebar_team_tab_draft", locals: {
-        team_code:,
-        year:,
-        draft_start_year:,
-        draft_assets:,
-        draft_loaded: true
-      }, layout: false
-    end
-
-    # GET /salary-book/sidebar/team/rights?team=BOS
-    # Lazy-loaded Rights tab payload.
-    def sidebar_team_rights
-      team_code = normalize_team_code(params[:team])
-      rights_by_kind = queries.fetch_sidebar_rights_by_kind(team_code)
-
-      render partial: "salary_book/sidebar_team_tab_rights", locals: {
-        rights_by_kind:,
-        rights_loaded: true
-      }, layout: false
-    end
-
-    # GET /salary-book/sidebar/player/:id
-    def sidebar_player
-      player_id = Integer(params[:id])
-      player = queries.fetch_player(player_id)
-      raise ActiveRecord::RecordNotFound unless player
-
-      render partial: "salary_book/sidebar_player", locals: { player: }, layout: false
-    rescue ArgumentError
-      raise ActiveRecord::RecordNotFound
-    end
-
-    # GET /salary-book/sidebar/clear
-    def sidebar_clear
-      render partial: "salary_book/sidebar_clear", layout: false
-    end
-
-    # GET /salary-book/combobox/players/search?team=BOS&q=jay&limit=12&seq=3
-    # Returns server-rendered popup/list HTML for the Salary Book player combobox.
-    def combobox_players_search
-      query = params[:q].to_s.strip
-      seq = begin
-        Integer(params[:seq])
-      rescue ArgumentError, TypeError
-        0
-      end
-
-      limit = params[:limit].to_i
-      limit = 12 if limit <= 0
-      limit = [limit, 50].min
-
-      team_param = params[:team].to_s.strip.upcase
-      team_code = valid_team_code?(team_param) ? team_param : nil
-
-      players = queries.fetch_combobox_players(team_code:, query:, limit:)
-
-      render partial: "salary_book/combobox_players_popup", locals: {
-        players:,
-        query:,
-        seq:,
-        team_code:,
-        error_message: nil
-      }, layout: false
-    rescue ActiveRecord::StatementInvalid => e
-      render partial: "salary_book/combobox_players_popup", locals: {
-        players: [],
-        query:,
-        seq:,
-        team_code:,
-        error_message: e.message
-      }, layout: false
-    end
-
-    # GET /salary-book/sidebar/agent/:id
-    def sidebar_agent
-      agent_id = Integer(params[:id])
-      agent = queries.fetch_agent(agent_id)
-      raise ActiveRecord::RecordNotFound unless agent
-
-      clients = queries.fetch_agent_clients(agent_id)
-      rollup = queries.fetch_agent_rollup(agent_id)
-
-      render partial: "salary_book/sidebar_agent", locals: { agent:, clients:, rollup: }, layout: false
-    rescue ArgumentError
-      raise ActiveRecord::RecordNotFound
-    end
-
-    # GET /salary-book/sidebar/pick?team=BOS&year=2025&round=1
-    def sidebar_pick
-      team_code = normalize_team_code(params[:team])
-      year = Integer(params[:year])
-      round = Integer(params[:round])
-      salary_year = begin
-        Integer(params[:salary_year])
-      rescue ArgumentError, TypeError
-        CURRENT_SALARY_YEAR
-      end
-
-      picks = queries.fetch_pick_assets(team_code, year, round)
-      raise ActiveRecord::RecordNotFound if picks.empty?
-
-      # Get team metadata for display
-      team_meta = queries.fetch_team_meta(team_code)
-
-      related_team_codes = queries.extract_pick_related_team_codes(picks)
-      related_team_codes << team_code
-      team_meta_by_code = queries.fetch_team_meta_by_codes(related_team_codes)
-
-      render partial: "salary_book/sidebar_pick", locals: {
-        team_code:,
-        year:,
-        round:,
-        salary_year:,
-        picks:,
-        team_meta:,
-        team_meta_by_code:
-      }, layout: false
-    rescue ArgumentError
-      raise ActiveRecord::RecordNotFound
-    end
-
-    private
-
-    def salary_year_param
-      raw = params[:year].presence
-      return CURRENT_SALARY_YEAR unless raw
-
-      year = Integer(raw)
-      SALARY_YEARS.include?(year) ? year : CURRENT_SALARY_YEAR
-    rescue ArgumentError, TypeError
-      CURRENT_SALARY_YEAR
-    end
-
-    def salary_book_view_param
-      raw = params[:view].to_s.strip.downcase
-      AVAILABLE_VIEWS.include?(raw) ? raw : DEFAULT_VIEW
-    end
-
-    def valid_team_code?(raw)
-      raw.to_s.strip.upcase.match?(/\A[A-Z]{3}\z/)
-    end
-
-    def normalize_team_code(raw)
-      team = raw.to_s.strip.upcase
-      raise ActiveRecord::RecordNotFound unless team.match?(/\A[A-Z]{3}\z/)
-
-      team
-    end
-
-    def queries
-      @queries ||= ::SalaryBookQueries.new(
-        connection: ActiveRecord::Base.connection,
-        salary_years: SALARY_YEARS,
-        current_salary_year: CURRENT_SALARY_YEAR
-      )
-    end
+  def queries
+    @queries ||= ::SalaryBookQueries.new(
+      connection: ActiveRecord::Base.connection,
+      salary_years: SALARY_YEARS,
+      current_salary_year: CURRENT_SALARY_YEAR
+    )
+  end
 end

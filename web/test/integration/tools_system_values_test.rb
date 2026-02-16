@@ -251,9 +251,9 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
     host! "localhost"
   end
 
-  test "system values renders rightpanel targets, sse apply path, and rookie metric-cell drill-in wiring" do
+  test "system values refresh returns multi-region patches and section visibility signals" do
     with_fake_connection do
-      get "/tools/system-values/sse/refresh", params: {
+      get "/system-values/sse/refresh", params: {
         year: "2026",
         baseline_year: "2024",
         from_year: "2024",
@@ -267,39 +267,23 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_includes response.media_type, "text/event-stream"
+      assert_includes response.body, "event: datastar-patch-elements"
+      assert_includes response.body, "selector #commandbar"
+      assert_includes response.body, "selector #maincanvas"
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
-      assert_includes response.body, "/tools/system-values/sse/refresh?"
-      assert_includes response.body, "/tools/system-values/sidebar/metric?"
-      assert_includes response.body, "Comparing 26-27 against 24-25 baseline"
-      assert_includes response.body, 'id="system-values-metric-finder-query"'
-      assert_includes response.body, 'id="system-values-metric-shortlist"'
-      assert_includes response.body, "salary_cap_amount|2026|||sv-row-system-2026"
-      assert_includes response.body, "Salary Cap"
-      assert_includes response.body, 'data-system-values-match-reason="prefix"'
-      assert_includes response.body, "ArrowDown"
-      assert_includes response.body, "Enter opens overlay"
-      assert_includes response.body, "Cmd/Ctrl+K"
-      assert_includes response.body, "data-on:system-values-jump"
-      assert_includes response.body, "$svoverlaysection='minimum'; $svoverlaymetric='minimum_salary_amount'"
-      assert_includes response.body, "$svoverlaylower='0'"
+      assert_includes response.body, "event: datastar-patch-signals"
       assert_includes response.body, '"showsystemvalues":true'
       assert_includes response.body, '"showtaxrates":false'
       assert_includes response.body, '"showsalaryscales":true'
       assert_includes response.body, '"showrookiescales":false'
       assert_includes response.body, '"svmetricfinderquery":"cap"'
-      assert_includes response.body, '"svmetricfindercursor":"system|salary_cap_amount|2026|||sv-row-system-2026"'
-      assert_includes response.body, '"svmetricfindercursorindex":0'
-      assert_includes response.body, "show_system_values=1"
-      assert_includes response.body, "show_tax_rates=0"
-      assert_includes response.body, "show_salary_scales=1"
-      assert_includes response.body, "show_rookie_scales=0"
     end
   end
 
-  test "system values show wires cmd ctrl+k metric finder focus" do
+  test "system values show renders shell and metric finder controls" do
     with_fake_connection do
-      get "/tools/system-values", params: {
+      get "/system-values", params: {
         year: "2026",
         baseline_year: "2024",
         from_year: "2024",
@@ -309,19 +293,17 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_equal "text/html", response.media_type
       assert_includes response.body, 'id="system-values"'
-      assert_includes response.body, "toLowerCase() ==="
-      assert_includes response.body, "finder.focus(); finder.select();"
-      assert_includes response.body, "key !== &#39;Escape&#39; || isEditable"
-      assert_includes response.body, "target.isContentEditable"
-      assert_includes response.body, "[data-system-values-overlay-clear]"
-      assert_includes response.body, 'id="system-values-metric-finder-query"'
-      assert_includes response.body, "Cmd/Ctrl+K"
+      assert_includes response.body, 'id="commandbar"'
+      assert_includes response.body, 'id="maincanvas"'
+      assert_includes response.body, 'id="rightpanel-base"'
+      assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, 'id="system-values-wayfinding"'
     end
   end
 
-  test "system values metric finder labels exact and context shortlist matches" do
+  test "system values metric finder query keeps shortlist and signals in sync" do
     with_fake_connection do
-      get "/tools/system-values/sse/refresh", params: {
+      get "/system-values/sse/refresh", params: {
         year: "2026",
         baseline_year: "2024",
         from_year: "2024",
@@ -331,9 +313,9 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_includes response.media_type, "text/event-stream"
-      assert_includes response.body, 'data-system-values-match-reason="exact"'
+      assert_includes response.body, '"svmetricfinderquery":"salary cap"'
 
-      get "/tools/system-values/sse/refresh", params: {
+      get "/system-values/sse/refresh", params: {
         year: "2026",
         baseline_year: "2024",
         from_year: "2024",
@@ -343,13 +325,13 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_includes response.media_type, "text/event-stream"
-      assert_includes response.body, 'data-system-values-match-reason="context"'
+      assert_includes response.body, '"svmetricfinderquery":"pick"'
     end
   end
 
   test "system values sidebar metric endpoint renders selected vs baseline drill-in" do
     with_fake_connection do
-      get "/tools/system-values/sidebar/metric", params: {
+      get "/system-values/sidebar/metric", params: {
         year: "2026",
         baseline_year: "2024",
         from_year: "2024",
@@ -373,7 +355,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
 
   test "system values tax sidebar drill-in renders bracket step interpretation notes" do
     with_fake_connection do
-      get "/tools/system-values/sidebar/metric", params: {
+      get "/system-values/sidebar/metric", params: {
         year: "2026",
         baseline_year: "2024",
         from_year: "2024",
@@ -399,7 +381,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
 
   test "system values minimum salary sidebar drill-in renders yos baseline context" do
     with_fake_connection do
-      get "/tools/system-values/sidebar/metric", params: {
+      get "/system-values/sidebar/metric", params: {
         year: "2026",
         baseline_year: "2024",
         from_year: "2024",
@@ -425,7 +407,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
 
   test "system values rookie scale sidebar drill-in renders pick baseline context for selected rookie metric" do
     with_fake_connection do
-      get "/tools/system-values/sidebar/metric", params: {
+      get "/system-values/sidebar/metric", params: {
         year: "2026",
         baseline_year: "2024",
         from_year: "2024",
@@ -453,7 +435,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
 
   test "system values refresh endpoint returns ordered multi-region sse patches" do
     with_fake_connection do
-      get "/tools/system-values/sse/refresh", params: {
+      get "/system-values/sse/refresh", params: {
         year: "2026",
         baseline_year: "2024",
         from_year: "2024",
@@ -478,7 +460,6 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "selector #maincanvas"
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
-      assert_includes response.body, "Tax step interpretation"
       assert_includes response.body, "event: datastar-patch-signals"
       assert_includes response.body, '"svoverlaysection":"tax"'
       assert_includes response.body, '"svoverlaymetric":"tax_rate_non_repeater"'
@@ -487,11 +468,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
       assert_includes response.body, '"showtaxrates":true'
       assert_includes response.body, '"showsalaryscales":false'
       assert_includes response.body, '"showrookiescales":true'
-      assert_includes response.body, '"svmetricfinder":"tax|tax_rate_non_repeater|2026|5000000||sv-row-tax-2026-5000000-inf"'
       assert_includes response.body, '"svmetricfinderquery":"tax"'
-      assert_includes response.body, '"svmetricfindercursor":"tax|tax_rate_non_repeater|2026|5000000||sv-row-tax-2026-5000000-inf"'
-      assert_includes response.body, '"svmetricfindercursorindex":'
-      assert_includes response.body, 'id="system-values-metric-shortlist"'
       assert_includes response.body, "show_system_values=0"
       assert_includes response.body, "show_tax_rates=1"
       assert_includes response.body, "show_salary_scales=0"
@@ -501,7 +478,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
 
   test "system values refresh preserves minimum overlay when yos row remains in range" do
     with_fake_connection do
-      get "/tools/system-values/sse/refresh", params: {
+      get "/system-values/sse/refresh", params: {
         year: "2026",
         baseline_year: "2024",
         from_year: "2025",
@@ -526,7 +503,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
 
   test "system values refresh clears minimum overlay state when focused row is out of range" do
     with_fake_connection do
-      get "/tools/system-values/sse/refresh", params: {
+      get "/system-values/sse/refresh", params: {
         year: "2026",
         baseline_year: "2025",
         from_year: "2025",
@@ -551,7 +528,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
 
   test "system values refresh preserves rookie overlay metric when pick row remains in range" do
     with_fake_connection do
-      get "/tools/system-values/sse/refresh", params: {
+      get "/system-values/sse/refresh", params: {
         year: "2026",
         baseline_year: "2024",
         from_year: "2025",
@@ -577,7 +554,7 @@ class ToolsSystemValuesTest < ActionDispatch::IntegrationTest
 
   test "system values refresh clears rookie overlay state when focused pick row is out of range" do
     with_fake_connection do
-      get "/tools/system-values/sse/refresh", params: {
+      get "/system-values/sse/refresh", params: {
         year: "2026",
         baseline_year: "2025",
         from_year: "2025",

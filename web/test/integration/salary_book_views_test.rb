@@ -107,7 +107,7 @@ class SalaryBookViewsTest < ActionDispatch::IntegrationTest
 
   test "salary book page can boot directly into injuries view" do
     with_fake_connection do
-      get "/tools/salary-book", params: { view: "injuries", team: "POR", year: "2025" }, headers: modern_headers
+      get "/salary-book", params: { view: "injuries", team: "POR", year: "2025" }, headers: modern_headers
 
       assert_response :success
       assert_includes response.body, "activeview: 'injuries'"
@@ -121,7 +121,7 @@ class SalaryBookViewsTest < ActionDispatch::IntegrationTest
 
   test "salary book page can boot directly into tankathon view" do
     with_fake_connection do
-      get "/tools/salary-book", params: { view: "tankathon", team: "POR", year: "2025" }, headers: modern_headers
+      get "/salary-book", params: { view: "tankathon", team: "POR", year: "2025" }, headers: modern_headers
 
       assert_response :success
       assert_includes response.body, "activeview: 'tankathon'"
@@ -136,7 +136,7 @@ class SalaryBookViewsTest < ActionDispatch::IntegrationTest
 
   test "injuries frame endpoint returns patchable loading frame" do
     with_fake_connection do
-      get "/tools/salary-book/frame", params: { view: "injuries", team: "POR", year: "2025" }, headers: modern_headers
+      get "/salary-book/frame", params: { view: "injuries", team: "POR", year: "2025" }, headers: modern_headers
 
       assert_response :success
       assert_equal "text/html", response.media_type
@@ -149,7 +149,7 @@ class SalaryBookViewsTest < ActionDispatch::IntegrationTest
 
   test "tankathon frame endpoint returns patchable standings frame" do
     with_fake_connection do
-      get "/tools/salary-book/frame", params: { view: "tankathon", team: "POR", year: "2025" }, headers: modern_headers
+      get "/salary-book/frame", params: { view: "tankathon", team: "POR", year: "2025" }, headers: modern_headers
 
       assert_response :success
       assert_equal "text/html", response.media_type
@@ -157,6 +157,17 @@ class SalaryBookViewsTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="salarybook-standings-table"'
       assert_includes response.body, "Switch to POR"
       assert_includes response.body, "nba.standings"
+    end
+  end
+
+  test "switch team endpoint returns multi-region patch payload" do
+    with_fake_connection do
+      get "/salary-book/switch-team", params: { team: "BOS", year: "2025", view: "salary-book" }, headers: modern_headers
+
+      assert_response :success
+      assert_equal "text/html", response.media_type
+      assert_includes response.body, 'id="salarybook-team-frame"'
+      assert_includes response.body, 'id="rightpanel-base"'
     end
   end
 

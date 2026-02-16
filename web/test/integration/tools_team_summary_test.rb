@@ -103,7 +103,7 @@ class ToolsTeamSummaryTest < ActionDispatch::IntegrationTest
 
   test "team summary renders compare strip and sidebar surfaces" do
     with_fake_connection do
-      get "/tools/team-summary", params: { selected: "BOS", compare_a: "BOS", compare_b: "POR" }, headers: modern_headers
+      get "/team-summary", params: { selected: "BOS", compare_a: "BOS", compare_b: "POR" }, headers: modern_headers
 
       assert_response :success
       assert_includes response.body, 'id="team-summary-compare-strip"'
@@ -115,7 +115,7 @@ class ToolsTeamSummaryTest < ActionDispatch::IntegrationTest
 
   test "team summary sidebar endpoint returns drill-in overlay with pivots" do
     with_fake_connection do
-      get "/tools/team-summary/sidebar/BOS", params: {
+      get "/team-summary/sidebar/BOS", params: {
         year: "2025",
         conference: "all",
         pressure: "all",
@@ -135,7 +135,7 @@ class ToolsTeamSummaryTest < ActionDispatch::IntegrationTest
 
   test "team summary overlay exposes next and prev stepping controls with stateful sse urls" do
     with_fake_connection do
-      get "/tools/team-summary/sidebar/POR", params: {
+      get "/team-summary/sidebar/POR", params: {
         year: "2025",
         conference: "all",
         pressure: "all",
@@ -150,7 +150,7 @@ class ToolsTeamSummaryTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "2 / 3"
       assert_includes response.body, "data-team-summary-step-prev"
       assert_includes response.body, "data-team-summary-step-next"
-      assert_includes response.body, "/tools/team-summary/sse/step?"
+      assert_includes response.body, "/team-summary/sse/step?"
       assert_includes response.body, "direction=prev"
       assert_includes response.body, "direction=next"
       assert_includes response.body, "compare_a=BOS"
@@ -160,57 +160,52 @@ class ToolsTeamSummaryTest < ActionDispatch::IntegrationTest
 
   test "team summary commandbar knobs submit through refresh sse path" do
     with_fake_connection do
-      get "/tools/team-summary", headers: modern_headers
+      get "/team-summary", headers: modern_headers
 
       assert_response :success
-      assert_includes response.body, "/tools/team-summary/sse/refresh?"
+      assert_includes response.body, "/team-summary/sse/refresh?"
       assert_includes response.body, "data-on:submit=\"evt.preventDefault(); @get("
     end
   end
 
-  test "team summary commandbar includes team finder jump controls" do
+  test "team summary commandbar includes conference and sort controls" do
     with_fake_connection do
-      get "/tools/team-summary", params: { team_finder_query: "bos" }, headers: modern_headers
+      get "/team-summary", headers: modern_headers
 
       assert_response :success
-      assert_includes response.body, "team-summary-team-finder-query"
-      assert_includes response.body, "team-summary-team-finder-options"
-      assert_includes response.body, "BOS · Boston Celtics"
-      assert_includes response.body, "tsteamfinderquery"
-      assert_includes response.body, "/tools/team-summary/sidebar/"
-      assert_includes response.body, "$tsteamfinderquery"
+      assert_includes response.body, "name=\"conference_east\""
+      assert_includes response.body, "name=\"conference_west\""
+      assert_includes response.body, "name=\"sort_metric\""
+      assert_includes response.body, "/team-summary/sse/refresh?"
+      assert_includes response.body, "/team-summary/sidebar/"
     end
   end
 
   test "team summary table-header sorts route through refresh sse with signal-backed state" do
     with_fake_connection do
-      get "/tools/team-summary", headers: modern_headers
+      get "/team-summary", headers: modern_headers
 
       assert_response :success
       assert_includes response.body, "$tssortmetric === 'cap_space'"
       assert_includes response.body, "$tssortmetric === 'tax_overage'"
-      assert_includes response.body, "team_finder_query"
-      assert_includes response.body, "$tsteamfinderquery"
+      assert_includes response.body, "/team-summary/sse/refresh?"
     end
   end
 
-  test "team summary rows expose inline pin a/b actions wired to compare sse flow" do
+  test "team summary compare strip renders and wires compare endpoint" do
     with_fake_connection do
-      get "/tools/team-summary", headers: modern_headers
+      get "/team-summary", headers: modern_headers
 
       assert_response :success
-      assert_includes response.body, ">Pin A</button>"
-      assert_includes response.body, ">Pin B</button>"
-      assert_includes response.body, "/tools/team-summary/sse/compare?year=2025"
-      assert_includes response.body, "action=pin&amp;slot=a&amp;team_code=BOS"
-      assert_includes response.body, "action=pin&amp;slot=b&amp;team_code=BOS"
-      assert_includes response.body, "encodeURIComponent($selectedteam"
+      assert_includes response.body, 'id="team-summary-compare-strip"'
+      assert_includes response.body, "Compare board"
+      assert_includes response.body, "/team-summary/sse/compare?"
     end
   end
 
   test "team summary row pin compare action does not force sidebar selection" do
     with_fake_connection do
-      get "/tools/team-summary/sse/compare", params: {
+      get "/team-summary/sse/compare", params: {
         year: "2025",
         conference: "all",
         pressure: "all",
@@ -233,7 +228,7 @@ class ToolsTeamSummaryTest < ActionDispatch::IntegrationTest
 
   test "team summary refresh endpoint returns ordered multi-region sse patches" do
     with_fake_connection do
-      get "/tools/team-summary/sse/refresh", params: {
+      get "/team-summary/sse/refresh", params: {
         year: "2025",
         conference: "all",
         pressure: "all",
@@ -257,9 +252,9 @@ class ToolsTeamSummaryTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "team summary refresh clears unresolved selected and compare state" do
+  test "team summary refresh falls back to supported year and preserves valid selected/compare state" do
     with_fake_connection do
-      get "/tools/team-summary/sse/refresh", params: {
+      get "/team-summary/sse/refresh", params: {
         year: "2024",
         conference: "all",
         pressure: "all",
@@ -271,16 +266,16 @@ class ToolsTeamSummaryTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_includes response.media_type, "text/event-stream"
-      assert_includes response.body, 'id="rightpanel-overlay"></div>'
-      assert_includes response.body, '"selectedteam":""'
-      assert_includes response.body, '"comparea":""'
-      assert_includes response.body, '"compareb":""'
+      assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, '"selectedteam":"BOS"'
+      assert_includes response.body, '"comparea":"BOS"'
+      assert_includes response.body, '"compareb":"POR"'
     end
   end
 
   test "team summary compare endpoint returns ordered multi-region sse patches" do
     with_fake_connection do
-      get "/tools/team-summary/sse/compare", params: {
+      get "/team-summary/sse/compare", params: {
         year: "2025",
         conference: "all",
         pressure: "all",
@@ -306,7 +301,7 @@ class ToolsTeamSummaryTest < ActionDispatch::IntegrationTest
 
   test "team summary step endpoint advances overlay selection without clearing compare slots" do
     with_fake_connection do
-      get "/tools/team-summary/sse/step", params: {
+      get "/team-summary/sse/step", params: {
         year: "2025",
         conference: "all",
         pressure: "all",

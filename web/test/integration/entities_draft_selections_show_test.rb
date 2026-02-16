@@ -54,7 +54,7 @@ class EntitiesDraftSelectionsShowTest < ActionDispatch::IntegrationTest
   end
 
   def with_stubbed_draft_selection_show
-    controller_class = Entities::DraftSelectionsController
+    controller_class = DraftSelectionsController
 
     controller_class.class_eval do
       alias_method :__draft_selections_show_test_original_show__, :show

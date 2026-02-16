@@ -2,7 +2,7 @@
 
 This file tracks what is **actually left** after the namespace flattening work.
 
-_Last updated: 2026-02-15_
+_Last updated: 2026-02-11_
 
 ---
 
@@ -43,6 +43,44 @@ Important invariants remain unchanged:
 
 Query objects/services exist for the key feature areas (`app/queries`, `app/services`) and are actively used by controllers.
 
+### ✅ Agencies controller extraction pass
+
+`agencies_controller.rb` has been slimmed to orchestration-only shape with:
+
+- `AgencyQueries` for SQL access
+- `Agencies::IndexWorkspaceState` for index filters/rows/sidebar summary
+- `Agencies::ShowWorkspaceData` for show-page hydration
+
+### ✅ Draft selections index extraction pass
+
+`draft_selections_controller.rb` now delegates index workspace assembly to `DraftSelections::IndexWorkspaceState`, reducing controller-level filter/query/sidebar derivation bloat while keeping existing Datastar behavior and patch IDs unchanged.
+
+### ✅ Team Summary controller extraction pass
+
+`team_summary_controller.rb` now delegates workspace assembly to:
+
+- `TeamSummaryQueries` for SQL access
+- `TeamSummary::WorkspaceState` for filter parsing, compare/step orchestration state, sidebar hydration, and state params
+
+### ✅ System Values workspace extraction pass
+
+`system_values_controller.rb` now delegates base workspace loading/state params to `SystemValues::WorkspaceState` (while keeping overlay derivation in `SystemValues::WorkspaceDerivedState`).
+
+### ✅ Salary Book controller extraction pass
+
+`salary_book_controller.rb` now delegates major request assembly to focused services under `app/services/salary_book/*`:
+
+- `SalaryBook::WorkspaceState` (show bootstrap + boot-error fallback)
+- `SalaryBook::FrameState` (main frame payloads + frame error payloads)
+- `SalaryBook::TeamSidebarState` (team/cap/draft/rights sidebar hydration)
+- `SalaryBook::ComboboxPlayersState` (combobox request param normalization + payload)
+- `SalaryBook::SidebarPickState` (pick overlay hydration)
+
+Additional cleanup:
+
+- Added query delegation from controller to `SalaryBookQueries` so `SalaryBookSwitchController` can safely reuse shared query calls.
+- Updated Salary Book integration tests to current URLs (`/salary-book*`) and added switch-team patch-payload coverage.
+
 ### ✅ Baseline integration tests exist
 
 `test/integration/` now has broad coverage across major surfaces (entities + tools), instead of only a single model test.
@@ -57,11 +95,15 @@ Controllers still over target size:
 
 | Controller | LOC |
 |---|---:|
-| `draft_selections_controller.rb` | 613 |
-| `agencies_controller.rb` | 598 |
-| `team_summary_controller.rb` | 551 |
-| `salary_book_controller.rb` | 383 |
-| `system_values_controller.rb` | 360 |
+| `draft_selections_controller.rb` | 336 |
+| `system_values_controller.rb` | 279 |
+| `two_way_utility_controller.rb` | 247 |
+| `drafts_controller.rb` | 238 |
+| `team_summary_controller.rb` | 217 |
+| `agents_controller.rb` | 217 |
+| `teams_controller.rb` | 215 |
+| `draft_picks_controller.rb` | 213 |
+| `agencies_controller.rb` | 201 |
 
 Target:
 
@@ -134,13 +176,15 @@ Optional cleanup:
 
 Focus in order:
 
-1. `draft_selections_controller.rb`
-2. `agencies_controller.rb`
-3. `team_summary_controller.rb`
-4. `salary_book_controller.rb`
-5. `system_values_controller.rb`
+1. `draft_selections_controller.rb` (show/sidebar extraction remains)
+2. `system_values_controller.rb` (final extraction + error-path cleanup)
+3. `two_way_utility_controller.rb`
+4. `drafts_controller.rb`
+5. `team_summary_controller.rb` (final extraction + error-path cleanup)
 
-Gate: no controller >400 LOC; top 3 materially reduced.
+(`salary_book_controller.rb` and `agencies_controller.rb` extraction passes completed.)
+
+Gate: no controller >400 LOC; top 3 materially reduced. ✅ (current max: `draft_selections_controller.rb` at 336 LOC)
 
 ### Phase B — Sidebar presenter extraction
 

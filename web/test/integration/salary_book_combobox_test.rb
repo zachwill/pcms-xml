@@ -44,7 +44,7 @@ class SalaryBookComboboxTest < ActionDispatch::IntegrationTest
 
   test "player combobox search returns popup fragment for global search" do
     with_fake_connection do
-      get "/tools/salary-book/combobox/players/search", params: {
+      get "/salary-book/combobox/players/search", params: {
         q: "sim",
         limit: "12",
         seq: "7"
@@ -63,7 +63,7 @@ class SalaryBookComboboxTest < ActionDispatch::IntegrationTest
 
   test "blank query defaults to active team roster" do
     with_fake_connection do
-      get "/tools/salary-book/combobox/players/search", params: {
+      get "/salary-book/combobox/players/search", params: {
         team: "POR",
         q: "",
         limit: "12",
@@ -80,7 +80,7 @@ class SalaryBookComboboxTest < ActionDispatch::IntegrationTest
 
   test "blank query without team returns prompt state" do
     with_fake_connection do
-      get "/tools/salary-book/combobox/players/search", params: {
+      get "/salary-book/combobox/players/search", params: {
         q: "",
         limit: "12",
         seq: "5"
@@ -95,7 +95,7 @@ class SalaryBookComboboxTest < ActionDispatch::IntegrationTest
 
   test "player combobox search returns empty state" do
     with_fake_connection do
-      get "/tools/salary-book/combobox/players/search", params: {
+      get "/salary-book/combobox/players/search", params: {
         team: "POR",
         q: "Nope",
         limit: "12",
@@ -109,7 +109,7 @@ class SalaryBookComboboxTest < ActionDispatch::IntegrationTest
   end
 
   test "salary book page includes command palette root" do
-    get "/tools/salary-book", headers: modern_headers
+    get "/salary-book", headers: modern_headers
 
     assert_response :success
     assert_includes response.body, 'id="sbplayercmdk"'
