@@ -20,7 +20,7 @@ class TeamsSseController < TeamsController
   # - #rightpanel-base
   # - #rightpanel-overlay (preserved when selected row remains visible)
   def refresh
-    load_index_workspace_state!(apply_compare_action: true)
+    load_index_workspace_state!
 
     requested_overlay_id = requested_overlay_id_param
     overlay_html, resolved_overlay_type, resolved_selected_team_id = refreshed_overlay_payload(requested_overlay_id: requested_overlay_id)
@@ -48,8 +48,6 @@ class TeamsSseController < TeamsController
         teamsconference: @conference_lens.to_s,
         teamspressure: @pressure_lens.to_s,
         teamssort: @sort_lens.to_s,
-        comparea: @compare_a_id.to_s,
-        compareb: @compare_b_id.to_s,
         overlaytype: resolved_overlay_type,
         selectedteamid: resolved_selected_team_id
       )

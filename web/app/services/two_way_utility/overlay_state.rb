@@ -31,13 +31,6 @@ module TwoWayUtility
       }
     end
 
-    def source_player(player_id:)
-      normalized_id = normalize_player_id(player_id)
-      return nil unless normalized_id
-
-      Array(@rows).find { |candidate| candidate["player_id"].to_i == normalized_id } || fetch_player_row(normalized_id)
-    end
-
     # Preserve current behavior: refresh only keeps overlay when the selected row
     # remains visible in the currently filtered table rows.
     def refresh_sidebar_player(requested_overlay_id:)

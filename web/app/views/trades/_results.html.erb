@@ -1,43 +1,11 @@
-<div id="trades-results" class="space-y-3">
-  <div class="flex items-end justify-between gap-4">
-    <div>
-      <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Trades feed ·
-        <% case @daterange
-           when "today" then %>Today<%
-           when "week" then %>This week<%
-           when "month" then %>This month<%
-           when "season" then %>This season<%
-           else %>All dates<%
-           end %>
-        · <%= @sort_label %>
-      </h2>
-      <p class="text-[11px] text-muted-foreground mt-1">
-        Team impact is summarized inline (OUT vs IN) so you can shortlist deals before opening overlay.
-        <% if @lens != "all" || @composition != "all" %>
-          <span class="font-medium text-foreground">
-            <% active_lenses = [] %>
-            <% active_lenses << "Complexity: #{@lens_label}" unless @lens == "all" %>
-            <% active_lenses << "Composition: #{@composition_label}" unless @composition == "all" %>
-            <%= active_lenses.join(" · ") %>
-          </span>
-        <% end %>
-      </p>
-    </div>
-
-    <div class="text-[11px] text-muted-foreground tabular-nums">
-      <span><%= @trades.size %> rows</span>
-    </div>
-  </div>
-
+<div id="trades-results" class="space-y-3 px-4 py-4">
   <% if @trades.empty? %>
     <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">
       No trades found for this time period and filters.
     </div>
   <% else %>
-    <div class="rounded-lg border border-border overflow-x-auto">
-      <div class="min-w-[92rem]">
-        <div id="trades-flex-header" class="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm border-b border-border">
+    <div id="trades-board" class="min-w-[92rem] border-y border-border bg-background">
+      <div id="trades-flex-header" class="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
           <div class="flex items-center h-8 px-3 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
             <div class="w-28 shrink-0">When</div>
             <div class="w-40 shrink-0">Deal</div>
@@ -161,7 +129,6 @@
             </div>
           <% end %>
         </div>
-      </div>
     </div>
   <% end %>
 </div>

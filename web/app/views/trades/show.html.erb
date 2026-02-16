@@ -165,18 +165,6 @@
     } %>
 
   <div class="lg:flex lg:gap-8">
-    <%= render partial: "shared/local_nav", locals: {
-      sections: [
-        ["vitals", "Vitals"],
-        ["leg-breakdown", "OUT/IN board"],
-        ["trade-groups", "Legal lanes"],
-        ["player-items", "Player items"],
-        ["pick-cash", "Pick + cash"],
-        ["transactions", "Transactions"],
-        ["endnotes", "Endnotes"]
-      ]
-    } %>
-
     <div class="min-w-0 flex-1 space-y-6">
       <section id="vitals" class="scroll-mt-24 space-y-3">
         <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vitals</h2>
@@ -1005,6 +993,18 @@
         <% end %>
       </section>
     </div>
+
+    <%= render partial: "shared/local_nav", locals: {
+      sections: [
+        ["vitals", "Vitals"],
+        ["leg-breakdown", "OUT/IN board"],
+        ["trade-groups", "Legal lanes"],
+        ["player-items", "Player items"],
+        ["pick-cash", "Pick + cash"],
+        ["transactions", "Transactions"],
+        ["endnotes", "Endnotes"]
+      ]
+    } %>
   </div>
   </main>
 </div>

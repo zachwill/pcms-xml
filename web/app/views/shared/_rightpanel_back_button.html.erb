@@ -1,0 +1,18 @@
+<%
+  click_expr = local_assigns.fetch(:click_expr)
+  label = local_assigns.fetch(:label, "Back").to_s
+  hook_data_attribute = local_assigns[:hook_data_attribute].to_s.strip
+
+  button_attrs = {
+    type: "button",
+    class: "cursor-pointer flex items-center gap-1.5 text-sm transition-colors text-muted-foreground hover:text-foreground " \
+           "focus-visible:outline-none focus-visible:ring-0 focus-visible:border-foreground dark:focus-visible:border-foreground",
+    "data-on:click" => click_expr
+  }
+  button_attrs[hook_data_attribute] = true if hook_data_attribute.present?
+%>
+
+<%= tag.button(**button_attrs) do %>
+  <%= lucide_icon("arrow-left", class: "w-4 h-4", "aria-hidden": true) %>
+  <span class="font-medium"><%= label %></span>
+<% end %>

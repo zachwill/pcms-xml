@@ -38,19 +38,6 @@
   ) + "#team-summary-row-#{team_code.downcase}"
 
   salary_book_href = "/?team=#{team_code}##{team_code}"
-
-  refresh_query_expr = "'q=' + encodeURIComponent($teamsquery) +
-    '&conference=' + encodeURIComponent($teamsconference) +
-    '&pressure=' + encodeURIComponent($teamspressure) +
-    '&sort=' + encodeURIComponent($teamssort) +
-    '&compare_a=' + encodeURIComponent($comparea) +
-    '&compare_b=' + encodeURIComponent($compareb) +
-    '&selected_id=' + encodeURIComponent('#{team_id}')"
-
-  pin_a_expr = "@get('/teams/sse/refresh?' + (#{refresh_query_expr}) + '&action=pin&slot=a&team_id=#{team_id}')"
-  pin_b_expr = "@get('/teams/sse/refresh?' + (#{refresh_query_expr}) + '&action=pin&slot=b&team_id=#{team_id}')"
-  clear_a_expr = "@get('/teams/sse/refresh?' + (#{refresh_query_expr}) + '&action=clear_slot&slot=a')"
-  clear_b_expr = "@get('/teams/sse/refresh?' + (#{refresh_query_expr}) + '&action=clear_slot&slot=b')"
 %>
 
 <div id="rightpanel-overlay" class="h-full">
@@ -93,44 +80,18 @@
           <% end %>
         </div>
 
-        <div class="flex flex-wrap items-center gap-1.5" data-on:click="evt.stopPropagation()" data-on:keydown="evt.stopPropagation()">
-          <button
-            type="button"
-            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            aria-label="Pin <%= team_name %> to compare slot A"
-            title="Pin to compare slot A"
-            data-class="{ 'border-indigo-500/60 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300': $comparea === '<%= team_id %>' }"
-            data-on:click="<%= pin_a_expr %>"
-          >Pin A</button>
-
-          <button
-            type="button"
-            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            aria-label="Pin <%= team_name %> to compare slot B"
-            title="Pin to compare slot B"
-            data-class="{ 'border-emerald-500/60 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300': $compareb === '<%= team_id %>' }"
-            data-on:click="<%= pin_b_expr %>"
-          >Pin B</button>
-
-          <button
-            type="button"
-            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            data-show="$comparea === '<%= team_id %>'"
-            style="display: none;"
-            aria-label="Clear compare slot A"
-            title="Clear compare slot A"
-            data-on:click="<%= clear_a_expr %>"
-          >Clear A</button>
-
-          <button
-            type="button"
-            class="cursor-pointer h-5 px-1.5 rounded border border-border/70 text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            data-show="$compareb === '<%= team_id %>'"
-            style="display: none;"
-            aria-label="Clear compare slot B"
-            title="Clear compare slot B"
-            data-on:click="<%= clear_b_expr %>"
-          >Clear B</button>
+        <div class="pt-0.5 flex flex-wrap items-center gap-1.5">
+          <span class="<%= pressure_chip_classes %>"><%= pressure_label %></span>
+          <% if team["is_repeater_taxpayer"] %>
+            <span class="entity-chip entity-chip--danger">Repeater</span>
+          <% elsif team["is_taxpayer"] %>
+            <span class="entity-chip entity-chip--warning">Taxpayer</span>
+          <% else %>
+            <span class="entity-chip entity-chip--muted">No tax</span>
+          <% end %>
+          <% if team["is_subject_to_apron"] %>
+            <span class="entity-chip entity-chip--accent"><%= team["apron_level_lk"].presence || "Apron" %></span>
+          <% end %>
         </div>
       </div>
     </div>
@@ -183,18 +144,6 @@
           <span class="text-sm text-muted-foreground">Roster / Two-way</span>
           <span class="text-sm font-medium font-mono tabular-nums"><%= team["roster_row_count"].to_i %> / <%= team["two_way_row_count"].to_i %></span>
         </div>
-      </div>
-
-      <div class="pt-1 flex flex-wrap gap-1.5">
-        <% if team["is_taxpayer"] %>
-          <span class="entity-chip entity-chip--warning">Taxpayer</span>
-        <% end %>
-        <% if team["is_repeater_taxpayer"] %>
-          <span class="entity-chip entity-chip--danger">Repeater</span>
-        <% end %>
-        <% if team["is_subject_to_apron"] %>
-          <span class="entity-chip entity-chip--accent"><%= team["apron_level_lk"].presence || "Apron" %></span>
-        <% end %>
       </div>
     </div>
 

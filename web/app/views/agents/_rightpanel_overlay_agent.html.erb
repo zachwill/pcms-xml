@@ -118,8 +118,6 @@
             >Page</a>
           <% elsif agent["agency_name"].present? %>
             <span class="truncate"><%= agent["agency_name"] %></span>
-          <% else %>
-            <span>Agency unknown</span>
           <% end %>
           <% if agent["is_active"] == false %>
             <span class="entity-chip entity-chip--muted shrink-0">inactive</span>

@@ -4,13 +4,6 @@
     severity_lanes = [{ key: "all", headline: "All impact lanes", subline: nil, row_count: @transactions.size, date_groups: Array(@transaction_date_groups) }]
   end
 
-  severity_counts = {
-    "critical" => Array(@transactions).count { |row| row["severity_key"] == "critical" },
-    "high" => Array(@transactions).count { |row| row["severity_key"] == "high" },
-    "medium" => Array(@transactions).count { |row| row["severity_key"] == "medium" },
-    "low" => Array(@transactions).count { |row| row["severity_key"] == "low" }
-  }
-
   severity_chip_class = lambda do |key|
     case key.to_s
     when "critical" then "entity-chip entity-chip--danger"
@@ -32,47 +25,14 @@
   end
 %>
 
-<div id="transactions-results" class="space-y-3">
-  <div class="flex items-end justify-between gap-4">
-    <div>
-      <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Transactions feed · severity-first lanes ·
-        <% case @daterange
-           when "today" then %>Today<%
-           when "week" then %>This week<%
-           when "month" then %>This month<%
-           when "season" then %>This season<%
-           else %>All dates<%
-           end %>
-      </h2>
-      <p class="text-[11px] text-muted-foreground mt-1">
-        Scan critical → low impact first, then open a row in the sidebar without leaving index context.
-      </p>
-    </div>
-
-    <div class="text-right space-y-1">
-      <div class="text-[11px] text-muted-foreground tabular-nums"><span><%= @transactions.size %> rows · <%= severity_lanes.size %> impact lanes</span></div>
-      <% if @query.present? %>
-        <div class="text-[10px] text-muted-foreground">Intent: <span class="font-medium text-foreground"><%= @query %></span></div>
-      <% end %>
-    </div>
-  </div>
-
-  <div class="flex flex-wrap gap-1.5">
-    <span class="entity-chip entity-chip--danger">Critical <%= severity_counts["critical"] %></span>
-    <span class="entity-chip entity-chip--warning">High <%= severity_counts["high"] %></span>
-    <span class="entity-chip entity-chip--accent">Medium <%= severity_counts["medium"] %></span>
-    <span class="entity-chip entity-chip--muted">Low <%= severity_counts["low"] %></span>
-  </div>
-
+<div id="transactions-results" class="space-y-3 px-4 py-4">
   <% if @transactions.empty? %>
     <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">
       No transactions found for this time period and filters.
     </div>
   <% else %>
-    <div class="rounded-lg border border-border overflow-x-auto">
-      <div class="min-w-[92rem]">
-        <div id="transactions-flex-header" class="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm border-b border-border">
+    <div id="transactions-board" class="min-w-[92rem] border-y border-border bg-background">
+      <div id="transactions-flex-header" class="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
           <div class="flex items-center h-8 px-3 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
             <div class="w-32 shrink-0">When</div>
             <div class="w-36 shrink-0">Severity</div>
@@ -88,7 +48,7 @@
           <% severity_lanes.each do |lane| %>
             <% lane_key = lane[:key].to_s.parameterize.presence || "all" %>
             <section id="transactions-severity-lane-<%= lane_key %>" class="border-b border-border/70 last:border-b-0">
-              <div class="sticky top-8 z-[7] border-b border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+              <div class="sticky top-8 z-20 border-b border-border bg-muted/40 backdrop-blur supports-[backdrop-filter]:bg-background/90">
                 <div class="flex items-center px-3 h-8 text-[10px] uppercase tracking-wide">
                   <div class="w-32 shrink-0"><span class="<%= severity_chip_class.call(lane[:key]) %>"><%= lane[:headline] %></span></div>
                   <div class="w-36 shrink-0 text-muted-foreground/80 truncate"><%= lane[:subline] %></div>
@@ -238,7 +198,6 @@
             </section>
           <% end %>
         </div>
-      </div>
     </div>
   <% end %>
 </div>

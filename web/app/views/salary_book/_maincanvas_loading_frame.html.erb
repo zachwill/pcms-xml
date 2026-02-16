@@ -5,6 +5,7 @@
 <% error_title = local_assigns.fetch(:error_title, "Unable to load #{surface_label.titleize} surface") %>
 <% error_detail = local_assigns.fetch(:error_detail, "Failed while building loading board for #{year}.") %>
 <% dot_count = [local_assigns.fetch(:dot_count, 16).to_i, 1].max %>
+<% frame_id = local_assigns.fetch(:frame_id, "salarybook-team-frame") %>
 
 <%
   fallback_team_ids = [
@@ -29,7 +30,7 @@
   dot_logo_urls = selected_team_ids.first(dot_count).map { |team_id| team_logo_url(team_id) }
 %>
 
-<div id="salarybook-team-frame" class="h-full bg-muted/30 dark:bg-muted/20">
+<div id="<%= frame_id %>" class="h-full bg-muted/30 dark:bg-muted/20">
   <% if error_message.present? %>
     <div class="h-full flex items-center justify-center px-6 py-10">
       <div class="max-w-3xl rounded-lg border border-border bg-background/60 p-4 text-sm">

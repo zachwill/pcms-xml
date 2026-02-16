@@ -1,25 +1,25 @@
 /**
- * System Values UI glue (vanilla JS)
+ * Teams index UI glue (vanilla JS)
  *
  * Responsibilities:
- * 1) Horizontal scroll sync (header <-> body) per section table
+ * 1) Horizontal scroll sync (header <-> body) per pressure lane
  * 2) Sticky-left shadow visibility while horizontally scrolled
- * 3) Re-sync after Datastar DOM patches / layout changes
+ * 3) Re-sync after Datastar morph patches
  */
 
 let main = null;
 
-const initSystemValuesTableSync = (tableEl) => {
+const initTeamsTableSync = (tableEl) => {
   if (!tableEl) return;
-  if (tableEl.dataset.systemValuesTableInit === "true") return;
+  if (tableEl.dataset.teamsTableInit === "true") return;
 
-  const headerEl = tableEl.querySelector("[data-system-values-table-header-scroll]");
-  const bodyEl = tableEl.querySelector("[data-system-values-table-body-scroll]");
-  const shadowEl = tableEl.querySelector("[data-system-values-sticky-shadow]");
+  const headerEl = tableEl.querySelector("[data-teams-table-header-scroll]");
+  const bodyEl = tableEl.querySelector("[data-teams-table-body-scroll]");
+  const shadowEl = tableEl.querySelector("[data-teams-table-sticky-shadow]");
 
   if (!headerEl || !bodyEl) return;
 
-  tableEl.dataset.systemValuesTableInit = "true";
+  tableEl.dataset.teamsTableInit = "true";
 
   let syncing = null;
 
@@ -58,21 +58,20 @@ const initSystemValuesTableSync = (tableEl) => {
   setShadow(bodyEl.scrollLeft);
 };
 
-const initAllSystemValuesTables = () => {
+const initAllTeamsTables = () => {
   if (!main) return;
-
-  const tableEls = main.querySelectorAll("[data-system-values-table]");
-  tableEls.forEach(initSystemValuesTableSync);
+  const tables = main.querySelectorAll("[data-teams-table]");
+  tables.forEach(initTeamsTableSync);
 };
 
-const syncAllSystemValuesTableScrollPositions = () => {
+const syncAllTeamsTableScrollPositions = () => {
   if (!main) return;
 
-  const tableEls = main.querySelectorAll("[data-system-values-table]");
-  tableEls.forEach((tableEl) => {
-    const headerEl = tableEl.querySelector("[data-system-values-table-header-scroll]");
-    const bodyEl = tableEl.querySelector("[data-system-values-table-body-scroll]");
-    const shadowEl = tableEl.querySelector("[data-system-values-sticky-shadow]");
+  const tables = main.querySelectorAll("[data-teams-table]");
+  tables.forEach((tableEl) => {
+    const headerEl = tableEl.querySelector("[data-teams-table-header-scroll]");
+    const bodyEl = tableEl.querySelector("[data-teams-table-body-scroll]");
+    const shadowEl = tableEl.querySelector("[data-teams-table-sticky-shadow]");
 
     if (!headerEl || !bodyEl) return;
 
@@ -94,23 +93,23 @@ const init = () => {
   main = document.getElementById("maincanvas");
   if (!main) return;
 
-  initAllSystemValuesTables();
-  syncAllSystemValuesTableScrollPositions();
+  initAllTeamsTables();
+  syncAllTeamsTableScrollPositions();
 
   window.addEventListener(
     "resize",
     () =>
       requestAnimationFrame(() => {
-        initAllSystemValuesTables();
-        syncAllSystemValuesTableScrollPositions();
+        initAllTeamsTables();
+        syncAllTeamsTableScrollPositions();
       }),
     { passive: true }
   );
 
   const mutationObserver = new MutationObserver(() => {
     requestAnimationFrame(() => {
-      initAllSystemValuesTables();
-      syncAllSystemValuesTableScrollPositions();
+      initAllTeamsTables();
+      syncAllTeamsTableScrollPositions();
     });
   });
 

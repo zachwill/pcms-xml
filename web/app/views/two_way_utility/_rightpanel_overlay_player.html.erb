@@ -61,20 +61,14 @@
   agent_sidebar_path = nil
   agent_sidebar_open_expr = nil
   if player["agent_id"].present?
-    agent_sidebar_path = "/two-way-utility/sidebar/agent/#{player['agent_id']}?player_id=#{player_id}"
-    agent_sidebar_path = "#{agent_sidebar_path}&#{@state_query}" if @state_query.present?
+    agent_sidebar_path = two_way_utility_sidebar_agent_path(id: player["agent_id"])
     agent_sidebar_open_expr = "$overlaytype = 'agent'; $overlayid = '#{player['agent_id']}'; @get('#{agent_sidebar_path}')"
   end
 %>
 
-<div id="rightpanel-overlay" class="h-full bg-background border-l border-border/70">
+<div id="rightpanel-overlay" class="h-full bg-background">
   <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
-    <button
-      type="button"
-      class="cursor-pointer text-xs text-muted-foreground hover:text-foreground hover:underline"
-      data-two-way-overlay-clear
-      data-on:click="$overlaytype = 'none'; $overlayid = ''; @get('/two-way-utility/sidebar/clear')"
-    >Close</button>
+    <%= render partial: "two_way_utility/sidebar_back_button" %>
 
     <a class="text-xs text-muted-foreground hover:text-foreground hover:underline" href="<%= player_href(player_id) %>">
       Open player page

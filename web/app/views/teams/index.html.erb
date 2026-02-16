@@ -1,7 +1,7 @@
 <% content_for :title, "Teams" %>
 
 <%
-  signals_literal = "{ teamsquery: #{@query.to_json}, teamsconference: #{@conference_lens.to_json}, teamspressure: #{@pressure_lens.to_json}, teamssort: #{@sort_lens.to_json}, comparea: #{@compare_a_id.to_s.to_json}, compareb: #{@compare_b_id.to_s.to_json}, selectedteamid: #{@selected_team_id.to_s.to_json}, overlaytype: #{@selected_team_id.present? ? 'team'.to_json : 'none'.to_json} }"
+  signals_literal = "{ teamsquery: #{@query.to_json}, teamsconference: #{@conference_lens.to_json}, teamspressure: #{@pressure_lens.to_json}, teamssort: #{@sort_lens.to_json}, selectedteamid: #{@selected_team_id.to_s.to_json}, overlaytype: #{@selected_team_id.present? ? 'team'.to_json : 'none'.to_json} }"
 %>
 
 <div id="teams-workspace" class="h-screen w-screen flex flex-col overflow-hidden bg-background" data-signals="<%= signals_literal %>">
@@ -27,3 +27,9 @@
     </aside>
   </div>
 </div>
+
+<% content_for :head_scripts do %>
+  <script type="module">
+    import "teams_index";
+  </script>
+<% end %>

@@ -45,10 +45,9 @@ class EntitiesPlayersIndexTest < ActionDispatch::IntegrationTest
 
         rows = index_rows_for_horizon(horizon_year)
 
-        if sql.include?("sbw.team_code = 'BOS'")
-          rows = rows.select { |row| row[2] == "BOS" }
-        elsif sql.include?("sbw.team_code = 'POR'")
-          rows = rows.select { |row| row[2] == "POR" }
+        if (team_match = sql.match(/sbw\.team_code = '([A-Z]{3})'/))
+          team_code = team_match[1]
+          rows = rows.select { |row| row[2] == team_code }
         elsif sql.include?("NULLIF(TRIM(COALESCE(sbw.team_code, '')), '') IS NULL")
           rows = []
         end

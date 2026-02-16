@@ -173,7 +173,7 @@ module Players
       when "FA"
         where_clauses << "NULLIF(TRIM(COALESCE(sbw.team_code, '')), '') IS NULL"
       when /\A[A-Z]{3}\z/
-        where_clauses << "sbw.team_code = #{conn.quote(@team_lens)}"
+        where_clauses << "sbw.team_code = #{conn.quote(@team_lens)}" unless @team_lens == "ALL"
       end
 
       case @status_lens

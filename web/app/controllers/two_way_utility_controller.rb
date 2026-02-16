@@ -35,11 +35,7 @@ class TwoWayUtilityController < ApplicationController
 
   # GET /two-way-utility/sidebar/agent/:id
   def sidebar_agent
-    load_workspace_state!
-
     agent_id = positive_integer_param!(params[:id])
-    source_player_id = overlay_state.normalize_player_id(params[:player_id])
-    source_player = overlay_state.source_player(player_id: source_player_id) if source_player_id.present?
 
     agent = queries.fetch_agent(agent_id)
     raise ActiveRecord::RecordNotFound unless agent
@@ -51,12 +47,7 @@ class TwoWayUtilityController < ApplicationController
       agent:,
       clients:,
       rollup:,
-      sidebar_back_button_partial: "two_way_utility/sidebar_back_button",
-      sidebar_back_button_locals: {
-        source_player_id: source_player_id,
-        source_player_name: source_player&.dig("player_name"),
-        state_query: @state_query
-      }
+      sidebar_back_button_partial: "two_way_utility/sidebar_back_button"
     }, layout: false
   rescue ActiveRecord::StatementInvalid => e
     render html: <<~HTML.html_safe, layout: false

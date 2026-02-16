@@ -18,7 +18,6 @@
   sse_get_expr = "@get('/agents/sse/refresh?' + (#{pane_query_expr}) + '&' + (#{selected_overlay_query_expr}))"
   update_url_expr = "window.history.replaceState({}, '', '/agents?' + (#{pane_query_expr}))"
   refresh_expr = "#{sse_get_expr}; #{update_url_expr}"
-  clear_search_expr = "$agentquery = ''; #{refresh_expr}"
 
   sort_options = if @directory_kind.to_s == "agencies"
     [
@@ -47,22 +46,6 @@
 <%= render partial: "shared/commandbar", locals: {
   active_entity_scope: (@directory_kind.to_s == "agencies" ? "agencies" : "agents"),
   header_knobs: [
-    {
-      label: "Search",
-      min_width_class: "min-w-[13rem]",
-      options: [
-        {
-          type: "search",
-          id: "agents-directory-search",
-          placeholder: "agent or agency",
-          value: @query,
-          bind: "agentquery",
-          on_submit: "evt.preventDefault(); #{refresh_expr}",
-          on_clear: clear_search_expr,
-          input_width_class: "w-40"
-        }
-      ]
-    },
     {
       label: "Directory",
       options: [
