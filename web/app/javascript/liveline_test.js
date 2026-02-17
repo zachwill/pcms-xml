@@ -10,6 +10,8 @@ const WINDOW_OPTIONS = [
 
 const DEFAULT_COLOR = "#3b82f6";
 
+const resolveAppTheme = () => (document.documentElement.classList.contains("dark") ? "dark" : "light");
+
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 const formatClock = (unixSeconds) => {
@@ -72,6 +74,11 @@ const init = () => {
   const themeSelect = controls.querySelector("[name='theme']");
   const colorInput = controls.querySelector("[name='color']");
   const momentumSelect = controls.querySelector("[name='momentum']");
+
+  const initialTheme = resolveAppTheme();
+  if (themeSelect) {
+    themeSelect.value = initialTheme;
+  }
   const badgeVariantSelect = controls.querySelector("[name='badgeVariant']");
   const windowStyleSelect = controls.querySelector("[name='windowStyle']");
   const lerpInput = controls.querySelector("[name='lerpSpeed']");
@@ -145,7 +152,7 @@ const init = () => {
   const chart = mountLiveline(chartHost, {
     data: points,
     value: currentValue,
-    theme: "dark",
+    theme: initialTheme,
     color: DEFAULT_COLOR,
     window: currentWindowSecs,
     windows: WINDOW_OPTIONS,
@@ -214,6 +221,21 @@ const init = () => {
 
   const onControlChange = () => applyControls();
 
+  let themeObserver = null;
+  if (typeof MutationObserver !== "undefined") {
+    themeObserver = new MutationObserver(() => {
+      const appTheme = resolveAppTheme();
+      if (!themeSelect || themeSelect.value === appTheme) return;
+      themeSelect.value = appTheme;
+      applyControls();
+    });
+
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"]
+    });
+  }
+
   controls.addEventListener("input", onControlChange);
   controls.addEventListener("change", onControlChange);
 
@@ -261,6 +283,11 @@ const init = () => {
     if (timerId) {
       window.clearInterval(timerId);
       timerId = null;
+    }
+
+    if (themeObserver) {
+      themeObserver.disconnect();
+      themeObserver = null;
     }
 
     unmountLiveline(chartHost);
