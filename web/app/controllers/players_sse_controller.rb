@@ -21,7 +21,7 @@ class PlayersSseController < PlayersController
   # - #rightpanel-base
   # - #rightpanel-overlay (preserved when selected row remains visible)
   def refresh
-    load_index_workspace_state!(apply_compare_action: true)
+    load_index_workspace_state!
 
     requested_overlay_id = requested_overlay_id_param
     overlay_html, resolved_overlay_type, resolved_selected_player_id = refreshed_overlay_payload(requested_overlay_id: requested_overlay_id)
@@ -48,8 +48,6 @@ class PlayersSseController < PlayersController
         playerurgencysub: @urgency_sub_lens.to_s,
         playerhorizon: @cap_horizon.to_s,
         playersort: @sort_lens.to_s,
-        comparea: @compare_a_id.to_s,
-        compareb: @compare_b_id.to_s,
         overlaytype: resolved_overlay_type,
         selectedplayerid: resolved_selected_player_id
       )

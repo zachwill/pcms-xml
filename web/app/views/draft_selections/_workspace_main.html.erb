@@ -74,9 +74,9 @@
         <div id="draft-selections-flex-header" class="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm border-b border-border">
           <div class="flex items-center h-8 px-3 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
             <div class="w-24 shrink-0 text-center">Pick</div>
-            <div class="w-60 shrink-0">Player</div>
-            <div class="w-44 shrink-0">Drafting team</div>
-            <div class="w-56 shrink-0">Transaction</div>
+            <div class="w-64 shrink-0">Player</div>
+            <div class="w-48 shrink-0">Drafting team</div>
+            <div class="w-48 shrink-0">Transaction</div>
             <div class="w-32 shrink-0 text-right">Provenance</div>
           </div>
         </div>
@@ -105,35 +105,72 @@
                   <div class="text-[10px] text-muted-foreground">R<%= row["draft_round"] %> · <%= row["draft_year"] %></div>
                 </div>
 
-                <div class="w-60 shrink-0 pr-2">
-                  <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary justify-start">
+                <div class="w-64 shrink-0 pr-2">
+                  <div class="grid grid-cols-[30px_1fr] grid-rows-[24px_16px] min-w-0">
+                    <div class="row-span-2 flex items-center justify-start">
+                      <div class="w-7 h-7 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                        <% if row["player_id"].present? %>
+                          <img
+                            src="<%= player_headshot_url(row['player_id']) %>"
+                            alt="<%= row['player_name'] %>"
+                            class="w-full h-full object-cover object-top bg-muted"
+                            loading="lazy"
+                            decoding="async"
+                            onerror="if (this.src !== '<%= fallback_headshot_data_uri %>') { this.src = '<%= fallback_headshot_data_uri %>'; }"
+                          />
+                        <% else %>
+                          <span class="text-[9px] font-semibold text-muted-foreground">—</span>
+                        <% end %>
+                      </div>
+                    </div>
+
+                    <div class="h-[24px] flex items-end min-w-0 pl-2">
                       <% if row["player_id"].present? %>
                         <a href="<%= player_href(row['player_id']) %>" class="font-medium truncate hover:underline" onclick="event.stopPropagation()"><%= row["player_name"] %></a>
                       <% else %>
-                        <span class="text-muted-foreground">—</span>
+                        <span class="text-muted-foreground truncate"><%= row["player_name"].presence || "Unknown player" %></span>
                       <% end %>
                     </div>
-                    <div class="entity-cell-secondary justify-start">
-                      id: <code class="font-mono tabular-nums"><%= row["player_id"].presence || "—" %></code>
+
+                    <div class="h-[16px] -mt-px flex items-start min-w-0 pl-2 leading-none text-[10px] text-muted-foreground/80 truncate">
+                      <span><%= row["transaction_date"].present? ? format_plain_date(row["transaction_date"]) : "No transaction date" %></span>
                     </div>
                   </div>
                 </div>
 
-                <div class="w-44 shrink-0 pr-2">
-                  <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary justify-start">
+                <div class="w-48 shrink-0 pr-2">
+                  <div class="grid grid-cols-[28px_1fr] grid-rows-[24px_16px] min-w-0">
+                    <div class="row-span-2 flex items-center justify-start">
+                      <div class="w-6 h-6 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                        <% if row["drafting_team_id"].present? %>
+                          <img
+                            src="<%= team_logo_url(row['drafting_team_id']) %>"
+                            alt="<%= row['drafting_team_code'] %>"
+                            class="w-full h-full object-contain"
+                            loading="lazy"
+                            decoding="async"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                          />
+                          <span class="hidden text-[9px] font-mono text-muted-foreground"><%= row["drafting_team_code"].presence || "—" %></span>
+                        <% else %>
+                          <span class="text-[9px] font-mono text-muted-foreground"><%= row["drafting_team_code"].presence || "—" %></span>
+                        <% end %>
+                      </div>
+                    </div>
+
+                    <div class="h-[24px] flex items-end min-w-0 pl-1.5">
                       <% if row["drafting_team_code"].present? %>
                         <a href="<%= team_href(team_code: row['drafting_team_code'], team_id: row['drafting_team_id']) %>" class="font-medium hover:underline" onclick="event.stopPropagation()"><%= row["drafting_team_code"] %></a>
                       <% else %>
                         <span class="text-muted-foreground">—</span>
                       <% end %>
                     </div>
-                    <div class="entity-cell-secondary justify-start truncate"><%= row["drafting_team_name"].presence || "—" %></div>
+
+                    <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1.5 leading-none text-[10px] text-muted-foreground/80 truncate"><%= row["drafting_team_name"].presence || "—" %></div>
                   </div>
                 </div>
 
-                <div class="w-56 shrink-0 pr-2 text-muted-foreground">
+                <div class="w-48 shrink-0 pr-2 text-muted-foreground">
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start">
                       <a href="<%= transaction_href(row['transaction_id']) %>" class="font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">#<%= row["transaction_id"] %></a>

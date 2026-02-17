@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@mariozechner/pi-coding-agent": "^0.52.10",
-    "@zenbase/llml": "^0.4.0"
+    "@zenbase/llml": "^0.4.0",
+    "liveline": "0.0.3"
   },
   "scripts": {
     "ralph": "bun agents/ralph.ts",

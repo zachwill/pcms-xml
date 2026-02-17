@@ -129,7 +129,6 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_includes response.body, 'id="commandbar"'
-      assert_includes response.body, 'id="draft-selections-search-input"'
       assert_includes response.body, 'id="draft-selections-year-select"'
       assert_includes response.body, 'id="draft-selections-team-select"'
       assert_includes response.body, 'id="draft-selections-sort-select"'

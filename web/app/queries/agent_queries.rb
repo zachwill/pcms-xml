@@ -31,6 +31,34 @@ class AgentQueries
     SQL
   end
 
+  def fetch_agency_name(agency_id)
+    agency_sql = conn.quote(agency_id)
+
+    conn.exec_query(<<~SQL).first&.dig("agency_name")
+      SELECT agency_name
+      FROM pcms.agencies
+      WHERE agency_id = #{agency_sql}
+      LIMIT 1
+    SQL
+  end
+
+  def fetch_agency_filter_options(limit: 400)
+    limit_sql = limit.to_i.positive? ? limit.to_i : 400
+
+    conn.exec_query(<<~SQL).to_a
+      SELECT
+        aw.agency_id,
+        aw.agency_name,
+        COALESCE(aw.agent_count, 0)::integer AS agent_count,
+        COALESCE(aw.client_count, 0)::integer AS client_count
+      FROM pcms.agencies_warehouse aw
+      WHERE aw.agency_id IS NOT NULL
+        AND NULLIF(TRIM(aw.agency_name), '') IS NOT NULL
+      ORDER BY aw.client_count DESC NULLS LAST, aw.agency_name ASC
+      LIMIT #{limit_sql}
+    SQL
+  end
+
   def fetch_show_clients(agent_id)
     id_sql = conn.quote(agent_id)
 

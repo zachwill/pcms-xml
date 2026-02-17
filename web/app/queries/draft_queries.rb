@@ -110,6 +110,8 @@ class DraftQueries
         ranked_picks.draft_round,
         ranked_picks.original_team_code,
         ranked_picks.current_team_code,
+        ot.team_id AS original_team_id,
+        ct.team_id AS current_team_id,
         ot.team_name AS original_team_name,
         ct.team_name AS current_team_name,
         ranked_picks.is_swap,

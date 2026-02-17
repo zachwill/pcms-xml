@@ -27,6 +27,8 @@ SCRIPTS = {
     "games": "games.inline_script.py",
     "game_data": "game_data.inline_script.py",
     "aggregates": "aggregates.inline_script.py",
+    "lineups": "lineups.inline_script.py",
+    "shot_chart": "shot_chart.inline_script.py",
     "supplemental": "supplemental.inline_script.py",
     "ngss": "ngss.inline_script.py",
 }

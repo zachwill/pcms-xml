@@ -189,12 +189,12 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
             [ 700003, "2025-02-07", "WAIVE", 1629002, "Beta Wing" ]
           ]
         )
-      elsif sql.include?("WITH filtered_transactions AS") && sql.include?("FROM pcms.transactions t")
+      elsif sql.include?("WITH candidate_transactions AS") && sql.include?("FROM pcms.transactions t")
         sql_downcase = sql.downcase
 
         rows = [
-          [ 700001, "2025-02-07", "SIGN", "Signed to rest-of-season deal", 88001, 1629001, "Alpha Guard", 1610612737, "ATL", "Atlanta Hawks", 1610612738, "BOS", "Boston Celtics", "MIN", "STD" ],
-          [ 700002, "2025-02-06", "WAIVE", "Waived", nil, 1629002, "Beta Wing", 1610612757, "POR", "Portland Trail Blazers", nil, nil, nil, nil, nil ]
+          [ 700001, "2025-02-07", "SIGN", "Signed to rest-of-season deal", nil, 1629001, "Alpha Guard", 1610612737, "ATL", "Atlanta Hawks", 1610612738, "BOS", "Boston Celtics", "MIN", "STD", 3, 2500000, -1800000, 1000000, 1, 0, 2 ],
+          [ 700002, "2025-02-06", "WAIVE", "Waived", nil, 1629002, "Beta Wing", 1610612757, "POR", "Portland Trail Blazers", nil, nil, nil, nil, nil, 1, -500000, 0, 0, 0, 0, 0 ]
         ]
 
         rows = if sql.include?("(t.from_team_code = 'LAL' OR t.to_team_code = 'LAL')")
@@ -221,7 +221,9 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
           [
             "transaction_id", "transaction_date", "transaction_type_lk", "transaction_description_lk", "trade_id",
             "player_id", "player_name", "from_team_id", "from_team_code", "from_team_name",
-            "to_team_id", "to_team_code", "to_team_name", "signed_method_lk", "contract_type_lk"
+            "to_team_id", "to_team_code", "to_team_name", "signed_method_lk", "contract_type_lk",
+            "ledger_row_count", "cap_change_total", "tax_change_total", "apron_change_total",
+            "exception_usage_count", "dead_money_count", "budget_snapshot_count"
           ],
           rows
         )
@@ -569,7 +571,7 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_includes response.body, 'id="transactions-results"'
       assert_includes response.body, 'id="transactions-flex-header"'
-      assert_includes response.body, 'id="transactions-date-group-2025-02-07"'
+      assert_includes response.body, 'id="transactions-severity-lane-high"'
       assert_not_includes response.body, "<table"
       assert_not_includes response.body, "DoubleRenderError"
     end
@@ -588,10 +590,10 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       }, headers: modern_headers
 
       assert_response :success
-      assert_includes response.body, 'id="transactions-search-input"'
       assert_includes response.body, 'id="transactions-team-select"'
+      assert_includes response.body, 'id="transactions-impact-select"'
       assert_includes response.body, 'id="transactions-flex-header"'
-      assert_includes response.body, "Quick feed by day"
+      assert_includes response.body, "Severity quick feed"
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
     end
@@ -614,9 +616,9 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "event: datastar-patch-elements"
       assert_includes response.body, 'id="transactions-results"'
       assert_includes response.body, 'id="transactions-flex-header"'
-      assert_includes response.body, 'id="transactions-date-group-2025-02-07"'
+      assert_includes response.body, 'id="transactions-severity-lane-high"'
       assert_includes response.body, 'id="rightpanel-base"'
-      assert_includes response.body, "Quick feed by day"
+      assert_includes response.body, "Severity quick feed"
       assert_includes response.body, 'id="rightpanel-overlay"'
       assert_includes response.body, "event: datastar-patch-signals"
       assert_includes response.body, '"txnquery":"alpha"'

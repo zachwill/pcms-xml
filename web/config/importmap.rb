@@ -17,3 +17,7 @@ pin "shared/commandbar_navigation", to: "shared/commandbar_navigation.js"
 
 # Shared combobox keyboard shortcuts / glue
 pin "shared/combobox", to: "shared/combobox.js"
+
+# Shared Liveline canvas engine + playground page
+pin "shared/liveline_datastar", to: "shared/liveline_datastar.js"
+pin "liveline_test", to: "liveline_test.js"

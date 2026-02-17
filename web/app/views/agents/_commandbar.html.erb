@@ -7,6 +7,7 @@
     '&with_book=' + ($withbook ? '1' : '0') +
     '&with_restrictions=' + ($withrestrictions ? '1' : '0') +
     '&with_expiring=' + ($withexpiring ? '1' : '0') +
+    '&agency_id=' + encodeURIComponent($agencyfilterid) +
     '&year=' + $bookyear +
     '&sort=' + $sortkey +
     '&dir=' + $sortdir +
@@ -41,6 +42,15 @@
       ["name", "Name"]
     ]
   end
+
+  agency_filter_choices = [["", "All agencies"]] + Array(@agency_filter_options).map do |row|
+    next if row["agency_id"].blank? || row["agency_name"].blank?
+
+    [
+      row["agency_id"].to_s,
+      "#{row['agency_name']} · #{row['client_count'].to_i} clients"
+    ]
+  end.compact
 %>
 
 <%= render partial: "shared/commandbar", locals: {
@@ -142,6 +152,21 @@
       ]
     },
     {
+      label: "Agency",
+      min_width_class: "min-w-[16rem]",
+      options: [
+        {
+          type: "select",
+          id: "agent-filter-agency-select",
+          value: @agency_filter_id.to_s,
+          bind: "agencyfilterid",
+          on_change: refresh_expr,
+          width_class: "w-64",
+          choices: agency_filter_choices
+        }
+      ]
+    },
+    {
       label: "Filters",
       options: [
         {
@@ -178,18 +203,23 @@
         },
         {
           type: "checkbox",
-          id: "agent-filter-with-restrictions",
-          label: "Restricted",
-          checked: @with_restrictions,
-          bind: "withrestrictions",
-          on_change: refresh_expr
-        },
-        {
-          type: "checkbox",
           id: "agent-filter-with-expiring",
           label: "Expiring",
           checked: @with_expiring,
           bind: "withexpiring",
+          on_change: refresh_expr
+        }
+      ]
+    },
+    {
+      label: "Flags",
+      options: [
+        {
+          type: "checkbox",
+          id: "agent-filter-with-restrictions",
+          label: "Restricted",
+          checked: @with_restrictions,
+          bind: "withrestrictions",
           on_change: refresh_expr
         }
       ]

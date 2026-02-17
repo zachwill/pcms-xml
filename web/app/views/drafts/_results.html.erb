@@ -233,24 +233,58 @@
                 </div>
 
                 <div class="w-40 shrink-0 pr-2">
-                  <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary justify-start">
+                  <div class="grid grid-cols-[28px_1fr] grid-rows-[24px_16px] min-w-0">
+                    <div class="row-span-2 flex items-center justify-start">
+                      <div class="w-6 h-6 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                        <% if pick["original_team_id"].present? %>
+                          <img
+                            src="<%= team_logo_url(pick['original_team_id']) %>"
+                            alt="<%= pick['original_team_code'] %>"
+                            class="w-full h-full object-contain"
+                            loading="lazy"
+                            decoding="async"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                          />
+                          <span class="hidden text-[9px] font-mono text-muted-foreground"><%= pick["original_team_code"] %></span>
+                        <% else %>
+                          <span class="text-[9px] font-mono text-muted-foreground"><%= pick["original_team_code"].presence || "—" %></span>
+                        <% end %>
+                      </div>
+                    </div>
+                    <div class="h-[24px] flex items-end min-w-0 pl-1.5">
                       <a href="<%= team_href(team_code: pick['original_team_code']) %>" class="font-medium hover:underline" onclick="event.stopPropagation()"><%= pick["original_team_code"] %></a>
                     </div>
-                    <div class="entity-cell-secondary justify-start truncate"><%= pick["original_team_name"].presence || "—" %></div>
+                    <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1.5 leading-none text-[10px] text-muted-foreground/80 truncate"><%= pick["original_team_name"].presence || "—" %></div>
                   </div>
                 </div>
 
                 <div class="w-44 shrink-0 pr-2">
-                  <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary justify-start">
+                  <div class="grid grid-cols-[28px_1fr] grid-rows-[24px_16px] min-w-0">
+                    <div class="row-span-2 flex items-center justify-start">
+                      <div class="w-6 h-6 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                        <% if pick["current_team_id"].present? %>
+                          <img
+                            src="<%= team_logo_url(pick['current_team_id']) %>"
+                            alt="<%= pick['current_team_code'] %>"
+                            class="w-full h-full object-contain"
+                            loading="lazy"
+                            decoding="async"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                          />
+                          <span class="hidden text-[9px] font-mono text-muted-foreground"><%= pick["current_team_code"] %></span>
+                        <% else %>
+                          <span class="text-[9px] font-mono text-muted-foreground"><%= pick["current_team_code"].presence || "—" %></span>
+                        <% end %>
+                      </div>
+                    </div>
+                    <div class="h-[24px] flex items-end min-w-0 pl-1.5">
                       <% if pick["current_team_code"].present? %>
                         <a href="<%= team_href(team_code: pick['current_team_code']) %>" class="font-medium hover:underline <%= pick['current_team_code'] != pick['original_team_code'] ? 'text-amber-600 dark:text-amber-400' : '' %>" onclick="event.stopPropagation()"><%= pick["current_team_code"] %></a>
                       <% else %>
                         <span class="text-muted-foreground">—</span>
                       <% end %>
                     </div>
-                    <div class="entity-cell-secondary justify-start truncate"><%= pick["current_team_name"].presence || "—" %></div>
+                    <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1.5 leading-none text-[10px] text-muted-foreground/80 truncate"><%= pick["current_team_name"].presence || "—" %></div>
                   </div>
                 </div>
 
@@ -294,9 +328,9 @@
         <div id="draft-selections-flex-header" class="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm border-b border-border">
           <div class="flex items-center h-8 px-3 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
             <div class="w-24 shrink-0 text-center">Pick</div>
-            <div class="w-60 shrink-0">Player</div>
-            <div class="w-44 shrink-0">Drafting team</div>
-            <div class="w-52 shrink-0">Transaction</div>
+            <div class="w-64 shrink-0">Player</div>
+            <div class="w-48 shrink-0">Drafting team</div>
+            <div class="w-48 shrink-0">Transaction</div>
             <div class="w-32 shrink-0 text-right">Risk</div>
           </div>
         </div>
@@ -326,29 +360,62 @@
                   <div class="text-[10px] text-muted-foreground">R<%= sel["draft_round"] %> · <%= sel["draft_year"] %></div>
                 </div>
 
-                <div class="w-60 shrink-0 pr-2">
-                  <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary justify-start">
+                <div class="w-64 shrink-0 pr-2">
+                  <div class="grid grid-cols-[30px_1fr] grid-rows-[24px_16px] min-w-0">
+                    <div class="row-span-2 flex items-center justify-start">
+                      <div class="w-7 h-7 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                        <% if sel["player_id"].present? %>
+                          <img
+                            src="<%= player_headshot_url(sel['player_id']) %>"
+                            alt="<%= sel['player_name'] %>"
+                            class="w-full h-full object-cover object-top bg-muted"
+                            loading="lazy"
+                            decoding="async"
+                            onerror="if (this.src !== '<%= fallback_headshot_data_uri %>') { this.src = '<%= fallback_headshot_data_uri %>'; }"
+                          />
+                        <% else %>
+                          <span class="text-[9px] font-semibold text-muted-foreground">—</span>
+                        <% end %>
+                      </div>
+                    </div>
+                    <div class="h-[24px] flex items-end min-w-0 pl-2">
                       <% if sel["player_id"].present? %>
                         <a href="<%= player_href(sel['player_id']) %>" class="font-medium truncate hover:underline" onclick="event.stopPropagation()"><%= sel["player_name"] %></a>
                       <% else %>
-                        <span class="text-muted-foreground">—</span>
+                        <span class="text-muted-foreground truncate"><%= sel["player_name"].presence || "Unknown player" %></span>
                       <% end %>
                     </div>
-                    <div class="entity-cell-secondary justify-start">id: <code class="font-mono tabular-nums"><%= sel["player_id"].presence || "—" %></code></div>
+                    <div class="h-[16px] -mt-px flex items-start min-w-0 pl-2 leading-none text-[10px] text-muted-foreground/80 truncate"><%= tx_date %></div>
                   </div>
                 </div>
 
-                <div class="w-44 shrink-0 pr-2">
-                  <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary justify-start">
+                <div class="w-48 shrink-0 pr-2">
+                  <div class="grid grid-cols-[28px_1fr] grid-rows-[24px_16px] min-w-0">
+                    <div class="row-span-2 flex items-center justify-start">
+                      <div class="w-6 h-6 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                        <% if sel["drafting_team_id"].present? %>
+                          <img
+                            src="<%= team_logo_url(sel['drafting_team_id']) %>"
+                            alt="<%= sel['drafting_team_code'] %>"
+                            class="w-full h-full object-contain"
+                            loading="lazy"
+                            decoding="async"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                          />
+                          <span class="hidden text-[9px] font-mono text-muted-foreground"><%= sel["drafting_team_code"].presence || "—" %></span>
+                        <% else %>
+                          <span class="text-[9px] font-mono text-muted-foreground"><%= sel["drafting_team_code"].presence || "—" %></span>
+                        <% end %>
+                      </div>
+                    </div>
+                    <div class="h-[24px] flex items-end min-w-0 pl-1.5">
                       <a href="<%= team_href(team_code: sel['drafting_team_code']) %>" class="font-medium hover:underline" onclick="event.stopPropagation()"><%= sel["drafting_team_code"] %></a>
                     </div>
-                    <div class="entity-cell-secondary justify-start truncate"><%= sel["drafting_team_name"].presence || "—" %></div>
+                    <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1.5 leading-none text-[10px] text-muted-foreground/80 truncate"><%= sel["drafting_team_name"].presence || "—" %></div>
                   </div>
                 </div>
 
-                <div class="w-52 shrink-0 pr-2 text-muted-foreground">
+                <div class="w-48 shrink-0 pr-2 text-muted-foreground">
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start">
                       <a href="<%= transaction_href(sel['transaction_id']) %>" class="font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">#<%= sel["transaction_id"] %></a>

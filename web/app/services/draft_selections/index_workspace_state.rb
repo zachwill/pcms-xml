@@ -221,12 +221,12 @@ module DraftSelections
 
     def draft_selections_sort_label(sort)
       case sort.to_s
+      when "provenance"
+        "Deepest provenance chain"
       when "trade"
         "With trade first"
-      when "board"
-        "Board order"
       else
-        "Deepest provenance chain"
+        "Board order"
       end
     end
 
@@ -302,7 +302,7 @@ module DraftSelections
 
     def normalize_sort_param(raw)
       sort = raw.to_s.strip
-      sort = "provenance" if sort.blank?
+      sort = "board" if sort.blank?
       return sort if index_sorts.include?(sort)
 
       nil

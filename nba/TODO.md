@@ -128,26 +128,34 @@ These are “safe defaults” from live testing (not theoretical maxima):
   - Initial batch size is **100**.
   - Added adaptive split/retry for truncation (`rowsReturned>=9900`) and 414.
 
-- [x] **Batch game lineups in `import_nba_data.flow/aggregates.inline_script.py`**
+- [x] **Batch game lineups (now in `import_nba_data.flow/lineups.inline_script.py`)**
   - Changed `/game/lineups` from per-game loops to batched `GameId` calls.
   - Increased `MaxRowsReturned` to **10000** for batched pulls.
-  - Initial batch sizes:
-    - Base: **150**
-    - Advanced: **120**
-  - Added adaptive split/retry for truncation and 414.
+  - Current initial batch sizes:
+    - Base: **250**
+    - Advanced: **250**
+  - Added adaptive split/retry for truncation and 414/429/5xx.
 
-- [x] **Reduce season lineup truncation risk in `aggregates`**
+- [x] **Reduce season lineup truncation risk**
   - `LINEUP_MAX_ROWS` increased to 10000.
   - Added explicit truncation warnings using `meta.rowsReturned` and row count checks.
   - Removed league-wide fallback for `/season/lineups`; now team-scoped IDs are required.
   - Added TeamId batching (`LINEUP_SEASON_TEAM_BATCH_SIZE=10`) so season pulls run in ~3 calls per combo instead of 30.
 
-- [ ] **Stop `aggregates` refresh from doing full-season work by default**
-  - Today `aggregates.inline_script.py` will run `/season/lineups` whenever `season_label` is set (and the flow always sets it), which makes refresh runs slow.
-  - Pick one approach:
-    - (A) Only run season lineups in `season_backfill` mode; OR
-    - (B) Move season lineups to a separate flow; OR
-    - (C) Add an explicit flow input flag (e.g. `include_season_lineups`).
+- [x] **Stop refresh runs from doing full-season season-lineup pulls by default**
+  - Lineups moved out of `aggregates` into `import_nba_data.flow/lineups.inline_script.py`.
+  - `lineups` now defaults to:
+    - `season_backfill`: season + game lineups
+    - `refresh` / `date_backfill`: game lineups only
+  - Override available via env var: `NBA_LINEUPS_INCLUDE_SEASON_IN_REFRESH=1`.
+
+- [x] **Instrument + tune shot chart batching in `import_nba_data.flow/shot_chart.inline_script.py`**
+  - Added structured `telemetry` payload: game selection timing, batch/call counters, per-batch FG/Tracking timings + row counts, parse/merge timing, upsert timing.
+  - Added adaptive split/retry for 414/429/5xx + truncation signals (`rowsReturned >= 9900`).
+  - Benchmarked 2025-26 regular-season dry-run:
+    - Batch 40: ~89s
+    - Batch 50: ~65–67s (best)
+    - Batch 60: ~185s (frequent split-on-truncation)
 
 ### Phase 2 — optional / careful migrations
 

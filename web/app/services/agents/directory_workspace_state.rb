@@ -16,6 +16,7 @@ module Agents
 
     def build
       setup_directory_filters!
+      load_filter_options!
       load_directory_rows!
       build_sidebar_summary!
 
@@ -31,6 +32,8 @@ module Agents
         book_year: @book_year,
         sort_key: @sort_key,
         sort_dir: @sort_dir,
+        agency_filter_id: @agency_filter_id,
+        agency_filter_options: @agency_filter_options,
         agency_scope_active: @agency_scope_active,
         agency_scope_id: @agency_scope_id,
         agents: @agents,
@@ -67,6 +70,8 @@ module Agents
       @sort_key = params[:sort].to_s
       @sort_key = "book" unless allowed_sort_keys.include?(@sort_key)
 
+      @agency_filter_id = parse_positive_integer(params[:agency_id])
+
       @agency_scope_active = cast_bool(params[:agency_scope])
       @agency_scope_id = parse_positive_integer(params[:agency_scope_id])
 
@@ -77,6 +82,10 @@ module Agents
         @agency_scope_active = false
         @agency_scope_id = nil
       end
+    end
+
+    def load_filter_options!
+      @agency_filter_options = queries.fetch_agency_filter_options(limit: 400)
     end
 
     def load_directory_rows!
@@ -93,6 +102,7 @@ module Agents
         where_clauses << "COALESCE(#{book_total_sql}, 0) > 0" if @with_book
         where_clauses << "COALESCE(#{expiring_sql}, 0) > 0" if @with_expiring
         where_clauses << "(COALESCE(w.no_trade_count, 0) > 0 OR COALESCE(w.trade_kicker_count, 0) > 0 OR COALESCE(w.trade_restricted_count, 0) > 0)" if @with_restrictions
+        where_clauses << "w.agency_id = #{conn.quote(@agency_filter_id)}" if @agency_filter_id.present?
 
         if @query.present?
           query_sql = conn.quote("%#{@query}%")
@@ -128,6 +138,7 @@ module Agents
         where_clauses << "COALESCE(#{book_total_sql}, 0) > 0" if @with_book
         where_clauses << "COALESCE(#{expiring_sql}, 0) > 0" if @with_expiring
         where_clauses << "(COALESCE(w.no_trade_count, 0) > 0 OR COALESCE(w.trade_kicker_count, 0) > 0 OR COALESCE(w.trade_restricted_count, 0) > 0)" if @with_restrictions
+        where_clauses << "w.agency_id = #{conn.quote(@agency_filter_id)}" if @agency_filter_id.present?
         where_clauses << "w.agency_id = #{conn.quote(@agency_scope_id)}" if @agency_scope_active && @agency_scope_id.present?
 
         if @query.present?
@@ -167,6 +178,8 @@ module Agents
         query: @query,
         sort_key: @sort_key,
         sort_dir: @sort_dir,
+        agency_filter_id: @agency_filter_id,
+        agency_filter_name: active_agency_filter_name,
         row_count: rows.size,
         active_count: rows.count { |row| row["is_active"] != false },
         client_total: rows.sum { |row| row["client_count"].to_i },
@@ -219,8 +232,20 @@ module Agents
       labels << "With book" if @with_book
       labels << "With restrictions" if @with_restrictions
       labels << "With expirings" if @with_expiring
+      if @agency_filter_id.present?
+        labels << "Agency: #{active_agency_filter_name || "##{@agency_filter_id}"}"
+      end
       labels << "Scoped to agency ##{@agency_scope_id}" if @agency_scope_active && @agency_scope_id.present?
       labels
+    end
+
+    def active_agency_filter_name
+      return nil unless @agency_filter_id.present?
+
+      @active_agency_filter_name ||= begin
+        option_row = Array(@agency_filter_options).find { |row| row["agency_id"].to_i == @agency_filter_id }
+        option_row&.dig("agency_name") || queries.fetch_agency_name(@agency_filter_id)
+      end
     end
 
     def active_agency_scope_name(rows)

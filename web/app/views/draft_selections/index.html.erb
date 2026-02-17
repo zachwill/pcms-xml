@@ -70,9 +70,9 @@
           data-bind="draftselectionsort"
           data-on:change="<%= refresh_expr %>"
         >
-          <option value="provenance" <%= "selected" if @sort == "provenance" %>>Deepest provenance chain</option>
-          <option value="trade" <%= "selected" if @sort == "trade" %>>With trade first</option>
           <option value="board" <%= "selected" if @sort == "board" %>>Board order (round/pick)</option>
+          <option value="trade" <%= "selected" if @sort == "trade" %>>With trade first</option>
+          <option value="provenance" <%= "selected" if @sort == "provenance" %>>Deepest provenance chain</option>
         </select>
       </div>
 

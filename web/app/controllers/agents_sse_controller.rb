@@ -44,6 +44,7 @@ class AgentsSseController < AgentsController
         withbook: @with_book,
         withrestrictions: @with_restrictions,
         withexpiring: @with_expiring,
+        agencyfilterid: @agency_filter_id.to_s,
         agencyscopeactive: @agency_scope_active,
         agencyscopeid: @agency_scope_id.to_s,
         bookyear: @book_year.to_s,

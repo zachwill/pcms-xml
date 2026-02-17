@@ -244,8 +244,8 @@ class EntitiesAgentsIndexTest < ActionDispatch::IntegrationTest
       get "/agents", headers: modern_headers
 
       assert_response :success
-      assert_includes response.body, 'id="agents-directory-search"'
       assert_includes response.body, 'id="agent-directory-kind-agents"'
+      assert_includes response.body, 'id="agent-filter-agency-select"'
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, 'id="agent-sort-key-select"'
       assert_includes response.body, "$overlaytype === 'agent'"
