@@ -4,7 +4,9 @@
   refresh_query_expr = "'timeframe=' + encodeURIComponent($noahtimeframe) +
     '&shot_lens=' + encodeURIComponent($noahshotlens) +
     '&grade_lens=' + encodeURIComponent($noahgradelens) +
-    '&sort=' + encodeURIComponent($noahsort)"
+    '&percentile_lens=' + encodeURIComponent($noahpercentilelens) +
+    '&sort=' + encodeURIComponent($noahsort) +
+    '&selected_player=' + encodeURIComponent($noahselectedplayer || '')"
 
   refresh_expr = "@get('/ripcity/noah/refresh?' + (#{refresh_query_expr})); window.history.replaceState({}, '', '/ripcity/noah?' + (#{refresh_query_expr}))"
 
@@ -37,6 +39,8 @@
     noahtimeframe: <%= @timeframe_lens.to_json %>,
     noahshotlens: <%= @shot_lens.to_json %>,
     noahgradelens: <%= @grade_lens.to_json %>,
+    noahpercentilelens: <%= @percentile_lens.to_json %>,
+    noahselectedplayer: <%= @selected_player_id.to_json %>,
     noahsort: <%= @sort_lens.to_json %>
   }"
 >
@@ -110,28 +114,47 @@
 
       <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
 
-      <div id="noah-grade-lens" class="w-fit min-w-[9.25rem] shrink-0 space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Grade Lens</div>
+      <div id="noah-grade-lens" class="w-fit min-w-[10.75rem] shrink-0 space-y-2.5">
         <div class="space-y-1">
-          <% @grade_lens_options.each do |option| %>
-            <% value = option[:key].to_s %>
-            <label class="flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="radio"
-                id="noah-grade-lens-<%= value.tr('_', '-') %>"
-                name="noah-grade-lens"
-                value="<%= value %>"
-                class="size-3.5 accent-primary"
-                <%= "checked" if @grade_lens == value %>
-                data-bind="noahgradelens"
-                data-on:change="if (el.checked) { <%= refresh_expr %>; }"
-              />
-              <span
-                class="text-[11px] leading-none select-none whitespace-nowrap"
-                data-class="{ 'text-foreground font-semibold': $noahgradelens === '<%= value %>', 'text-muted-foreground': $noahgradelens !== '<%= value %>' }"
-              ><%= option[:label] %></span>
-            </label>
-          <% end %>
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Grade Lens</div>
+          <div class="space-y-1">
+            <% @grade_lens_options.each do |option| %>
+              <% value = option[:key].to_s %>
+              <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="radio"
+                  id="noah-grade-lens-<%= value.tr('_', '-') %>"
+                  name="noah-grade-lens"
+                  value="<%= value %>"
+                  class="size-3.5 accent-primary"
+                  <%= "checked" if @grade_lens == value %>
+                  data-bind="noahgradelens"
+                  data-on:change="if (el.checked) { <%= refresh_expr %>; }"
+                />
+                <span
+                  class="text-[11px] leading-none select-none whitespace-nowrap"
+                  data-class="{ 'text-foreground font-semibold': $noahgradelens === '<%= value %>', 'text-muted-foreground': $noahgradelens !== '<%= value %>' }"
+                ><%= option[:label] %></span>
+              </label>
+            <% end %>
+          </div>
+        </div>
+
+        <div class="space-y-1 pt-1.5 border-t border-border/70">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">PERCENTILE TYPE</div>
+          <label class="flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              id="noah-percentile-lens-toggle"
+              class="size-3.5 accent-primary"
+              <%= "checked" if @percentile_lens == "noah-ideals" %>
+              data-on:change="$noahpercentilelens = el.checked ? 'noah-ideals' : 'consistency'; <%= refresh_expr %>"
+            />
+            <span
+              class="text-[11px] leading-none select-none whitespace-nowrap"
+              data-class="{ 'text-foreground font-semibold': $noahpercentilelens === 'noah-ideals', 'text-muted-foreground': $noahpercentilelens !== 'noah-ideals' }"
+            >Noah Ideals</span>
+          </label>
         </div>
       </div>
 

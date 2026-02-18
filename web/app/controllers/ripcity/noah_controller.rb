@@ -128,6 +128,7 @@ module RipCity
     DEFAULT_TIMEFRAME = "25-26-season"
     DEFAULT_SHOT_LENS = "catch-shoot-3pa"
     DEFAULT_GRADE_LENS = "stat-values"
+    DEFAULT_PERCENTILE_LENS = "consistency"
     DEFAULT_SORT = "attempts-desc"
 
     NOAH_GRADE_THRESHOLDS = [
@@ -194,22 +195,6 @@ module RipCity
       [99.0, "F"]
     ].freeze
 
-    GRADE_SCORES = {
-      "A+" => 13,
-      "A" => 12,
-      "A-" => 11,
-      "B+" => 10,
-      "B" => 9,
-      "B-" => 8,
-      "C+" => 7,
-      "C" => 6,
-      "C-" => 5,
-      "D+" => 4,
-      "D" => 3,
-      "D-" => 2,
-      "F" => 1
-    }.freeze
-
     # GET /ripcity/noah
     def show
       load_workspace_state!
@@ -245,6 +230,7 @@ module RipCity
       @timeframe_lens = resolve_timeframe(params[:timeframe])
       @shot_lens = resolve_shot_lens(params[:shot_lens])
       @grade_lens = resolve_grade_lens(params[:grade_lens])
+      @percentile_lens = resolve_percentile_lens(params[:percentile_lens])
       @sort_lens = resolve_sort(params[:sort])
 
       window = timeframe_window(@timeframe_lens)
@@ -296,7 +282,7 @@ module RipCity
         all_time_attempts_by_noah_id: lens_totals_by_noah_id
       ).select { |row| row["attempts"].to_i >= @min_attempts }
       player_rows = sort_player_rows(player_rows, @sort_lens)
-      @players = attach_percentiles(player_rows, grade_lens: @grade_lens)
+      @players = attach_percentiles(player_rows, percentile_lens: @percentile_lens)
 
       selected_player_id = normalize_selected_player_id(params[:selected_player])
       @selected_player = select_player(@players, selected_player_id)
@@ -348,6 +334,7 @@ module RipCity
       @timeframe_lens = DEFAULT_TIMEFRAME
       @shot_lens = DEFAULT_SHOT_LENS
       @grade_lens = DEFAULT_GRADE_LENS
+      @percentile_lens = DEFAULT_PERCENTILE_LENS
       @sort_lens = DEFAULT_SORT
       @start_date = Date.current - 7
       @end_date = Date.current
@@ -403,6 +390,19 @@ module RipCity
       end
 
       GRADE_LENS_OPTIONS.any? { |option| option[:key] == normalized } ? normalized : DEFAULT_GRADE_LENS
+    end
+
+    def resolve_percentile_lens(raw)
+      key = raw.to_s.strip
+
+      case key
+      when "noah", "noah-system", "noah-ideals", "ideal-values"
+        "noah-ideals"
+      when "consistency", "consistency-based"
+        "consistency"
+      else
+        DEFAULT_PERCENTILE_LENS
+      end
     end
 
     def resolve_sort(raw)
@@ -470,13 +470,13 @@ module RipCity
         }
       when "24-25-season"
         {
-          label: "24-25 season",
+          label: "24-25 Season",
           start_date: Date.new(2024, 8, 1),
           end_date: Date.new(2025, 4, 15)
         }
       when "23-24-season"
         {
-          label: "23-24 season",
+          label: "23-24 Season",
           start_date: Date.new(2023, 8, 1),
           end_date: Date.new(2024, 4, 15)
         }
@@ -506,7 +506,7 @@ module RipCity
         }
       else
         {
-          label: "25-26 season",
+          label: "25-26 Season",
           start_date: Date.new(2025, 8, 1),
           end_date: Date.new(2026, 4, 15)
         }
@@ -629,17 +629,13 @@ module RipCity
       end
     end
 
-    def attach_percentiles(rows, grade_lens:)
-      metric_one_percentiles, metric_two_percentiles, metric_three_percentiles = metric_percentile_maps(rows, grade_lens: grade_lens)
+    def attach_percentiles(rows, percentile_lens:)
+      metric_one_percentiles, metric_two_percentiles, metric_three_percentiles = metric_percentile_maps(rows, percentile_lens: percentile_lens)
 
       attempts_percentiles = percentile_map(rows) { |row| row["attempts"] }
       fg_pct_percentiles = percentile_map(rows) { |row| row["fg_pct"] }
       swish_pct_percentiles = percentile_map(rows) { |row| row["swish_pct"] }
-      consistency_percentiles = if grade_lens.to_s == "consistency-grades"
-        percentile_map(rows) { |row| grade_score(row["consistency_grade"]) }
-      else
-        percentile_map(rows) { |row| row["consistency_score"].nil? ? nil : -row["consistency_score"].to_f }
-      end
+      consistency_percentiles = percentile_map(rows) { |row| row["consistency_score"].nil? ? nil : -row["consistency_score"].to_f }
 
       rows.map do |row|
         noah_id = row["noah_id"].to_i
@@ -658,19 +654,19 @@ module RipCity
       end
     end
 
-    def metric_percentile_maps(rows, grade_lens:)
-      case grade_lens.to_s
-      when "consistency-grades"
-        [
-          percentile_map(rows) { |row| grade_score(row["angle_consistency_grade"]) },
-          percentile_map(rows) { |row| grade_score(row["depth_consistency_grade"]) },
-          percentile_map(rows) { |row| grade_score(row["left_right_consistency_grade"]) }
-        ]
-      else
+    def metric_percentile_maps(rows, percentile_lens:)
+      case percentile_lens.to_s
+      when "noah-ideals"
         [
           percentile_map(rows) { |row| row["angle"].nil? ? nil : -(row["angle"].to_f - 45.0).abs },
           percentile_map(rows) { |row| row["depth"].nil? ? nil : -(row["depth"].to_f - 11.0).abs },
           percentile_map(rows) { |row| row["left_right"].nil? ? nil : -row["left_right"].to_f.abs }
+        ]
+      else
+        [
+          percentile_map(rows) { |row| row["angle_std"].nil? ? nil : -row["angle_std"].to_f },
+          percentile_map(rows) { |row| row["depth_std"].nil? ? nil : -row["depth_std"].to_f },
+          percentile_map(rows) { |row| row["left_right_std"].nil? ? nil : -row["left_right_std"].to_f }
         ]
       end
     end
@@ -693,10 +689,6 @@ module RipCity
       ranked_rows.each_with_index.each_with_object({}) do |((noah_id, _value), index), result|
         result[noah_id] = (index.to_f / denominator).round(4)
       end
-    end
-
-    def grade_score(grade)
-      GRADE_SCORES[grade.to_s]
     end
 
     def build_zone_rows(raw_zone_rows)

@@ -2,7 +2,9 @@
   noah_query_expr = "'timeframe=' + encodeURIComponent($noahtimeframe) +
     '&shot_lens=' + encodeURIComponent($noahshotlens) +
     '&grade_lens=' + encodeURIComponent($noahgradelens) +
-    '&sort=' + encodeURIComponent($noahsort)"
+    '&percentile_lens=' + encodeURIComponent($noahpercentilelens) +
+    '&sort=' + encodeURIComponent($noahsort) +
+    '&selected_player=' + encodeURIComponent($noahselectedplayer || '')"
 
   format_compact_count = lambda do |value|
     number = value.to_i
@@ -41,6 +43,20 @@
       delimiter: ",",
       strip_insignificant_zeros: false
     )
+  end
+
+  initials_for = lambda do |name|
+    normalized = name.to_s.strip
+    if normalized.blank?
+      "—"
+    else
+      parts = normalized.split(/\s+/)
+      if parts.length >= 2
+        "#{parts[0].to_s.first}#{parts[1].to_s.first}".upcase
+      else
+        normalized.gsub(/\s+/, "").first(2).upcase
+      end
+    end
   end
 
   grade_class = lambda do |grade|
@@ -104,7 +120,8 @@
       {
         label: "P—",
         blocks: "",
-        color_class: "text-muted-foreground/50"
+        color_class: "text-muted-foreground/50",
+        cell_bg_class: ""
       }
     else
       p = value.to_f.clamp(0.0, 1.0)
@@ -123,7 +140,8 @@
       {
         label: "P#{p_int}",
         blocks: blocks,
-        color_class: color_class
+        color_class: color_class,
+        cell_bg_class: (filled_count >= bucket_count ? "bg-emerald-100/70 dark:bg-emerald-900/25" : "")
       }
     end
   end
@@ -201,7 +219,7 @@
       </div>
     <% else %>
       <section class="border-b border-border">
-        <div class="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm border-b border-border">
+        <div class="sticky top-0 z-10 bg-muted border-b border-border">
           <div class="flex items-center px-4 h-9 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
             <div class="w-64 shrink-0">Player</div>
             <div class="w-24 shrink-0 text-center tabular-nums"><%= @shot_volume_label %></div>
@@ -223,27 +241,29 @@
             <% metric_one = metric_one_value.call(row) %>
             <% metric_two = metric_two_value.call(row) %>
             <% metric_three = metric_three_value.call(row) %>
+            <% historical_player = row["roster_group"].to_s.casecmp("historical").zero? %>
+            <% row_value_class = historical_player ? "text-muted-foreground" : "text-foreground" %>
 
-            <% metric_one_class = if @grade_lens == "consistency-grades"
+            <% metric_one_class = if historical_player
+              "text-muted-foreground"
+            elsif @grade_lens == "consistency-grades"
               grade_class.call(row["angle_consistency_grade"])
-            elsif row["angle"] && (row["angle"] - 45.0).abs <= 1.0
-              "text-emerald-600 dark:text-emerald-400"
             else
               "text-foreground"
             end %>
 
-            <% metric_two_class = if @grade_lens == "consistency-grades"
+            <% metric_two_class = if historical_player
+              "text-muted-foreground"
+            elsif @grade_lens == "consistency-grades"
               grade_class.call(row["depth_consistency_grade"])
-            elsif row["depth"] && (row["depth"] - 11.0).abs <= 1.0
-              "text-emerald-600 dark:text-emerald-400"
             else
               "text-foreground"
             end %>
 
-            <% metric_three_class = if @grade_lens == "consistency-grades"
+            <% metric_three_class = if historical_player
+              "text-muted-foreground"
+            elsif @grade_lens == "consistency-grades"
               grade_class.call(row["left_right_consistency_grade"])
-            elsif row["left_right"] && row["left_right"].abs <= 0.15
-              "text-emerald-600 dark:text-emerald-400"
             else
               "text-foreground"
             end %>
@@ -261,18 +281,24 @@
             <% fg_pct_text = format_percentage.call(row["fg_pct"]) %>
             <% swish_pct_text = format_percentage.call(row["swish_pct"]) %>
             <% consistency_text = consistency_value.call(row) %>
-            <% consistency_class = @grade_lens == "consistency-grades" ? grade_class.call(row["consistency_grade"]) : "text-muted-foreground" %>
-            <% historical_player = row["roster_group"].to_s.casecmp("historical").zero? %>
+            <% consistency_class = if historical_player
+              "text-muted-foreground"
+            elsif @grade_lens == "consistency-grades"
+              grade_class.call(row["consistency_grade"])
+            else
+              "text-muted-foreground"
+            end %>
             <% all_time_attempts_text = number_with_delimiter(row["all_time_attempts"].to_i) %>
+            <% player_initials = initials_for.call(row["player_name"]) %>
 
             <div
               class="group cursor-pointer transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 <%= selected ? 'bg-yellow-100/80 dark:bg-yellow-900/20' : '' %>"
               role="button"
               tabindex="0"
-              data-on:click="@get('/ripcity/noah/refresh?' + (<%= noah_query_expr %>) + '&selected_player=<%= noah_id %>'); window.history.replaceState({}, '', '/ripcity/noah?' + (<%= noah_query_expr %>) + '&selected_player=<%= noah_id %>')"
-              data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); @get('/ripcity/noah/refresh?' + (<%= noah_query_expr %>) + '&selected_player=<%= noah_id %>'); window.history.replaceState({}, '', '/ripcity/noah?' + (<%= noah_query_expr %>) + '&selected_player=<%= noah_id %>'); }"
+              data-on:click="$noahselectedplayer = '<%= noah_id %>'; @get('/ripcity/noah/refresh?' + (<%= noah_query_expr %>)); window.history.replaceState({}, '', '/ripcity/noah?' + (<%= noah_query_expr %>))"
+              data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); $noahselectedplayer = '<%= noah_id %>'; @get('/ripcity/noah/refresh?' + (<%= noah_query_expr %>)); window.history.replaceState({}, '', '/ripcity/noah?' + (<%= noah_query_expr %>)); }"
             >
-              <div class="flex items-center px-4 min-h-[58px]">
+              <div class="flex px-4 h-[40px]">
                 <div class="w-64 shrink-0">
                   <div class="grid grid-cols-[36px_1fr] grid-rows-[24px_16px]">
                     <div class="row-span-2 flex items-center justify-start">
@@ -286,9 +312,9 @@
                             decoding="async"
                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                           />
-                          <span class="hidden text-[9px] font-semibold text-muted-foreground"><%= row["player_name"].to_s.first(2).upcase %></span>
+                          <span class="hidden text-[9px] font-semibold text-muted-foreground"><%= player_initials %></span>
                         <% else %>
-                          <span class="text-[9px] font-semibold text-muted-foreground"><%= row["player_name"].to_s.first(2).upcase %></span>
+                          <span class="text-[9px] font-semibold text-muted-foreground"><%= player_initials %></span>
                         <% end %>
                       </div>
                     </div>
@@ -303,9 +329,9 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col">
+                <div class="w-24 shrink-0 flex flex-col <%= attempts_percentile[:cell_bg_class] %>">
                   <div class="h-[24px] flex items-end justify-center text-sm">
-                    <span class="tabular-nums whitespace-nowrap"><%= nbsp_pad.call(attempts_text, 8) %></span>
+                    <span class="tabular-nums whitespace-nowrap <%= row_value_class %>"><%= nbsp_pad.call(attempts_text, 8) %></span>
                   </div>
                   <div class="h-[16px] -mt-px flex items-start justify-center">
                     <span class="text-[10px] leading-none tabular-nums whitespace-nowrap <%= attempts_percentile[:color_class] %>">
@@ -317,9 +343,9 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col">
+                <div class="w-24 shrink-0 flex flex-col <%= fg_pct_percentile[:cell_bg_class] %>">
                   <div class="h-[24px] flex items-end justify-center text-sm">
-                    <span class="tabular-nums whitespace-nowrap"><%= nbsp_pad.call(fg_pct_text, 6) %></span>
+                    <span class="tabular-nums whitespace-nowrap <%= row_value_class %>"><%= nbsp_pad.call(fg_pct_text, 6) %></span>
                   </div>
                   <div class="h-[16px] -mt-px flex items-start justify-center">
                     <span class="text-[10px] leading-none tabular-nums whitespace-nowrap <%= fg_pct_percentile[:color_class] %>">
@@ -331,9 +357,9 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col">
+                <div class="w-24 shrink-0 flex flex-col <%= swish_pct_percentile[:cell_bg_class] %>">
                   <div class="h-[24px] flex items-end justify-center text-sm">
-                    <span class="tabular-nums whitespace-nowrap"><%= nbsp_pad.call(swish_pct_text, 6) %></span>
+                    <span class="tabular-nums whitespace-nowrap <%= row_value_class %>"><%= nbsp_pad.call(swish_pct_text, 6) %></span>
                   </div>
                   <div class="h-[16px] -mt-px flex items-start justify-center">
                     <span class="text-[10px] leading-none tabular-nums whitespace-nowrap <%= swish_pct_percentile[:color_class] %>">
@@ -345,7 +371,7 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col">
+                <div class="w-24 shrink-0 flex flex-col <%= metric_one_percentile[:cell_bg_class] %>">
                   <div class="h-[24px] flex items-end justify-center text-sm">
                     <span class="tabular-nums whitespace-nowrap <%= metric_one_class %>"><%= nbsp_pad.call(metric_one, metric_value_width) %></span>
                   </div>
@@ -359,7 +385,7 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col">
+                <div class="w-24 shrink-0 flex flex-col <%= metric_two_percentile[:cell_bg_class] %>">
                   <div class="h-[24px] flex items-end justify-center text-sm">
                     <span class="tabular-nums whitespace-nowrap <%= metric_two_class %>"><%= nbsp_pad.call(metric_two, metric_value_width) %></span>
                   </div>
@@ -373,7 +399,7 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col">
+                <div class="w-24 shrink-0 flex flex-col <%= metric_three_percentile[:cell_bg_class] %>">
                   <div class="h-[24px] flex items-end justify-center text-sm">
                     <span class="tabular-nums whitespace-nowrap <%= metric_three_class %>"><%= nbsp_pad.call(metric_three, metric_value_width) %></span>
                   </div>
@@ -387,7 +413,7 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col">
+                <div class="w-24 shrink-0 flex flex-col <%= consistency_percentile[:cell_bg_class] %>">
                   <div class="h-[24px] flex items-end justify-center text-sm">
                     <span class="tabular-nums whitespace-nowrap <%= consistency_class %>"><%= nbsp_pad.call(consistency_text, metric_value_width) %></span>
                   </div>

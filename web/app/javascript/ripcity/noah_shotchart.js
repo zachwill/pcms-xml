@@ -69,7 +69,7 @@ function currentThemePalette() {
     foreground: cssVar("--foreground", isDark ? "#ededed" : "#171717"),
     mutedForeground: cssVar("--muted-foreground", isDark ? "#a3a3a3" : "#737373"),
     border: cssVar("--border", isDark ? "#262626" : "#e5e5e5"),
-    noShots: isDark ? "#1F232A" : "#E9EAEC",
+    noShots: isDark ? "#0A0A0A" : "#E9EAEC",
     heatColors: isDark ? HEAT_COLORS_DARK : HEAT_COLORS_LIGHT,
     singleToneHeatColor: isDark ? SINGLE_TONE_HEAT_COLOR_DARK : SINGLE_TONE_HEAT_COLOR_LIGHT,
     singleToneHeatColors: isDark ? SINGLE_TONE_HEAT_COLORS_DARK : SINGLE_TONE_HEAT_COLORS_LIGHT,
