@@ -62,7 +62,7 @@ Notes:
   - `POST /login`
   - `DELETE /logout`
 - Roles are stored on `web.users.role` with hierarchy:
-  - `viewer` < `analyst` < `admin`
+  - `viewer` < `front_office` < `admin`
 - Admin-only routes (current defaults):
   - `/liveline`
   - `/ripcity/noah`
@@ -84,7 +84,8 @@ To restrict a controller action by role:
 
 ```ruby
 class SomeController < ApplicationController
-  require_role :analyst           # analyst + admin
+  require_role :front_office      # front_office + admin
+  # aliases also work: :fo, "front-office"
   # or: require_role :admin, only: :destroy
 end
 ```
