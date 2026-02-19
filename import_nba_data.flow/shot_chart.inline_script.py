@@ -22,6 +22,7 @@ SHOT_CHART_BATCH_SIZE = 50  # ~180 shots/game × 50 = ~9000, safely under 10k AP
 SHOT_CHART_SINGLE_BATCH_MAX_ATTEMPTS = 4
 SHOT_CHART_UPSERT_CHUNK_SIZE = 0  # 0 disables chunking (single executemany)
 SHOT_CHART_INCLUDE_BATCH_METRICS = True
+SHOT_CHART_SKIP_EXISTING_ON_SEASON_BACKFILL = True
 SHOT_CHART_SPLITTABLE_HTTP_STATUSES = {414, 429, 500, 502, 503, 504}
 
 
@@ -251,6 +252,22 @@ def upsert(
     return len(rows)
 
 
+def fetch_existing_shot_chart_game_ids(conn: psycopg.Connection, game_ids: list[str]) -> set[str]:
+    if not game_ids:
+        return set()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT DISTINCT game_id
+            FROM nba.shot_chart
+            WHERE game_id = ANY(%s::text[])
+            """,
+            (game_ids,),
+        )
+        return {row[0] for row in cur.fetchall() if row and row[0]}
+
+
 def derive_shot_type(stats: dict) -> str | None:
     """Derive a human-readable shot type from the FieldGoals stats flags."""
     if parse_float(stats.get("FG_ALLEY_OOP")) == 1.0:
@@ -354,6 +371,7 @@ def main(
             "single_batch_max_attempts": single_batch_max_attempts,
             "upsert_chunk_size": upsert_chunk_size,
             "include_batch_metrics": include_batch_metrics,
+            "skip_existing_on_season_backfill": SHOT_CHART_SKIP_EXISTING_ON_SEASON_BACKFILL,
         },
         "game_selection": {
             "source": "",
@@ -363,6 +381,12 @@ def main(
             "duration_ms": 0.0,
         },
         "fetch": {
+            "coverage": {
+                "skip_existing_enabled": False,
+                "selected_games": 0,
+                "games_to_fetch": 0,
+                "games_skipped": 0,
+            },
             "initial_batch_count": 0,
             "batch_attempt_count": 0,
             "completed_batch_count": 0,
@@ -390,6 +414,7 @@ def main(
     try:
         season_label_value = season_label
         desired_season_type = normalize_season_type(season_type)
+        normalized_mode = (mode or "refresh").strip().lower()
 
         conn = psycopg.connect(os.environ["POSTGRES_URL"])
         game_list: list[str] = []
@@ -455,10 +480,27 @@ def main(
 
         telemetry["game_selection"]["duration_ms"] = elapsed_ms(game_resolution_started)
 
+        fetch_game_ids = list(game_list)
+        enable_skip_existing = (
+            SHOT_CHART_SKIP_EXISTING_ON_SEASON_BACKFILL
+            and normalized_mode == "season_backfill"
+            and not bool(game_ids)
+        )
+        if enable_skip_existing and fetch_game_ids:
+            existing_shot_chart_games = fetch_existing_shot_chart_game_ids(conn, fetch_game_ids)
+            fetch_game_ids = [gid for gid in fetch_game_ids if gid not in existing_shot_chart_games]
+
+        telemetry["fetch"]["coverage"] = {
+            "skip_existing_enabled": enable_skip_existing,
+            "selected_games": len(game_list),
+            "games_to_fetch": len(fetch_game_ids),
+            "games_skipped": len(game_list) - len(fetch_game_ids),
+        }
+
         # --- Fetch + parse batched shot chart ---
         fetch_started = time.perf_counter()
-        if season_label_value and game_list:
-            pending_batches = chunked(game_list, shot_chart_batch_size)
+        if season_label_value and fetch_game_ids:
+            pending_batches = chunked(fetch_game_ids, shot_chart_batch_size)
             telemetry["fetch"]["initial_batch_count"] = len(pending_batches)
             single_batch_attempts: dict[str, int] = {}
 

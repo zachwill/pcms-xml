@@ -13,6 +13,7 @@ import psycopg
 
 BASE_URL = "https://api.nba.com/v0"
 QUERY_TOOL_TRUNCATION_THRESHOLD = 9900
+LINEUPS_SKIP_EXISTING_ON_SEASON_BACKFILL = True
 
 
 def _load_lineup_utils_module():
@@ -245,6 +246,55 @@ def upsert(
     return len(rows)
 
 
+def fetch_existing_game_lineup_ids(
+    conn: psycopg.Connection,
+    game_ids: list[str],
+    measure_type: str,
+) -> set[str]:
+    if not game_ids:
+        return set()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT DISTINCT game_id
+            FROM nba.lineup_stats_game
+            WHERE game_id = ANY(%s::text[])
+              AND per_mode = %s
+              AND measure_type = %s
+            """,
+            (game_ids, LINEUP_GAME_PER_MODE, measure_type),
+        )
+        return {row[0] for row in cur.fetchall() if row and row[0]}
+
+
+def fetch_existing_season_lineup_team_ids(
+    conn: psycopg.Connection,
+    team_ids: list[int],
+    season_year: int,
+    season_type: str,
+    per_mode: str,
+    measure_type: str,
+) -> set[int]:
+    if not team_ids:
+        return set()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT DISTINCT team_id
+            FROM nba.lineup_stats_season
+            WHERE team_id = ANY(%s::int[])
+              AND season_year = %s
+              AND season_type = %s
+              AND per_mode = %s
+              AND measure_type = %s
+            """,
+            (team_ids, season_year, season_type, per_mode, measure_type),
+        )
+        return {row[0] for row in cur.fetchall() if row and row[0] is not None}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -277,6 +327,11 @@ def main(
             in {"1", "true", "yes", "on"}
         )
         run_season_lineups = normalized_mode == "season_backfill" or bool(game_ids) or include_season_in_refresh
+        enable_skip_existing = (
+            LINEUPS_SKIP_EXISTING_ON_SEASON_BACKFILL
+            and normalized_mode == "season_backfill"
+            and not bool(game_ids)
+        )
 
         lineup_season_rows: list[dict] = []
         lineup_game_rows: list[dict] = []
@@ -390,10 +445,23 @@ def main(
                     if not lineup_team_ids:
                         section_errors.append("lineup_season: no team ids found; skipping season lineup fetch")
 
-                    team_filter_values = [str(team_id) for team_id in lineup_team_ids]
-
                     for per_mode in LINEUP_PER_MODES:
                         for measure_type in LINEUP_MEASURE_TYPES:
+                            target_team_ids = list(lineup_team_ids)
+                            if enable_skip_existing and season_year is not None:
+                                existing_team_ids = fetch_existing_season_lineup_team_ids(
+                                    conn,
+                                    lineup_team_ids,
+                                    season_year,
+                                    season_type,
+                                    per_mode,
+                                    measure_type,
+                                )
+                                target_team_ids = [team_id for team_id in lineup_team_ids if team_id not in existing_team_ids]
+
+                            if not target_team_ids:
+                                continue
+
                             lineup_payload_rows, lineup_warnings = fetch_querytool_batched_rows(
                                 client=client,
                                 request_json=request_json,
@@ -407,7 +475,7 @@ def main(
                                     "MeasureType": measure_type,
                                     "LineupQuantity": LINEUP_QUANTITY,
                                 },
-                                ids=team_filter_values,
+                                ids=[str(team_id) for team_id in target_team_ids],
                                 row_key="lineups",
                                 batch_size=LINEUP_SEASON_TEAM_BATCH_SIZE,
                                 max_rows_returned=LINEUP_MAX_ROWS,
@@ -456,6 +524,14 @@ def main(
                 for measure_type in LINEUP_MEASURE_TYPES:
                     try:
                         batch_size = LINEUP_GAME_BATCH_SIZE.get(measure_type, 100)
+                        target_game_ids = list(game_list)
+                        if enable_skip_existing:
+                            existing_game_ids = fetch_existing_game_lineup_ids(conn, game_list, measure_type)
+                            target_game_ids = [gid for gid in game_list if gid not in existing_game_ids]
+
+                        if not target_game_ids:
+                            continue
+
                         lineup_payload_rows, lineup_warnings = fetch_querytool_batched_rows(
                             client=client,
                             request_json=request_json,
@@ -468,7 +544,7 @@ def main(
                                 "MeasureType": measure_type,
                                 "LineupQuantity": LINEUP_QUANTITY,
                             },
-                            ids=game_list,
+                            ids=target_game_ids,
                             row_key="lineups",
                             batch_size=batch_size,
                             max_rows_returned=LINEUP_MAX_ROWS,

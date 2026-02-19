@@ -37,7 +37,9 @@ All steps are raw Python inline scripts:
   - `season_backfill` mode: fetches season + game lineups.
   - `refresh`/`date_backfill` modes: defaults to game lineups only (set `NBA_LINEUPS_INCLUDE_SEASON_IN_REFRESH=1` to force season lineups).
   - When `game_ids` is provided, season lineup pulls are scoped to teams in those games.
+  - `season_backfill` skips already-covered season/team and game/measure slices when `game_ids` is not provided.
 - `shot_chart.inline_script.py` → `nba.shot_chart`
+  - `season_backfill` skips games that already exist in `nba.shot_chart` when `game_ids` is not provided.
 - `supplemental.inline_script.py` → injuries, alerts, pregame storylines, tracking streams
 - `ngss.inline_script.py` → legacy NGSS endpoints (stored as `nba.ngss_*` tables)
 
@@ -105,6 +107,8 @@ The `shot_chart` step fetches FieldGoals event data from the Query Tool `/event/
 
 Shot chart uses **batched GameId requests** (50 games per API call via comma-separated `GameId` parameter) to stay under the 10k-row API limit (~180 shots/game × 50 = ~9000).
 
+In `season_backfill` mode (with no explicit `game_ids`), shot chart now skips games that already have rows in `nba.shot_chart`.
+
 `shot_chart.inline_script.py` now returns a `telemetry` object with:
 - game-list resolution timing
 - batch/call counters
@@ -139,10 +143,12 @@ SQL assertions: `queries/sql/070_nba_shot_chart_assertions.sql`
 ## Game data + Query Tool event streams
 
 `game_data.inline_script.py` now excludes `nba.querytool_event_streams` and focuses on:
-- boxscore traditional/advanced
-- play-by-play + players-on-court
-- hustle (box + events)
-- batched Query Tool game tables (`tracking_stats`, `defensive_stats`, `violations_*`)
+- legacy per-game pulls: boxscore Traditional, play-by-play, players-on-court, hustle (box + events)
+- batched Query Tool game tables:
+  - `boxscores_advanced`, `boxscores_advanced_team`
+  - `tracking_stats`, `defensive_stats`, `violations_*`
+
+For Advanced parity, Query Tool rows are combined with DNP placeholders from Traditional boxscore rows so `nba.boxscores_advanced` preserves legacy game/player cardinality.
 
 `querytool_event_streams.inline_script.py` owns:
 - `nba.querytool_event_streams` (event types: TrackingPasses, DefensiveEvents, TrackingDrives, TrackingIsolations, TrackingPostUps)
@@ -150,12 +156,13 @@ SQL assertions: `queries/sql/070_nba_shot_chart_assertions.sql`
 `game_data` now includes:
 - bounded per-game concurrency (`GAME_DATA_CONCURRENCY=4`)
 - structured telemetry for game selection, legacy endpoint timings, Query Tool batch metrics, and upsert timing.
-- season-backfill coverage skipping: when `run_mode=season_backfill` (and no explicit `game_ids`), it only fetches games missing each section (`traditional/advanced/pbp/poc/hustle` + `tracking/defensive/violations`).
+- season-backfill coverage skipping: when `run_mode=season_backfill` (and no explicit `game_ids`), it only fetches games missing each section (`traditional/pbp/poc/hustle` + `advanced/tracking/defensive/violations`).
 - tenacity-based HTTP retry wrapper for JSON endpoints (`max 4 attempts`, exponential backoff, extra delay on `403`).
 
 `querytool_event_streams` includes:
 - per-event-type batch telemetry (attempts/splits/rows/timing)
 - split/retry on 414/429/5xx and truncation detection.
 - season-backfill coverage skipping: when `run_mode=season_backfill` (and no explicit `game_ids`), each event type fetches only games missing that `event_type` row.
-- current TrackingPasses batch seed is **16** (sample benchmark over 200 games: faster than 15 with no splits).
-- tenacity-based HTTP retry wrapper (`max 4 attempts`, exponential backoff, extra delay on `403`).
+- bounded event-type parallelism (`QUERYTOOL_EVENT_TYPE_CONCURRENCY=2`) to overlap heavy event types without increasing steady-state retry pressure.
+- current batch seeds are **TrackingPasses=16** and **DefensiveEvents=30** (200-game sample tuning: 17/31+ trigger split regressions).
+- single-batch retries use short deterministic backoff (1s/2s/3s before final skip).

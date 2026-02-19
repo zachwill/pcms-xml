@@ -21,6 +21,8 @@ GAME_DATA_CONCURRENCY = 4
 GAME_DATA_INCLUDE_PER_GAME_METRICS = False
 GAME_DATA_SKIP_EXISTING_ON_SEASON_BACKFILL = True
 
+ADVANCED_PLAYER_BATCH_SIZE = 100
+ADVANCED_TEAM_BATCH_SIZE = 200
 TRACKING_BATCH_SIZE = 100
 TRACKING_MAX_ROWS_RETURNED = 10000
 QUERY_TOOL_TRUNCATION_THRESHOLD = 9900
@@ -987,6 +989,58 @@ ADVANCED_PCT_NEEDS_NORMALIZE = {
     "tm_tov_pct",
 }
 
+ADVANCED_QUERYTOOL_PLAYER_KEY_MAP = {
+    "MIN": "minutes",
+    "OFF_RATING": "off_rating",
+    "DEF_RATING": "def_rating",
+    "NET_RATING": "net_rating",
+    "AST_PCT": "ast_pct",
+    "AST_TO": "ast_to_ratio",
+    "AST_RATIO": "ast_ratio",
+    "OREB_PCT": "oreb_pct",
+    "DREB_PCT": "dreb_pct",
+    "REB_PCT": "reb_pct",
+    "TOV_PCT": "tm_tov_pct",
+    "EFG_PCT": "efg_pct",
+    "TS_PCT": "ts_pct",
+    "USG_PCT": "usg_pct",
+    "PACE": "pace",
+    "POSS": "poss",
+    "PIE": "pie",
+}
+
+ADVANCED_QUERYTOOL_TEAM_KEY_MAP = {
+    "MIN": "minutes",
+    "OFF_RATING": "off_rating",
+    "DEF_RATING": "def_rating",
+    "NET_RATING": "net_rating",
+    "AST_PCT": "ast_pct",
+    "AST_TOV": "ast_to_ratio",
+    "AST_RATIO": "ast_ratio",
+    "OREB_PCT": "oreb_pct",
+    "DREB_PCT": "dreb_pct",
+    "REB_PCT": "reb_pct",
+    "TM_TOV_PCT": "tm_tov_pct",
+    "EFG_PCT": "efg_pct",
+    "TS_PCT": "ts_pct",
+    "PACE": "pace",
+    "PACE_PER40": "pace_per40",
+    "POSS": "poss",
+    "PIE": "pie",
+}
+
+ADVANCED_QUERYTOOL_PCT_COLUMNS = {
+    "ast_pct",
+    "oreb_pct",
+    "dreb_pct",
+    "reb_pct",
+    "tm_tov_pct",
+    "efg_pct",
+    "ts_pct",
+    "usg_pct",
+    "pie",
+}
+
 
 def map_advanced_stats(stats: dict) -> dict:
     result: dict = {}
@@ -1011,6 +1065,37 @@ def map_advanced_stats(stats: dict) -> dict:
             parsed = parsed / 100
 
         result[column] = parsed
+    return result
+
+
+def map_advanced_querytool_stats(stats: dict, team: bool = False) -> dict:
+    result: dict = {}
+    key_map = ADVANCED_QUERYTOOL_TEAM_KEY_MAP if team else ADVANCED_QUERYTOOL_PLAYER_KEY_MAP
+
+    for key, value in (stats or {}).items():
+        column = key_map.get(key)
+        if not column:
+            continue
+
+        if column == "minutes":
+            parsed = parse_minutes_interval(value)
+            # Query Tool /game/team reports MIN in 9.6-scale units for
+            # regulation games; convert back to team minutes (×25).
+            if parsed is not None and team:
+                parsed = round(parsed * 25.0, 2)
+        elif column == "poss":
+            parsed = parse_int(value)
+        else:
+            parsed = parse_float(value)
+
+        if parsed is None:
+            continue
+
+        if column in ADVANCED_QUERYTOOL_PCT_COLUMNS and abs(parsed) > 1:
+            parsed = parsed / 100
+
+        result[column] = parsed
+
     return result
 
 
@@ -1334,6 +1419,111 @@ def fetch_querytool_batched_rows(
     return all_rows, warnings, metrics
 
 
+def build_advanced_querytool_player_row(player: dict, fetched_at: datetime) -> dict | None:
+    nba_id = parse_int(player.get("playerId"))
+    if nba_id is None:
+        return None
+
+    team_id = parse_int(player.get("teamId"))
+    if team_id == 0:
+        team_id = None
+
+    game_id = player.get("gameId")
+    if not game_id:
+        return None
+
+    row = {
+        "game_id": game_id,
+        "nba_id": nba_id,
+        "team_id": team_id,
+        "created_at": fetched_at,
+        "updated_at": fetched_at,
+        "fetched_at": fetched_at,
+    }
+    for column in ADVANCED_COLUMNS:
+        row[column] = None
+
+    row.update(map_advanced_querytool_stats(player.get("stats") or {}, team=False))
+    return row
+
+
+def build_advanced_querytool_team_row(team: dict, fetched_at: datetime) -> dict | None:
+    team_id = parse_int(team.get("teamId"))
+    if team_id is None:
+        return None
+
+    game_id = team.get("gameId")
+    if not game_id:
+        return None
+
+    row = {
+        "game_id": game_id,
+        "team_id": team_id,
+        "created_at": fetched_at,
+        "updated_at": fetched_at,
+        "fetched_at": fetched_at,
+    }
+    for column in ADVANCED_TEAM_ALLOWED_COLUMNS:
+        if column in {"game_id", "team_id", "created_at", "updated_at", "fetched_at"}:
+            continue
+        row[column] = None
+
+    row.update(map_advanced_querytool_stats(team.get("stats") or {}, team=True))
+    row = {k: v for k, v in row.items() if k in ADVANCED_TEAM_ALLOWED_COLUMNS}
+    return row
+
+
+def append_dnp_advanced_placeholders(
+    advanced_rows: list[dict],
+    traditional_player_rows: list[dict],
+    fetched_at: datetime,
+) -> int:
+    existing_keys = {
+        (row.get("game_id"), row.get("nba_id"))
+        for row in advanced_rows
+        if row.get("game_id") and row.get("nba_id") is not None
+    }
+
+    inserted = 0
+    for player_row in traditional_player_rows:
+        game_id = player_row.get("game_id")
+        nba_id = player_row.get("nba_id")
+        if not game_id or nba_id is None:
+            continue
+
+        key = (game_id, nba_id)
+        if key in existing_keys:
+            continue
+
+        played = to_bool(player_row.get("played"))
+        minutes = parse_float(player_row.get("minutes"))
+
+        # Query Tool omits DNP players for Advanced; add placeholder rows so
+        # game/player cardinality matches legacy boxscore advanced behavior.
+        if played is True:
+            continue
+        if played is None and minutes is not None and minutes > 0:
+            continue
+
+        row = {
+            "game_id": game_id,
+            "nba_id": nba_id,
+            "team_id": player_row.get("team_id"),
+            "minutes": player_row.get("minutes"),
+            "created_at": fetched_at,
+            "updated_at": fetched_at,
+            "fetched_at": fetched_at,
+        }
+        for column in ADVANCED_COLUMNS:
+            row.setdefault(column, None)
+
+        advanced_rows.append(row)
+        existing_keys.add(key)
+        inserted += 1
+
+    return inserted
+
+
 def build_tracking_row(player: dict, fallback_game_id: str, fetched_at: datetime) -> dict | None:
     nba_id = parse_int(player.get("playerId"))
     if nba_id is None:
@@ -1460,20 +1650,17 @@ def fetch_legacy_game_payloads(
     is_final = status == 3 or (allow_unknown_final and status is None)
 
     fetch_traditional = bool(fetch_plan.get("traditional", True))
-    fetch_advanced = bool(fetch_plan.get("advanced", is_final))
     fetch_pbp = bool(fetch_plan.get("pbp", True))
     fetch_poc = bool(fetch_plan.get("poc", True))
     fetch_hustle_boxscore = bool(fetch_plan.get("hustle_boxscore", is_final))
     fetch_hustle_events = bool(fetch_plan.get("hustle_events", is_final))
 
     if not is_final:
-        fetch_advanced = False
         fetch_hustle_boxscore = False
         fetch_hustle_events = False
 
     api_calls = {
         "boxscore_traditional": 0,
-        "boxscore_advanced": 0,
         "pbp": 0,
         "poc": 0,
         "hustle_boxscore": 0,
@@ -1481,7 +1668,6 @@ def fetch_legacy_game_payloads(
     }
     api_duration_ms = {
         "boxscore_traditional": 0.0,
-        "boxscore_advanced": 0.0,
         "pbp": 0.0,
         "poc": 0.0,
         "hustle_boxscore": 0.0,
@@ -1566,59 +1752,6 @@ def fetch_legacy_game_payloads(
                 compute_fg2(row)
                 player_rows.append(row)
 
-        # Advanced boxscore (only if Final)
-        if fetch_advanced:
-            advanced: dict = {}
-            try:
-                call_started = time.perf_counter()
-                advanced = request_json(
-                    client,
-                    "/api/stats/boxscore",
-                    {"gameId": game_id_value, "measureType": "Advanced"},
-                )
-                api_calls["boxscore_advanced"] += 1
-                api_duration_ms["boxscore_advanced"] += elapsed_ms(call_started)
-            except Exception as exc:
-                endpoint_errors.append(f"boxscore_advanced: {exc}")
-
-            adv_home = advanced.get("homeTeam") or {}
-            adv_away = advanced.get("awayTeam") or {}
-            advanced_team_rows_for_game: list[dict] = []
-
-            for team in [adv_home, adv_away]:
-                team_id = team.get("teamId")
-                team_stats = team.get("statistics") or {}
-
-                if team_id is not None:
-                    team_row = {
-                        "game_id": game_id_value,
-                        "team_id": team_id,
-                        "minutes": parse_iso_duration(team_stats.get("minutes")),
-                        "created_at": fetched_at,
-                        "updated_at": fetched_at,
-                        "fetched_at": fetched_at,
-                    }
-                    team_row.update(map_advanced_stats(team_stats))
-                    team_row = {k: v for k, v in team_row.items() if k in ADVANCED_TEAM_ALLOWED_COLUMNS}
-                    advanced_team_rows_for_game.append(team_row)
-
-                for player in team.get("players") or []:
-                    stats = player.get("statistics") or {}
-                    row = {
-                        "game_id": game_id_value,
-                        "nba_id": player.get("personId"),
-                        "team_id": team_id,
-                        "minutes": parse_iso_duration(stats.get("minutes")),
-                        "created_at": fetched_at,
-                        "updated_at": fetched_at,
-                        "fetched_at": fetched_at,
-                    }
-                    row.update(map_advanced_stats(stats))
-                    advanced_rows.append(row)
-
-            fill_missing_advanced_team_pace(advanced_team_rows_for_game)
-            advanced_team_rows.extend(advanced_team_rows_for_game)
-
         # Play-by-play
         if fetch_pbp:
             try:
@@ -1695,7 +1828,6 @@ def fetch_legacy_game_payloads(
         "is_final": is_final,
         "fetch_plan": {
             "traditional": fetch_traditional,
-            "advanced": fetch_advanced,
             "pbp": fetch_pbp,
             "poc": fetch_poc,
             "hustle_boxscore": fetch_hustle_boxscore,
@@ -1736,6 +1868,8 @@ def main(
             "concurrency": GAME_DATA_CONCURRENCY,
             "include_per_game_metrics": GAME_DATA_INCLUDE_PER_GAME_METRICS,
             "skip_existing_on_season_backfill": GAME_DATA_SKIP_EXISTING_ON_SEASON_BACKFILL,
+            "advanced_player_batch_size": ADVANCED_PLAYER_BATCH_SIZE,
+            "advanced_team_batch_size": ADVANCED_TEAM_BATCH_SIZE,
             "tracking_batch_size": TRACKING_BATCH_SIZE,
             "defensive_batch_size": DEFENSIVE_BATCH_SIZE,
             "violations_batch_size": VIOLATIONS_BATCH_SIZE,
@@ -1761,7 +1895,6 @@ def main(
             "duration_ms": 0.0,
             "api_calls": {
                 "boxscore_traditional": 0,
-                "boxscore_advanced": 0,
                 "pbp": 0,
                 "poc": 0,
                 "hustle_boxscore": 0,
@@ -1769,7 +1902,6 @@ def main(
             },
             "api_duration_ms": {
                 "boxscore_traditional": 0.0,
-                "boxscore_advanced": 0.0,
                 "pbp": 0.0,
                 "poc": 0.0,
                 "hustle_boxscore": 0.0,
@@ -1782,6 +1914,9 @@ def main(
             "game_id_count": 0,
             "coverage": {},
             "duration_ms": 0.0,
+            "advanced_player": {},
+            "advanced_team": {},
+            "advanced_dnp_placeholders": 0,
             "tracking": {},
             "defensive": {},
             "violations_player": {},
@@ -1912,7 +2047,6 @@ def main(
         )
 
         missing_traditional = set(selected_game_ids)
-        missing_advanced = set(final_game_ids)
         missing_pbp = set(selected_game_ids)
         missing_poc = set(selected_game_ids)
         missing_hustle_boxscore = set(final_game_ids)
@@ -1923,11 +2057,6 @@ def main(
                 conn,
                 "nba.boxscores_traditional_team",
                 selected_game_ids,
-            )
-            missing_advanced = set(final_game_ids) - fetch_existing_game_ids(
-                conn,
-                "nba.boxscores_advanced_team",
-                final_game_ids,
             )
             missing_pbp = set(selected_game_ids) - fetch_existing_game_ids(
                 conn,
@@ -1955,7 +2084,6 @@ def main(
             is_final = status == 3 or (allow_unknown_final and status is None)
             plan = {
                 "traditional": gid in missing_traditional,
-                "advanced": is_final and gid in missing_advanced,
                 "pbp": gid in missing_pbp,
                 "poc": gid in missing_poc,
                 "hustle_boxscore": is_final and gid in missing_hustle_boxscore,
@@ -1966,7 +2094,6 @@ def main(
 
         legacy_section_fetch_counts = {
             "traditional": 0,
-            "advanced": 0,
             "pbp": 0,
             "poc": 0,
             "hustle_boxscore": 0,
@@ -1984,7 +2111,6 @@ def main(
             "games_skipped": len(game_list) - len(legacy_game_plans),
             "section_selected": {
                 "traditional": len(selected_game_ids),
-                "advanced": len(final_game_ids),
                 "pbp": len(selected_game_ids),
                 "poc": len(selected_game_ids),
                 "hustle_boxscore": len(final_game_ids),
@@ -2111,17 +2237,28 @@ def main(
             querytool_game_ids = list(final_game_ids)
         telemetry["querytool"]["game_id_count"] = len(querytool_game_ids)
 
+        advanced_player_game_ids = list(querytool_game_ids)
+        advanced_team_game_ids = list(querytool_game_ids)
         tracking_game_ids = list(querytool_game_ids)
         defensive_game_ids = list(querytool_game_ids)
         violations_player_game_ids = list(querytool_game_ids)
         violations_team_game_ids = list(querytool_game_ids)
 
         if enable_skip_existing and querytool_game_ids:
+            existing_advanced_players = fetch_existing_game_ids(
+                conn,
+                "nba.boxscores_advanced",
+                querytool_game_ids,
+                extra_where="COALESCE(minutes, 0) > 0",
+            )
+            existing_advanced_teams = fetch_existing_game_ids(conn, "nba.boxscores_advanced_team", querytool_game_ids)
             existing_tracking = fetch_existing_game_ids(conn, "nba.tracking_stats", querytool_game_ids)
             existing_defensive = fetch_existing_game_ids(conn, "nba.defensive_stats", querytool_game_ids)
             existing_violations_player = fetch_existing_game_ids(conn, "nba.violations_player", querytool_game_ids)
             existing_violations_team = fetch_existing_game_ids(conn, "nba.violations_team", querytool_game_ids)
 
+            advanced_player_game_ids = [gid for gid in querytool_game_ids if gid not in existing_advanced_players]
+            advanced_team_game_ids = [gid for gid in querytool_game_ids if gid not in existing_advanced_teams]
             tracking_game_ids = [gid for gid in querytool_game_ids if gid not in existing_tracking]
             defensive_game_ids = [gid for gid in querytool_game_ids if gid not in existing_defensive]
             violations_player_game_ids = [gid for gid in querytool_game_ids if gid not in existing_violations_player]
@@ -2131,6 +2268,8 @@ def main(
             "skip_existing_enabled": enable_skip_existing,
             "selected_final_games": len(querytool_game_ids),
             "to_fetch": {
+                "advanced_player": len(advanced_player_game_ids),
+                "advanced_team": len(advanced_team_game_ids),
                 "tracking": len(tracking_game_ids),
                 "defensive": len(defensive_game_ids),
                 "violations_player": len(violations_player_game_ids),
@@ -2140,6 +2279,81 @@ def main(
 
         if season_label_value and season_type_value:
             with httpx.Client(timeout=60) as client:
+                if advanced_player_game_ids:
+                    advanced_player_payload_rows, advanced_player_warnings, advanced_player_metrics = fetch_querytool_batched_rows(
+                        client=client,
+                        path="/game/player",
+                        base_params={
+                            "LeagueId": league_id,
+                            "SeasonYear": season_label_value,
+                            "SeasonType": season_type_value,
+                            "Grouping": "None",
+                            "TeamGrouping": "Y",
+                            "MeasureType": "Advanced",
+                        },
+                        game_ids=advanced_player_game_ids,
+                        row_key="players",
+                        batch_size=ADVANCED_PLAYER_BATCH_SIZE,
+                        max_rows_returned=TRACKING_MAX_ROWS_RETURNED,
+                    )
+                    errors.extend([f"advanced_player: {warning}" for warning in advanced_player_warnings])
+                    for player in advanced_player_payload_rows:
+                        row = build_advanced_querytool_player_row(player, fetched_at=fetched_at)
+                        if row is None:
+                            continue
+                        advanced_rows.append(row)
+
+                    dnp_placeholder_count = append_dnp_advanced_placeholders(
+                        advanced_rows,
+                        player_rows,
+                        fetched_at=fetched_at,
+                    )
+                    telemetry["querytool"]["advanced_dnp_placeholders"] = dnp_placeholder_count
+
+                    advanced_player_metrics["warnings"] = len(advanced_player_warnings)
+                    advanced_player_metrics["rows_built"] = len(advanced_rows)
+                    advanced_player_metrics["dnp_placeholders"] = dnp_placeholder_count
+                    telemetry["querytool"]["advanced_player"] = advanced_player_metrics
+                else:
+                    telemetry["querytool"]["advanced_player"] = {
+                        "skipped": True,
+                        "reason": "coverage_complete",
+                        "game_id_count": 0,
+                    }
+
+                if advanced_team_game_ids:
+                    advanced_team_payload_rows, advanced_team_warnings, advanced_team_metrics = fetch_querytool_batched_rows(
+                        client=client,
+                        path="/game/team",
+                        base_params={
+                            "LeagueId": league_id,
+                            "SeasonYear": season_label_value,
+                            "SeasonType": season_type_value,
+                            "Grouping": "None",
+                            "MeasureType": "Advanced",
+                        },
+                        game_ids=advanced_team_game_ids,
+                        row_key="teams",
+                        batch_size=ADVANCED_TEAM_BATCH_SIZE,
+                        max_rows_returned=TRACKING_MAX_ROWS_RETURNED,
+                    )
+                    errors.extend([f"advanced_team: {warning}" for warning in advanced_team_warnings])
+                    for team in advanced_team_payload_rows:
+                        row = build_advanced_querytool_team_row(team, fetched_at=fetched_at)
+                        if row is None:
+                            continue
+                        advanced_team_rows.append(row)
+
+                    advanced_team_metrics["warnings"] = len(advanced_team_warnings)
+                    advanced_team_metrics["rows_built"] = len(advanced_team_rows)
+                    telemetry["querytool"]["advanced_team"] = advanced_team_metrics
+                else:
+                    telemetry["querytool"]["advanced_team"] = {
+                        "skipped": True,
+                        "reason": "coverage_complete",
+                        "game_id_count": 0,
+                    }
+
                 if tracking_game_ids:
                     tracking_payload_rows, tracking_warnings, tracking_metrics = fetch_querytool_batched_rows(
                         client=client,

@@ -4,6 +4,8 @@
 # ///
 import os
 import time
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
@@ -24,6 +26,7 @@ QUERYTOOL_EVENT_STREAM_BATCH_SIZES = {
     "TrackingPostUps": 200,
 }
 QUERYTOOL_EVENT_STREAM_TYPES = list(QUERYTOOL_EVENT_STREAM_BATCH_SIZES.keys())
+QUERYTOOL_EVENT_TYPE_CONCURRENCY = 2
 
 QUERYTOOL_EVENT_STREAM_PER_MODE = "Totals"
 QUERYTOOL_EVENT_STREAM_SUM_SCOPE = "Event"
@@ -335,6 +338,174 @@ def reduce_querytool_event_row(payload_row: dict) -> dict:
     }
 
 
+def init_event_type_metrics(batch_size: int) -> dict:
+    return {
+        "batch_size": batch_size,
+        "initial_batch_count": 0,
+        "batch_attempt_count": 0,
+        "completed_batch_count": 0,
+        "split_batch_count": 0,
+        "single_batch_retry_count": 0,
+        "rows_seen": 0,
+        "rows_emitted": 0,
+        "truncation_warning_count": 0,
+        "duration_ms": 0.0,
+    }
+
+
+def fetch_querytool_event_stream_rows_for_event_type(
+    event_type: str,
+    target_game_ids: list[str],
+    league_id: str,
+    season_label_value: str,
+    season_type: str,
+) -> tuple[list[dict], dict, list[str]]:
+    event_started = time.perf_counter()
+    batch_size = QUERYTOOL_EVENT_STREAM_BATCH_SIZES.get(event_type, 25)
+    split_retry_statuses = {414, 429, 500, 502, 503, 504}
+
+    metrics = init_event_type_metrics(batch_size)
+
+    stream_rows: list[dict] = []
+    errors: list[str] = []
+
+    if not target_game_ids:
+        metrics["skipped"] = True
+        metrics["reason"] = "coverage_complete"
+        metrics["game_id_count"] = 0
+        metrics["duration_ms"] = elapsed_ms(event_started)
+        return stream_rows, metrics, errors
+
+    pending_batches: deque[list[str]] = deque(chunked(target_game_ids, batch_size))
+    single_batch_attempts: dict[str, int] = {}
+    metrics["initial_batch_count"] = len(pending_batches)
+
+    with httpx.Client(timeout=60) as client:
+        while pending_batches:
+            batch = pending_batches.popleft()
+            if not batch:
+                continue
+
+            metrics["batch_attempt_count"] += 1
+            params = {
+                "LeagueId": league_id,
+                "SeasonYear": season_label_value,
+                "SeasonType": season_type,
+                "PerMode": QUERYTOOL_EVENT_STREAM_PER_MODE,
+                "SumScope": QUERYTOOL_EVENT_STREAM_SUM_SCOPE,
+                "Grouping": QUERYTOOL_EVENT_STREAM_GROUPING,
+                "TeamGrouping": QUERYTOOL_EVENT_STREAM_TEAM_GROUPING,
+                "EventType": event_type,
+                "GameId": ",".join(batch),
+                "MaxRowsReturned": QUERYTOOL_EVENT_STREAM_MAX_ROWS_RETURNED,
+            }
+
+            batch_key = ",".join(batch)
+            try:
+                payload = request_json(
+                    client,
+                    "/event/player",
+                    params,
+                    retries=1,
+                    base_url=QUERY_TOOL_URL,
+                )
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code if exc.response is not None else None
+                if status in split_retry_statuses and len(batch) > 1:
+                    left, right = split_batch(batch)
+                    pending_batches.appendleft(right)
+                    pending_batches.appendleft(left)
+                    metrics["split_batch_count"] += 1
+                    continue
+
+                if status in split_retry_statuses:
+                    attempts = single_batch_attempts.get(batch_key, 0) + 1
+                    single_batch_attempts[batch_key] = attempts
+                    if attempts < QUERYTOOL_EVENT_STREAM_SINGLE_BATCH_MAX_ATTEMPTS:
+                        time.sleep(min(5, attempts))
+                        pending_batches.append(batch)
+                        metrics["single_batch_retry_count"] += 1
+                        continue
+
+                    errors.append(
+                        f"querytool_event_streams {event_type}: batch ({batch[0]}...{batch[-1]}) "
+                        f"failed with HTTP {status} after {attempts} attempts; skipping"
+                    )
+                    continue
+
+                raise
+            except httpx.HTTPError as exc:
+                if len(batch) > 1:
+                    left, right = split_batch(batch)
+                    pending_batches.appendleft(right)
+                    pending_batches.appendleft(left)
+                    metrics["split_batch_count"] += 1
+                    continue
+
+                attempts = single_batch_attempts.get(batch_key, 0) + 1
+                single_batch_attempts[batch_key] = attempts
+                if attempts < QUERYTOOL_EVENT_STREAM_SINGLE_BATCH_MAX_ATTEMPTS:
+                    time.sleep(min(5, attempts))
+                    pending_batches.append(batch)
+                    metrics["single_batch_retry_count"] += 1
+                    continue
+
+                errors.append(
+                    f"querytool_event_streams {event_type}: batch ({batch[0]}...{batch[-1]}) "
+                    f"transport error after {attempts} attempts; skipping: {exc}"
+                )
+                continue
+
+            rows = payload.get("players") or []
+            rows_returned = parse_int((payload.get("meta") or {}).get("rowsReturned"))
+            metrics["rows_seen"] += len(rows)
+
+            suspicious = (
+                (rows_returned is not None and rows_returned >= QUERY_TOOL_TRUNCATION_THRESHOLD)
+                or len(rows) >= QUERY_TOOL_TRUNCATION_THRESHOLD
+            )
+
+            if suspicious and len(batch) > 1:
+                left, right = split_batch(batch)
+                pending_batches.appendleft(right)
+                pending_batches.appendleft(left)
+                metrics["split_batch_count"] += 1
+                continue
+
+            if suspicious:
+                errors.append(
+                    f"querytool_event_streams {event_type}: batch for game {batch[0]} may be truncated "
+                    f"(rows={len(rows)}, rowsReturned={rows_returned})"
+                )
+                metrics["truncation_warning_count"] += 1
+
+            grouped: dict[str, list[dict]] = {gid: [] for gid in batch}
+            for payload_row in rows:
+                game_id_row = payload_row.get("gameId")
+                if not game_id_row or game_id_row not in grouped:
+                    continue
+                grouped[game_id_row].append(reduce_querytool_event_row(payload_row))
+
+            fetched_at = now_utc()
+            for gid in batch:
+                stream_rows.append(
+                    {
+                        "game_id": gid,
+                        "event_type": event_type,
+                        "events_json": Json(grouped.get(gid) or []),
+                        "created_at": fetched_at,
+                        "updated_at": fetched_at,
+                        "fetched_at": fetched_at,
+                    }
+                )
+
+            metrics["rows_emitted"] += len(batch)
+            metrics["completed_batch_count"] += 1
+
+    metrics["duration_ms"] = elapsed_ms(event_started)
+    return stream_rows, metrics, errors
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -359,6 +530,7 @@ def main(
         "config": {
             "event_types": QUERYTOOL_EVENT_STREAM_TYPES,
             "batch_sizes": QUERYTOOL_EVENT_STREAM_BATCH_SIZES,
+            "event_type_concurrency": QUERYTOOL_EVENT_TYPE_CONCURRENCY,
             "max_rows_returned": QUERYTOOL_EVENT_STREAM_MAX_ROWS_RETURNED,
             "truncation_threshold": QUERY_TOOL_TRUNCATION_THRESHOLD,
             "skip_existing_on_season_backfill": QUERYTOOL_EVENT_STREAMS_SKIP_EXISTING_ON_SEASON_BACKFILL,
@@ -374,6 +546,7 @@ def main(
         "event_types": {},
         "fetch": {
             "coverage": {},
+            "event_type_worker_count": 0,
             "total_batch_attempt_count": 0,
             "total_split_batch_count": 0,
             "total_truncation_warning_count": 0,
@@ -506,160 +679,66 @@ def main(
 
         fetch_started = time.perf_counter()
         if final_game_ids and season_label_value:
-            with httpx.Client(timeout=60) as client:
-                for event_type in QUERYTOOL_EVENT_STREAM_TYPES:
-                    event_started = time.perf_counter()
-                    batch_size = QUERYTOOL_EVENT_STREAM_BATCH_SIZES.get(event_type, 25)
-                    target_game_ids = event_type_game_ids.get(event_type) or []
+            event_types = list(QUERYTOOL_EVENT_STREAM_TYPES)
+            worker_count = min(max(1, QUERYTOOL_EVENT_TYPE_CONCURRENCY), len(event_types))
+            telemetry["fetch"]["event_type_worker_count"] = worker_count
 
-                    metrics = {
-                        "batch_size": batch_size,
-                        "initial_batch_count": 0,
-                        "batch_attempt_count": 0,
-                        "completed_batch_count": 0,
-                        "split_batch_count": 0,
-                        "single_batch_retry_count": 0,
-                        "rows_seen": 0,
-                        "rows_emitted": 0,
-                        "truncation_warning_count": 0,
-                        "duration_ms": 0.0,
+            event_results: dict[str, tuple[list[dict], dict, list[str]]] = {}
+
+            if worker_count <= 1:
+                for event_type in event_types:
+                    event_results[event_type] = fetch_querytool_event_stream_rows_for_event_type(
+                        event_type=event_type,
+                        target_game_ids=event_type_game_ids.get(event_type) or [],
+                        league_id=league_id,
+                        season_label_value=season_label_value,
+                        season_type=season_type,
+                    )
+            else:
+                with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                    futures = {
+                        executor.submit(
+                            fetch_querytool_event_stream_rows_for_event_type,
+                            event_type,
+                            event_type_game_ids.get(event_type) or [],
+                            league_id,
+                            season_label_value,
+                            season_type,
+                        ): event_type
+                        for event_type in event_types
                     }
-
-                    if not target_game_ids:
-                        metrics["skipped"] = True
-                        metrics["reason"] = "coverage_complete"
-                        metrics["game_id_count"] = 0
-                        metrics["duration_ms"] = elapsed_ms(event_started)
-                        telemetry["event_types"][event_type] = metrics
-                        continue
-
-                    pending_batches = chunked(target_game_ids, batch_size)
-                    single_batch_attempts: dict[str, int] = {}
-                    metrics["initial_batch_count"] = len(pending_batches)
-
-                    while pending_batches:
-                        batch = pending_batches.pop(0)
-                        if not batch:
-                            continue
-
-                        metrics["batch_attempt_count"] += 1
-                        params = {
-                            "LeagueId": league_id,
-                            "SeasonYear": season_label_value,
-                            "SeasonType": season_type,
-                            "PerMode": QUERYTOOL_EVENT_STREAM_PER_MODE,
-                            "SumScope": QUERYTOOL_EVENT_STREAM_SUM_SCOPE,
-                            "Grouping": QUERYTOOL_EVENT_STREAM_GROUPING,
-                            "TeamGrouping": QUERYTOOL_EVENT_STREAM_TEAM_GROUPING,
-                            "EventType": event_type,
-                            "GameId": ",".join(batch),
-                            "MaxRowsReturned": QUERYTOOL_EVENT_STREAM_MAX_ROWS_RETURNED,
-                        }
-
-                        batch_key = ",".join(batch)
+                    for future in as_completed(futures):
+                        event_type = futures[future]
                         try:
-                            payload = request_json(
-                                client,
-                                "/event/player",
-                                params,
-                                retries=1,
-                                base_url=QUERY_TOOL_URL,
+                            event_results[event_type] = future.result()
+                        except Exception as exc:
+                            failed_metrics = init_event_type_metrics(
+                                QUERYTOOL_EVENT_STREAM_BATCH_SIZES.get(event_type, 25)
                             )
-                        except httpx.HTTPStatusError as exc:
-                            status = exc.response.status_code if exc.response is not None else None
-                            if status in {414, 429, 500, 502, 503, 504} and len(batch) > 1:
-                                left, right = split_batch(batch)
-                                pending_batches = [left, right, *pending_batches]
-                                metrics["split_batch_count"] += 1
-                                continue
-
-                            if status in {414, 429, 500, 502, 503, 504}:
-                                attempts = single_batch_attempts.get(batch_key, 0) + 1
-                                single_batch_attempts[batch_key] = attempts
-                                if attempts < QUERYTOOL_EVENT_STREAM_SINGLE_BATCH_MAX_ATTEMPTS:
-                                    time.sleep(min(5, attempts))
-                                    pending_batches.append(batch)
-                                    metrics["single_batch_retry_count"] += 1
-                                    continue
-
-                                errors.append(
-                                    f"querytool_event_streams {event_type}: batch ({batch[0]}...{batch[-1]}) "
-                                    f"failed with HTTP {status} after {attempts} attempts; skipping"
-                                )
-                                continue
-
-                            raise
-                        except httpx.HTTPError as exc:
-                            if len(batch) > 1:
-                                left, right = split_batch(batch)
-                                pending_batches = [left, right, *pending_batches]
-                                metrics["split_batch_count"] += 1
-                                continue
-
-                            attempts = single_batch_attempts.get(batch_key, 0) + 1
-                            single_batch_attempts[batch_key] = attempts
-                            if attempts < QUERYTOOL_EVENT_STREAM_SINGLE_BATCH_MAX_ATTEMPTS:
-                                time.sleep(min(5, attempts))
-                                pending_batches.append(batch)
-                                metrics["single_batch_retry_count"] += 1
-                                continue
-
-                            errors.append(
-                                f"querytool_event_streams {event_type}: batch ({batch[0]}...{batch[-1]}) "
-                                f"transport error after {attempts} attempts; skipping: {exc}"
-                            )
-                            continue
-
-                        rows = payload.get("players") or []
-                        rows_returned = parse_int((payload.get("meta") or {}).get("rowsReturned"))
-                        metrics["rows_seen"] += len(rows)
-
-                        suspicious = (
-                            (rows_returned is not None and rows_returned >= QUERY_TOOL_TRUNCATION_THRESHOLD)
-                            or len(rows) >= QUERY_TOOL_TRUNCATION_THRESHOLD
-                        )
-
-                        if suspicious and len(batch) > 1:
-                            left, right = split_batch(batch)
-                            pending_batches = [left, right, *pending_batches]
-                            metrics["split_batch_count"] += 1
-                            continue
-
-                        if suspicious:
-                            errors.append(
-                                f"querytool_event_streams {event_type}: batch for game {batch[0]} may be truncated "
-                                f"(rows={len(rows)}, rowsReturned={rows_returned})"
-                            )
-                            metrics["truncation_warning_count"] += 1
-
-                        grouped: dict[str, list[dict]] = {gid: [] for gid in batch}
-                        for payload_row in rows:
-                            game_id_row = payload_row.get("gameId")
-                            if not game_id_row or game_id_row not in grouped:
-                                continue
-                            grouped[game_id_row].append(reduce_querytool_event_row(payload_row))
-
-                        fetched_at = now_utc()
-                        for gid in batch:
-                            stream_rows.append(
-                                {
-                                    "game_id": gid,
-                                    "event_type": event_type,
-                                    "events_json": Json(grouped.get(gid) or []),
-                                    "created_at": fetched_at,
-                                    "updated_at": fetched_at,
-                                    "fetched_at": fetched_at,
-                                }
+                            failed_metrics["failed"] = True
+                            event_results[event_type] = (
+                                [],
+                                failed_metrics,
+                                [
+                                    f"querytool_event_streams {event_type}: unhandled fetch error: {exc}"
+                                ],
                             )
 
-                        metrics["rows_emitted"] += len(batch)
-                        metrics["completed_batch_count"] += 1
-
-                    metrics["duration_ms"] = elapsed_ms(event_started)
-                    telemetry["event_types"][event_type] = metrics
-                    telemetry["fetch"]["total_batch_attempt_count"] += metrics["batch_attempt_count"]
-                    telemetry["fetch"]["total_split_batch_count"] += metrics["split_batch_count"]
-                    telemetry["fetch"]["total_truncation_warning_count"] += metrics["truncation_warning_count"]
+            for event_type in event_types:
+                event_rows, metrics, event_errors = event_results.get(
+                    event_type,
+                    (
+                        [],
+                        init_event_type_metrics(QUERYTOOL_EVENT_STREAM_BATCH_SIZES.get(event_type, 25)),
+                        [f"querytool_event_streams {event_type}: missing fetch result"],
+                    ),
+                )
+                stream_rows.extend(event_rows)
+                errors.extend(event_errors)
+                telemetry["event_types"][event_type] = metrics
+                telemetry["fetch"]["total_batch_attempt_count"] += metrics.get("batch_attempt_count", 0)
+                telemetry["fetch"]["total_split_batch_count"] += metrics.get("split_batch_count", 0)
+                telemetry["fetch"]["total_truncation_warning_count"] += metrics.get("truncation_warning_count", 0)
 
         telemetry["fetch"]["duration_ms"] = elapsed_ms(fetch_started)
 
