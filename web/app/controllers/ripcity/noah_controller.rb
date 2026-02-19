@@ -130,6 +130,7 @@ module RipCity
     DEFAULT_GRADE_LENS = "stat-values"
     DEFAULT_PERCENTILE_LENS = "consistency"
     DEFAULT_SORT = "attempts-desc"
+    SPARKLINE_POINT_LIMIT = 18
 
     NOAH_GRADE_THRESHOLDS = [
       [1.0, "A+"],
@@ -282,7 +283,21 @@ module RipCity
         all_time_attempts_by_noah_id: lens_totals_by_noah_id
       ).select { |row| row["attempts"].to_i >= @min_attempts }
       player_rows = sort_player_rows(player_rows, @sort_lens)
-      @players = attach_percentiles(player_rows, percentile_lens: @percentile_lens)
+      player_rows = attach_percentiles(player_rows, percentile_lens: @percentile_lens)
+
+      sparkline_points_by_noah_id = build_sparkline_points_by_noah_id(
+        queries.fetch_player_lens_weekly_totals(
+          include_predraft: @include_predraft,
+          exclude_player_ids: @exclude_player_ids,
+          noah_ids: player_rows.map { |row| row["noah_id"] },
+          **filters
+        )
+      )
+
+      @players = player_rows.map do |row|
+        noah_id = row["noah_id"].to_i
+        row.merge("sparkline_points" => sparkline_points_by_noah_id.fetch(noah_id, []))
+      end
 
       selected_player_id = normalize_selected_player_id(params[:selected_player])
       @selected_player = select_player(@players, selected_player_id)
@@ -705,6 +720,30 @@ module RipCity
           made: made,
           fg_pct: attempts.positive? ? ((made.to_f / attempts) * 100.0).round(1) : 0.0
         }
+      end
+    end
+
+    def build_sparkline_points_by_noah_id(raw_rows, point_limit: SPARKLINE_POINT_LIMIT)
+      grouped = Array(raw_rows).group_by { |row| row["noah_id"].to_i }
+
+      grouped.each_with_object({}) do |(noah_id, rows), memo|
+        next if noah_id <= 0
+
+        shots = rows.map { |row| row["shots"].to_i }
+        memo[noah_id] = compress_sparkline_points(shots, point_limit: point_limit)
+      end
+    end
+
+    def compress_sparkline_points(points, point_limit: SPARKLINE_POINT_LIMIT)
+      values = Array(points).map { |value| [value.to_i, 0].max }
+      return values if values.length <= point_limit
+      return [] if point_limit <= 0
+      return [values.first] if point_limit == 1
+
+      step = (values.length - 1).to_f / (point_limit - 1)
+
+      Array.new(point_limit) do |index|
+        values[(index * step).round]
       end
     end
 

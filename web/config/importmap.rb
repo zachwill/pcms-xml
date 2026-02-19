@@ -24,3 +24,4 @@ pin "liveline_test", to: "liveline_test.js"
 
 # Ripcity Noah chart prototypes
 pin "ripcity/noah_shotchart", to: "ripcity/noah_shotchart.js"
+pin "ripcity/noah_player_sparklines", to: "ripcity/noah_player_sparklines.js"

@@ -122,6 +122,44 @@ class NoahQueries
     SQL
   end
 
+  def fetch_player_lens_weekly_totals(include_predraft:, exclude_player_ids:, noah_ids:, is_three:, shot_type:, is_corner_three:)
+    normalized_ids = Array(noah_ids).filter_map do |id|
+      Integer(id)
+    rescue ArgumentError, TypeError
+      nil
+    end.uniq
+
+    return [] if normalized_ids.empty?
+
+    where_sql = shot_lens_where_sql(
+      is_three: is_three,
+      shot_type: shot_type,
+      is_corner_three: is_corner_three,
+      table_alias: "s"
+    )
+
+    predraft_clause = include_predraft ? "AND p.email ILIKE '%predraft%'" : ""
+    exclude_clause = noah_id_exclusion_clause(exclude_player_ids)
+    ids_clause = "AND s.noah_id IN (#{normalized_ids.map { |id| conn.quote(id) }.join(', ')})"
+
+    conn.exec_query(<<~SQL).to_a
+      SELECT
+        s.noah_id,
+        DATE_TRUNC('week', s.shot_date)::date AS week,
+        COUNT(s.made)::integer AS shots
+      FROM noah.shots s
+      LEFT JOIN noah.players p
+        ON p.noah_id = s.noah_id
+      WHERE #{where_sql}
+        AND p.noah_id != 1248674
+        #{predraft_clause}
+        #{exclude_clause}
+        #{ids_clause}
+      GROUP BY s.noah_id, DATE_TRUNC('week', s.shot_date)
+      ORDER BY s.noah_id ASC, week ASC
+    SQL
+  end
+
   def fetch_player_shot_type_breakdown(start_date:, end_date:, noah_id:, is_three:, shot_type:, is_corner_three:)
     where_sql = shot_base_where_sql(
       start_date: start_date,
