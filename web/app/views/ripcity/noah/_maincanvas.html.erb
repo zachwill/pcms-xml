@@ -241,15 +241,50 @@
     <% else %>
       <section class="border-b border-border">
         <div class="sticky top-0 z-10 bg-muted border-b border-border">
-          <div class="flex items-center px-4 h-9 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
-            <div class="w-52 shrink-0">Player</div>
-            <div class="w-24 shrink-0 text-center tabular-nums"><%= @shot_volume_label %></div>
-            <div class="w-24 shrink-0 text-center tabular-nums"><%= @shot_pct_label %></div>
-            <div class="w-24 shrink-0 text-center tabular-nums">Swish</div>
-            <div class="w-24 shrink-0 text-center"><%= @metric_headers[:one] %></div>
-            <div class="w-24 shrink-0 text-center"><%= @metric_headers[:two] %></div>
-            <div class="w-24 shrink-0 text-center"><%= @metric_headers[:three] %></div>
-            <div class="w-24 shrink-0 text-center"><%= @metric_headers[:consistency] %></div>
+          <div
+            class="flex items-center px-4 h-9 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium"
+            data-on:mouseleave="if ($_noahhovercolumn !== '') { $_noahhovercolumn = ''; }"
+          >
+            <div
+              class="w-52 h-full shrink-0 flex items-center transition-colors duration-75"
+              data-on:mouseenter="$_noahhovercolumn = 'player'"
+              data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_noahhovercolumn === 'player' }"
+            >Player</div>
+            <div
+              class="w-24 h-full shrink-0 flex items-center justify-center tabular-nums transition-colors duration-75"
+              data-on:mouseenter="$_noahhovercolumn = 'attempts'"
+              data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_noahhovercolumn === 'attempts' }"
+            ><%= @shot_volume_label %></div>
+            <div
+              class="w-24 h-full shrink-0 flex items-center justify-center tabular-nums transition-colors duration-75"
+              data-on:mouseenter="$_noahhovercolumn = 'fg'"
+              data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_noahhovercolumn === 'fg' }"
+            ><%= @shot_pct_label %></div>
+            <div
+              class="w-24 h-full shrink-0 flex items-center justify-center tabular-nums transition-colors duration-75"
+              data-on:mouseenter="$_noahhovercolumn = 'swish'"
+              data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_noahhovercolumn === 'swish' }"
+            >Swish</div>
+            <div
+              class="w-24 h-full shrink-0 flex items-center justify-center transition-colors duration-75"
+              data-on:mouseenter="$_noahhovercolumn = 'metric1'"
+              data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_noahhovercolumn === 'metric1' }"
+            ><%= @metric_headers[:one] %></div>
+            <div
+              class="w-24 h-full shrink-0 flex items-center justify-center transition-colors duration-75"
+              data-on:mouseenter="$_noahhovercolumn = 'metric2'"
+              data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_noahhovercolumn === 'metric2' }"
+            ><%= @metric_headers[:two] %></div>
+            <div
+              class="w-24 h-full shrink-0 flex items-center justify-center transition-colors duration-75"
+              data-on:mouseenter="$_noahhovercolumn = 'metric3'"
+              data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_noahhovercolumn === 'metric3' }"
+            ><%= @metric_headers[:three] %></div>
+            <div
+              class="w-24 h-full shrink-0 flex items-center justify-center transition-colors duration-75"
+              data-on:mouseenter="$_noahhovercolumn = 'consistency'"
+              data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_noahhovercolumn === 'consistency' }"
+            ><%= @metric_headers[:consistency] %></div>
           </div>
         </div>
 
@@ -322,7 +357,10 @@
               data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); $noahselectedplayer = '<%= noah_id %>'; }"
             >
               <div class="flex px-4 h-[40px]">
-                <div class="w-52 shrink-0">
+                <div
+                  class="w-52 shrink-0 transition-colors duration-75"
+                  data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_noahhovercolumn === 'player' }"
+                >
                   <div class="grid grid-cols-[36px_1fr] grid-rows-[24px_16px]">
                     <div class="row-span-2 flex items-center justify-start">
                       <div class="w-8 h-8 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
@@ -369,7 +407,10 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col <%= attempts_percentile[:cell_bg_class] %>">
+                <div
+                  class="w-24 shrink-0 flex flex-col transition-colors duration-75 <%= attempts_percentile[:cell_bg_class] %>"
+                  data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_noahhovercolumn === 'attempts' }"
+                >
                   <div class="h-[24px] flex items-end justify-center text-sm">
                     <span class="tabular-nums whitespace-nowrap <%= row_value_class %>"><%= nbsp_pad.call(attempts_text, 8) %></span>
                   </div>
@@ -383,7 +424,10 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col <%= fg_pct_percentile[:cell_bg_class] %>">
+                <div
+                  class="w-24 shrink-0 flex flex-col transition-colors duration-75 <%= fg_pct_percentile[:cell_bg_class] %>"
+                  data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_noahhovercolumn === 'fg' }"
+                >
                   <div class="h-[24px] flex items-end justify-center text-sm">
                     <span class="tabular-nums whitespace-nowrap <%= row_value_class %>"><%= nbsp_pad.call(fg_pct_text, 6) %></span>
                   </div>
@@ -397,7 +441,10 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col <%= swish_pct_percentile[:cell_bg_class] %>">
+                <div
+                  class="w-24 shrink-0 flex flex-col transition-colors duration-75 <%= swish_pct_percentile[:cell_bg_class] %>"
+                  data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_noahhovercolumn === 'swish' }"
+                >
                   <div class="h-[24px] flex items-end justify-center text-sm">
                     <span class="tabular-nums whitespace-nowrap <%= row_value_class %>"><%= nbsp_pad.call(swish_pct_text, 6) %></span>
                   </div>
@@ -411,7 +458,10 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col <%= metric_one_percentile[:cell_bg_class] %>">
+                <div
+                  class="w-24 shrink-0 flex flex-col transition-colors duration-75 <%= metric_one_percentile[:cell_bg_class] %>"
+                  data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_noahhovercolumn === 'metric1' }"
+                >
                   <div class="h-[24px] flex items-end justify-center text-sm">
                     <span class="tabular-nums whitespace-nowrap <%= metric_one_class %>"><%= nbsp_pad.call(metric_one, metric_value_width) %></span>
                   </div>
@@ -425,7 +475,10 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col <%= metric_two_percentile[:cell_bg_class] %>">
+                <div
+                  class="w-24 shrink-0 flex flex-col transition-colors duration-75 <%= metric_two_percentile[:cell_bg_class] %>"
+                  data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_noahhovercolumn === 'metric2' }"
+                >
                   <div class="h-[24px] flex items-end justify-center text-sm">
                     <span class="tabular-nums whitespace-nowrap <%= metric_two_class %>"><%= nbsp_pad.call(metric_two, metric_value_width) %></span>
                   </div>
@@ -439,7 +492,10 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col <%= metric_three_percentile[:cell_bg_class] %>">
+                <div
+                  class="w-24 shrink-0 flex flex-col transition-colors duration-75 <%= metric_three_percentile[:cell_bg_class] %>"
+                  data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_noahhovercolumn === 'metric3' }"
+                >
                   <div class="h-[24px] flex items-end justify-center text-sm">
                     <span class="tabular-nums whitespace-nowrap <%= metric_three_class %>"><%= nbsp_pad.call(metric_three, metric_value_width) %></span>
                   </div>
@@ -453,7 +509,10 @@
                   </div>
                 </div>
 
-                <div class="w-24 shrink-0 flex flex-col <%= consistency_percentile[:cell_bg_class] %>">
+                <div
+                  class="w-24 shrink-0 flex flex-col transition-colors duration-75 <%= consistency_percentile[:cell_bg_class] %>"
+                  data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_noahhovercolumn === 'consistency' }"
+                >
                   <div class="h-[24px] flex items-end justify-center text-sm">
                     <span class="tabular-nums whitespace-nowrap <%= consistency_class %>"><%= nbsp_pad.call(consistency_text, metric_value_width) %></span>
                   </div>
