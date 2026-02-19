@@ -36,6 +36,21 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
     assert_redirected_to salary_book_path
   end
 
+  test "sign in sets persistent auth cookie" do
+    host! "example.com"
+
+    post "/login", params: {
+      email: @viewer.email,
+      password: "password123"
+    }, headers: modern_headers
+
+    assert_redirected_to salary_book_path
+
+    set_cookie = Array(response.headers["Set-Cookie"]).join("\n")
+    assert_match /_web_session=/, set_cookie
+    assert_match(/expires=/i, set_cookie)
+  end
+
   test "viewer is blocked from admin-only route" do
     host! "example.com"
     sign_in_as(@viewer)

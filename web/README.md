@@ -63,6 +63,9 @@ Notes:
   - `DELETE /logout`
 - Roles are stored on `web.users.role` with hierarchy:
   - `viewer` < `front_office` < `admin`
+- Session cookie lifetime:
+  - Auth sessions use cookie store with `expire_after: 90.days`.
+  - Session validity also depends on a stable `SECRET_KEY_BASE` across deploys.
 - Admin-only routes (current defaults):
   - `/liveline`
 - Bulk user import from CSV:

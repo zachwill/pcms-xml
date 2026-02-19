@@ -55,5 +55,8 @@ USER 1000:1000
 
 EXPOSE 3000
 
-# Single-file startup: generate SECRET_KEY_BASE if deploy env didn't set one.
-CMD ["sh", "-lc", "if [ -z \"${SECRET_KEY_BASE:-}\" ]; then export SECRET_KEY_BASE=$(ruby -rsecurerandom -e 'print SecureRandom.hex(64)'); fi; exec bundle exec puma -C config/puma.rb"]
+# Single-file startup: require a stable SECRET_KEY_BASE for persistent sessions.
+#
+# Optional escape hatch for local-only ad-hoc runs:
+#   ALLOW_EPHEMERAL_SECRET_KEY_BASE=1
+CMD ["sh", "-lc", "if [ -z \"${SECRET_KEY_BASE:-}\" ]; then if [ \"${ALLOW_EPHEMERAL_SECRET_KEY_BASE:-}\" = \"1\" ]; then echo 'WARNING: using ephemeral SECRET_KEY_BASE; all sessions will be invalidated on restart.' >&2; export SECRET_KEY_BASE=$(ruby -rsecurerandom -e 'print SecureRandom.hex(64)'); else echo 'ERROR: SECRET_KEY_BASE is required for stable auth sessions.' >&2; echo 'Generate one with: ruby -rsecurerandom -e \"puts SecureRandom.hex(64)\"' >&2; exit 1; fi; fi; exec bundle exec puma -C config/puma.rb"]
