@@ -65,7 +65,6 @@ Notes:
   - `viewer` < `front_office` < `admin`
 - Admin-only routes (current defaults):
   - `/liveline`
-  - `/ripcity/noah`
 - Bulk user import from CSV:
   - `web/docs/users_csv_import.md`
 

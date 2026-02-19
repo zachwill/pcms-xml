@@ -1,6 +1,5 @@
 module RipCity
   class NoahController < ApplicationController
-    require_role :admin
 
     ZONE_ORDER = [
       "left-corner-three",

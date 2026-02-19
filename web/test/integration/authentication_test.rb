@@ -5,6 +5,7 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
 
   setup do
     @viewer = users(:viewer)
+    @front_office = users(:front_office)
     @admin = users(:admin)
   end
 
@@ -51,6 +52,16 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
     get "/liveline", headers: modern_headers
 
     assert_response :success
+  end
+
+  test "all authenticated roles can access noah" do
+    host! "example.com"
+
+    [@viewer, @front_office, @admin].each do |user|
+      sign_in_as(user)
+      get "/ripcity/noah", headers: modern_headers
+      assert_response :success
+    end
   end
 
   private

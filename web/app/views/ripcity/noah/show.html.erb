@@ -56,8 +56,8 @@
   }"
 >
   <div id="flash">
-    <% flash.each do |_kind, message| %>
-      <div class="mx-4 mt-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300"><%= message %></div>
+    <% if flash[:alert].present? %>
+      <div class="mx-4 mt-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300"><%= flash[:alert] %></div>
     <% end %>
   </div>
 

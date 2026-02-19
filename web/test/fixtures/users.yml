@@ -3,6 +3,11 @@ viewer:
   password_digest: <%= BCrypt::Password.create("password123", cost: BCrypt::Engine::MIN_COST) %>
   role: viewer
 
+front_office:
+  email: front.office@example.com
+  password_digest: <%= BCrypt::Password.create("password123", cost: BCrypt::Engine::MIN_COST) %>
+  role: front_office
+
 admin:
   email: admin@example.com
   password_digest: <%= BCrypt::Password.create("password123", cost: BCrypt::Engine::MIN_COST) %>
