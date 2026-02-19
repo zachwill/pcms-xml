@@ -11,15 +11,186 @@
   selected_team_code = selected_row.present? ? selected_row["team_code"].to_s.upcase : team_code
   selected_team_logo_url = selected_row.present? ? team_logo_url(selected_row["team_id"]) : nil
 
-  display_date = standing_date.present? ? format_date_short(standing_date) : nil
-  board_label = season_label.presence || (season_year.present? ? format_year_label(season_year.to_i) : nil)
+  draft_year = season_year.present? ? season_year.to_i + 1 : year.to_i + 1
 
-  sticky_left_px = 288
+  sticky_left_px = 392
   min_table_width_px = 896
-  grid_template_columns = "288px minmax(72px,1fr) minmax(72px,1fr) minmax(72px,1fr) minmax(72px,1fr) minmax(72px,1fr) minmax(72px,1fr) minmax(96px,1.2fr) minmax(80px,1fr)"
+  grid_template_columns = "392px minmax(96px,1.2fr) minmax(72px,1fr) minmax(72px,1fr) minmax(72px,1fr) minmax(96px,1.2fr) minmax(80px,1fr)"
+
+  team_meta_by_code = standings_rows.each_with_object({}) do |row, memo|
+    code = row["team_code"].to_s.upcase
+    next if code.blank?
+
+    memo[code] = {
+      "team_code" => code,
+      "team_id" => row["team_id"],
+      "team_name" => row["team_name"]
+    }
+  end
+
+  pick_control_by_team = {}
+
+  begin
+    team_codes = standings_rows.map { |row| row["team_code"].to_s.upcase }.reject(&:blank?).uniq
+
+    if team_codes.any?
+      conn = ActiveRecord::Base.connection
+      in_list = team_codes.map { |code| conn.quote(code) }.join(",")
+      draft_year_sql = conn.quote(draft_year)
+
+      pick_rows = conn.exec_query(<<~SQL).to_a
+        SELECT
+          s.team_code,
+          s.raw_part,
+          s.counterparty_team_code,
+          s.is_conditional,
+          s.is_swap,
+          d.shorthand,
+          d.notes
+        FROM pcms.draft_pick_summary_assets s
+        LEFT JOIN pcms.draft_pick_shorthand_assets d
+          ON d.team_code = s.team_code
+         AND d.draft_year = s.draft_year
+         AND d.draft_round = s.draft_round
+         AND d.asset_slot = s.asset_slot
+         AND d.sub_asset_slot = s.sub_asset_slot
+        WHERE s.draft_year = #{draft_year_sql}
+          AND s.draft_round = 1
+          AND s.asset_slot = 1
+          AND s.sub_asset_slot = 1
+          AND s.team_code IN (#{in_list})
+      SQL
+
+      pick_rows.each do |pick_row|
+        pick_control_by_team[pick_row["team_code"].to_s.upcase] = pick_row
+      end
+    end
+  rescue
+    pick_control_by_team = {}
+  end
+
+  parse_first_to_team = ->(text) do
+    match = text.to_s.match(/\bto\s+([A-Z]{3})\b/i)
+    match ? match[1].upcase : nil
+  end
+
+  protected_to_for = ->(text) do
+    protection_match = text.to_s.match(/\(p\.\s*1-(\d+)\)/i)
+    protection_match ? protection_match[1].to_i : nil
+  end
+
+  implication_chip_class_for = ->(tone) do
+    case tone
+    when "success"
+      "entity-chip entity-chip--success"
+    when "danger"
+      "entity-chip entity-chip--danger"
+    when "warning"
+      "entity-chip entity-chip--warning"
+    else
+      "entity-chip entity-chip--muted"
+    end
+  end
+
+  pick_badge_class_for = ->(rank) do
+    if rank.to_i <= 4
+      "border border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+    elsif rank.to_i <= 14
+      "border border-blue-300 bg-blue-100 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300"
+    else
+      "border border-zinc-300 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+    end
+  end
+
+  nbsp_pad = lambda do |text, width|
+    value = text.to_s
+    pad_count = [width.to_i - value.length, 0].max
+    ("\u00A0" * pad_count) + value
+  end
+
+  pick_implication_for = ->(row_team_code, lottery_rank) do
+    payload = pick_control_by_team[row_team_code.to_s.upcase] || {}
+    control_text = payload["shorthand"].presence || payload["raw_part"].presence || "—"
+    raw_text = payload["raw_part"].to_s
+
+    protected_to = protected_to_for.call(control_text) || protected_to_for.call(raw_text)
+    has_complex_chain = control_text.match?(/\b(MF|LF)\s*\[/)
+    has_to = control_text.match?(/\bto\s+[A-Z]{3}\b/i) || raw_text.match?(/\bto\s+[A-Z]{3}\b/i)
+    starts_own = control_text.match?(/\AOwn\b/i)
+    starts_team_code = control_text.match?(/\A#{Regexp.escape(row_team_code.to_s.upcase)}\b/i)
+
+    rank = lottery_rank.to_i
+
+    label =
+      if control_text == "—"
+        "No data"
+      elsif has_complex_chain
+        "Complex chain"
+      elsif protected_to.present? && (starts_own || starts_team_code || has_to)
+        rank <= protected_to ? "Keeps (top-#{protected_to})" : "Conveys"
+      elsif starts_own && !has_to
+        "Keeps"
+      elsif starts_own && has_to
+        "Conveys"
+      elsif starts_team_code && has_to
+        "Conveys"
+      elsif starts_team_code
+        "Keeps"
+      elsif has_to
+        "Conveys"
+      else
+        "Complex chain"
+      end
+
+    destination_team_code = payload["counterparty_team_code"].to_s.upcase.presence || parse_first_to_team.call(raw_text) || parse_first_to_team.call(control_text)
+
+    tone =
+      case label
+      when /\AKeeps/
+        "success"
+      when "Conveys"
+        "danger"
+      when "Complex chain"
+        "warning"
+      else
+        "muted"
+      end
+
+    today_badge =
+      if label.match?(/\AKeeps/)
+        "Keeps"
+      elsif label == "Conveys" && destination_team_code.present?
+        "To #{destination_team_code}"
+      elsif label == "Conveys"
+        "Conveys"
+      elsif label == "Complex chain"
+        "Complex"
+      else
+        label
+      end
+
+    {
+      label: label,
+      tone: tone,
+      today_badge: today_badge,
+      control_text: control_text,
+      details: payload["notes"].presence || payload["raw_part"].presence,
+      destination_team_code: destination_team_code
+    }
+  end
+
+  selected_pick_implication = if selected_row.present?
+    pick_implication_for.call(selected_team_code, selected_row["lottery_rank"])
+  end
+
+  selected_team_code_for_highlight = selected_team_code.presence
 %>
 
-<div id="salarybook-team-frame" class="min-h-full bg-background">
+<div
+  id="salarybook-team-frame"
+  class="min-h-full bg-background"
+  data-signals="{ _tankconference: 'all', _tanktier: 'all', _tanknet: 'all' }"
+>
   <% if error_message.present? %>
     <div class="p-6">
       <div class="max-w-3xl rounded-lg border border-border bg-muted/20 p-4 text-sm">
@@ -39,61 +210,51 @@
       <div id="salarybook-standings-table" class="relative border-y border-border bg-background" data-salarytable>
         <div class="sticky top-0 z-30 bg-background will-change-transform shadow-[0_1px_3px_0_rgb(0_0_0/0.08),0_1px_2px_-1px_rgb(0_0_0/0.08)]">
           <div data-header-content>
-            <div class="px-3 py-2 border-b border-border bg-muted/50">
-              <div class="flex items-end justify-between gap-4">
-                <div>
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-background border border-border overflow-hidden">
-                      <% if selected_team_logo_url.present? %>
-                        <img
-                          src="<%= selected_team_logo_url %>"
-                          alt=""
-                          class="w-full h-full object-contain"
-                          loading="lazy"
-                          decoding="async"
-                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                        />
-                        <span class="hidden text-[10px] font-mono font-bold uppercase tracking-tight text-muted-foreground"><%= selected_team_code.presence || "NBA" %></span>
-                      <% else %>
-                        <span class="text-[10px] font-mono font-bold uppercase tracking-tight text-muted-foreground"><%= selected_team_code.presence || "NBA" %></span>
-                      <% end %>
-                    </div>
-
-                    <div class="min-w-0">
-                      <div class="text-sm font-medium text-foreground truncate">
-                        <% if selected_row.present? %>
-                          <%= selected_row["team_name"].presence || selected_row["team_code"] %>
-                          <span class="text-muted-foreground font-normal">(<%= selected_row["team_code"] %>)</span>
-                        <% else %>
-                          Standings board
-                        <% end %>
-                      </div>
-
-                      <div class="text-[11px] text-muted-foreground">
-                        <% if selected_row.present? %>
-                          Pick <span class="font-mono tabular-nums">#<%= selected_row["lottery_rank"] %></span>
-                          · Record <span class="font-mono tabular-nums"><%= selected_row["record"].presence || "#{selected_row['wins']}-#{selected_row['losses']}" %></span>
-                          · <%= selected_row["conference"].presence || "—" %> #<span class="font-mono tabular-nums"><%= selected_row["conference_rank"].presence || "—" %></span>
-                        <% else %>
-                          Select a team to see standings context.
-                        <% end %>
-                      </div>
-                    </div>
-                  </div>
+            <div class="px-3 py-2 border-b border-border bg-muted">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-background border border-border overflow-hidden">
+                  <% if selected_team_logo_url.present? %>
+                    <img
+                      src="<%= selected_team_logo_url %>"
+                      alt=""
+                      class="w-full h-full object-contain"
+                      loading="lazy"
+                      decoding="async"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    />
+                    <span class="hidden text-[10px] font-mono font-bold uppercase tracking-tight text-muted-foreground"><%= selected_team_code.presence || "NBA" %></span>
+                  <% else %>
+                    <span class="text-[10px] font-mono font-bold uppercase tracking-tight text-muted-foreground"><%= selected_team_code.presence || "NBA" %></span>
+                  <% end %>
                 </div>
 
-                <div class="text-right space-y-1">
-                  <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Source</div>
-                  <div class="text-[11px] text-muted-foreground">
-                    <% if board_label.present? %>
-                      <span class="font-mono tabular-nums text-foreground"><%= board_label %></span>
+                <div class="min-w-0">
+                  <div class="text-sm font-medium text-foreground truncate">
+                    <% if selected_row.present? %>
+                      <%= selected_row["team_name"].presence || selected_row["team_code"] %>
+                      <span class="text-muted-foreground font-normal">(<%= selected_row["team_code"] %>)</span>
                     <% else %>
-                      <span>Latest standings</span>
-                    <% end %>
-                    <% if display_date.present? %>
-                      · as of <span class="font-mono tabular-nums"><%= display_date %></span>
+                      Standings board
                     <% end %>
                   </div>
+
+                  <div class="text-[11px] text-muted-foreground">
+                    <% if selected_row.present? %>
+                      Record <span class="font-mono tabular-nums"><%= selected_row["record"].presence || "#{selected_row['wins']}-#{selected_row['losses']}" %></span>
+                      · <%= selected_row["conference"].presence || "—" %> #<span class="font-mono tabular-nums"><%= selected_row["conference_rank"].presence || "—" %></span>
+                      · Pick <span class="font-mono tabular-nums">#<%= selected_row["lottery_rank"] %></span>
+                    <% else %>
+                      Select a team to see standings context.
+                    <% end %>
+                  </div>
+
+                  <% if selected_pick_implication.present? %>
+                    <div class="mt-0.5 flex items-center gap-1.5 min-w-0 text-[10px] text-muted-foreground">
+                      <span class="uppercase tracking-wide">R1 <%= draft_year %></span>
+                      <span class="<%= implication_chip_class_for.call(selected_pick_implication[:tone]) %>"><%= selected_pick_implication[:today_badge] %></span>
+                      <span class="truncate" title="<%= selected_pick_implication[:details] %>"><%= selected_pick_implication[:control_text] %></span>
+                    </div>
+                  <% end %>
                 </div>
               </div>
             </div>
@@ -103,16 +264,14 @@
               class="overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             >
               <div class="min-w-max w-full" style="min-width: <%= min_table_width_px %>px;">
-                <div class="h-8 grid items-center border-b border-border bg-background text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium" style="grid-template-columns: <%= grid_template_columns %>;">
-                  <div class="sticky left-0 z-[2] h-full flex items-center pl-3 bg-background relative after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/60">Team</div>
-                  <div class="px-2 text-right">Pick</div>
-                  <div class="px-2 text-right">W</div>
-                  <div class="px-2 text-right">L</div>
-                  <div class="px-2 text-right">Win%</div>
-                  <div class="px-2 text-right">GB</div>
-                  <div class="px-2 text-right">L10</div>
-                  <div class="px-2 text-right">Streak</div>
-                  <div class="px-2 text-right">Net</div>
+                <div class="h-8 grid items-center border-b border-border bg-background text-[10px] uppercase tracking-wide text-muted-foreground font-medium" style="grid-template-columns: <%= grid_template_columns %>;">
+                  <div class="sticky left-0 z-[2] h-full flex items-center pl-3 bg-background relative after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border">Team · R1 <%= draft_year %></div>
+                  <div class="px-2 text-center">Record</div>
+                  <div class="px-2 text-center">Win%</div>
+                  <div class="px-2 text-center">GB</div>
+                  <div class="px-2 text-center">L10</div>
+                  <div class="px-2 text-center">Streak</div>
+                  <div class="px-2 text-center">Net</div>
                 </div>
               </div>
             </div>
@@ -136,7 +295,6 @@
                 <% row_team_code = row["team_code"].to_s.upcase %>
                 <% row_team_name = row["team_name"].presence || row_team_code %>
                 <% row_logo_url = team_logo_url(row["team_id"]) %>
-                <% is_active = row_team_code == team_code %>
 
                 <% win_pct = row["win_pct"] %>
                 <% win_pct_display = win_pct.nil? ? "—" : format("%.3f", win_pct.to_f) %>
@@ -161,83 +319,145 @@
                 <% streak_prefix = streak_match && streak_match[1] %>
                 <% streak_count = streak_match && streak_match[2] %>
 
-                <% row_bg = is_active ? "bg-primary/5 dark:bg-primary/10" : "" %>
-                <% sticky_bg = if is_active
-                  "bg-primary/10 dark:bg-primary/20 group-hover:bg-primary/10 dark:group-hover:bg-primary/20"
+                <% record_display = row["record"].presence || "#{row['wins']}-#{row['losses']}" %>
+                <% record_display_padded = nbsp_pad.call(record_display, 5) %>
+                <% win_pct_display_padded = nbsp_pad.call(win_pct_display, 5) %>
+                <% league_gb_display_padded = nbsp_pad.call(league_gb_display, 4) %>
+                <% l10_display = nbsp_pad.call((row["l10"].presence || "—"), 4) %>
+                <% streak_display = if streak_match.present?
+                  nbsp_pad.call("#{streak_prefix}#{streak_count}", 3)
                 else
-                  "bg-background group-hover:bg-yellow-50/70 dark:group-hover:bg-yellow-900/25"
+                  nbsp_pad.call((row["current_streak_text"].presence || "—"), 3)
+                end %>
+                <% net_display_padded = nbsp_pad.call(net_display, 5) %>
+
+                <% pick_rank = row["lottery_rank"].to_i %>
+                <% pick_badge_class = pick_badge_class_for.call(pick_rank) %>
+
+                <% pick_implication = pick_implication_for.call(row_team_code, row["lottery_rank"]) %>
+                <% implication_chip_class = implication_chip_class_for.call(pick_implication[:tone]) %>
+                <% destination_team_code = pick_implication[:destination_team_code].to_s.upcase.presence %>
+                <% destination_team_meta = destination_team_code.present? ? (team_meta_by_code[destination_team_code] || {}) : {} %>
+                <% destination_logo_url = destination_team_meta.present? ? team_logo_url(destination_team_meta["team_id"]) : nil %>
+                <% conveys_to_other_team = pick_implication[:label] == "Conveys" && destination_team_code.present? && destination_team_code != row_team_code %>
+
+                <% control_blob = [pick_implication[:control_text], pick_implication[:details]].compact.join(" ").upcase %>
+                <% mentions_selected_team = selected_team_code_for_highlight.present? && control_blob.match?(/\b#{Regexp.escape(selected_team_code_for_highlight)}\b/) %>
+                <% affects_selected_team = selected_team_code_for_highlight.present? && (
+                  row_team_code == selected_team_code_for_highlight ||
+                  destination_team_code == selected_team_code_for_highlight ||
+                  mentions_selected_team
+                ) %>
+
+                <% row_bg = affects_selected_team ? "bg-yellow-100 dark:bg-yellow-950" : "" %>
+                <% sticky_bg = affects_selected_team ? "bg-yellow-100 dark:bg-yellow-950" : "bg-background" %>
+
+                <% team_name_class = if conveys_to_other_team
+                  "text-muted-foreground"
+                elsif row_team_code == selected_team_code_for_highlight
+                  "text-primary"
+                else
+                  "text-foreground"
                 end %>
 
                 <div
-                  class="group grid items-stretch text-xs cursor-pointer transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 <%= row_bg %>"
+                  class="grid items-stretch text-xs transition-colors duration-75 <%= row_bg %>"
                   style="grid-template-columns: <%= grid_template_columns %>;"
-                  role="button"
-                  tabindex="0"
-                  data-on:click="el.dispatchEvent(new CustomEvent('salarybook-switch-team', { bubbles: true, detail: { team: '<%= row_team_code %>', year: '<%= year %>' } }));"
-                  data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); el.dispatchEvent(new CustomEvent('salarybook-switch-team', { bubbles: true, detail: { team: '<%= row_team_code %>', year: '<%= year %>' } })); }"
-                  title="Switch to <%= row_team_code %>"
                 >
-                  <div class="px-3 py-1 sticky left-0 z-20 relative transition-colors duration-75 <%= sticky_bg %> after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/50">
-                    <div class="grid grid-cols-[34px_1fr] grid-rows-[22px_14px]">
+                  <div class="px-3 py-1 sticky left-0 z-20 relative transition-colors duration-75 <%= sticky_bg %> after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border">
+                    <div class="grid grid-cols-[96px_1fr] grid-rows-[22px_14px]">
                       <div class="row-span-2 flex items-center justify-start">
-                        <div class="w-7 h-7 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
-                          <% if row_logo_url.present? %>
-                            <img
-                              src="<%= row_logo_url %>"
-                              alt=""
-                              class="w-full h-full object-contain"
-                              loading="lazy"
-                              decoding="async"
-                              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                            />
-                            <span class="hidden text-[9px] font-semibold text-muted-foreground"><%= row_team_code %></span>
+                        <div class="flex items-center gap-1">
+                          <div class="w-7 h-7 rounded flex items-center justify-center text-[9px] font-mono font-semibold tabular-nums <%= pick_badge_class %>">
+                            #<%= pick_rank %>
+                          </div>
+
+                          <% if conveys_to_other_team %>
+                            <div class="w-7 h-7 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                              <% if destination_logo_url.present? %>
+                                <img
+                                  src="<%= destination_logo_url %>"
+                                  alt=""
+                                  class="w-full h-full object-contain"
+                                  loading="lazy"
+                                  decoding="async"
+                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                />
+                                <span class="hidden text-[9px] font-semibold text-muted-foreground"><%= destination_team_code %></span>
+                              <% else %>
+                                <span class="text-[9px] font-semibold text-muted-foreground"><%= destination_team_code %></span>
+                              <% end %>
+                            </div>
+
+                            <div class="w-7 h-7 rounded border border-border bg-background overflow-hidden flex items-center justify-center grayscale">
+                              <% if row_logo_url.present? %>
+                                <img
+                                  src="<%= row_logo_url %>"
+                                  alt=""
+                                  class="w-full h-full object-contain"
+                                  loading="lazy"
+                                  decoding="async"
+                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                />
+                                <span class="hidden text-[9px] font-semibold text-muted-foreground"><%= row_team_code %></span>
+                              <% else %>
+                                <span class="text-[9px] font-semibold text-muted-foreground"><%= row_team_code %></span>
+                              <% end %>
+                            </div>
                           <% else %>
-                            <span class="text-[9px] font-semibold text-muted-foreground"><%= row_team_code %></span>
+                            <div class="w-7 h-7 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                              <% if row_logo_url.present? %>
+                                <img
+                                  src="<%= row_logo_url %>"
+                                  alt=""
+                                  class="w-full h-full object-contain"
+                                  loading="lazy"
+                                  decoding="async"
+                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                />
+                                <span class="hidden text-[9px] font-semibold text-muted-foreground"><%= row_team_code %></span>
+                              <% else %>
+                                <span class="text-[9px] font-semibold text-muted-foreground"><%= row_team_code %></span>
+                              <% end %>
+                            </div>
                           <% end %>
                         </div>
                       </div>
 
                       <div class="h-[22px] min-w-0 pl-2 flex items-end gap-1.5">
-                        <span class="truncate text-[13px] font-medium <%= is_active ? 'text-primary' : 'text-foreground group-hover:text-primary' %>"><%= row_team_name %></span>
-                        <% if is_active %>
-                          <span class="entity-chip entity-chip--accent">Active</span>
-                        <% end %>
+                        <span class="truncate text-[13px] font-medium <%= team_name_class %>"><%= row_team_name %></span>
                       </div>
 
-                      <div class="h-[14px] min-w-0 pl-2 flex items-start gap-1.5 text-[10px] leading-none text-muted-foreground/80">
-                        <span class="font-mono tabular-nums"><%= row_team_code %></span>
-                        <span>·</span>
-                        <span><%= row["conference"].presence || "—" %> #<span class="font-mono tabular-nums"><%= row["conference_rank"].presence || "—" %></span></span>
-                        <span>·</span>
-                        <span><%= row["record"].presence || "#{row['wins']}-#{row['losses']}" %></span>
+                      <div class="h-[14px] min-w-0 pl-2 flex items-center gap-1 text-[10px] leading-none text-muted-foreground">
+                        <span class="font-mono tabular-nums shrink-0"><%= row["record"].presence || "#{row['wins']}-#{row['losses']}" %></span>
+                        <span class="shrink-0">·</span>
+                        <span class="shrink-0"><%= row["conference"].presence || "—" %> #<span class="font-mono tabular-nums"><%= row["conference_rank"].presence || "—" %></span></span>
+                        <span class="shrink-0">·</span>
+                        <span class="<%= implication_chip_class %>"><%= pick_implication[:today_badge] %></span>
+                        <span class="shrink-0">·</span>
+                        <span class="truncate" title="<%= pick_implication[:details] %>"><%= pick_implication[:control_text] %></span>
                       </div>
                     </div>
                   </div>
 
-                  <div class="px-2 h-full flex items-center justify-end text-right text-[13px] leading-none font-mono tabular-nums">
-                    <% if row["lottery_rank"].to_i <= 14 %>
-                      <span class="entity-chip entity-chip--warning">#<%= row["lottery_rank"] %></span>
-                    <% else %>
-                      #<%= row["lottery_rank"] %>
-                    <% end %>
+                  <div class="px-2 h-full flex items-center justify-center text-center text-[13px] leading-none font-mono tabular-nums">
+                    <span class="whitespace-nowrap"><%= record_display_padded %></span>
                   </div>
-
-                  <div class="px-2 h-full flex items-center justify-end text-right text-[13px] leading-none font-mono tabular-nums"><%= row["wins"].presence || "—" %></div>
-                  <div class="px-2 h-full flex items-center justify-end text-right text-[13px] leading-none font-mono tabular-nums"><%= row["losses"].presence || "—" %></div>
-                  <div class="px-2 h-full flex items-center justify-end text-right text-[13px] leading-none font-mono tabular-nums"><%= win_pct_display %></div>
-                  <div class="px-2 h-full flex items-center justify-end text-right text-[13px] leading-none font-mono tabular-nums"><%= league_gb_display %></div>
-                  <div class="px-2 h-full flex items-center justify-end text-right text-[13px] leading-none font-mono tabular-nums"><%= row["l10"].presence || "—" %></div>
-                  <div class="px-2 h-full flex items-center justify-end text-right text-[13px] leading-none font-mono tabular-nums">
-                    <% if streak_match.present? %>
-                      <span class="inline-flex w-full items-center justify-end gap-1">
-                        <span class="text-muted-foreground/90"><%= streak_prefix %></span>
-                        <span class="inline-block w-[2ch] text-right"><%= streak_count %></span>
-                      </span>
-                    <% else %>
-                      <%= row["current_streak_text"].presence || "—" %>
-                    <% end %>
+                  <div class="px-2 h-full flex items-center justify-center text-center text-[13px] leading-none font-mono tabular-nums">
+                    <span class="whitespace-nowrap"><%= win_pct_display_padded %></span>
                   </div>
-                  <div class="px-2 h-full flex items-center justify-end text-right text-[13px] leading-none font-mono tabular-nums <%= net_class %>"><%= net_display %></div>
+                  <div class="px-2 h-full flex items-center justify-center text-center text-[13px] leading-none font-mono tabular-nums">
+                    <span class="whitespace-nowrap"><%= league_gb_display_padded %></span>
+                  </div>
+                  <div class="px-2 h-full flex items-center justify-center text-center text-[13px] leading-none font-mono tabular-nums">
+                    <span class="whitespace-nowrap"><%= l10_display %></span>
+                  </div>
+                  <div class="px-2 h-full flex items-center justify-center text-center text-[13px] leading-none font-mono tabular-nums text-muted-foreground">
+                    <span class="whitespace-nowrap"><%= streak_display %></span>
+                  </div>
+                  <div class="px-2 h-full flex items-center justify-center text-center text-[13px] leading-none font-mono tabular-nums <%= net_class %>">
+                    <span class="whitespace-nowrap"><%= net_display_padded %></span>
+                  </div>
                 </div>
               <% end %>
             </div>
