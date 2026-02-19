@@ -24,9 +24,11 @@ module RipCity
       { key: "25-26-season", label: "25-26 Season" },
       { key: "24-25-season", label: "24-25 Season" },
       { key: "23-24-season", label: "23-24 Season" },
+      { key: "all-seasons", label: "All Seasons" },
       { key: "2025-draft-workouts", label: "2025 Draft Workouts" },
       { key: "2024-draft-workouts", label: "2024 Draft Workouts" },
-      { key: "2023-draft-workouts", label: "2023 Draft Workouts" }
+      { key: "2023-draft-workouts", label: "2023 Draft Workouts" },
+      { key: "all-drafts", label: "All Drafts" }
     ].freeze
 
     SHOT_LENS_OPTIONS = {
@@ -240,6 +242,7 @@ module RipCity
       @end_date = window.fetch(:end_date)
       @window_label = window.fetch(:label)
       @include_predraft = window.fetch(:include_predraft, false)
+      @roster_groups = window.fetch(:roster_groups, nil)
       @exclude_player_ids = window.fetch(:exclude_player_ids, [])
 
       @min_attempts = normalize_min_attempts(
@@ -267,6 +270,7 @@ module RipCity
         start_date: @start_date,
         end_date: @end_date,
         include_predraft: @include_predraft,
+        roster_groups: @roster_groups,
         exclude_player_ids: @exclude_player_ids,
         **filters
       )
@@ -280,6 +284,7 @@ module RipCity
 
       all_time_3pa_by_noah_id = queries.fetch_player_lens_totals(
         include_predraft: @include_predraft,
+        roster_groups: @roster_groups,
         exclude_player_ids: @exclude_player_ids,
         **sparkline_filters
       ).each_with_object({}) do |row, memo|
@@ -296,6 +301,7 @@ module RipCity
       sparkline_points_by_noah_id = build_sparkline_points_by_noah_id(
         queries.fetch_player_lens_weekly_totals(
           include_predraft: @include_predraft,
+          roster_groups: @roster_groups,
           exclude_player_ids: @exclude_player_ids,
           noah_ids: player_rows.map { |row| row["noah_id"] },
           **sparkline_filters
@@ -363,6 +369,7 @@ module RipCity
       @end_date = Date.current
       @window_label = "Fallback window"
       @include_predraft = false
+      @roster_groups = nil
       @exclude_player_ids = []
 
       @min_attempts = 10
@@ -503,6 +510,13 @@ module RipCity
           start_date: Date.new(2023, 8, 1),
           end_date: Date.new(2024, 4, 15)
         }
+      when "all-seasons"
+        {
+          label: "All Seasons",
+          start_date: Date.new(2000, 1, 1),
+          end_date: Date.current,
+          roster_groups: ["Roster", "Historical"]
+        }
       when "2025-draft-workouts"
         {
           label: "2025 draft workouts",
@@ -526,6 +540,15 @@ module RipCity
           end_date: Date.new(2023, 6, 25),
           include_predraft: true,
           exclude_player_ids: []
+        }
+      when "all-drafts"
+        {
+          label: "All Drafts",
+          start_date: Date.new(2000, 1, 1),
+          end_date: Date.current,
+          include_predraft: true,
+          roster_groups: ["Draft"],
+          exclude_player_ids: [1262385, 1262390, 1262395]
         }
       else
         {

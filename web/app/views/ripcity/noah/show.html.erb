@@ -34,9 +34,9 @@
   ]
 
   timeframe_optgroups = [
-    { label: "Season", options: [["25-26-season", "25-26"], ["24-25-season", "24-25"], ["23-24-season", "23-24"]] },
+    { label: "Seasons", options: [["25-26-season", "25-26"], ["24-25-season", "24-25"], ["23-24-season", "23-24"], ["all-seasons", "All Seasons"]] },
     { label: "Recent", options: [["past-24-hours", "Past 24 hours"], ["past-3-days", "Past 3 days"], ["past-week", "Past week"], ["past-month", "Past month"]] },
-    { label: "Draft Workouts", options: [["2025-draft-workouts", "2025 Draft"], ["2024-draft-workouts", "2024 Draft"], ["2023-draft-workouts", "2023 Draft"]] }
+    { label: "Draft Workouts", options: [["2025-draft-workouts", "2025 Draft"], ["2024-draft-workouts", "2024 Draft"], ["2023-draft-workouts", "2023 Draft"], ["all-drafts", "All Drafts"]] }
   ]
 %>
 
@@ -175,7 +175,7 @@
       <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
 
       <div id="noah-sort" class="min-w-[12.5rem] w-[12.5rem] space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sort</div>
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sort By</div>
         <div class="grid grid-cols-2 gap-x-2 gap-y-1">
           <div class="space-y-1">
             <% sort_primary_keys.each do |key| %>

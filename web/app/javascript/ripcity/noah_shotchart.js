@@ -1,11 +1,11 @@
 const MAP_NAME = "NoahShotchartSvg";
 const SVG_URL = "/shotchart.svg";
 
-const FONT_SANS = "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif";
+const FONT_SANS = "Inter, system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif";
 const FONT_MONO = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace";
 
-const HEAT_COLORS_LIGHT = ["#2E90FA", "#58A6FB", "#82BCFC", "#F3F9FD", "#FFC766", "#FFB433", "#FFA100"];
-const HEAT_COLORS_DARK = ["#1D4ED8", "#2563EB", "#3B82F6", "#475569", "#B45309", "#D97706", "#FFB020"];
+const HEAT_COLORS_LIGHT = ["#2E90FA", "#58A6FB", "#82BCFC", "#FFC766", "#FFB433", "#FFA100"];
+const HEAT_COLORS_DARK = ["#1D4ED8", "#2563EB", "#3B82F6", "#B45309", "#D97706", "#FFB020"];
 
 const SINGLE_TONE_HEAT_COLOR_LIGHT = "#FFA100";
 const SINGLE_TONE_HEAT_COLOR_DARK = "#FFB020";

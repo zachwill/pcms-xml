@@ -37,7 +37,37 @@
         end
       end
     end %>
+    <% sparkline_polyline_points = lambda do |points, width: 48.0, height: 11.0|
+      values = Array(points).map { |value| [value.to_f, 0.0].max }
+      values = [0.0, 0.0] if values.empty?
+      values = [values.first, values.first] if values.length == 1
+
+      min = values.min
+      max = values.max
+      span = max - min
+      min_y = 0.5
+      max_y = height - 0.5
+
+      values.each_with_index.map do |value, index|
+        x = if values.length == 1
+          0.0
+        else
+          (index.to_f / (values.length - 1)) * (width - 1.0)
+        end
+
+        y = if span <= 0.0
+          (min_y + max_y) / 2.0
+        else
+          max_y - (((value - min) / span) * (max_y - min_y))
+        end
+
+        format("%.2f,%.2f", x, y)
+      end.join(" ")
+    end %>
     <% selected_player_initials = initials_for.call(@selected_player["player_name"]) %>
+    <% selected_player_attempts_text = number_with_delimiter(@selected_player["attempts"].to_i) %>
+    <% selected_player_sparkline_points = Array(@selected_player["sparkline_points"]).map(&:to_i) %>
+    <% selected_player_sparkline_points_attr = sparkline_polyline_points.call(selected_player_sparkline_points) %>
 
     <section class="space-y-3">
       <div class="flex items-start gap-3">
@@ -61,7 +91,24 @@
           <div class="min-w-0">
             <div class="font-semibold text-lg leading-tight truncate <%= historical_player ? 'text-muted-foreground' : 'text-foreground' %>"><%= @selected_player["player_name"] %></div>
             <div class="text-sm text-muted-foreground truncate mt-0.5 tabular-nums">
-              <%= number_with_delimiter(@selected_player["attempts"].to_i) %> <%= @shot_volume_label %>
+              <span class="inline-flex items-center whitespace-nowrap" title="Shot trend">
+                <svg
+                  class="h-[1em] w-[4.25em] mr-1.5 shrink-0 text-muted-foreground/70"
+                  viewBox="0 0 48 11"
+                  aria-hidden="true"
+                  preserveAspectRatio="none"
+                >
+                  <polyline
+                    points="<%= selected_player_sparkline_points_attr %>"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span><%= selected_player_attempts_text %> <%= @shot_volume_label %></span>
+              </span>
               <span class="mx-1">·</span>
               <%= number_with_precision(@selected_player["fg_pct"].to_f * 100.0, precision: 1, strip_insignificant_zeros: false) %>% <%= @shot_pct_label %>
             </div>

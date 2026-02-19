@@ -27,7 +27,7 @@ class NoahQueries
     SQL
   end
 
-  def fetch_player_summary(start_date:, end_date:, include_predraft:, exclude_player_ids:, is_three:, shot_type:, is_corner_three:)
+  def fetch_player_summary(start_date:, end_date:, include_predraft:, roster_groups: nil, exclude_player_ids:, is_three:, shot_type:, is_corner_three:)
     where_sql = shot_base_where_sql(
       start_date: start_date,
       end_date: end_date,
@@ -38,6 +38,7 @@ class NoahQueries
     )
 
     predraft_clause = include_predraft ? "AND p.email ILIKE '%predraft%'" : ""
+    player_group_clause = roster_group_clause(roster_groups, table_alias: "p")
     exclude_clause = noah_id_exclusion_clause(exclude_player_ids)
 
     conn.exec_query(<<~SQL).to_a
@@ -61,13 +62,14 @@ class NoahQueries
       WHERE #{where_sql}
         AND p.noah_id != 1248674
         #{predraft_clause}
+        #{player_group_clause}
         #{exclude_clause}
       GROUP BY s.noah_id, p.nba_id, p.player_name, p.roster_group
       ORDER BY count DESC, p.player_name ASC
     SQL
   end
 
-  def fetch_player_lens_totals(include_predraft:, exclude_player_ids:, is_three:, shot_type:, is_corner_three:)
+  def fetch_player_lens_totals(include_predraft:, roster_groups: nil, exclude_player_ids:, is_three:, shot_type:, is_corner_three:)
     where_sql = shot_lens_where_sql(
       is_three: is_three,
       shot_type: shot_type,
@@ -76,6 +78,7 @@ class NoahQueries
     )
 
     predraft_clause = include_predraft ? "AND p.email ILIKE '%predraft%'" : ""
+    player_group_clause = roster_group_clause(roster_groups, table_alias: "p")
     exclude_clause = noah_id_exclusion_clause(exclude_player_ids)
 
     conn.exec_query(<<~SQL).to_a
@@ -88,6 +91,7 @@ class NoahQueries
       WHERE #{where_sql}
         AND p.noah_id != 1248674
         #{predraft_clause}
+        #{player_group_clause}
         #{exclude_clause}
       GROUP BY s.noah_id
     SQL
@@ -122,7 +126,7 @@ class NoahQueries
     SQL
   end
 
-  def fetch_player_lens_weekly_totals(include_predraft:, exclude_player_ids:, noah_ids:, is_three:, shot_type:, is_corner_three:)
+  def fetch_player_lens_weekly_totals(include_predraft:, roster_groups: nil, exclude_player_ids:, noah_ids:, is_three:, shot_type:, is_corner_three:)
     normalized_ids = Array(noah_ids).filter_map do |id|
       Integer(id)
     rescue ArgumentError, TypeError
@@ -139,6 +143,7 @@ class NoahQueries
     )
 
     predraft_clause = include_predraft ? "AND p.email ILIKE '%predraft%'" : ""
+    player_group_clause = roster_group_clause(roster_groups, table_alias: "p")
     exclude_clause = noah_id_exclusion_clause(exclude_player_ids)
     ids_clause = "AND s.noah_id IN (#{normalized_ids.map { |id| conn.quote(id) }.join(', ')})"
 
@@ -153,6 +158,7 @@ class NoahQueries
       WHERE #{where_sql}
         AND p.noah_id != 1248674
         #{predraft_clause}
+        #{player_group_clause}
         #{exclude_clause}
         #{ids_clause}
       GROUP BY s.noah_id, DATE_TRUNC('week', s.shot_date)
@@ -261,6 +267,14 @@ class NoahQueries
     conditions << "#{table_alias}.is_corner_three = #{conn.quote(is_corner_three.to_i)}" unless is_corner_three.nil?
 
     conditions.join(" AND ")
+  end
+
+  def roster_group_clause(groups, table_alias: "p")
+    normalized = Array(groups).map { |group| group.to_s.strip }.reject(&:blank?).uniq
+    return "" if normalized.empty?
+
+    quoted = normalized.map { |group| conn.quote(group) }.join(", ")
+    "AND #{table_alias}.roster_group IN (#{quoted})"
   end
 
   def noah_id_exclusion_clause(ids)
