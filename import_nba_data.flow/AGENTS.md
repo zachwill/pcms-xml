@@ -157,6 +157,10 @@ For Advanced parity, Query Tool rows are combined with DNP placeholders from Tra
 - bounded per-game concurrency (`GAME_DATA_CONCURRENCY=4`)
 - structured telemetry for game selection, legacy endpoint timings, Query Tool batch metrics, and upsert timing.
 - season-backfill coverage skipping: when `run_mode=season_backfill` (and no explicit `game_ids`), it only fetches games missing each section (`traditional/pbp/poc/hustle` + `advanced/tracking/defensive/violations`).
+- Advanced DNP placeholder sourcing from Traditional rows even when Traditional fetch is skipped (reads existing `nba.boxscores_traditional` rows for those games).
+- defensive upsert guards:
+  - auto-seeds placeholder rows in `nba.players` for missing `nba_id` references to avoid FK aborts.
+  - normalizes extreme Query Tool percent/rating outliers (e.g. PIE/pace scale anomalies) before writing to constrained numeric columns.
 - tenacity-based HTTP retry wrapper for JSON endpoints (`max 4 attempts`, exponential backoff, extra delay on `403`).
 
 `querytool_event_streams` includes:

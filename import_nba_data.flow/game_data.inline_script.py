@@ -316,6 +316,45 @@ def upsert(conn: psycopg.Connection, table: str, rows: list[dict], conflict_keys
     return len(rows)
 
 
+def upsert_missing_players_for_game_data(
+    conn: psycopg.Connection,
+    nba_ids: set[int],
+    league_id: str,
+    fetched_at: datetime,
+) -> tuple[int, int]:
+    if not nba_ids:
+        return 0, 0
+
+    ids = sorted(nba_ids)
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT nba_id FROM nba.players WHERE nba_id = ANY(%s::int[])",
+            (ids,),
+        )
+        existing = {row[0] for row in cur.fetchall() if row and row[0] is not None}
+
+    missing = [nba_id for nba_id in ids if nba_id not in existing]
+    if not missing:
+        return 0, 0
+
+    rows = [
+        {
+            "nba_id": nba_id,
+            "full_name": f"Unknown Player {nba_id}",
+            "is_active": None,
+            "status": "Unknown",
+            "league_id": league_id,
+            "created_at": fetched_at,
+            "updated_at": fetched_at,
+            "fetched_at": fetched_at,
+        }
+        for nba_id in missing
+    ]
+
+    upserted = upsert(conn, "nba.players", rows, ["nba_id"], update_exclude=["created_at"])
+    return len(missing), upserted
+
+
 def fetch_existing_game_ids(
     conn: psycopg.Connection,
     table: str,
@@ -334,6 +373,37 @@ def fetch_existing_game_ids(
     with conn.cursor() as cur:
         cur.execute(sql, (game_ids, *extra_params))
         return {row[0] for row in cur.fetchall() if row and row[0]}
+
+
+def fetch_existing_traditional_player_rows(
+    conn: psycopg.Connection,
+    game_ids: list[str],
+) -> list[dict]:
+    if not game_ids:
+        return []
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT game_id, nba_id, team_id, played, minutes
+            FROM nba.boxscores_traditional
+            WHERE game_id = ANY(%s::text[])
+            """,
+            (game_ids,),
+        )
+        rows = cur.fetchall()
+
+    return [
+        {
+            "game_id": game_id,
+            "nba_id": nba_id,
+            "team_id": team_id,
+            "played": played,
+            "minutes": minutes,
+        }
+        for game_id, nba_id, team_id, played, minutes in rows
+        if game_id and nba_id is not None
+    ]
 
 
 def resolve_season_date_range(season_label: str | None) -> tuple[date, date]:
@@ -1041,6 +1111,21 @@ ADVANCED_QUERYTOOL_PCT_COLUMNS = {
     "pie",
 }
 
+ADVANCED_NUMERIC_6_2_COLUMNS = {
+    "off_rating",
+    "def_rating",
+    "net_rating",
+    "ast_to_ratio",
+    "ast_ratio",
+    "e_off_rating",
+    "e_def_rating",
+    "e_net_rating",
+    "e_ast_ratio",
+    "e_pace",
+    "pace",
+    "pace_per40",
+}
+
 
 def map_advanced_stats(stats: dict) -> dict:
     result: dict = {}
@@ -1061,8 +1146,16 @@ def map_advanced_stats(stats: dict) -> dict:
         if parsed is None:
             continue
 
-        if column in ADVANCED_PCT_NEEDS_NORMALIZE and parsed > 1:
-            parsed = parsed / 100
+        if column in ADVANCED_PCT_NEEDS_NORMALIZE:
+            parsed = normalize_pct_from_float(parsed)
+
+        if column in ADVANCED_NUMERIC_6_2_COLUMNS:
+            while abs(parsed) >= 10000:
+                parsed = parsed / 100
+
+        if column in {"pace", "pace_per40"}:
+            while abs(parsed) >= 1000:
+                parsed = parsed / 100
 
         result[column] = parsed
     return result
@@ -1091,8 +1184,16 @@ def map_advanced_querytool_stats(stats: dict, team: bool = False) -> dict:
         if parsed is None:
             continue
 
-        if column in ADVANCED_QUERYTOOL_PCT_COLUMNS and abs(parsed) > 1:
-            parsed = parsed / 100
+        if column in ADVANCED_QUERYTOOL_PCT_COLUMNS:
+            parsed = normalize_pct_from_float(parsed)
+
+        if column in ADVANCED_NUMERIC_6_2_COLUMNS:
+            while abs(parsed) >= 10000:
+                parsed = parsed / 100
+
+        if column in {"pace", "pace_per40"}:
+            while abs(parsed) >= 1000:
+                parsed = parsed / 100
 
         result[column] = parsed
 
@@ -1147,13 +1248,24 @@ def normalize_tracking_key(key: str) -> str:
     return normalized
 
 
+def normalize_pct_from_float(parsed: float) -> float:
+    if abs(parsed) > 1:
+        parsed = parsed / 100
+
+    # Some Query Tool rows occasionally arrive in 10x/100x-scaled form
+    # (e.g. PIE=-1100); keep scaling down until values fit expected percent
+    # magnitudes and target numeric(5,4) storage.
+    while abs(parsed) >= 10:
+        parsed = parsed / 100
+
+    return parsed
+
+
 def normalize_pct(value):
     parsed = parse_float(value)
     if parsed is None:
         return None
-    if parsed > 1:
-        return parsed / 100
-    return parsed
+    return normalize_pct_from_float(parsed)
 
 
 def map_tracking_stats(stats: dict) -> dict:
@@ -1703,54 +1815,62 @@ def fetch_legacy_game_payloads(
             except Exception as exc:
                 endpoint_errors.append(f"boxscore_traditional: {exc}")
 
-        home_team = boxscore.get("homeTeam") or {}
-        away_team = boxscore.get("awayTeam") or {}
+        if boxscore:
+            home_team = boxscore.get("homeTeam") or {}
+            away_team = boxscore.get("awayTeam") or {}
 
-        for team in [home_team, away_team]:
-            team_id = team.get("teamId")
-            team_stats = team.get("statistics") or {}
+            for team in [home_team, away_team]:
+                team_id = parse_int(team.get("teamId"))
+                if team_id is None:
+                    continue
 
-            team_row = {
-                "game_id": game_id_value,
-                "team_id": team_id,
-                "minutes": parse_iso_duration(team_stats.get("minutes")),
-                "created_at": fetched_at,
-                "updated_at": fetched_at,
-                "fetched_at": fetched_at,
-            }
-            for key, column in TEAM_STAT_MAP.items():
-                if key in team_stats:
-                    team_row[column] = team_stats.get(key)
+                team_stats = team.get("statistics") or {}
 
-            compute_fg2(team_row)
-            team_rows.append(team_row)
-
-            for player in team.get("players") or []:
-                stats = player.get("statistics") or {}
-                row = {
+                team_row = {
                     "game_id": game_id_value,
-                    "nba_id": player.get("personId"),
                     "team_id": team_id,
-                    "status": empty_to_none(player.get("status")),
-                    "not_playing_reason": empty_to_none(player.get("notPlayingReason")),
-                    "not_playing_description": empty_to_none(player.get("notPlayingDescription")),
-                    "order_sequence": player.get("order"),
-                    "jersey_num": empty_to_none(player.get("jerseyNum")),
-                    "position": empty_to_none(player.get("position")),
-                    "is_starter": to_bool(player.get("starter")),
-                    "is_on_court": to_bool(player.get("oncourt")),
-                    "played": to_bool(player.get("played")),
-                    "minutes": parse_iso_duration(stats.get("minutes")),
+                    "minutes": parse_iso_duration(team_stats.get("minutes")),
                     "created_at": fetched_at,
                     "updated_at": fetched_at,
                     "fetched_at": fetched_at,
                 }
-                for key, column in PLAYER_STAT_MAP.items():
-                    if key in stats:
-                        row[column] = stats.get(key)
+                for key, column in TEAM_STAT_MAP.items():
+                    if key in team_stats:
+                        team_row[column] = team_stats.get(key)
 
-                compute_fg2(row)
-                player_rows.append(row)
+                compute_fg2(team_row)
+                team_rows.append(team_row)
+
+                for player in team.get("players") or []:
+                    nba_id = parse_int(player.get("personId"))
+                    if nba_id is None:
+                        continue
+
+                    stats = player.get("statistics") or {}
+                    row = {
+                        "game_id": game_id_value,
+                        "nba_id": nba_id,
+                        "team_id": team_id,
+                        "status": empty_to_none(player.get("status")),
+                        "not_playing_reason": empty_to_none(player.get("notPlayingReason")),
+                        "not_playing_description": empty_to_none(player.get("notPlayingDescription")),
+                        "order_sequence": player.get("order"),
+                        "jersey_num": empty_to_none(player.get("jerseyNum")),
+                        "position": empty_to_none(player.get("position")),
+                        "is_starter": to_bool(player.get("starter")),
+                        "is_on_court": to_bool(player.get("oncourt")),
+                        "played": to_bool(player.get("played")),
+                        "minutes": parse_iso_duration(stats.get("minutes")),
+                        "created_at": fetched_at,
+                        "updated_at": fetched_at,
+                        "fetched_at": fetched_at,
+                    }
+                    for key, column in PLAYER_STAT_MAP.items():
+                        if key in stats:
+                            row[column] = stats.get(key)
+
+                    compute_fg2(row)
+                    player_rows.append(row)
 
         # Play-by-play
         if fetch_pbp:
@@ -1924,6 +2044,8 @@ def main(
         },
         "upsert": {
             "executed": False,
+            "placeholder_players_missing": 0,
+            "placeholder_players_upserted": 0,
             "duration_ms": 0.0,
         },
         "duration_ms": 0.0,
@@ -2303,9 +2425,25 @@ def main(
                             continue
                         advanced_rows.append(row)
 
+                    traditional_rows_for_placeholders = list(player_rows)
+                    fetched_traditional_game_ids = {
+                        row.get("game_id")
+                        for row in player_rows
+                        if row.get("game_id")
+                    }
+                    missing_traditional_game_ids = [
+                        gid
+                        for gid in advanced_player_game_ids
+                        if gid not in fetched_traditional_game_ids
+                    ]
+                    if missing_traditional_game_ids:
+                        traditional_rows_for_placeholders.extend(
+                            fetch_existing_traditional_player_rows(conn, missing_traditional_game_ids)
+                        )
+
                     dnp_placeholder_count = append_dnp_advanced_placeholders(
                         advanced_rows,
-                        player_rows,
+                        traditional_rows_for_placeholders,
                         fetched_at=fetched_at,
                     )
                     telemetry["querytool"]["advanced_dnp_placeholders"] = dnp_placeholder_count
@@ -2313,6 +2451,7 @@ def main(
                     advanced_player_metrics["warnings"] = len(advanced_player_warnings)
                     advanced_player_metrics["rows_built"] = len(advanced_rows)
                     advanced_player_metrics["dnp_placeholders"] = dnp_placeholder_count
+                    advanced_player_metrics["traditional_rows_for_placeholders"] = len(traditional_rows_for_placeholders)
                     telemetry["querytool"]["advanced_player"] = advanced_player_metrics
                 else:
                     telemetry["querytool"]["advanced_player"] = {
@@ -2500,10 +2639,37 @@ def main(
         inserted_defensive = 0
         inserted_violations_player = 0
         inserted_violations_team = 0
+        placeholder_players_missing = 0
+        placeholder_players_upserted = 0
 
         upsert_started = time.perf_counter()
         if not dry_run:
             telemetry["upsert"]["executed"] = True
+
+            player_id_rows = (
+                player_rows,
+                advanced_rows,
+                hustle_player_rows,
+                tracking_rows,
+                defensive_rows,
+                violations_player_rows,
+            )
+            all_player_ids: set[int] = set()
+            for rows in player_id_rows:
+                for row in rows:
+                    nba_id = parse_int(row.get("nba_id"))
+                    if nba_id is not None:
+                        all_player_ids.add(nba_id)
+
+            placeholder_players_missing, placeholder_players_upserted = upsert_missing_players_for_game_data(
+                conn,
+                all_player_ids,
+                league_id,
+                fetched_at,
+            )
+            telemetry["upsert"]["placeholder_players_missing"] = placeholder_players_missing
+            telemetry["upsert"]["placeholder_players_upserted"] = placeholder_players_upserted
+
             inserted_players = upsert(conn, "nba.boxscores_traditional", player_rows, ["game_id", "nba_id"], update_exclude=["created_at"])
             inserted_teams = upsert(conn, "nba.boxscores_traditional_team", team_rows, ["game_id", "team_id"], update_exclude=["created_at"])
             if advanced_rows:
@@ -2580,6 +2746,11 @@ def main(
             "started_at": started_at.isoformat(),
             "finished_at": now_utc().isoformat(),
             "tables": [
+                {
+                    "table": "nba.players",
+                    "rows": placeholder_players_missing,
+                    "upserted": placeholder_players_upserted,
+                },
                 {"table": "nba.boxscores_traditional", "rows": len(player_rows), "upserted": inserted_players},
                 {"table": "nba.boxscores_traditional_team", "rows": len(team_rows), "upserted": inserted_teams},
                 {"table": "nba.boxscores_advanced", "rows": len(advanced_rows), "upserted": inserted_advanced},

@@ -186,6 +186,13 @@ These are “safe defaults” from live testing (not theoretical maxima):
   - `lineups`: skip already-covered season/team and game/measure slices when `run_mode=season_backfill` and no explicit `game_ids`.
   - `shot_chart`: skip games that already have rows in `nba.shot_chart` for season backfills.
 
+- [x] **Harden `game_data` writes for season backfill edge cases**
+  - Avoid emitting empty Traditional team/player rows when Traditional fetch is skipped by coverage logic.
+  - Preserve Advanced DNP parity even when Traditional fetch is skipped by sourcing placeholder candidates from existing `nba.boxscores_traditional` rows.
+  - Auto-seed placeholder `nba.players` rows for missing `nba_id` references encountered in game payloads to prevent FK aborts.
+  - Normalize extreme Query Tool percent/rating anomalies (e.g. PIE/pace scale outliers) before writing into constrained numeric columns.
+  - Result: full `2025-26` regular-season game_data write backfill now completes cleanly and coverage reaches all **802** final games for boxscore/pbp/poc/hustle/tracking/defensive/violations tables.
+
 ### Phase 2 — optional / careful migrations
 
 - [ ] **Boxscore migration (optional; only if we preserve semantics)**
