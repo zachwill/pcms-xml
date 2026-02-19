@@ -59,41 +59,18 @@
 
         <%# Row B: Details %>
         <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1 pr-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
-          <% current_year = salary_years.first %>
-          <% next_year = salary_years[1] %>
+          <% status_year = local_assigns[:status_year].presence&.to_i || salary_years.first %>
+          <% status_year = salary_years.include?(status_year) ? status_year : salary_years.first %>
           <% age_display = player_age_display(player) %>
           <% yos_display = player_years_of_service_display(player) %>
-
-          <% status_tokens = [] %>
-          <% status_tokens << { label: "2W", classes: "text-foreground" } if player["is_two_way"] %>
-          <% status_tokens << { label: "NTC", classes: "text-red-600 dark:text-red-400" } if player["is_no_trade"] %>
-          <% status_tokens << { label: "PP", classes: "text-red-600 dark:text-red-400" } if poison_pill_now?(player, current_year) %>
-          <% if player["is_trade_restricted_now"] || player["is_trade_consent_required_now"] %>
-            <% status_tokens << { label: "TR", classes: "text-red-600 dark:text-red-400" } %>
-          <% end %>
-
-          <% if next_year.present? %>
-            <% next_option = player_option(player, next_year) %>
-            <% option_classes = case next_option
-              when "PO", "ETO"
-                "text-blue-600 dark:text-blue-400"
-              when "TO"
-                "text-purple-600 dark:text-purple-400"
-            end %>
-            <% status_tokens << { label: next_option, classes: option_classes } if next_option.present? && option_classes.present? %>
-
-            <% next_year_salary = player_salary(player, next_year) %>
-            <% if player["is_non_guaranteed_#{next_year}"] && next_year_salary.present? && next_year_salary.to_f > 0 %>
-              <% status_tokens << { label: "NG", classes: "text-amber-600 dark:text-amber-400" } %>
-            <% end %>
-          <% end %>
-
-          <% show_trade_kicker = player["is_trade_bonus"] && trade_bonus_has_room?(player, current_year) != false %>
-          <% status_tokens << { label: "TK", classes: "text-orange-600 dark:text-orange-400" } if show_trade_kicker %>
-
+          <% status_tokens_by_year = salary_years.to_h do |token_year|
+            [token_year, player_status_tokens_for_year(player, season_year: token_year, salary_years: salary_years)]
+          end %>
+          <% active_status_year_expr = "($selectedseason !== '' ? $selectedseason : '#{status_year}')" %>
           <% has_demographic_tokens = age_display.present? || yos_display.present? %>
+          <% has_any_status_tokens = status_tokens_by_year.values.any?(&:any?) %>
 
-          <% if has_demographic_tokens || status_tokens.any? %>
+          <% if has_demographic_tokens || has_any_status_tokens %>
             <div class="flex items-start min-w-0 overflow-hidden whitespace-nowrap">
               <% if age_display.present? %>
                 <span class="truncate <%= age_color_class %>"><%= age_display %></span>
@@ -106,11 +83,22 @@
                 <span class="truncate"><%= yos_display %></span>
               <% end %>
 
-              <% status_tokens.each_with_index do |token, idx| %>
-                <% if has_demographic_tokens || idx.positive? %>
-                  <span class="px-1 text-muted-foreground/50">·</span>
+              <% salary_years.each do |token_year| %>
+                <% tokens_for_year = status_tokens_by_year[token_year] || [] %>
+                <% year_visibility_expr = "#{active_status_year_expr} === '#{token_year}'" %>
+
+                <% if tokens_for_year.any? %>
+                  <span data-show="<%= year_visibility_expr %>"<% unless token_year == status_year %> style="display: none;"<% end %>>
+                    <% tokens_for_year.each_with_index do |token, idx| %>
+                      <% if has_demographic_tokens || idx.positive? %>
+                        <span class="px-1 text-muted-foreground/50">·</span>
+                      <% end %>
+                      <span class="<%= token[:classes] %>"><%= token[:label] %></span>
+                    <% end %>
+                  </span>
+                <% elsif !has_demographic_tokens %>
+                  <span class="text-muted-foreground/50" data-show="<%= year_visibility_expr %>"<% unless token_year == status_year %> style="display: none;"<% end %>>—</span>
                 <% end %>
-                <span class="<%= token[:classes] %>"><%= token[:label] %></span>
               <% end %>
             </div>
           <% else %>

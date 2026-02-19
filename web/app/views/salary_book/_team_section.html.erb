@@ -239,6 +239,7 @@
             <%= render partial: "salary_book/player_row", locals: {
               player: player,
               salary_years: salary_years,
+              status_year: year,
               age_percentile: age_percentiles[player["player_id"]]
             } %>
           <% end %>

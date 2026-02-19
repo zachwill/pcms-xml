@@ -280,6 +280,70 @@ module SalaryBook
       yos <= 0 ? "Rookie" : "#{yos} YOS"
     end
 
+    # Compact status tokens shown under player names in Salary Book rows.
+    # Tokens are season-aware and capped to keep rows scannable.
+    def player_status_tokens_for_year(player, season_year:, salary_years: SalaryBookHelper::SALARY_YEARS, max_tokens: 2)
+      year = season_year.to_i
+      years = Array(salary_years).map(&:to_i).sort
+      next_year = years.find { |candidate| candidate > year }
+
+      candidates = []
+      push_token = lambda do |label:, classes:, priority:|
+        return if label.blank? || classes.blank?
+
+        candidates << {
+          label: label,
+          classes: classes,
+          priority: priority,
+          sequence: candidates.length
+        }
+      end
+
+      push_token.call(label: "2W", classes: "text-foreground", priority: 70) if player["is_two_way"]
+      push_token.call(label: "NTC", classes: "text-red-600 dark:text-red-400", priority: 95) if player["is_no_trade"]
+      push_token.call(label: "PP", classes: "text-red-600 dark:text-red-400", priority: 90) if poison_pill_now?(player, year)
+
+      if current_season?(year) && (player["is_trade_restricted_now"] || player["is_trade_consent_required_now"])
+        push_token.call(label: "TR", classes: "text-red-600 dark:text-red-400", priority: 100)
+      end
+
+      # Options are high-priority when they apply to the active season context.
+      # In current-season context (2025), we still show next-season option as a look-ahead.
+      season_option = player_option(player, year)
+      if season_option.present? && !current_season?(year)
+        option_classes = player_status_option_classes(season_option)
+        push_token.call(label: season_option, classes: option_classes, priority: 92)
+      elsif next_year.present?
+        next_option = player_option(player, next_year)
+        option_classes = player_status_option_classes(next_option)
+        push_token.call(label: next_option, classes: option_classes, priority: 40) if next_option.present?
+      end
+
+      if next_year.present?
+        next_year_salary = player_salary(player, next_year)
+        if player["is_non_guaranteed_#{next_year}"] && next_year_salary.present? && next_year_salary.to_f > 0
+          push_token.call(label: "NG", classes: "text-amber-600 dark:text-amber-400", priority: 30)
+        end
+      end
+
+      show_trade_kicker = player["is_trade_bonus"] && trade_bonus_has_room?(player, year) != false
+      push_token.call(label: "TK", classes: "text-orange-600 dark:text-orange-400", priority: 80) if show_trade_kicker
+
+      ordered = candidates.sort_by { |token| [-token[:priority], token[:sequence]] }
+      limited = max_tokens.to_i.positive? ? ordered.first(max_tokens.to_i) : ordered
+
+      limited.map { |token| token.slice(:label, :classes) }
+    end
+
+    def player_status_option_classes(option)
+      case option
+      when "PO", "ETO"
+        "text-blue-600 dark:text-blue-400"
+      when "TO"
+        "text-purple-600 dark:text-purple-400"
+      end
+    end
+
     # Combined age + YOS metadata display used in Salary Book rows/sidebar.
     def player_age_yos_display(player, separator: " · ")
       [player_age_display(player), player_years_of_service_display(player)].compact.join(separator).presence
