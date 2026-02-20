@@ -3,6 +3,27 @@ const isEditableTarget = (target) => {
   return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable;
 };
 
+const parseInteger = (value) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const syncStepControls = (root) => {
+  const overlay = root.querySelector("#rightpanel-overlay[data-team-summary-step-total]");
+  if (!overlay) return;
+
+  const total = parseInteger(overlay.dataset.teamSummaryStepTotal);
+  const index = parseInteger(overlay.dataset.teamSummaryStepIndex);
+
+  const hasPosition = Number.isInteger(total) && total > 0 && Number.isInteger(index) && index >= 0 && index < total;
+  const positionText = hasPosition ? `${index + 1} of ${total}` : "Outside list";
+
+  overlay.querySelectorAll("[data-team-summary-step-position]").forEach((node) => {
+    if (node.textContent?.trim() === positionText) return;
+    node.textContent = positionText;
+  });
+};
+
 const initTeamSummaryTableSync = (tableEl) => {
   if (!tableEl) return;
   if (tableEl.dataset.teamSummaryTableInit === "true") return;
@@ -71,53 +92,63 @@ const init = () => {
   };
 
   const maincanvas = document.getElementById("maincanvas");
+  const rightpanel = document.getElementById("rightpanel");
   let rafId = null;
 
-  const initAndSyncTable = () => {
+  const syncWorkspaceUi = () => {
     const tableEl = root.querySelector("[data-team-summary-table]");
-    if (!tableEl) return;
+    if (tableEl) {
+      initTeamSummaryTableSync(tableEl);
 
-    initTeamSummaryTableSync(tableEl);
+      const headerEl = tableEl.querySelector("[data-team-summary-table-header-scroll]");
+      const bodyEl = tableEl.querySelector("[data-team-summary-table-body-scroll]");
+      const shadowEl = tableEl.querySelector("[data-team-summary-sticky-shadow]");
 
-    const headerEl = tableEl.querySelector("[data-team-summary-table-header-scroll]");
-    const bodyEl = tableEl.querySelector("[data-team-summary-table-body-scroll]");
-    const shadowEl = tableEl.querySelector("[data-team-summary-sticky-shadow]");
+      if (headerEl && bodyEl) {
+        headerEl.scrollLeft = bodyEl.scrollLeft;
 
-    if (!headerEl || !bodyEl) return;
+        if (shadowEl) {
+          const showShadow = bodyEl.scrollLeft > 2;
+          shadowEl.classList.toggle("opacity-0", !showShadow);
+          shadowEl.classList.toggle("opacity-100", showShadow);
+        }
+      }
+    }
 
-    headerEl.scrollLeft = bodyEl.scrollLeft;
-
-    if (!shadowEl) return;
-    const showShadow = bodyEl.scrollLeft > 2;
-    shadowEl.classList.toggle("opacity-0", !showShadow);
-    shadowEl.classList.toggle("opacity-100", showShadow);
+    syncStepControls(root);
   };
 
-  const scheduleTableUpdate = () => {
+  const scheduleUiUpdate = () => {
     if (rafId) return;
 
     rafId = window.requestAnimationFrame(() => {
       rafId = null;
-      initAndSyncTable();
+      syncWorkspaceUi();
     });
   };
 
-  const maincanvasMutationObserver = new MutationObserver(scheduleTableUpdate);
+  const maincanvasMutationObserver = new MutationObserver(scheduleUiUpdate);
+  const rightpanelMutationObserver = new MutationObserver(scheduleUiUpdate);
 
   if (maincanvas) {
     maincanvasMutationObserver.observe(maincanvas, { childList: true, subtree: true });
   }
 
-  window.addEventListener("resize", scheduleTableUpdate);
+  if (rightpanel) {
+    rightpanelMutationObserver.observe(rightpanel, { childList: true, subtree: true });
+  }
+
+  window.addEventListener("resize", scheduleUiUpdate);
   document.addEventListener("keydown", handleKeydown);
 
-  scheduleTableUpdate();
+  scheduleUiUpdate();
 
   root.__teamSummaryCleanup = () => {
     document.removeEventListener("keydown", handleKeydown);
-    window.removeEventListener("resize", scheduleTableUpdate);
+    window.removeEventListener("resize", scheduleUiUpdate);
 
     maincanvasMutationObserver.disconnect();
+    rightpanelMutationObserver.disconnect();
 
     if (rafId) {
       window.cancelAnimationFrame(rafId);

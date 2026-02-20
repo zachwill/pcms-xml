@@ -140,6 +140,8 @@ class ToolsTeamSummaryTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_includes response.body, "Browse in current view"
       assert_includes response.body, "3 / 3"
+      assert_includes response.body, "3 of 3"
+      assert_includes response.body, "data-team-summary-step-position"
       assert_includes response.body, "data-team-summary-step-prev"
       assert_includes response.body, "data-team-summary-step-next"
       assert_includes response.body, "/team-summary/sse/step?"

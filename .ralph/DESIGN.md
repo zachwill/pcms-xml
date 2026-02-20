@@ -76,9 +76,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
   Why: Stepping through teams in the overlay should respect current sort order so next/prev is predictable.
   Note: Team Summary now uses one shared signal→query builder for refresh/URL sync/overlay stepping, and step SSE re-emits sort/filter signals so next/prev stays anchored to the active list context.
 
-- [ ] [P2] [TOOL] /team-summary — show list position in stepping controls
+- [x] [P2] [TOOL] /team-summary — show list position in stepping controls
   Files: web/app/views/team_summary/_rightpanel_overlay_team.html.erb, web/app/javascript/team_summary.js
   Why: Users need "3 of 12" context to know where they are in the filtered set.
+  Note: Stepping row now has an always-visible center position chip ("x of y"), and team_summary.js re-syncs it from overlay data attributes after Datastar morphs.
 
 ## /system-values — metric wayfinding
 

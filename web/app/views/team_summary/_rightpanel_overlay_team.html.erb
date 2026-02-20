@@ -20,6 +20,11 @@
   else
     "—"
   end
+  step_position_label = if selected_index.present?
+    "#{selected_index + 1} of #{ordered_team_codes.length}"
+  else
+    "Outside list"
+  end
 
   step_state_query_expr = team_summary_state_query_expr(selected_expression: "$selectedteam || '#{team_code}'")
   prev_step_expr = "@get('#{team_summary_sse_step_path}?direction=prev&' + (#{step_state_query_expr}))"
@@ -40,7 +45,12 @@
     end
 %>
 
-<div id="rightpanel-overlay" class="h-full bg-background">
+<div
+  id="rightpanel-overlay"
+  class="h-full bg-background"
+  data-team-summary-step-index="<%= selected_index.present? ? selected_index : -1 %>"
+  data-team-summary-step-total="<%= ordered_team_codes.length %>"
+>
   <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
     <%= render partial: "shared/rightpanel_back_button", locals: {
       click_expr: "$selectedteam = ''; @get('#{team_summary_sidebar_clear_path}')",
@@ -95,7 +105,7 @@
         <div class="text-[10px] tabular-nums text-muted-foreground"><%= selected_position_label %></div>
       </div>
 
-      <div class="grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         <button
           type="button"
           class="cursor-pointer h-8 rounded border border-border text-[11px] font-medium hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-50"
@@ -103,6 +113,8 @@
           data-on:click="<%= prev_step_expr %>"
           <%= "disabled" unless can_step_prev %>
         >← Prev</button>
+
+        <div class="min-w-[72px] rounded border border-border/60 bg-muted/20 px-2 py-1 text-center text-[10px] font-mono tabular-nums text-muted-foreground" data-team-summary-step-position><%= step_position_label %></div>
 
         <button
           type="button"
