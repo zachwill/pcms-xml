@@ -1,6 +1,7 @@
 <% section ||= {} %>
 <% rows = Array(section[:rows]) %>
 <% section_key = section[:key].to_s %>
+<% section_row_count = rows.size %>
 
 <%
   lane_chip_classes = case section_key
@@ -36,7 +37,7 @@
             <div class="w-24 shrink-0 flex justify-center">
               <%= render partial: "salary_book/kpi_cell", locals: {
                 label: "Rows",
-                value: section[:row_count].to_i.to_s,
+                value: section_row_count.to_s,
                 class_name: "w-20"
               } %>
             </div>
@@ -88,7 +89,7 @@
 
             <div class="w-40 shrink-0 pr-4 text-right space-y-0.5">
               <div class="flex justify-end">
-                <span class="<%= lane_chip_classes %>"><%= section[:row_count] %> rows</span>
+                <span class="<%= lane_chip_classes %>"><%= section_row_count %> rows</span>
               </div>
               <div class="text-[9px] text-muted-foreground/80 tabular-nums">
                 Taxpayers <%= section[:taxpayer_count] %><% if section[:repeater_count].to_i.positive? %> · R <%= section[:repeater_count] %><% end %>

@@ -13,9 +13,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
   Why: Row click should predictably open the team overlay in #rightpanel-overlay, matching Salary Book's click-row-to-sidebar pattern.
   Note: Team rows now consistently drill into overlay (no inline row-level nav escape), and index boot hydrates/clears overlay state from selected_id deterministically.
 
-- [ ] [P1] [INDEX] /teams — sync commandbar lane counts with filtered row set
+- [x] [P1] [INDEX] /teams — sync commandbar lane counts with filtered row set
   Files: web/app/views/teams/_commandbar.html.erb, web/app/views/teams/_pressure_section.html.erb, web/app/controllers/teams_controller.rb
   Why: Lane headers and commandbar counts drift from the visible rows after filter changes.
+  Note: Commandbar lane counts now derive from the current filtered rows, and section row badges/KPIs render from each section's live row array.
 
 - [ ] [P2] [INDEX] /teams — active-row highlight state when overlay is open
   Files: web/app/views/teams/_workspace_main.html.erb, web/app/javascript/teams_index.js

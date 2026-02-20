@@ -137,6 +137,8 @@ class TeamsController < ApplicationController
     state.each do |key, value|
       instance_variable_set("@#{key}", value)
     end
+
+    sync_index_commandbar_lane_counts!
   end
 
   def load_index_team_row!(team_id)
@@ -169,6 +171,22 @@ class TeamsController < ApplicationController
     return false if normalized_id <= 0
 
     Array(@teams).any? { |row| row["team_id"].to_i == normalized_id }
+  end
+
+  def sync_index_commandbar_lane_counts!
+    rows = Array(@teams)
+    lane_counts = rows.each_with_object(Hash.new(0)) do |row, counts|
+      counts[row["pressure_bucket"].to_s] += 1
+    end
+
+    @commandbar_lane_counts = {
+      "all" => rows.size,
+      "over_cap" => lane_counts["over_cap"],
+      "over_tax" => lane_counts["over_tax"],
+      "over_apron1" => lane_counts["over_apron1"],
+      "over_apron2" => lane_counts["over_apron2"]
+    }
+    @commandbar_active_count = rows.size
   end
 
   def resolve_team_from_slug!(raw_slug, redirect_on_canonical_miss: true)

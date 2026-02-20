@@ -17,7 +17,7 @@
     ["over_apron2", "Over Apron 2"]
   ]
 
-  pressure_counts = @pressure_counts || {}
+  pressure_counts = @commandbar_lane_counts || @pressure_counts || {}
   active_pressure_label = case @pressure_lens
   when "over_cap" then "Over Cap"
   when "over_tax" then "Over Tax"
@@ -25,7 +25,7 @@
   when "over_apron2" then "Over Apron 2"
   else "All teams"
   end
-  active_pressure_count = pressure_counts[@pressure_lens].to_i
+  active_pressure_count = @commandbar_active_count || Array(@teams).size
 %>
 
 <header
