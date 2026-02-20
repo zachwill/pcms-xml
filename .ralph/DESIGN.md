@@ -64,9 +64,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
   Why: Overlay pivots between agent and agency detail should preserve context, not feel like a page reset.
   Note: Agent↔agency pivots now carry one-step return context (including SSE refresh), so Back returns to the prior overlay instead of clearing like a reset.
 
-- [ ] [P2] [INDEX] /agencies — make posture lanes first-class row actions
+- [x] [P2] [INDEX] /agencies — make posture lanes first-class row actions
   Files: web/app/views/agencies/index.html.erb, web/app/views/agencies/_workspace_main.html.erb, web/app/controllers/agencies_controller.rb
   Why: Posture risk → agent list pivot is too implicit; should be a direct row action.
+  Note: Posture chips now act as direct scoped pivots into agents lens (active, live book, inactive+live, restricted, live risk), with row click overlay behavior preserved.
 
 ## /team-summary — stepping loop
 

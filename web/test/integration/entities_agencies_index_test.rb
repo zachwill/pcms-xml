@@ -169,7 +169,7 @@ class EntitiesAgenciesIndexTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_includes response.body, 'id="commandbar"'
-      assert_includes response.body, 'id="agencies-search-input"'
+      assert_includes response.body, 'id="agencies-workspace"'
       assert_includes response.body, 'id="agencies-activity-active"'
       assert_includes response.body, 'id="agencies-activity-inactive_live_book"'
       assert_includes response.body, 'id="agencies-activity-live_book_risk"'
@@ -179,12 +179,19 @@ class EntitiesAgenciesIndexTest < ActionDispatch::IntegrationTest
       assert_operator response.body.scan("no-trade + trade kicker + trade-restricted").length, :>=, 2
       assert_includes response.body, 'id="maincanvas"'
       assert_includes response.body, 'id="agencies-flex-header"'
-      assert_includes response.body, 'id="agencies-row-open-agents-501"'
+      assert_includes response.body, 'id="agencies-row-posture-active-501"'
+      assert_includes response.body, 'id="agencies-row-posture-live-book-501"'
+      assert_includes response.body, 'id="agencies-row-posture-live-risk-501"'
+      assert_includes response.body, 'id="agencies-row-posture-inactive-live-777"'
+      assert_includes response.body, 'id="agencies-row-open-agents-777"'
       assert_includes response.body, "kind=agents"
       assert_includes response.body, "agency_scope_id=501"
       assert_includes response.body, "year=2025"
       assert_includes response.body, "sort=book"
       assert_includes response.body, "dir=desc"
+      assert_includes response.body, "active_only=1"
+      assert_includes response.body, "with_book=1"
+      assert_includes response.body, "with_restrictions=1"
       assert_not_includes response.body, "<table"
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'

@@ -67,6 +67,11 @@
             <% restrictions_count = agency["no_trade_count"].to_i + agency["trade_kicker_count"].to_i + agency["trade_restricted_count"].to_i %>
             <% row_click_expr = "$overlaytype = 'agency'; $overlayid = '#{agency_id}'; @get('/agencies/sidebar/#{agency_id}?' + (#{overlay_query_expr}))" %>
             <% agents_lens_href = agents_lens_pivot_href(agency_id) %>
+            <% active_agents_href = agents_posture_lane_pivot_href(agency_id, lane: "active") %>
+            <% live_book_agents_href = agents_lens_pivot_href(agency_id, with_book: true) %>
+            <% restricted_agents_href = agents_posture_lane_pivot_href(agency_id, lane: "restricted") %>
+            <% inactive_live_agents_href = agents_posture_lane_pivot_href(agency_id, lane: "inactive_live_book") %>
+            <% live_risk_agents_href = agents_posture_lane_pivot_href(agency_id, lane: "live_book_risk") %>
             <% live_book = agency["book_total"].to_i.positive? %>
             <% inactive_with_live_book = agency["is_active"] == false && live_book %>
 
@@ -89,12 +94,6 @@
                     </div>
                     <div class="h-[16px] -mt-px flex items-start gap-1.5 min-w-0 pl-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
                       <span>id: <%= agency_id %></span>
-                      <a
-                        id="agencies-row-open-agents-<%= agency_id %>"
-                        href="<%= agents_lens_href %>"
-                        class="uppercase tracking-wide text-violet-700 dark:text-violet-300 hover:underline"
-                        onclick="event.stopPropagation()"
-                      >agents lens</a>
                       <% if agency["is_active"] == false %>
                         <span class="entity-chip entity-chip--muted">inactive</span>
                       <% end %>
@@ -106,22 +105,59 @@
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start gap-1 flex-wrap">
                       <% if inactive_with_live_book %>
-                        <span class="entity-chip entity-chip--danger">inactive + live</span>
+                        <a
+                          id="agencies-row-posture-inactive-live-<%= agency_id %>"
+                          href="<%= inactive_live_agents_href %>"
+                          class="entity-chip entity-chip--danger hover:underline"
+                          onclick="event.stopPropagation()"
+                        >inactive + live</a>
                       <% elsif agency["is_active"] == false %>
-                        <span class="entity-chip entity-chip--muted">inactive</span>
+                        <a
+                          id="agencies-row-posture-inactive-<%= agency_id %>"
+                          href="<%= agents_lens_href %>"
+                          class="entity-chip entity-chip--muted hover:underline"
+                          onclick="event.stopPropagation()"
+                        >inactive</a>
                       <% else %>
-                        <span class="entity-chip entity-chip--success">active</span>
+                        <a
+                          id="agencies-row-posture-active-<%= agency_id %>"
+                          href="<%= active_agents_href %>"
+                          class="entity-chip entity-chip--success hover:underline"
+                          onclick="event.stopPropagation()"
+                        >active</a>
                       <% end %>
 
                       <% if live_book %>
-                        <span class="entity-chip entity-chip--accent">live <%= format_compact_currency(agency["book_total"]) %></span>
+                        <a
+                          id="agencies-row-posture-live-book-<%= agency_id %>"
+                          href="<%= live_book_agents_href %>"
+                          class="entity-chip entity-chip--accent hover:underline"
+                          onclick="event.stopPropagation()"
+                        >live <%= format_compact_currency(agency["book_total"]) %></a>
                       <% end %>
                     </div>
                     <div class="entity-cell-secondary justify-start gap-1">
-                      <% if restrictions_count > 0 %>
-                        <span class="entity-chip entity-chip--warning"><%= restrictions_count %> restrictions</span>
+                      <% if live_book && restrictions_count > 0 %>
+                        <a
+                          id="agencies-row-posture-live-risk-<%= agency_id %>"
+                          href="<%= live_risk_agents_href %>"
+                          class="entity-chip entity-chip--warning hover:underline"
+                          onclick="event.stopPropagation()"
+                        ><%= restrictions_count %> restrictions · live risk</a>
+                      <% elsif restrictions_count > 0 %>
+                        <a
+                          id="agencies-row-posture-restricted-<%= agency_id %>"
+                          href="<%= restricted_agents_href %>"
+                          class="entity-chip entity-chip--warning hover:underline"
+                          onclick="event.stopPropagation()"
+                        ><%= restrictions_count %> restrictions</a>
                       <% else %>
-                        <span class="text-muted-foreground/50">—</span>
+                        <a
+                          id="agencies-row-open-agents-<%= agency_id %>"
+                          href="<%= agents_lens_href %>"
+                          class="uppercase tracking-wide text-violet-700 dark:text-violet-300 hover:underline"
+                          onclick="event.stopPropagation()"
+                        >all agents</a>
                       <% end %>
                     </div>
                   </div>

@@ -5,7 +5,7 @@ class AgenciesController < ApplicationController
   AGENT_LENS_SORT_KEYS = %w[book clients teams max expirings options name].freeze
   SHOW_COHORT_FILTERS = %w[max expiring restricted option_heavy].freeze
 
-  helper_method :agents_lens_pivot_href, :agents_lens_pivot_sort_key
+  helper_method :agents_lens_pivot_href, :agents_lens_pivot_sort_key, :agents_posture_lane_pivot_href
 
   # GET /agencies
   def index
@@ -98,7 +98,7 @@ class AgenciesController < ApplicationController
     raise ActiveRecord::RecordNotFound
   end
 
-  def agents_lens_pivot_href(agency_id)
+  def agents_lens_pivot_href(agency_id, active_only: false, with_book: false, with_restrictions: false, with_expiring: false, with_clients: false)
     agency_id = agency_id.to_i
     agency_id = nil unless agency_id.positive?
 
@@ -108,10 +108,30 @@ class AgenciesController < ApplicationController
       sort: agents_lens_pivot_sort_key,
       dir: agents_lens_pivot_sort_dir,
       agency_scope: 1,
-      agency_scope_id: agency_id
+      agency_scope_id: agency_id,
+      active_only: (active_only ? 1 : nil),
+      with_book: (with_book ? 1 : nil),
+      with_restrictions: (with_restrictions ? 1 : nil),
+      with_expiring: (with_expiring ? 1 : nil),
+      with_clients: (with_clients ? 1 : nil)
     }.compact
 
     "/agents?#{query.to_query}"
+  end
+
+  def agents_posture_lane_pivot_href(agency_id, lane:)
+    case lane.to_s
+    when "active"
+      agents_lens_pivot_href(agency_id, active_only: true)
+    when "inactive_live_book"
+      agents_lens_pivot_href(agency_id, with_book: true)
+    when "live_book_risk"
+      agents_lens_pivot_href(agency_id, with_book: true, with_restrictions: true)
+    when "restricted"
+      agents_lens_pivot_href(agency_id, with_restrictions: true)
+    else
+      agents_lens_pivot_href(agency_id)
+    end
   end
 
   def agents_lens_pivot_sort_key
