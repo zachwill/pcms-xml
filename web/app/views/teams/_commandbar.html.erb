@@ -1,13 +1,15 @@
 <%
-  pane_query_expr = "'q=' + encodeURIComponent($teamsquery) +
-    '&conference=' + encodeURIComponent($teamsconference) +
-    '&pressure=' + encodeURIComponent($teamspressure) +
-    '&sort=' + encodeURIComponent($teamssort)"
+  pane_query_expr = "'q=' + encodeURIComponent($teamsquery || '') +
+    '&conference=' + encodeURIComponent($teamsconference || 'ALL') +
+    '&pressure=' + encodeURIComponent($teamspressure || 'all') +
+    '&sort=' + encodeURIComponent($teamssort || 'pressure_desc')"
 
   selected_overlay_query_expr = "'selected_id=' + encodeURIComponent($overlaytype === 'team' ? $selectedteamid : '')"
   refresh_query_expr = "(#{pane_query_expr}) + '&' + (#{selected_overlay_query_expr})"
 
   refresh_expr = "@get('/teams/sse/refresh?' + (#{refresh_query_expr})); window.history.replaceState({}, '', '/teams?' + (#{pane_query_expr}))"
+  apply_search_expr = "if ((evt.key || '') === 'Enter') { evt.preventDefault(); #{refresh_expr}; }"
+  clear_search_expr = "$teamsquery = ''; #{refresh_expr}"
 
   pressure_options = [
     ["all", "All teams"],
@@ -17,7 +19,21 @@
     ["over_apron2", "Over Apron 2"]
   ]
 
+  sort_options = [
+    ["pressure_desc", "Pressure first"],
+    ["cap_space_asc", "Cap tightest"],
+    ["tax_room_asc", "Tax tightest"],
+    ["team_asc", "Team A→Z"]
+  ]
+
+  conference_options = [
+    ["ALL", "All conferences"],
+    ["Eastern", "East"],
+    ["Western", "West"]
+  ]
+
   pressure_counts = @commandbar_lane_counts || @pressure_counts || {}
+
   active_pressure_label = case @pressure_lens
   when "over_cap" then "Over Cap"
   when "over_tax" then "Over Tax"
@@ -25,22 +41,81 @@
   when "over_apron2" then "Over Apron 2"
   else "All teams"
   end
+
+  active_conference_label = case @conference_lens
+  when "Eastern" then "East"
+  when "Western" then "West"
+  else "All conferences"
+  end
+
   active_pressure_count = @commandbar_active_count || Array(@teams).size
 %>
 
 <header
   id="commandbar"
-  class="shrink-0 h-[130px] border-b border-border bg-background flex items-start px-4 pt-3 gap-4 select-none"
+  class="shrink-0 h-[130px] border-b border-border bg-background px-4 pt-3 flex items-start gap-4 select-none"
 >
+  <div class="flex items-start min-w-0 overflow-x-auto pb-1">
+    <div class="min-w-[13rem] w-[13rem] space-y-1.5">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Search</div>
 
-  <div class="flex items-start gap-4" role="group" aria-label="Teams filters">
-    <div class="min-w-[11rem] space-y-1">
+      <input
+        type="text"
+        value="<%= @query %>"
+        placeholder="Team, city, conference"
+        class="h-7 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
+        data-bind="teamsquery"
+        data-on:keydown="<%= apply_search_expr %>"
+      />
+
+      <div class="flex items-center gap-1.5">
+        <button
+          type="button"
+          class="cursor-pointer h-7 px-2 rounded border border-border bg-muted/40 text-[11px] font-medium hover:bg-muted transition-colors"
+          data-on:click="<%= refresh_expr %>"
+        >Apply</button>
+
+        <button
+          type="button"
+          class="cursor-pointer h-7 px-2 rounded border border-border bg-background text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+          data-on:click="<%= clear_search_expr %>"
+        >Clear</button>
+
+        <span class="text-[10px] text-muted-foreground/80 truncate"><%= active_conference_label %> · <%= active_pressure_count %> rows</span>
+      </div>
+    </div>
+
+    <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
+
+    <div class="min-w-[7rem] w-[7rem] space-y-1">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Conference</div>
+      <div class="space-y-1">
+        <% conference_options.each do |value, label| %>
+          <label class="flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="radio"
+              id="teams-conference-<%= value.downcase %>"
+              name="teams-conference"
+              value="<%= value %>"
+              class="size-3.5 accent-primary"
+              <%= "checked" if @conference_lens == value %>
+              data-bind="teamsconference"
+              data-on:change="if (el.checked) { <%= refresh_expr %>; }"
+            />
+            <span class="text-[11px] leading-none" data-class="{ 'text-foreground font-semibold': $teamsconference === '<%= value %>', 'text-muted-foreground': $teamsconference !== '<%= value %>' }"><%= label %></span>
+          </label>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
+
+    <div class="min-w-[10.5rem] w-[10.5rem] space-y-1">
       <div class="flex items-baseline justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
         <span>Pressure</span>
-        <span class="font-mono tabular-nums normal-case tracking-normal text-muted-foreground">
-          Active: <%= active_pressure_label %> · <%= active_pressure_count %>
-        </span>
+        <span class="font-mono tabular-nums normal-case tracking-normal text-muted-foreground"><%= active_pressure_label %></span>
       </div>
+
       <div class="space-y-1">
         <% pressure_options.each do |value, label| %>
           <% count = pressure_counts[value].to_i %>
@@ -55,20 +130,20 @@
               data-bind="teamspressure"
               data-on:change="if (el.checked) { <%= refresh_expr %>; }"
             />
-            <span class="text-[11px] leading-none select-none" data-class="{ 'text-foreground font-semibold': $teamspressure === '<%= value %>', 'text-muted-foreground': $teamspressure !== '<%= value %>' }"><%= label %></span>
+            <span class="text-[11px] leading-none" data-class="{ 'text-foreground font-semibold': $teamspressure === '<%= value %>', 'text-muted-foreground': $teamspressure !== '<%= value %>' }"><%= label %></span>
             <span class="ml-auto font-mono tabular-nums text-[10px]" data-class="{ 'text-foreground': $teamspressure === '<%= value %>', 'text-muted-foreground/80': $teamspressure !== '<%= value %>' }"><%= count %></span>
           </label>
         <% end %>
       </div>
     </div>
 
-    <div class="h-20 w-px bg-border self-center shrink-0 mx-1"></div>
+    <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
 
-    <div class="min-w-[9rem] space-y-1">
+    <div class="min-w-[8.5rem] w-[8.5rem] space-y-1">
       <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sort</div>
       <div class="space-y-1">
-        <% [["pressure_desc", "Pressure first"], ["cap_space_asc", "Cap tightest"], ["tax_room_asc", "Tax tightest"], ["team_asc", "Team A→Z"]].each do |value, label| %>
-          <label class="flex items-center gap-1.5 cursor-pointer">
+        <% sort_options.each do |value, label| %>
+          <label class="flex items-center gap-1.5 cursor-pointer select-none">
             <input
               type="radio"
               id="teams-sort-<%= value.tr('_', '-') %>"
@@ -79,7 +154,7 @@
               data-bind="teamssort"
               data-on:change="if (el.checked) { <%= refresh_expr %>; }"
             />
-            <span class="text-[11px] leading-none select-none" data-class="{ 'text-foreground font-semibold': $teamssort === '<%= value %>', 'text-muted-foreground': $teamssort !== '<%= value %>' }"><%= label %></span>
+            <span class="text-[11px] leading-none" data-class="{ 'text-foreground font-semibold': $teamssort === '<%= value %>', 'text-muted-foreground': $teamssort !== '<%= value %>' }"><%= label %></span>
           </label>
         <% end %>
       </div>

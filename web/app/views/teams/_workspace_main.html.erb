@@ -2,23 +2,93 @@
   overlay_team_active = @selected_team_id.present?
   selected_team_id = overlay_team_active ? @selected_team_id.to_s : ""
   overlay_type = overlay_team_active ? "team" : "none"
+
+  summary = @sidebar_summary || {}
+  active_pressure_label = case @pressure_lens
+  when "over_cap" then "Over Cap"
+  when "over_tax" then "Over Tax"
+  when "over_apron1" then "Over Apron 1"
+  when "over_apron2" then "Over Apron 2"
+  else "All teams"
+  end
+
+  active_conference_label = case @conference_lens
+  when "Eastern" then "East"
+  when "Western" then "West"
+  else "All conferences"
+  end
+
+  active_sort_label = case @sort_lens
+  when "cap_space_asc" then "Cap tightest"
+  when "tax_room_asc" then "Tax tightest"
+  when "team_asc" then "Team A→Z"
+  else "Pressure first"
+  end
 %>
 
 <main
   id="maincanvas"
-  class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-background relative overscroll-y-contain scroll-touch isolate"
+  class="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-background relative overscroll-y-contain scroll-touch isolate"
   data-selected-team-id="<%= selected_team_id %>"
   data-overlay-type="<%= overlay_type %>"
   data-attr:data-selected-team-id="$selectedteamid"
   data-attr:data-overlay-type="$overlaytype"
 >
   <% if @teams.empty? %>
-    <div class="p-6">
-      <div class="p-4 rounded-lg border border-border bg-muted/20 text-sm text-muted-foreground italic">
-        No teams match these filters.
+    <div class="p-4">
+      <div class="rounded border border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground italic">
+        No teams match this workspace state.
       </div>
     </div>
   <% else %>
+    <section class="px-4 py-3 border-b border-border bg-background">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="min-w-0 space-y-2">
+          <h2 class="text-sm font-semibold text-foreground">
+            Teams Pressure Board
+            <span class="text-muted-foreground font-medium">· <%= pluralize(Array(@teams).size, "row") %></span>
+          </h2>
+
+          <div class="flex flex-wrap gap-1.5">
+            <span class="entity-chip entity-chip--muted"><%= active_conference_label %></span>
+            <span class="entity-chip entity-chip--muted"><%= active_pressure_label %></span>
+            <span class="entity-chip entity-chip--muted"><%= active_sort_label %></span>
+            <% if @query.present? %>
+              <span class="entity-chip entity-chip--muted">Search: <%= @query %></span>
+            <% end %>
+          </div>
+        </div>
+
+        <div class="ml-auto shrink-0 grid grid-cols-4 gap-1.5">
+          <%= render partial: "salary_book/kpi_cell", locals: {
+            label: "Rows",
+            value: summary[:row_count].to_i.to_s,
+            class_name: "w-full"
+          } %>
+
+          <%= render partial: "salary_book/kpi_cell", locals: {
+            label: "Tax owed",
+            value: format_compact_currency(summary[:luxury_tax_total]),
+            class_name: "w-full",
+            value_class_name: "text-[11px]"
+          } %>
+
+          <%= render partial: "salary_book/kpi_cell", locals: {
+            label: "Over tax",
+            value: summary[:over_tax_count].to_i.to_s,
+            class_name: "w-full"
+          } %>
+
+          <%= render partial: "salary_book/kpi_cell", locals: {
+            label: "Over A2",
+            value: summary[:over_apron2_count].to_i.to_s,
+            class_name: "w-full",
+            variant: (summary[:over_apron2_count].to_i.positive? ? "negative" : "muted")
+          } %>
+        </div>
+      </div>
+    </section>
+
     <div id="teams-sections-board" class="divide-y divide-border/60">
       <% Array(@team_sections).each do |section| %>
         <%= render partial: "teams/pressure_section", locals: { section: section } %>

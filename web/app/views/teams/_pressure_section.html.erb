@@ -17,109 +17,93 @@
     "entity-chip entity-chip--success"
   end
 
-  sticky_left_px = 224 # w-56
-  metric_col_px = 96   # w-24
-  pressure_col_px = 160 # w-40
+  sticky_left_px = 224
+  metric_col_px = 96
+  pressure_col_px = 160
   min_table_width_px = sticky_left_px + (metric_col_px * 6) + pressure_col_px
 %>
 
-<section id="teams-section-<%= section_key.tr('_', '-') %>" class="border-b border-border snap-start scroll-mt-[172px]">
+<section id="teams-section-<%= section_key.tr('_', '-') %>" class="scroll-mt-[172px] bg-background">
   <div class="relative" data-teams-table>
-    <div class="sticky top-0 z-30 bg-background will-change-transform shadow-[0_1px_3px_0_rgb(0_0_0/0.08),0_1px_2px_-1px_rgb(0_0_0/0.08)]">
-      <div data-header-content>
-        <div class="h-14 flex items-center border-b border-border bg-muted">
-          <div class="w-56 shrink-0 pl-4 pr-2 min-w-0">
-            <div class="text-sm font-semibold text-foreground truncate"><%= section[:title] %></div>
-            <div class="text-[10px] text-muted-foreground/80 truncate"><%= section[:subtitle] %></div>
-          </div>
-
-          <div class="flex items-center">
-            <div class="w-24 shrink-0 flex justify-center">
-              <%= render partial: "salary_book/kpi_cell", locals: {
-                label: "Rows",
-                value: section_row_count.to_s,
-                class_name: "w-20"
-              } %>
-            </div>
-
-            <div class="w-24 shrink-0 flex justify-center">
-              <%= render partial: "salary_book/kpi_cell", locals: {
-                label: "Cap",
-                value: format_room_amount(section[:cap_space_total]),
-                class_name: "w-20",
-                variant: (section[:cap_space_total].to_f < 0 ? "negative" : "default")
-              } %>
-            </div>
-
-            <div class="w-24 shrink-0 flex justify-center">
-              <%= render partial: "salary_book/kpi_cell", locals: {
-                label: "Tax",
-                value: format_room_amount(section[:room_under_tax_total]),
-                class_name: "w-20",
-                variant: (section[:room_under_tax_total].to_f < 0 ? "negative" : "default")
-              } %>
-            </div>
-
-            <div class="w-24 shrink-0 flex justify-center">
-              <%= render partial: "salary_book/kpi_cell", locals: {
-                label: "A1",
-                value: format_room_amount(section[:room_under_apron1_total]),
-                class_name: "w-20",
-                variant: (section[:room_under_apron1_total].to_f < 0 ? "negative" : "default")
-              } %>
-            </div>
-
-            <div class="w-24 shrink-0 flex justify-center">
-              <%= render partial: "salary_book/kpi_cell", locals: {
-                label: "A2",
-                value: format_room_amount(section[:room_under_apron2_total]),
-                class_name: "w-20",
-                variant: (section[:room_under_apron2_total].to_f < 0 ? "negative" : "default")
-              } %>
-            </div>
-
-            <div class="w-24 shrink-0 flex justify-center">
-              <%= render partial: "salary_book/kpi_cell", locals: {
-                label: "Roster",
-                value: "#{section[:roster_total]} / #{section[:two_way_total]}",
-                class_name: "w-20",
-                value_class_name: "text-[10px]"
-              } %>
-            </div>
-
-            <div class="w-40 shrink-0 pr-4 text-right space-y-0.5">
-              <div class="flex justify-end">
-                <span class="<%= lane_chip_classes %>"><%= section_row_count %> rows</span>
-              </div>
-              <div class="text-[9px] text-muted-foreground/80 tabular-nums">
-                Taxpayers <%= section[:taxpayer_count] %><% if section[:repeater_count].to_i.positive? %> · R <%= section[:repeater_count] %><% end %>
-              </div>
-            </div>
-          </div>
+    <div class="border-b border-border bg-muted/40">
+      <div class="h-12 px-4 flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-sm font-semibold text-foreground truncate"><%= section[:title] %></div>
+          <div class="text-[10px] text-muted-foreground/80 truncate"><%= section[:subtitle] %></div>
         </div>
 
-        <div
-          data-teams-table-header-scroll
-          class="overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-        >
-          <div class="min-w-max" style="min-width: <%= min_table_width_px %>px;">
-            <div class="border-b border-border bg-background">
-              <div class="h-8 flex items-center text-xs font-medium text-muted-foreground select-none cursor-default">
-                <div
-                  class="w-56 shrink-0 pl-4 sticky left-0 z-[2] bg-background relative
-                         after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/50"
-                >
-                  Team / Context
-                </div>
-                <div class="w-24 shrink-0 text-right pr-3 tabular-nums">Cap Space</div>
-                <div class="w-24 shrink-0 text-right pr-3 tabular-nums">Room Tax</div>
-                <div class="w-24 shrink-0 text-right pr-3 tabular-nums">Room A1</div>
-                <div class="w-24 shrink-0 text-right pr-3 tabular-nums">Room A2</div>
-                <div class="w-24 shrink-0 text-right pr-3 tabular-nums">Tax Owed</div>
-                <div class="w-24 shrink-0 text-right pr-3 tabular-nums">Roster / 2W</div>
-                <div class="w-40 shrink-0 pl-3">Pressure</div>
-              </div>
+        <div class="flex items-center gap-1.5 text-[10px] tabular-nums">
+          <span class="<%= lane_chip_classes %>"><%= section_row_count %> rows</span>
+          <span class="text-muted-foreground whitespace-nowrap">
+            Taxpayers <%= section[:taxpayer_count] %><% if section[:repeater_count].to_i.positive? %> · R <%= section[:repeater_count] %><% end %>
+          </span>
+        </div>
+      </div>
+
+      <div class="px-4 pb-2">
+        <div class="grid grid-cols-3 xl:grid-cols-6 gap-1.5">
+          <%= render partial: "salary_book/kpi_cell", locals: {
+            label: "Rows",
+            value: section_row_count.to_s,
+            class_name: "w-full"
+          } %>
+
+          <%= render partial: "salary_book/kpi_cell", locals: {
+            label: "Cap",
+            value: format_room_amount(section[:cap_space_total]),
+            class_name: "w-full",
+            variant: (section[:cap_space_total].to_f < 0 ? "negative" : "default")
+          } %>
+
+          <%= render partial: "salary_book/kpi_cell", locals: {
+            label: "Tax",
+            value: format_room_amount(section[:room_under_tax_total]),
+            class_name: "w-full",
+            variant: (section[:room_under_tax_total].to_f < 0 ? "negative" : "default")
+          } %>
+
+          <%= render partial: "salary_book/kpi_cell", locals: {
+            label: "A1",
+            value: format_room_amount(section[:room_under_apron1_total]),
+            class_name: "w-full",
+            variant: (section[:room_under_apron1_total].to_f < 0 ? "negative" : "default")
+          } %>
+
+          <%= render partial: "salary_book/kpi_cell", locals: {
+            label: "A2",
+            value: format_room_amount(section[:room_under_apron2_total]),
+            class_name: "w-full",
+            variant: (section[:room_under_apron2_total].to_f < 0 ? "negative" : "default")
+          } %>
+
+          <%= render partial: "salary_book/kpi_cell", locals: {
+            label: "Roster",
+            value: "#{section[:roster_total]} / #{section[:two_way_total]}",
+            class_name: "w-full",
+            value_class_name: "text-[10px]"
+          } %>
+        </div>
+      </div>
+
+      <div
+        data-teams-table-header-scroll
+        class="overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden border-t border-border/60 bg-background"
+      >
+        <div class="min-w-max" style="min-width: <%= min_table_width_px %>px;">
+          <div class="h-8 flex items-center text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium select-none cursor-default">
+            <div
+              class="w-56 shrink-0 pl-4 sticky left-0 z-[2] bg-background relative
+                     after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/50"
+            >
+              Team / Context
             </div>
+            <div class="w-24 shrink-0 text-right pr-3 tabular-nums">Cap Space</div>
+            <div class="w-24 shrink-0 text-right pr-3 tabular-nums">Room Tax</div>
+            <div class="w-24 shrink-0 text-right pr-3 tabular-nums">Room A1</div>
+            <div class="w-24 shrink-0 text-right pr-3 tabular-nums">Room A2</div>
+            <div class="w-24 shrink-0 text-right pr-3 tabular-nums">Tax Owed</div>
+            <div class="w-24 shrink-0 text-right pr-3 tabular-nums">Roster / 2W</div>
+            <div class="w-40 shrink-0 pl-3">Pressure</div>
           </div>
         </div>
       </div>
@@ -137,136 +121,134 @@
       class="overflow-x-auto overscroll-x-contain relative [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
     >
       <div class="min-w-max" style="min-width: <%= min_table_width_px %>px;">
-        <div class="[&>*:first-child]:mt-1">
-          <% rows.each do |team| %>
-            <% team_id = team["team_id"] %>
-            <% team_code = team["team_code"].to_s %>
-            <% team_page_href = team_href(team_code: team_code, team_id: team_id) %>
-            <% pressure_label, pressure_chip_classes = case team["pressure_bucket"].to_s
-              when "over_apron2"
-                ["Over Apron 2", "entity-chip entity-chip--danger"]
-              when "over_apron1"
-                ["Over Apron 1", "entity-chip entity-chip--warning"]
-              when "over_tax"
-                ["Over Tax", "entity-chip entity-chip--warning"]
-              when "over_cap"
-                ["Over Cap", "entity-chip entity-chip--muted"]
-              else
-                ["Under Cap", "entity-chip entity-chip--success"]
-              end %>
+        <% rows.each do |team| %>
+          <% team_id = team["team_id"] %>
+          <% team_code = team["team_code"].to_s %>
+          <% team_page_href = team_href(team_code: team_code, team_id: team_id) %>
+          <% pressure_label, pressure_chip_classes = case team["pressure_bucket"].to_s
+            when "over_apron2"
+              ["Over Apron 2", "entity-chip entity-chip--danger"]
+            when "over_apron1"
+              ["Over Apron 1", "entity-chip entity-chip--warning"]
+            when "over_tax"
+              ["Over Tax", "entity-chip entity-chip--warning"]
+            when "over_cap"
+              ["Over Cap", "entity-chip entity-chip--muted"]
+            else
+              ["Under Cap", "entity-chip entity-chip--success"]
+            end %>
 
-            <% cap_space = team["cap_space"] %>
-            <% room_tax = team["room_under_tax"] %>
-            <% room_a1 = team["room_under_apron1"] %>
-            <% room_a2 = team["room_under_apron2"] %>
-            <% luxury_tax_owed = team["luxury_tax_owed"] %>
-            <% row_click_expr = "$selectedteamid = '#{team_id}'; $overlaytype = 'team'; @get('/teams/sidebar/#{team_id}')" %>
+          <% cap_space = team["cap_space"] %>
+          <% room_tax = team["room_under_tax"] %>
+          <% room_a1 = team["room_under_apron1"] %>
+          <% room_a2 = team["room_under_apron2"] %>
+          <% luxury_tax_owed = team["luxury_tax_owed"] %>
+          <% row_click_expr = "$selectedteamid = '#{team_id}'; $overlaytype = 'team'; @get('/teams/sidebar/#{team_id}')" %>
 
+          <div
+            class="group h-10 border-b border-border/50 flex items-center text-xs transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 cursor-pointer"
+            role="button"
+            tabindex="0"
+            data-team-id="<%= team_id %>"
+            data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $selectedteamid === '<%= team_id %>' }"
+            data-on:click="<%= row_click_expr %>"
+            data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= row_click_expr %>; }"
+          >
             <div
-              class="group h-10 border-b border-border/50 flex items-center text-xs transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 cursor-pointer"
-              role="button"
-              tabindex="0"
-              data-team-id="<%= team_id %>"
+              class="w-56 shrink-0 pl-4 sticky left-0 z-20 relative bg-background transition-colors duration-75
+                     group-hover:bg-yellow-50/70 dark:group-hover:bg-yellow-900/10
+                     after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/30"
               data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $selectedteamid === '<%= team_id %>' }"
-              data-on:click="<%= row_click_expr %>"
-              data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= row_click_expr %>; }"
             >
-              <div
-                class="w-56 shrink-0 pl-4 sticky left-0 z-20 relative bg-background transition-colors duration-75
-                       group-hover:bg-yellow-50 dark:group-hover:bg-yellow-900
-                       after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/30"
-                data-class="{ 'bg-yellow-100 dark:bg-yellow-900': $selectedteamid === '<%= team_id %>' }"
-              >
-                <div class="grid grid-cols-[40px_1fr] grid-rows-[24px_16px]" aria-label="<%= team['team_name'] %> team info">
-                  <div class="row-span-2 flex items-center justify-start">
-                    <div class="w-7 h-7 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
-                      <img
-                        src="<%= team_logo_url(team_id) %>"
-                        alt="<%= team_code %>"
-                        class="w-full h-full object-contain"
-                        loading="lazy"
-                        decoding="async"
-                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                      />
-                      <span class="hidden text-[9px] font-mono text-muted-foreground"><%= team_code %></span>
-                    </div>
-                  </div>
-
-                  <div class="h-[24px] flex items-end min-w-0 pl-1 pr-2">
-                    <a
-                      href="<%= team_page_href %>"
-                      class="block truncate font-medium text-[14px] text-foreground transition-colors group-hover:text-primary hover:underline"
-                      onclick="event.stopPropagation()"
-                    >
-                      <%= team["team_name"] %>
-                    </a>
-                  </div>
-
-                  <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1 pr-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
-                    <div class="min-w-0 flex items-start gap-1 overflow-hidden whitespace-nowrap">
-                      <span class="font-medium"><%= team_code %></span>
-                      <span>•</span>
-                      <span class="truncate"><%= team["conference_name"].presence || "—" %></span>
-                      <% if team["division_name"].present? %>
-                        <span>•</span>
-                        <span class="truncate"><%= team["division_name"] %></span>
-                      <% end %>
-                    </div>
+              <div class="grid grid-cols-[40px_1fr] grid-rows-[24px_16px]" aria-label="<%= team['team_name'] %> team info">
+                <div class="row-span-2 flex items-center justify-start">
+                  <div class="w-7 h-7 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                    <img
+                      src="<%= team_logo_url(team_id) %>"
+                      alt="<%= team_code %>"
+                      class="w-full h-full object-contain"
+                      loading="lazy"
+                      decoding="async"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    />
+                    <span class="hidden text-[9px] font-mono text-muted-foreground"><%= team_code %></span>
                   </div>
                 </div>
-              </div>
 
-              <div class="w-24 shrink-0 h-10 grid place-items-center">
-                <span class="inline-block font-mono tabular-nums text-right <%= if cap_space.nil?
-                  'text-muted-foreground/50'
-                elsif cap_space.to_f < 0
-                  'text-red-600 dark:text-red-400'
-                else
-                  'text-emerald-600 dark:text-emerald-400'
-                end %>" style="width: 8ch"><%= cap_space.nil? ? '—' : format_room_amount(cap_space) %></span>
-              </div>
+                <div class="h-[24px] flex items-end min-w-0 pl-1 pr-2">
+                  <a
+                    href="<%= team_page_href %>"
+                    class="block truncate font-medium text-[14px] text-foreground transition-colors group-hover:text-primary hover:underline"
+                    onclick="event.stopPropagation()"
+                  >
+                    <%= team["team_name"] %>
+                  </a>
+                </div>
 
-              <div class="w-24 shrink-0 h-10 grid place-items-center">
-                <span class="inline-block font-mono tabular-nums text-right <%= room_tax.nil? ? 'text-muted-foreground/50' : (room_tax.to_f < 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground') %>" style="width: 8ch"><%= room_tax.nil? ? '—' : format_room_amount(room_tax) %></span>
-              </div>
-
-              <div class="w-24 shrink-0 h-10 grid place-items-center">
-                <span class="inline-block font-mono tabular-nums text-right <%= room_a1.nil? ? 'text-muted-foreground/50' : (room_a1.to_f < 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground') %>" style="width: 8ch"><%= room_a1.nil? ? '—' : format_room_amount(room_a1) %></span>
-              </div>
-
-              <div class="w-24 shrink-0 h-10 grid place-items-center">
-                <span class="inline-block font-mono tabular-nums text-right <%= room_a2.nil? ? 'text-muted-foreground/50' : (room_a2.to_f < 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground') %>" style="width: 8ch"><%= room_a2.nil? ? '—' : format_room_amount(room_a2) %></span>
-              </div>
-
-              <div class="w-24 shrink-0 h-10 grid place-items-center">
-                <span class="inline-block font-mono tabular-nums text-right <%= luxury_tax_owed.to_f > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground/50' %>" style="width: 8ch"><%= luxury_tax_owed.to_f > 0 ? format_compact_currency(luxury_tax_owed) : '—' %></span>
-              </div>
-
-              <div class="w-24 shrink-0 h-10 grid place-items-center">
-                <span class="inline-block font-mono tabular-nums text-right text-foreground" style="width: 8ch"><%= team["roster_row_count"].to_i %> / <%= team["two_way_row_count"].to_i %></span>
-              </div>
-
-              <div class="w-40 shrink-0 h-10 px-3 flex items-center">
-                <div class="entity-cell-two-line w-full">
-                  <div class="entity-cell-primary">
-                    <span class="<%= pressure_chip_classes %>"><%= pressure_label %></span>
-                  </div>
-                  <div class="entity-cell-secondary truncate">
-                    <% if team["is_repeater_taxpayer"] %>
-                      <span class="entity-chip entity-chip--danger">Repeater</span>
-                    <% elsif team["is_taxpayer"] %>
-                      <span class="entity-chip entity-chip--warning">Taxpayer</span>
-                    <% elsif team["is_subject_to_apron"] %>
-                      <span class="entity-chip entity-chip--accent"><%= team["apron_level_lk"].presence || "Apron" %></span>
-                    <% else %>
-                      <span class="text-muted-foreground/70">No tax</span>
+                <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1 pr-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
+                  <div class="min-w-0 flex items-start gap-1 overflow-hidden whitespace-nowrap">
+                    <span class="font-medium"><%= team_code %></span>
+                    <span>•</span>
+                    <span class="truncate"><%= team["conference_name"].presence || "—" %></span>
+                    <% if team["division_name"].present? %>
+                      <span>•</span>
+                      <span class="truncate"><%= team["division_name"] %></span>
                     <% end %>
                   </div>
                 </div>
               </div>
             </div>
-          <% end %>
-        </div>
+
+            <div class="w-24 shrink-0 h-10 grid place-items-center">
+              <span class="inline-block font-mono tabular-nums text-right <%= if cap_space.nil?
+                'text-muted-foreground/50'
+              elsif cap_space.to_f < 0
+                'text-red-600 dark:text-red-400'
+              else
+                'text-emerald-600 dark:text-emerald-400'
+              end %>" style="width: 8ch"><%= cap_space.nil? ? '—' : format_room_amount(cap_space) %></span>
+            </div>
+
+            <div class="w-24 shrink-0 h-10 grid place-items-center">
+              <span class="inline-block font-mono tabular-nums text-right <%= room_tax.nil? ? 'text-muted-foreground/50' : (room_tax.to_f < 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground') %>" style="width: 8ch"><%= room_tax.nil? ? '—' : format_room_amount(room_tax) %></span>
+            </div>
+
+            <div class="w-24 shrink-0 h-10 grid place-items-center">
+              <span class="inline-block font-mono tabular-nums text-right <%= room_a1.nil? ? 'text-muted-foreground/50' : (room_a1.to_f < 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground') %>" style="width: 8ch"><%= room_a1.nil? ? '—' : format_room_amount(room_a1) %></span>
+            </div>
+
+            <div class="w-24 shrink-0 h-10 grid place-items-center">
+              <span class="inline-block font-mono tabular-nums text-right <%= room_a2.nil? ? 'text-muted-foreground/50' : (room_a2.to_f < 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground') %>" style="width: 8ch"><%= room_a2.nil? ? '—' : format_room_amount(room_a2) %></span>
+            </div>
+
+            <div class="w-24 shrink-0 h-10 grid place-items-center">
+              <span class="inline-block font-mono tabular-nums text-right <%= luxury_tax_owed.to_f > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground/50' %>" style="width: 8ch"><%= luxury_tax_owed.to_f > 0 ? format_compact_currency(luxury_tax_owed) : '—' %></span>
+            </div>
+
+            <div class="w-24 shrink-0 h-10 grid place-items-center">
+              <span class="inline-block font-mono tabular-nums text-right text-foreground" style="width: 8ch"><%= team["roster_row_count"].to_i %> / <%= team["two_way_row_count"].to_i %></span>
+            </div>
+
+            <div class="w-40 shrink-0 h-10 px-3 flex items-center">
+              <div class="entity-cell-two-line w-full">
+                <div class="entity-cell-primary">
+                  <span class="<%= pressure_chip_classes %>"><%= pressure_label %></span>
+                </div>
+                <div class="entity-cell-secondary truncate">
+                  <% if team["is_repeater_taxpayer"] %>
+                    <span class="entity-chip entity-chip--danger">Repeater</span>
+                  <% elsif team["is_taxpayer"] %>
+                    <span class="entity-chip entity-chip--warning">Taxpayer</span>
+                  <% elsif team["is_subject_to_apron"] %>
+                    <span class="entity-chip entity-chip--accent"><%= team["apron_level_lk"].presence || "Apron" %></span>
+                  <% else %>
+                    <span class="text-muted-foreground/70">No tax</span>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
       </div>
     </div>
   </div>

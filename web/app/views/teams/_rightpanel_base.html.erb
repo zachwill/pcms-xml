@@ -6,6 +6,7 @@
   <% active_pressure_lens = summary[:active_pressure_lens].to_s.presence || "all" %>
   <% active_pressure_label = summary[:active_pressure_label].presence || "All teams" %>
   <% active_pressure_count = summary[:active_pressure_count].to_i %>
+
   <% pressure_options = [
     ["all", "All teams"],
     ["over_cap", "Over Cap"],
@@ -13,6 +14,7 @@
     ["over_apron1", "Over Apron 1"],
     ["over_apron2", "Over Apron 2"]
   ] %>
+
   <% pressure_lane_options = [
     ["over_apron2", "Apron 2 red zone", "entity-chip entity-chip--danger"],
     ["over_apron1", "Apron 1 pressure", "entity-chip entity-chip--warning"],
@@ -35,7 +37,7 @@
     end %>
 
   <div id="rightpanel-base" class="space-y-4">
-    <div class="rounded-lg border border-border bg-background p-3 space-y-3">
+    <section class="space-y-3">
       <div>
         <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Workspace snapshot</div>
         <div class="text-sm font-semibold text-foreground">
@@ -44,7 +46,7 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-1.5">
+      <div class="grid grid-cols-4 gap-1.5">
         <%= render partial: "salary_book/kpi_cell", locals: {
           label: "Rows",
           value: summary[:row_count].to_i.to_s,
@@ -71,33 +73,22 @@
         } %>
       </div>
 
-      <div class="grid grid-cols-2 gap-1.5">
-        <%= render partial: "salary_book/kpi_cell", locals: {
-          label: "Over cap",
-          value: summary[:over_cap_count].to_i.to_s,
-          class_name: "w-full"
-        } %>
-
-        <%= render partial: "salary_book/kpi_cell", locals: {
-          label: "Over tax",
-          value: summary[:over_tax_count].to_i.to_s,
-          class_name: "w-full"
-        } %>
-
-        <%= render partial: "salary_book/kpi_cell", locals: {
-          label: "Over A1",
-          value: summary[:over_apron1_count].to_i.to_s,
-          class_name: "w-full"
-        } %>
-
-        <%= render partial: "salary_book/kpi_cell", locals: {
-          label: "Over A2",
-          value: summary[:over_apron2_count].to_i.to_s,
-          class_name: "w-full"
-        } %>
+      <div class="flex flex-wrap gap-1.5 text-[10px]">
+        <span class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/20 px-2 py-0.5 text-muted-foreground">
+          Over Cap <span class="font-mono tabular-nums text-foreground"><%= summary[:over_cap_count].to_i %></span>
+        </span>
+        <span class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/20 px-2 py-0.5 text-muted-foreground">
+          Over Tax <span class="font-mono tabular-nums text-foreground"><%= summary[:over_tax_count].to_i %></span>
+        </span>
+        <span class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/20 px-2 py-0.5 text-muted-foreground">
+          Over A1 <span class="font-mono tabular-nums text-foreground"><%= summary[:over_apron1_count].to_i %></span>
+        </span>
+        <span class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/20 px-2 py-0.5 text-muted-foreground">
+          Over A2 <span class="font-mono tabular-nums text-foreground"><%= summary[:over_apron2_count].to_i %></span>
+        </span>
       </div>
 
-      <div class="rounded border border-border/70 bg-muted/20 px-2 py-2 space-y-1.5">
+      <div class="border-t border-border pt-3 space-y-1.5">
         <div class="flex items-center justify-between gap-2 text-[10px] uppercase tracking-wide text-muted-foreground/80">
           <span>Active pressure posture</span>
           <span class="font-mono tabular-nums normal-case tracking-normal"><%= active_pressure_count %> rows</span>
@@ -108,28 +99,14 @@
           <span class="text-[10px] text-muted-foreground/80">Current search/conference scope</span>
         </div>
 
-        <div class="grid grid-cols-2 gap-1 text-[10px] tabular-nums">
+        <div class="space-y-0.5">
           <% pressure_options.each do |lens, label| %>
-            <div class="flex items-center justify-between rounded border px-1.5 py-1"
-                 data-class="{ 'border-primary/40 bg-primary/10': $teamspressure === '<%= lens %>', 'border-border/60 bg-background': $teamspressure !== '<%= lens %>' }">
-              <span class="truncate" data-class="{ 'text-foreground font-medium': $teamspressure === '<%= lens %>', 'text-muted-foreground': $teamspressure !== '<%= lens %>' }"><%= label %></span>
-              <span class="font-mono"><%= pressure_counts[lens].to_i %></span>
-            </div>
-          <% end %>
-        </div>
-      </div>
-
-      <div class="rounded border border-border/70 bg-muted/10 px-2 py-2 space-y-1.5">
-        <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Pressure lanes in view</div>
-        <div class="space-y-1">
-          <% pressure_lane_options.each do |lane_key, lane_label, lane_chip_class| %>
-            <% lane_count = section_counts[lane_key].to_i %>
-            <% next if lane_count.zero? %>
-            <div class="flex items-center justify-between gap-2 rounded border border-border/60 bg-background px-1.5 py-1 text-[10px] tabular-nums">
-              <div class="min-w-0 flex items-center gap-1.5">
-                <span class="<%= lane_chip_class %>"><%= lane_label %></span>
-              </div>
-              <span class="font-mono"><%= lane_count %></span>
+            <div
+              class="flex items-center justify-between rounded px-1.5 py-1 text-[11px] border border-transparent"
+              data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/15 border-border/70': $teamspressure === '<%= lens %>', 'text-muted-foreground': $teamspressure !== '<%= lens %>' }"
+            >
+              <span data-class="{ 'text-foreground font-medium': $teamspressure === '<%= lens %>', 'text-muted-foreground': $teamspressure !== '<%= lens %>' }"><%= label %></span>
+              <span class="font-mono tabular-nums"><%= pressure_counts[lens].to_i %></span>
             </div>
           <% end %>
         </div>
@@ -142,17 +119,33 @@
           <% end %>
         </div>
       <% end %>
-    </div>
+    </section>
 
-    <div class="rounded-lg border border-border bg-background">
-      <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">
-        Pressure board
+    <section class="border-t border-border pt-3 space-y-2">
+      <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Pressure lanes in view</div>
+
+      <div class="space-y-1">
+        <% pressure_lane_options.each do |lane_key, lane_label, lane_chip_class| %>
+          <% lane_count = section_counts[lane_key].to_i %>
+          <% next if lane_count.zero? %>
+          <div class="flex items-center justify-between gap-2 rounded border border-border/60 bg-background px-1.5 py-1 text-[10px] tabular-nums">
+            <span class="<%= lane_chip_class %>"><%= lane_label %></span>
+            <span class="font-mono"><%= lane_count %></span>
+          </div>
+        <% end %>
+      </div>
+    </section>
+
+    <section class="border-t border-border pt-3">
+      <div class="flex items-center justify-between px-0.5 pb-2 text-[10px] uppercase tracking-wide text-muted-foreground/80">
+        <span>Pressure board</span>
+        <span class="font-mono tabular-nums normal-case tracking-normal"><%= top_rows.length %> teams</span>
       </div>
 
       <% if top_rows.empty? %>
         <div class="p-3 text-sm text-muted-foreground italic">No rows.</div>
       <% else %>
-        <div class="divide-y divide-border">
+        <div class="divide-y divide-border border border-border/70 rounded-lg overflow-hidden bg-background">
           <% top_rows.each do |row| %>
             <% team_id = row["team_id"] %>
             <% pressure_bucket = row["pressure_bucket"].to_s %>
@@ -173,7 +166,7 @@
 
             <button
               type="button"
-              class="cursor-pointer w-full px-3 py-2 text-left hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
+              class="group cursor-pointer w-full px-3 py-2 text-left hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
               data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $selectedteamid === '<%= team_id %>' }"
               data-on:click="<%= open_expr %>"
             >
@@ -191,7 +184,7 @@
           <% end %>
         </div>
       <% end %>
-    </div>
+    </section>
   </div>
 <% elsif @team_id.present? %>
   <div id="rightpanel-base" class="space-y-4">

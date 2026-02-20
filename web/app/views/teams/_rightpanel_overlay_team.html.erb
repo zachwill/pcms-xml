@@ -40,93 +40,84 @@
   salary_book_href = "/?team=#{team_code}##{team_code}"
 %>
 
-<div id="rightpanel-overlay" class="h-full">
+<div id="rightpanel-overlay" class="h-full bg-background">
   <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
-    <button
-      type="button"
-      class="cursor-pointer flex items-center gap-1.5 text-sm transition-colors text-muted-foreground hover:text-foreground"
-      data-on:click="$overlaytype = 'none'; $selectedteamid = ''; @get('/teams/sidebar/clear')"
-    >
-      <%= lucide_icon("arrow-left", class: "w-4 h-4", "aria-hidden": true) %>
-      <span class="font-medium">Back</span>
-    </button>
+    <%= render partial: "shared/rightpanel_back_button", locals: {
+      click_expr: "$overlaytype = 'none'; $selectedteamid = ''; @get('/teams/sidebar/clear')"
+    } %>
 
     <a href="<%= team_page_href %>" class="text-xs text-muted-foreground hover:text-foreground hover:underline">Open team page</a>
   </div>
 
-  <div class="px-4 pb-4 pt-4 space-y-5">
-    <div class="flex items-center gap-3">
-      <div class="w-12 h-12 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
-        <img
-          src="<%= team_logo_url(team_id) %>"
-          alt="<%= team_code %>"
-          class="w-full h-full object-contain"
-          loading="lazy"
-          decoding="async"
-          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-        />
-        <span class="hidden text-[10px] font-semibold text-muted-foreground"><%= team_code %></span>
-      </div>
-
-      <div class="min-w-0 space-y-1">
-        <h2 class="text-lg font-semibold text-foreground truncate"><%= team_name %></h2>
-        <div class="text-xs text-muted-foreground/80 tabular-nums flex items-center gap-1">
-          <span><%= team_code %></span>
-          <span class="text-muted-foreground/50">·</span>
-          <span><%= conference_name %></span>
-          <% if city_name.present? %>
-            <span class="text-muted-foreground/50">·</span>
-            <span><%= city_name %></span>
-          <% end %>
+  <div class="px-4 py-4 overflow-y-auto h-[calc(100%-40px)]">
+    <section>
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded border border-border bg-background overflow-hidden flex items-center justify-center shrink-0">
+          <img
+            src="<%= team_logo_url(team_id) %>"
+            alt="<%= team_code %>"
+            class="w-full h-full object-contain"
+            loading="lazy"
+            decoding="async"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+          />
+          <span class="hidden text-[10px] font-semibold text-muted-foreground"><%= team_code %></span>
         </div>
 
-        <div class="pt-0.5 flex flex-wrap items-center gap-1.5">
-          <span class="<%= pressure_chip_classes %>"><%= pressure_label %></span>
-          <% if team["is_repeater_taxpayer"] %>
-            <span class="entity-chip entity-chip--danger">Repeater</span>
-          <% elsif team["is_taxpayer"] %>
-            <span class="entity-chip entity-chip--warning">Taxpayer</span>
-          <% else %>
-            <span class="entity-chip entity-chip--muted">No tax</span>
-          <% end %>
-          <% if team["is_subject_to_apron"] %>
-            <span class="entity-chip entity-chip--accent"><%= team["apron_level_lk"].presence || "Apron" %></span>
-          <% end %>
+        <div class="min-w-0">
+          <h2 class="text-base font-semibold truncate"><%= team_name %></h2>
+          <div class="text-[11px] text-muted-foreground/80"><%= team_code %> · <%= conference_name %><% if city_name.present? %> · <%= city_name %><% end %></div>
         </div>
       </div>
-    </div>
 
-    <div class="grid grid-cols-2 gap-1.5 border-t border-border pt-4">
-      <%= render partial: "salary_book/kpi_cell", locals: {
-        label: "Cap space",
-        value: team["cap_space"].nil? ? "—" : format_room_amount(team["cap_space"]),
-        class_name: "w-full",
-        variant: (team["cap_space"].to_f < 0 ? "negative" : "positive")
-      } %>
+      <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+        <span class="<%= pressure_chip_classes %>"><%= pressure_label %></span>
+        <% if team["is_repeater_taxpayer"] %>
+          <span class="entity-chip entity-chip--danger">Repeater</span>
+        <% elsif team["is_taxpayer"] %>
+          <span class="entity-chip entity-chip--warning">Taxpayer</span>
+        <% else %>
+          <span class="entity-chip entity-chip--muted">No tax</span>
+        <% end %>
+        <% if team["is_subject_to_apron"] %>
+          <span class="entity-chip entity-chip--accent"><%= team["apron_level_lk"].presence || "Apron" %></span>
+        <% end %>
+      </div>
+    </section>
 
-      <%= render partial: "salary_book/kpi_cell", locals: {
-        label: "Room tax",
-        value: team["room_under_tax"].nil? ? "—" : format_room_amount(team["room_under_tax"]),
-        class_name: "w-full",
-        variant: (team["room_under_tax"].to_f < 0 ? "negative" : "default")
-      } %>
+    <section class="mt-4 border-t border-border pt-4">
+      <div class="grid grid-cols-2 gap-1.5">
+        <%= render partial: "salary_book/kpi_cell", locals: {
+          label: "Cap space",
+          value: team["cap_space"].nil? ? "—" : format_room_amount(team["cap_space"]),
+          class_name: "w-full",
+          variant: (team["cap_space"].to_f < 0 ? "negative" : "positive")
+        } %>
 
-      <%= render partial: "salary_book/kpi_cell", locals: {
-        label: "Room A1",
-        value: team["room_under_apron1"].nil? ? "—" : format_room_amount(team["room_under_apron1"]),
-        class_name: "w-full",
-        variant: (team["room_under_apron1"].to_f < 0 ? "negative" : "default")
-      } %>
+        <%= render partial: "salary_book/kpi_cell", locals: {
+          label: "Room tax",
+          value: team["room_under_tax"].nil? ? "—" : format_room_amount(team["room_under_tax"]),
+          class_name: "w-full",
+          variant: (team["room_under_tax"].to_f < 0 ? "negative" : "default")
+        } %>
 
-      <%= render partial: "salary_book/kpi_cell", locals: {
-        label: "Room A2",
-        value: team["room_under_apron2"].nil? ? "—" : format_room_amount(team["room_under_apron2"]),
-        class_name: "w-full",
-        variant: (team["room_under_apron2"].to_f < 0 ? "negative" : "default")
-      } %>
-    </div>
+        <%= render partial: "salary_book/kpi_cell", locals: {
+          label: "Room A1",
+          value: team["room_under_apron1"].nil? ? "—" : format_room_amount(team["room_under_apron1"]),
+          class_name: "w-full",
+          variant: (team["room_under_apron1"].to_f < 0 ? "negative" : "default")
+        } %>
 
-    <div class="border-t border-border pt-4 space-y-2">
+        <%= render partial: "salary_book/kpi_cell", locals: {
+          label: "Room A2",
+          value: team["room_under_apron2"].nil? ? "—" : format_room_amount(team["room_under_apron2"]),
+          class_name: "w-full",
+          variant: (team["room_under_apron2"].to_f < 0 ? "negative" : "default")
+        } %>
+      </div>
+    </section>
+
+    <section class="mt-4 border-t border-border pt-4 space-y-2">
       <div class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pressure signals</div>
 
       <div class="space-y-0.5">
@@ -145,15 +136,13 @@
           <span class="text-sm font-medium font-mono tabular-nums"><%= team["roster_row_count"].to_i %> / <%= team["two_way_row_count"].to_i %></span>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="border-t border-border pt-4 space-y-2">
-      <div class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pivots</div>
-      <div class="flex flex-col gap-1.5 text-sm">
-        <a href="<%= team_page_href %>" class="text-muted-foreground hover:text-foreground hover:underline">Open canonical team page</a>
-        <a href="<%= team_summary_href %>" class="text-muted-foreground hover:text-foreground hover:underline">Open Team Summary at this team</a>
-        <a href="<%= salary_book_href %>" class="text-muted-foreground hover:text-foreground hover:underline">Open Salary Book for <%= team_code %></a>
-      </div>
-    </div>
+    <section class="mt-4 border-t border-border pt-3 space-y-1.5 text-[11px]">
+      <div class="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/80">Pivots</div>
+      <a href="<%= team_page_href %>" class="block text-muted-foreground hover:text-foreground hover:underline">Open canonical team page</a>
+      <a href="<%= team_summary_href %>" class="block text-muted-foreground hover:text-foreground hover:underline">Open Team Summary at this team</a>
+      <a href="<%= salary_book_href %>" class="block text-muted-foreground hover:text-foreground hover:underline">Open Salary Book for <%= team_code %></a>
+    </section>
   </div>
 </div>
