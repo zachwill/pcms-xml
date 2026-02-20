@@ -18,9 +18,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
   Why: Lane headers and commandbar counts drift from the visible rows after filter changes.
   Note: Commandbar lane counts now derive from the current filtered rows, and section row badges/KPIs render from each section's live row array.
 
-- [ ] [P2] [INDEX] /teams — active-row highlight state when overlay is open
+- [x] [P2] [INDEX] /teams — active-row highlight state when overlay is open
   Files: web/app/views/teams/_workspace_main.html.erb, web/app/javascript/teams_index.js
   Why: When a team overlay is open, the source row should show active state so users know where they are.
+  Note: Main canvas now mirrors selectedteamid/overlaytype into data attrs, and teams_index.js reapplies active row + sticky-cell highlight after morphs and signal-driven overlay changes.
 
 ## /players — triage flow
 

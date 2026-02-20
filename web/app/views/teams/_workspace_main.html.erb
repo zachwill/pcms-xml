@@ -1,4 +1,17 @@
-<main id="maincanvas" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-background relative overscroll-y-contain scroll-touch isolate">
+<%
+  overlay_team_active = @selected_team_id.present?
+  selected_team_id = overlay_team_active ? @selected_team_id.to_s : ""
+  overlay_type = overlay_team_active ? "team" : "none"
+%>
+
+<main
+  id="maincanvas"
+  class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-background relative overscroll-y-contain scroll-touch isolate"
+  data-selected-team-id="<%= selected_team_id %>"
+  data-overlay-type="<%= overlay_type %>"
+  data-attr:data-selected-team-id="$selectedteamid"
+  data-attr:data-overlay-type="$overlaytype"
+>
   <% if @teams.empty? %>
     <div class="p-6">
       <div class="p-4 rounded-lg border border-border bg-muted/20 text-sm text-muted-foreground italic">
