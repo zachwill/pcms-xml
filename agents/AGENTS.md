@@ -19,6 +19,7 @@ loop({
   timeout: "5m",                // Per-run timeout
   pushEvery: 4,                 // Push every N commits (default: 4)
   maxIterations: 400,           // Safety limit (default: 400)
+  maxConsecutiveTimeouts: 3,    // Stop after N timeout runs (0 = never stop)
   supervisor: { ... },          // Optional
 
   run(state) {
@@ -137,7 +138,7 @@ await runCommand(["bun", "script.ts"], { timeout?: string })
 2. **Auto-commit** — Agent forgot to commit? We do it.
 3. **Push every N** — Default 4 commits.
 4. **Max iterations** — Default 400, prevents runaway loops.
-5. **Timeout** — Kills stuck agents.
+5. **Timeout** — Aborts the current run. The loop continues to next iteration by default (fails only after too many consecutive timeouts).
 6. **Task file** — Auto-created if missing.
 
 ## Timeout Format

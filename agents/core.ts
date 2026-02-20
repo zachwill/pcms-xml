@@ -113,6 +113,12 @@ export interface LoopConfig {
   maxIterations?: number;
 
   /**
+   * Consecutive timeout failures before forced exit (default: 3).
+   * Set to 0 to disable timeout-based auto-stop.
+   */
+  maxConsecutiveTimeouts?: number;
+
+  /**
    * If true, the loop never exits just because the task file is "done".
    * When there are no remaining todos, your run(state) function should typically return generate().
    */
@@ -459,6 +465,10 @@ function resolveTimeoutMs(timeout?: number | string): number {
   return timeout ? parseTimeout(timeout) : DEFAULT_TIMEOUT_MS;
 }
 
+function isTimeoutError(err: unknown): err is Error {
+  return err instanceof Error && /^Timed out after\s+\d+(?:\.\d+)?s$/.test(err.message);
+}
+
 // ─────────────────────────────────────────────────────────────
 // Pi Runner (exported for supervisor use)
 // ─────────────────────────────────────────────────────────────
@@ -768,6 +778,7 @@ export async function loop(config: LoopConfig): Promise<never> {
   // Parse config defaults
   const pushEvery = config.pushEvery ?? 4;
   const maxIterations = config.maxIterations ?? 400;
+  const maxConsecutiveTimeouts = config.maxConsecutiveTimeouts ?? 3;
   const continuous = config.continuous ?? false;
 
   // CLI flags
@@ -780,7 +791,25 @@ export async function loop(config: LoopConfig): Promise<never> {
 
   let iteration = 0;
   let commits = 0;
+  let consecutiveTimeouts = 0;
   const startCommitCount = await getCommitCount();
+
+  function resetTimeoutStreak(): void {
+    consecutiveTimeouts = 0;
+  }
+
+  function handleTimeout(scope: "Worker" | "Supervisor"): void {
+    consecutiveTimeouts++;
+    const limitLabel =
+      maxConsecutiveTimeouts > 0 ? `${consecutiveTimeouts}/${maxConsecutiveTimeouts}` : `${consecutiveTimeouts}/∞`;
+
+    console.log(`\n[Timeout] ${scope} run timed out (${limitLabel} consecutive)`);
+
+    if (maxConsecutiveTimeouts > 0 && consecutiveTimeouts >= maxConsecutiveTimeouts) {
+      console.log(`\n[Stop] Too many consecutive timeouts (${consecutiveTimeouts}).`);
+      process.exit(1);
+    }
+  }
 
   while (true) {
     iteration++;
@@ -816,7 +845,25 @@ export async function loop(config: LoopConfig): Promise<never> {
         process.exit(0);
       }
 
-      await config.supervisor!.run(state);
+      try {
+        await config.supervisor!.run(state);
+        resetTimeoutStreak();
+      } catch (err) {
+        if (isTimeoutError(err)) {
+          handleTimeout("Supervisor");
+
+          if (flags.once) {
+            console.log("\n(--once) Supervisor iteration ended after timeout");
+            process.exit(1);
+          }
+
+          const currentCount = await getCommitCount();
+          commits = currentCount - startCommitCount;
+          continue;
+        }
+        throw err;
+      }
+
       await ensureCommit("chore: supervisor");
 
       const currentCount = await getCommitCount();
@@ -826,6 +873,7 @@ export async function loop(config: LoopConfig): Promise<never> {
 
     // Get action from user's run function
     const action = config.run(state);
+    let iterationTimedOut = false;
 
     switch (action._type) {
       case "halt": {
@@ -836,7 +884,17 @@ export async function loop(config: LoopConfig): Promise<never> {
       case "generate": {
         console.log("[Generate]");
 
-        await runPiAction("generate", action, uncommittedChanges, config.timeout, flags);
+        try {
+          await runPiAction("generate", action, uncommittedChanges, config.timeout, flags);
+          resetTimeoutStreak();
+        } catch (err) {
+          if (isTimeoutError(err)) {
+            iterationTimedOut = true;
+            handleTimeout("Worker");
+            break;
+          }
+          throw err;
+        }
 
         // Guard: in continuous mode, prevent infinite generate→generate loops
         // if task generation fails to produce any unchecked todos.
@@ -862,7 +920,18 @@ export async function loop(config: LoopConfig): Promise<never> {
           console.log(`> Task: ${state.nextTodo}`);
         }
 
-        await runPiAction("work", action, uncommittedChanges, config.timeout, flags);
+        try {
+          await runPiAction("work", action, uncommittedChanges, config.timeout, flags);
+          resetTimeoutStreak();
+        } catch (err) {
+          if (isTimeoutError(err)) {
+            iterationTimedOut = true;
+            handleTimeout("Worker");
+            break;
+          }
+          throw err;
+        }
+
         await ensureCommit(`chore: iteration ${iteration}`);
         break;
       }
@@ -879,12 +948,17 @@ export async function loop(config: LoopConfig): Promise<never> {
 
     // Check if done
     const updatedTodos = getUncheckedTodos(await readTextFile(config.taskFile));
-    if (!continuous && updatedTodos.length === 0 && action._type === "work") {
+    if (!iterationTimedOut && !continuous && updatedTodos.length === 0 && action._type === "work") {
       console.log("\n[Done] All tasks complete");
       process.exit(0);
     }
 
     if (flags.once) {
+      if (iterationTimedOut) {
+        console.log("\n(--once) Single iteration ended after timeout");
+        process.exit(1);
+      }
+
       console.log("\n(--once) Single iteration complete");
       process.exit(0);
     }

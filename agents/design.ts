@@ -344,6 +344,7 @@ loop({
   timeout: "15m",
   pushEvery: 4,
   maxIterations: 240,
+  maxConsecutiveTimeouts: 0,
   continuous: true,
 
   supervisor: {
