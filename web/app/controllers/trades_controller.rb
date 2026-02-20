@@ -109,8 +109,11 @@ class TradesController < ApplicationController
         ordered_impacts.size
       end
 
+      hidden_impacts = ordered_impacts.drop(visible_count)
+
       row["scan_team_impacts"] = ordered_impacts.first(visible_count)
-      row["scan_additional_team_impact_count"] = [ordered_impacts.size - visible_count, 0].max
+      row["scan_additional_team_impact_count"] = hidden_impacts.size
+      row["scan_hidden_team_codes"] = hidden_impacts.filter_map { |impact| impact["team_code"].to_s.upcase.presence }
     end
   end
 

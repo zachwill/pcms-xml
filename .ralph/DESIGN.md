@@ -18,9 +18,10 @@ This round fixes that: open each surface, screenshot, diagnose, fix.
   Why: Stepping loop and "x of y" position chip were added code-only; need visual confirmation that stepper layout, focus state, and position badge render correctly across sort contexts.
   Note: Agent-browser baseline/after passes (default + cap-space sort) confirmed step navigation; overlay now renders consistent position chips and adds focus-visible button treatment for prev/next controls.
 
-- [ ] [P1] [AUDIT] /trades — browser-verify inline per-team impact map density and truncation
+- [x] [P1] [AUDIT] /trades — browser-verify inline per-team impact map density and truncation
   Files: web/app/views/trades/index.html.erb, web/app/views/trades/_results.html.erb
   Why: Inline impact maps and +N-more chips were added without visual QA; need to verify row scan density isn't broken on 2-team vs 4+ team deals.
+  Note: Agent-browser baseline/after passes (`/trades` + `sort=most_teams&lens=mega`) confirmed 2-team scan rows stay compact while 4+ team truncation now uses compact OUT/IN tokens and a narrow `+NT` tail chip with hidden-team tooltip.
 
 - [ ] [P1] [AUDIT] /transactions — browser-verify scan rail and severity lane rendering
   Files: web/app/views/transactions/index.html.erb, web/app/views/transactions/_results.html.erb

@@ -48,8 +48,9 @@ module EntitiesHelper
   end
 
   # Compact tokenization used by trades list + quick deals.
-  # Example: 2P + 1K + $2.5M cash + 1 TPE
-  def trade_impact_flow_label(impact_row, direction:)
+  # Example (full): 2P + 1K + $2.5M cash + 1 TPE
+  # Example (compact): 2P + 1K + $2.5M + 1 TPE
+  def trade_impact_flow_label(impact_row, direction:, compact: false)
     return "—" if impact_row.blank?
 
     players = trade_impact_value(impact_row, direction, :players)
@@ -60,7 +61,7 @@ module EntitiesHelper
     tokens = []
     tokens << "#{players}P" if players.positive?
     tokens << "#{picks}K" if picks.positive?
-    tokens << "#{format_salary(cash)} cash" if cash.positive?
+    tokens << (compact ? format_salary(cash) : "#{format_salary(cash)} cash") if cash.positive?
     tokens << "#{tpe} TPE" if tpe.positive?
 
     tokens.any? ? tokens.join(" + ") : "—"
