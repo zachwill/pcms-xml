@@ -254,7 +254,7 @@
     <%= render partial: "shared/workspace_header", locals: {
       breadcrumbs: [["Agencies", "/agencies"], [agency_name.presence || "Agency", nil]],
       title: (agency_name.presence || "Agency"),
-      subtitle: ("agency_id: #{@agency_id} · slug: #{@agency_slug}" + (@agency["is_active"] == false ? " · inactive" : "")),
+      subtitle: ("slug: #{@agency_slug}" + (@agency["is_active"] == false ? " · inactive" : "")),
       right_links: [["Open Salary Book", "/"], ["Browse Agents", "/agents"]]
     } %>
 

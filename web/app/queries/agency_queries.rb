@@ -56,6 +56,122 @@ class AgencyQueries
     SQL
   end
 
+  def fetch_index_top_agents_for_agencies(agency_ids, limit_per_agency: 3, book_total_sql: "w.cap_2025_total")
+    ids = Array(agency_ids).map(&:to_i).select(&:positive?).uniq
+    return [] if ids.empty?
+
+    limit = limit_per_agency.to_i
+    limit = 3 if limit <= 0
+
+    conn.exec_query(<<~SQL).to_a
+      WITH ranked AS (
+        SELECT
+          w.agency_id,
+          w.agent_id,
+          w.full_name,
+          COALESCE(#{book_total_sql}, 0)::bigint AS book_total,
+          ROW_NUMBER() OVER (
+            PARTITION BY w.agency_id
+            ORDER BY #{book_total_sql} DESC NULLS LAST, w.full_name ASC
+          ) AS row_num
+        FROM pcms.agents_warehouse w
+        WHERE w.agency_id IN (#{ids.join(',')})
+          AND COALESCE(#{book_total_sql}, 0) > 0
+      )
+      SELECT
+        ranked.agency_id,
+        ranked.agent_id,
+        ranked.full_name,
+        ranked.book_total
+      FROM ranked
+      WHERE ranked.row_num <= #{limit}
+      ORDER BY ranked.agency_id ASC, ranked.row_num ASC
+    SQL
+  end
+
+  def fetch_index_top_clients_for_agencies(agency_ids, limit_per_agency: 3, book_total_sql: "sbw.cap_2025")
+    ids = Array(agency_ids).map(&:to_i).select(&:positive?).uniq
+    return [] if ids.empty?
+
+    limit = limit_per_agency.to_i
+    limit = 3 if limit <= 0
+
+    conn.exec_query(<<~SQL).to_a
+      WITH ranked AS (
+        SELECT
+          ag.agency_id,
+          sbw.player_id,
+          sbw.player_name,
+          sbw.team_code,
+          COALESCE(sbw.is_two_way, false)::boolean AS is_two_way,
+          COALESCE(#{book_total_sql}, 0)::bigint AS book_total,
+          ROW_NUMBER() OVER (
+            PARTITION BY ag.agency_id
+            ORDER BY #{book_total_sql} DESC NULLS LAST, sbw.player_name ASC
+          ) AS row_num
+        FROM pcms.agents ag
+        JOIN pcms.salary_book_warehouse sbw
+          ON sbw.agent_id = ag.agent_id
+        WHERE ag.agency_id IN (#{ids.join(',')})
+      )
+      SELECT
+        ranked.agency_id,
+        ranked.player_id,
+        ranked.player_name,
+        ranked.team_code,
+        ranked.is_two_way,
+        ranked.book_total
+      FROM ranked
+      WHERE ranked.row_num <= #{limit}
+      ORDER BY ranked.agency_id ASC, ranked.row_num ASC
+    SQL
+  end
+
+  def fetch_index_top_teams_for_agencies(agency_ids, limit_per_agency: 3)
+    ids = Array(agency_ids).map(&:to_i).select(&:positive?).uniq
+    return [] if ids.empty?
+
+    limit = limit_per_agency.to_i
+    limit = 3 if limit <= 0
+
+    conn.exec_query(<<~SQL).to_a
+      WITH grouped AS (
+        SELECT
+          ag.agency_id,
+          sbw.team_code,
+          t.team_id,
+          COUNT(*)::integer AS player_count,
+          COALESCE(SUM(sbw.cap_2025), 0)::bigint AS book_total
+        FROM pcms.agents ag
+        JOIN pcms.salary_book_warehouse sbw
+          ON sbw.agent_id = ag.agent_id
+        LEFT JOIN pcms.teams t
+          ON t.team_code = sbw.team_code
+         AND t.league_lk = 'NBA'
+        WHERE ag.agency_id IN (#{ids.join(',')})
+          AND sbw.team_code IS NOT NULL
+        GROUP BY ag.agency_id, sbw.team_code, t.team_id
+      ), ranked AS (
+        SELECT
+          grouped.*,
+          ROW_NUMBER() OVER (
+            PARTITION BY grouped.agency_id
+            ORDER BY grouped.player_count DESC, grouped.book_total DESC, grouped.team_code ASC
+          ) AS row_num
+        FROM grouped
+      )
+      SELECT
+        ranked.agency_id,
+        ranked.team_code,
+        ranked.team_id,
+        ranked.player_count,
+        ranked.book_total
+      FROM ranked
+      WHERE ranked.row_num <= #{limit}
+      ORDER BY ranked.agency_id ASC, ranked.row_num ASC
+    SQL
+  end
+
   def fetch_sidebar_agency(agency_id)
     id_sql = conn.quote(agency_id)
 

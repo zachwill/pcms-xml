@@ -18,176 +18,161 @@
   refresh_expr = "@get('/drafts/sse/refresh?' + (#{refresh_query_expr})); window.history.replaceState({}, '', '/drafts?' + (#{pane_query_expr}))"
 
   signals_literal = "{ draftview: #{@view.to_json}, draftyear: #{@year.to_json}, draftround: #{@round.to_json}, draftteam: #{(@team || '').to_json}, draftsort: #{@sort.to_json}, draftlens: #{@lens.to_json}, overlaytype: #{initial_overlay_type.to_json}, overlaykey: #{initial_overlay_key.to_json} }"
-
-  sidebar_summary = @sidebar_summary.is_a?(Hash) ? @sidebar_summary : {}
-  severity_counts = sidebar_summary[:severity_counts].is_a?(Hash) ? sidebar_summary[:severity_counts] : {}
-
-  normal_count = severity_counts.fetch("normal", sidebar_summary[:normal_count].to_i).to_i
-  at_risk_count = severity_counts.fetch("at_risk", sidebar_summary[:at_risk_count].to_i).to_i
-  critical_count = severity_counts.fetch("critical", sidebar_summary[:critical_count].to_i).to_i
-
-  scope_count_label = if @view == "grid"
-    "#{sidebar_summary[:cell_count].to_i} cells"
-  else
-    "#{sidebar_summary[:row_count].to_i} rows"
-  end
 %>
 
 <div id="drafts-workspace" class="h-screen w-full flex flex-col overflow-hidden bg-background" style="height: 100dvh;" data-signals="<%= signals_literal %>">
   <div id="flash"></div>
 
-  <header id="commandbar" class="shrink-0 h-[130px] border-b border-border bg-background px-4 pt-3 flex items-start gap-4 select-none">
-    <div class="flex items-start min-w-0 overflow-x-auto pb-1">
-      <div class="min-w-[7rem] w-[7rem] space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">View</div>
+  <header id="commandbar" class="sticky top-0 z-40 shrink-0 h-[130px] border-b border-border bg-background px-4 pt-3 flex items-start gap-4 select-none">
+    <div class="flex min-w-0 flex-1 items-start overflow-x-auto pb-1">
+      <div class="min-w-[10rem] w-[10rem] space-y-2">
         <div class="space-y-1">
-          <% [["picks", "Picks"], ["selections", "Selections"], ["grid", "Grid"]].each do |value, label| %>
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="radio"
-                name="draft-view"
-                value="<%= value %>"
-                class="size-3.5 accent-primary"
-                <%= "checked" if @view == value %>
-                data-bind="draftview"
-                data-on:change="if (el.checked) { <%= refresh_expr %>; }"
-              />
-              <span class="text-[11px] leading-none select-none" data-class="{ 'text-foreground font-semibold': $draftview === '<%= value %>', 'text-muted-foreground': $draftview !== '<%= value %>' }"><%= label %></span>
-            </label>
-          <% end %>
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">View</div>
+          <div class="space-y-1">
+            <% [["picks", "Picks"], ["selections", "Selections"], ["grid", "Grid"]].each do |value, label| %>
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="draft-view"
+                  value="<%= value %>"
+                  class="size-3.5 accent-primary"
+                  <%= "checked" if @view == value %>
+                  data-bind="draftview"
+                  data-on:change="if (el.checked) { <%= refresh_expr %>; }"
+                />
+                <span class="text-[11px] leading-none select-none" data-class="{ 'text-foreground font-semibold': $draftview === '<%= value %>', 'text-muted-foreground': $draftview !== '<%= value %>' }"><%= label %></span>
+              </label>
+            <% end %>
+          </div>
         </div>
       </div>
 
       <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
 
-      <div class="min-w-[7rem] w-[7rem] space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Year</div>
-        <select
-          id="draft-year-select"
-          class="h-7 w-24 rounded border border-border bg-background px-2 text-xs text-foreground font-mono tabular-nums"
-          data-bind="draftyear"
-          data-on:change="<%= refresh_expr %>"
-        >
-          <% @available_years.each do |year| %>
-            <option value="<%= year %>" <%= "selected" if @year.to_s == year.to_s %>><%= year %></option>
-          <% end %>
-        </select>
-      </div>
-
-      <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
-
-      <div class="min-w-[6.5rem] w-[6.5rem] space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Round</div>
+      <div class="min-w-[11rem] w-[11rem] space-y-2">
         <div class="space-y-1">
-          <% [["all", "All"], ["1", "1st"], ["2", "2nd"]].each do |value, label| %>
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="radio"
-                name="draft-round"
-                value="<%= value %>"
-                class="size-3.5 accent-primary"
-                <%= "checked" if @round == value %>
-                data-bind="draftround"
-                data-on:change="if (el.checked) { <%= refresh_expr %>; }"
-              />
-              <span class="text-[11px] leading-none select-none" data-class="{ 'text-foreground font-semibold': $draftround === '<%= value %>', 'text-muted-foreground': $draftround !== '<%= value %>' }"><%= label %></span>
-            </label>
-          <% end %>
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Year</div>
+          <select
+            id="draft-year-select"
+            class="h-7 w-24 rounded border border-border bg-muted/50 px-2 text-xs text-foreground font-mono tabular-nums"
+            data-bind="draftyear"
+            data-on:change="<%= refresh_expr %>"
+          >
+            <% @available_years.each do |year| %>
+              <option value="<%= year %>" <%= "selected" if @year.to_s == year.to_s %>><%= year %></option>
+            <% end %>
+          </select>
+        </div>
+
+        <div class="space-y-1 pt-1 border-t border-border/70">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Round</div>
+          <div class="flex items-center gap-3">
+            <% [["all", "All"], ["1", "1st"], ["2", "2nd"]].each do |value, label| %>
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="draft-round"
+                  value="<%= value %>"
+                  class="size-3.5 accent-primary"
+                  <%= "checked" if @round == value %>
+                  data-bind="draftround"
+                  data-on:change="if (el.checked) { <%= refresh_expr %>; }"
+                />
+                <span class="text-[11px] leading-none select-none" data-class="{ 'text-foreground font-semibold': $draftround === '<%= value %>', 'text-muted-foreground': $draftround !== '<%= value %>' }"><%= label %></span>
+              </label>
+            <% end %>
+          </div>
         </div>
       </div>
 
       <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
 
-      <div class="min-w-[11rem] w-[11rem] space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Team</div>
-        <select
-          id="draft-team-select"
-          class="h-7 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
-          data-bind="draftteam"
-          data-on:change="<%= refresh_expr %>"
-        >
-          <option value="" <%= "selected" if @team.blank? %>>All teams</option>
-          <% Array(@team_options).each do |team| %>
-            <% code = team["team_code"].to_s.upcase %>
-            <option value="<%= code %>" <%= "selected" if @team == code %>><%= code %> · <%= team["team_name"] %></option>
-          <% end %>
-        </select>
-      </div>
-
-      <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
-
-      <div class="min-w-[14rem] w-[14rem] space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sort</div>
-
-        <select
-          id="draft-sort-select-picks"
-          class="h-7 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
-          data-bind="draftsort"
-          data-show="$draftview === 'picks'"
-          data-on:change="<%= refresh_expr %>"
-          style="<%= @view == 'picks' ? '' : 'display: none;' %>"
-        >
-          <option value="board" <%= "selected" if @sort == "board" %>>Board order (round/team)</option>
-          <option value="risk" <%= "selected" if @sort == "risk" %>>Ownership risk first</option>
-          <option value="provenance" <%= "selected" if @sort == "provenance" %>>Deepest provenance chain</option>
-        </select>
-
-        <select
-          id="draft-sort-select-selections"
-          class="h-7 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
-          data-bind="draftsort"
-          data-show="$draftview === 'selections'"
-          data-on:change="<%= refresh_expr %>"
-          style="<%= @view == 'selections' ? '' : 'display: none;' %>"
-        >
-          <option value="board" <%= "selected" if @sort == "board" %>>Board order (round/pick)</option>
-          <option value="risk" <%= "selected" if @sort == "risk" %>>Highest contest risk</option>
-          <option value="provenance" <%= "selected" if @sort == "provenance" %>>Deepest provenance chain</option>
-        </select>
-
-        <select
-          id="draft-sort-select-grid"
-          class="h-7 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
-          data-bind="draftsort"
-          data-show="$draftview === 'grid'"
-          data-on:change="<%= refresh_expr %>"
-          style="<%= @view == 'grid' ? '' : 'display: none;' %>"
-        >
-          <option value="board" <%= "selected" if @sort == "board" %>>Team code (A→Z)</option>
-          <option value="risk" <%= "selected" if @sort == "risk" %>>Most encumbered teams</option>
-          <option value="provenance" <%= "selected" if @sort == "provenance" %>>Most provenance-active teams</option>
-        </select>
-      </div>
-
-      <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
-
-      <div class="min-w-[12rem] w-[12rem] space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Ownership lens</div>
-        <select
-          id="draft-lens-select"
-          class="h-7 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
-          data-bind="draftlens"
-          data-on:change="<%= refresh_expr %>"
-        >
-          <option value="all" <%= "selected" if @lens == "all" %>>All rows</option>
-          <option value="at_risk" <%= "selected" if @lens == "at_risk" %>>At-risk only</option>
-          <option value="critical" <%= "selected" if @lens == "critical" %>>Critical only</option>
-        </select>
-      </div>
-
-      <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
-
-      <div class="min-w-[14rem] w-[14rem] space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Scope</div>
-        <div class="text-[11px] text-muted-foreground tabular-nums">
-          <span class="text-foreground font-medium"><%= scope_count_label %></span>
-          <span class="px-1 text-muted-foreground/50">·</span>
-          <span><%= @sort_label %></span>
+      <div class="min-w-[13rem] w-[13rem] space-y-2">
+        <div class="space-y-1">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Team</div>
+          <select
+            id="draft-team-select"
+            class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground"
+            data-bind="draftteam"
+            data-on:change="<%= refresh_expr %>"
+          >
+            <option value="" <%= "selected" if @team.blank? %>>All teams</option>
+            <% Array(@team_options).each do |team| %>
+              <% code = team["team_code"].to_s.upcase %>
+              <option value="<%= code %>" <%= "selected" if @team == code %>><%= code %> · <%= team["team_name"] %></option>
+            <% end %>
+          </select>
         </div>
-        <div class="flex flex-wrap gap-1 text-[10px]">
-          <span class="entity-chip entity-chip--muted">Normal <span class="font-mono tabular-nums"><%= normal_count %></span></span>
-          <span class="entity-chip entity-chip--warning">At risk <span class="font-mono tabular-nums"><%= at_risk_count %></span></span>
-          <span class="entity-chip entity-chip--danger">Critical <span class="font-mono tabular-nums"><%= critical_count %></span></span>
+
+        <div class="space-y-1">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Ownership lens</div>
+          <select
+            id="draft-lens-select"
+            class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground"
+            data-bind="draftlens"
+            data-on:change="<%= refresh_expr %>"
+          >
+            <option value="all" <%= "selected" if @lens == "all" %>>All rows</option>
+            <option value="at_risk" <%= "selected" if @lens == "at_risk" %>>At-risk only</option>
+            <option value="critical" <%= "selected" if @lens == "critical" %>>Critical only</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
+
+      <div class="min-w-[14rem] w-[14rem] space-y-2">
+        <div class="space-y-1">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sort</div>
+
+          <select
+            id="draft-sort-select-picks"
+            class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground"
+            data-bind="draftsort"
+            data-show="$draftview === 'picks'"
+            data-on:change="<%= refresh_expr %>"
+            style="<%= @view == 'picks' ? '' : 'display: none;' %>"
+          >
+            <option value="board" <%= "selected" if @sort == "board" %>>Board order (round/team)</option>
+            <option value="risk" <%= "selected" if @sort == "risk" %>>Ownership risk first</option>
+            <option value="provenance" <%= "selected" if @sort == "provenance" %>>Deepest provenance chain</option>
+          </select>
+
+          <select
+            id="draft-sort-select-selections"
+            class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground"
+            data-bind="draftsort"
+            data-show="$draftview === 'selections'"
+            data-on:change="<%= refresh_expr %>"
+            style="<%= @view == 'selections' ? '' : 'display: none;' %>"
+          >
+            <option value="board" <%= "selected" if @sort == "board" %>>Board order (round/pick)</option>
+            <option value="risk" <%= "selected" if @sort == "risk" %>>Highest contest risk</option>
+            <option value="provenance" <%= "selected" if @sort == "provenance" %>>Deepest provenance chain</option>
+          </select>
+
+          <select
+            id="draft-sort-select-grid"
+            class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground"
+            data-bind="draftsort"
+            data-show="$draftview === 'grid'"
+            data-on:change="<%= refresh_expr %>"
+            style="<%= @view == 'grid' ? '' : 'display: none;' %>"
+          >
+            <option value="board" <%= "selected" if @sort == "board" %>>Team code (A→Z)</option>
+            <option value="risk" <%= "selected" if @sort == "risk" %>>Most encumbered teams</option>
+            <option value="provenance" <%= "selected" if @sort == "provenance" %>>Most provenance-active teams</option>
+          </select>
+        </div>
+
+        <div class="space-y-1">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Risk tiers</div>
+          <div class="text-[11px] text-muted-foreground" data-text="$draftview === 'grid' ? 'Grid ownership matrix' : ($draftview === 'selections' ? 'Historical selection ledger' : 'Future pick board')">Future pick board</div>
+          <div class="flex flex-wrap gap-1 text-[10px]">
+            <span class="entity-chip entity-chip--muted">Normal</span>
+            <span class="entity-chip entity-chip--warning">At risk</span>
+            <span class="entity-chip entity-chip--danger">Critical</span>
+          </div>
         </div>
       </div>
     </div>

@@ -1,328 +1,316 @@
-<% year_label = format_year_label(@book_year).split("-").first %>
+<% year_label = format_year_label(@book_year) %>
 <% overlay_query_expr = "'year=' + encodeURIComponent($agencyyear) + '&sort=' + encodeURIComponent($agencysort) + '&dir=' + encodeURIComponent($agencydir)" %>
 <% prefetch_canonical_slugs(entity_type: "agency", entity_ids: @agencies.map { |agency| agency["agency_id"] }) %>
+<%
+  top_agent_avatar_palette = [
+    "border-violet-200 bg-violet-100/80 text-violet-700 dark:border-violet-700/60 dark:bg-violet-900/30 dark:text-violet-300",
+    "border-blue-200 bg-blue-100/80 text-blue-700 dark:border-blue-700/60 dark:bg-blue-900/30 dark:text-blue-300",
+    "border-emerald-200 bg-emerald-100/80 text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-900/30 dark:text-emerald-300",
+    "border-amber-200 bg-amber-100/80 text-amber-700 dark:border-amber-700/60 dark:bg-amber-900/30 dark:text-amber-300",
+    "border-rose-200 bg-rose-100/80 text-rose-700 dark:border-rose-700/60 dark:bg-rose-900/30 dark:text-rose-300",
+    "border-cyan-200 bg-cyan-100/80 text-cyan-700 dark:border-cyan-700/60 dark:bg-cyan-900/30 dark:text-cyan-300"
+  ]
+  placeholder_dash = "—"
 
-<div id="agencies-maincanvas" class="py-3">
-  <section class="px-4 pb-3 border-b border-border">
-    <div class="flex flex-wrap items-start justify-between gap-4">
-      <div class="min-w-0 space-y-2">
-        <h2 class="text-sm font-semibold text-foreground">
-          Agencies
-          <span class="text-muted-foreground font-medium">· <%= @agencies.size %> rows</span>
-        </h2>
+  nbsp_pad = lambda do |text, width|
+    raw_text = text.to_s
+    return placeholder_dash if raw_text == placeholder_dash
 
-        <div class="flex flex-wrap gap-1.5">
-          <span class="entity-chip entity-chip--muted">Book <%= year_label %></span>
-          <% if @activity_lens != "all" %>
-            <span class="entity-chip entity-chip--warning"><%= @activity_lens.humanize %></span>
-          <% end %>
-          <span class="entity-chip entity-chip--muted">Sort <%= @sort_key.to_s.humanize %> <%= @sort_dir.to_s.upcase %></span>
-          <% if @query.present? %>
-            <span class="entity-chip entity-chip--muted">Search: <%= @query %></span>
-          <% end %>
-        </div>
-      </div>
+    pad_count = [width.to_i - raw_text.length, 0].max
+    ("\u00A0" * pad_count) + raw_text
+  end
 
-      <div class="ml-auto shrink-0 flex items-start gap-3">
-        <div class="grid grid-cols-3 gap-1.5">
-          <%= render partial: "salary_book/kpi_cell", locals: {
-            label: "Book '#{year_label}",
-            value: format_compact_currency(@sidebar_summary[:book_total]),
-            class_name: "w-full"
-          } %>
+  percentile_meta = lambda do |value|
+    percentile_int = representation_percentile_int(value)
 
-          <%= render partial: "salary_book/kpi_cell", locals: {
-            label: "Live books",
-            value: @sidebar_summary[:live_book_count].to_i.to_s,
-            class_name: "w-full"
-          } %>
+    if percentile_int.present?
+      p_int = percentile_int.to_i.clamp(0, 100)
+      filled_count = (p_int / 25.0).round.clamp(0, 4)
 
-          <%= render partial: "salary_book/kpi_cell", locals: {
-            label: "Live risk",
-            value: @sidebar_summary[:live_book_risk_count].to_i.to_s,
-            variant: (@sidebar_summary[:live_book_risk_count].to_i.positive? ? "option_eto" : "muted"),
-            class_name: "w-full"
-          } %>
-        </div>
-      </div>
-    </div>
-  </section>
+      {
+        label: "P#{p_int}",
+        blocks: ("▰" * filled_count) + ("▱" * (4 - filled_count)),
+        color_class: representation_percentile_color_class(value)
+      }
+    else
+      {
+        label: "P#{placeholder_dash}",
+        blocks: "▱▱▱▱",
+        color_class: "text-muted-foreground/40"
+      }
+    end
+  end
+%>
 
+<div id="agencies-maincanvas">
   <% if @agencies.empty? %>
-    <div class="px-4 py-6 text-sm text-muted-foreground italic">
+    <div class="px-4 py-5 text-sm text-muted-foreground italic border-b border-border bg-muted/20">
       No agencies match these lenses.
     </div>
   <% else %>
-    <section class="border-b border-border">
-      <div class="overflow-x-auto">
-        <div class="min-w-[68rem]">
-          <div class="sticky top-0 z-20 bg-muted border-b border-border" data-on:mouseleave="if ($_agencieshovercolumn !== '') { $_agencieshovercolumn = ''; }">
-            <div class="flex items-center px-3 h-9 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
-              <div
-                class="w-72 h-full shrink-0 flex items-center transition-colors duration-75"
-                data-on:mouseenter="$_agencieshovercolumn = 'agency'"
-                data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_agencieshovercolumn === 'agency' }"
-              >Agency</div>
-              <div
-                class="w-52 h-full shrink-0 flex items-center transition-colors duration-75"
-                data-on:mouseenter="$_agencieshovercolumn = 'posture'"
-                data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_agencieshovercolumn === 'posture' }"
-              >Posture</div>
-              <div
-                class="w-20 h-full shrink-0 flex items-center justify-end font-mono tabular-nums transition-colors duration-75"
-                data-on:mouseenter="$_agencieshovercolumn = 'agents'"
-                data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_agencieshovercolumn === 'agents' }"
-              >Agents</div>
-              <div
-                class="w-20 h-full shrink-0 flex items-center justify-end font-mono tabular-nums transition-colors duration-75"
-                data-on:mouseenter="$_agencieshovercolumn = 'clients'"
-                data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_agencieshovercolumn === 'clients' }"
-              >Clients</div>
-              <div
-                class="w-16 h-full shrink-0 flex items-center justify-end font-mono tabular-nums transition-colors duration-75"
-                data-on:mouseenter="$_agencieshovercolumn = 'teams'"
-                data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_agencieshovercolumn === 'teams' }"
-              >Teams</div>
-              <div
-                class="w-24 h-full shrink-0 flex items-center justify-end font-mono tabular-nums transition-colors duration-75"
-                data-on:mouseenter="$_agencieshovercolumn = 'book'"
-                data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_agencieshovercolumn === 'book' }"
-              >Book '<%= year_label %></div>
-              <div
-                class="w-16 h-full shrink-0 flex items-center justify-end font-mono tabular-nums transition-colors duration-75"
-                data-on:mouseenter="$_agencieshovercolumn = 'max'"
-                data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_agencieshovercolumn === 'max' }"
-              >Max</div>
-              <div
-                class="w-20 h-full shrink-0 flex items-center justify-end font-mono tabular-nums transition-colors duration-75"
-                data-on:mouseenter="$_agencieshovercolumn = 'exp'"
-                data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_agencieshovercolumn === 'exp' }"
-              >Exp</div>
-              <div
-                class="w-20 h-full shrink-0 flex items-center justify-end font-mono tabular-nums transition-colors duration-75"
-                data-on:mouseenter="$_agencieshovercolumn = 'restr'"
-                data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_agencieshovercolumn === 'restr' }"
-              >Restr</div>
-              <div
-                class="w-20 h-full shrink-0 flex items-center justify-end font-mono tabular-nums transition-colors duration-75"
-                data-on:mouseenter="$_agencieshovercolumn = 'opts'"
-                data-class="{ 'bg-yellow-50/70 dark:bg-yellow-900/10 text-foreground': $_agencieshovercolumn === 'opts' }"
-              >Opts</div>
-            </div>
+    <section class="border-b border-border bg-background">
+      <div class="min-w-[80rem]">
+        <div class="sticky top-0 z-10 bg-muted border-b border-border">
+          <div class="flex items-center px-3 h-8 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
+            <div class="w-72 shrink-0 sticky left-0 z-20 h-full flex items-center bg-muted relative after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/60">Agency</div>
+            <div class="w-24 shrink-0 text-center">Book <%= year_label %></div>
+            <div class="w-20 shrink-0 text-center">Agents</div>
+            <div class="w-24 shrink-0">Top agents</div>
+            <div class="w-20 shrink-0 text-center">Clients</div>
+            <div class="w-24 shrink-0">Top clients</div>
+            <div class="w-24 shrink-0">Top teams</div>
+            <div class="w-16 shrink-0 text-center">Max</div>
+            <div class="w-20 shrink-0 text-center">Expiring</div>
+            <div class="w-20 shrink-0 text-center">Restr</div>
+            <div class="w-20 shrink-0 text-center">Options</div>
+            <div class="w-20 shrink-0 text-center">Two-Ways</div>
           </div>
+        </div>
 
-          <div class="divide-y divide-border/60">
-            <% @agencies.each do |agency| %>
-              <% agency_id = agency["agency_id"] %>
-              <% options_count = agency["player_option_count"].to_i + agency["team_option_count"].to_i %>
-              <% restrictions_count = agency["no_trade_count"].to_i + agency["trade_kicker_count"].to_i + agency["trade_restricted_count"].to_i %>
-              <% row_click_expr = "$overlaytype = 'agency'; $overlayid = '#{agency_id}'; @get('/agencies/sidebar/#{agency_id}?' + (#{overlay_query_expr}))" %>
-              <% agents_lens_href = agents_lens_pivot_href(agency_id) %>
-              <% active_agents_href = agents_posture_lane_pivot_href(agency_id, lane: "active") %>
-              <% live_book_agents_href = agents_lens_pivot_href(agency_id, with_book: true) %>
-              <% restricted_agents_href = agents_posture_lane_pivot_href(agency_id, lane: "restricted") %>
-              <% inactive_live_agents_href = agents_posture_lane_pivot_href(agency_id, lane: "inactive_live_book") %>
-              <% live_risk_agents_href = agents_posture_lane_pivot_href(agency_id, lane: "live_book_risk") %>
-              <% live_book = agency["book_total"].to_i.positive? %>
-              <% inactive_with_live_book = agency["is_active"] == false && live_book %>
+        <div class="divide-y divide-border/50">
+          <% @agencies.each do |agency| %>
+            <% agency_id = agency["agency_id"] %>
+            <% options_count = agency["player_option_count"].to_i + agency["team_option_count"].to_i %>
+            <% restrictions_count = agency["no_trade_count"].to_i + agency["trade_kicker_count"].to_i + agency["trade_restricted_count"].to_i %>
+            <% row_click_expr = "$overlaytype = 'agency'; $overlayid = '#{agency_id}'; @get('/agencies/sidebar/#{agency_id}?' + (#{overlay_query_expr}))" %>
+            <% top_agent_previews = Array(agency["top_agents_preview"]).first(3) %>
+            <% top_client_previews = Array(agency["top_clients_preview"]).first(3) %>
+            <% top_team_previews = Array(agency["top_teams_preview"]).first(3) %>
+            <% agency_book_total = agency["book_total"].to_i %>
+            <% agency_book_label = agency_book_total.positive? ? format_compact_currency(agency_book_total) : nil %>
+            <% agency_avatar_initials = agent_initials(agency["agency_name"].to_s) %>
+            <% book_value_present = agency_book_total.positive? %>
+            <% book_cell_value = book_value_present ? format_salary(agency_book_total) : placeholder_dash %>
+            <% book_percentile = percentile_meta.call(agency["book_total_percentile"]) %>
+            <% agent_count_present = agency["agent_count"].to_i.positive? %>
+            <% agent_count_value = agent_count_present ? number_with_delimiter(agency["agent_count"].to_i) : placeholder_dash %>
+            <% client_count_present = agency["client_count"].to_i.positive? %>
+            <% client_count_value = client_count_present ? number_with_delimiter(agency["client_count"].to_i) : placeholder_dash %>
+            <% client_percentile = percentile_meta.call(agency["client_count_percentile"]) %>
+            <% max_count_present = agency["max_contract_count"].to_i.positive? %>
+            <% max_count_value = max_count_present ? number_with_delimiter(agency["max_contract_count"].to_i) : placeholder_dash %>
+            <% max_percentile = percentile_meta.call(agency["max_contract_count_percentile"]) %>
+            <% expiring_present = agency["expiring_in_window"].to_i.positive? %>
+            <% expiring_value = expiring_present ? number_with_delimiter(agency["expiring_in_window"].to_i) : placeholder_dash %>
+            <% restrictions_present = restrictions_count.positive? %>
+            <% restrictions_value = restrictions_present ? number_with_delimiter(restrictions_count) : placeholder_dash %>
+            <% options_present = options_count.positive? %>
+            <% options_value = options_present ? number_with_delimiter(options_count) : placeholder_dash %>
+            <% two_way_present = agency["two_way_count"].to_i.positive? %>
+            <% two_way_value = two_way_present ? number_with_delimiter(agency["two_way_count"].to_i) : placeholder_dash %>
 
-              <div
-                class="group cursor-pointer transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10"
-                role="button"
-                tabindex="0"
-                data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'agency' && $overlayid === '<%= agency_id %>' }"
-                data-on:click="<%= row_click_expr %>"
-                data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= row_click_expr %>; }"
-              >
-                <div class="flex items-center px-3 min-h-[40px] text-xs">
-                  <div
-                    class="w-72 shrink-0 transition-colors duration-75"
-                    data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_agencieshovercolumn === 'agency' }"
-                  >
-                    <div class="grid grid-cols-[30px_1fr] grid-rows-[24px_16px]">
-                      <div class="row-span-2 flex items-center justify-start">
-                        <div class="w-7 h-7 rounded border border-border bg-muted/40 flex items-center justify-center text-[10px] font-semibold uppercase text-muted-foreground"><%= agency["agency_name"].to_s.first(2) %></div>
-                      </div>
-                      <div class="h-[24px] flex items-end min-w-0 pl-2">
-                        <a href="<%= agency_href(agency_id) %>" class="truncate font-medium text-[14px] group-hover:text-primary transition-colors hover:underline" onclick="event.stopPropagation()"><%= agency["agency_name"] %></a>
-                      </div>
-                      <div class="h-[16px] -mt-px flex items-start gap-1.5 min-w-0 pl-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
-                        <span>id: <%= agency_id %></span>
-                        <% if agency["is_active"] == false %>
-                          <span class="entity-chip entity-chip--muted">inactive</span>
-                        <% end %>
-                      </div>
+            <div
+              class="group cursor-pointer transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10"
+              role="button"
+              tabindex="0"
+              data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'agency' && $overlayid === '<%= agency_id %>' }"
+              data-on:click="<%= row_click_expr %>"
+              data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= row_click_expr %>; }"
+            >
+              <div class="flex items-center px-3 min-h-[40px] text-xs">
+                <div
+                  class="w-72 shrink-0 sticky left-0 z-20 relative bg-background transition-colors duration-75
+                         group-hover:bg-yellow-50 dark:group-hover:bg-yellow-900
+                         after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/50"
+                  data-class="{ 'bg-yellow-100 dark:bg-yellow-900': $overlaytype === 'agency' && $overlayid === '<%= agency_id %>' }"
+                >
+                  <div class="grid grid-cols-[30px_1fr] grid-rows-[24px_16px]">
+                    <div class="row-span-2 flex items-center justify-start">
+                      <div class="w-7 h-7 rounded border border-border bg-muted/40 flex items-center justify-center text-[10px] font-semibold uppercase text-muted-foreground"><%= agency_avatar_initials %></div>
+                    </div>
+                    <div class="h-[24px] flex items-end min-w-0 pl-2">
+                      <a href="<%= agency_href(agency_id) %>" class="truncate font-medium text-[14px] group-hover:text-primary transition-colors hover:underline" onclick="event.stopPropagation()"><%= agency["agency_name"] %></a>
+                    </div>
+                    <div class="h-[16px] -mt-px flex items-start min-w-0 pl-2 leading-none text-[10px] text-muted-foreground/80 overflow-hidden">
+                      <span class="truncate"><%= pluralize(agency["agent_count"].to_i, "agent") %></span>
+                      <span class="px-1 text-muted-foreground/50">·</span>
+                      <span class="truncate"><%= pluralize(agency["client_count"].to_i, "client") %></span>
+                      <% if agency_book_label.present? %>
+                        <span class="px-1 text-muted-foreground/50">·</span>
+                        <span class="truncate"><%= agency_book_label %> book</span>
+                      <% end %>
+                      <% if agency["is_active"] == false %>
+                        <span class="ml-1 entity-chip entity-chip--muted">inactive</span>
+                      <% end %>
                     </div>
                   </div>
+                </div>
 
-                  <div
-                    class="w-52 shrink-0 pr-2 transition-colors duration-75"
-                    data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_agencieshovercolumn === 'posture' }"
-                  >
+                <div class="w-24 shrink-0">
+                  <% if book_value_present %>
                     <div class="entity-cell-two-line">
-                      <div class="entity-cell-primary justify-start gap-1 flex-wrap">
-                        <% if inactive_with_live_book %>
-                          <a
-                            id="agencies-row-posture-inactive-live-<%= agency_id %>"
-                            href="<%= inactive_live_agents_href %>"
-                            class="entity-chip entity-chip--danger hover:underline"
-                            onclick="event.stopPropagation()"
-                          >inactive + live</a>
-                        <% elsif agency["is_active"] == false %>
-                          <a
-                            id="agencies-row-posture-inactive-<%= agency_id %>"
-                            href="<%= agents_lens_href %>"
-                            class="entity-chip entity-chip--muted hover:underline"
-                            onclick="event.stopPropagation()"
-                          >inactive</a>
-                        <% else %>
-                          <a
-                            id="agencies-row-posture-active-<%= agency_id %>"
-                            href="<%= active_agents_href %>"
-                            class="entity-chip entity-chip--success hover:underline"
-                            onclick="event.stopPropagation()"
-                          >active</a>
-                        <% end %>
-
-                        <% if live_book %>
-                          <a
-                            id="agencies-row-posture-live-book-<%= agency_id %>"
-                            href="<%= live_book_agents_href %>"
-                            class="entity-chip entity-chip--accent hover:underline"
-                            onclick="event.stopPropagation()"
-                          >live <%= format_compact_currency(agency["book_total"]) %></a>
-                        <% end %>
-                      </div>
-                      <div class="entity-cell-secondary justify-start gap-1">
-                        <% if live_book && restrictions_count > 0 %>
-                          <a
-                            id="agencies-row-posture-live-risk-<%= agency_id %>"
-                            href="<%= live_risk_agents_href %>"
-                            class="entity-chip entity-chip--warning hover:underline"
-                            onclick="event.stopPropagation()"
-                          ><%= restrictions_count %> restrictions · live risk</a>
-                        <% elsif restrictions_count > 0 %>
-                          <a
-                            id="agencies-row-posture-restricted-<%= agency_id %>"
-                            href="<%= restricted_agents_href %>"
-                            class="entity-chip entity-chip--warning hover:underline"
-                            onclick="event.stopPropagation()"
-                          ><%= restrictions_count %> restrictions</a>
-                        <% else %>
-                          <a
-                            id="agencies-row-open-agents-<%= agency_id %>"
-                            href="<%= agents_lens_href %>"
-                            class="uppercase tracking-wide text-violet-700 dark:text-violet-300 hover:underline"
-                            onclick="event.stopPropagation()"
-                          >all agents</a>
-                        <% end %>
+                      <div class="entity-cell-primary justify-center font-mono tabular-nums"><%= nbsp_pad.call(book_cell_value, 9) %></div>
+                      <div class="entity-cell-secondary justify-center">
+                        <span class="font-mono tabular-nums <%= book_percentile[:color_class] %>">
+                          <%= book_percentile[:label] %>
+                          <span class="ml-0.5 opacity-70"><%= book_percentile[:blocks] %></span>
+                        </span>
                       </div>
                     </div>
-                  </div>
+                  <% else %>
+                    <div class="h-[34px] flex items-center justify-center font-mono tabular-nums text-muted-foreground/50"><%= placeholder_dash %></div>
+                  <% end %>
+                </div>
 
-                  <div
-                    class="w-20 shrink-0 transition-colors duration-75"
-                    data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_agencieshovercolumn === 'agents' }"
-                  >
-                    <% if agency["agent_count"].to_i > 0 %>
-                      <div class="entity-cell-two-line">
-                        <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= agency["agent_count"] %></div>
-                        <div class="entity-cell-secondary justify-end font-mono tabular-nums">
-                          <% if representation_percentile_int(agency["agent_count_percentile"]).present? %>
-                            <span class="<%= representation_percentile_color_class(agency['agent_count_percentile']) %>">P<%= representation_percentile_int(agency["agent_count_percentile"]) %></span>
-                          <% else %>
-                            <span class="text-muted-foreground/40">—</span>
-                          <% end %>
-                        </div>
-                      </div>
+                <div class="w-20 shrink-0">
+                  <div class="h-[34px] flex items-center justify-center font-mono tabular-nums <%= agent_count_present ? '' : 'text-muted-foreground/50' %>"><%= agent_count_value %></div>
+                </div>
+
+                <div class="w-24 shrink-0 pr-2">
+                  <div class="h-[34px] flex items-center justify-start gap-1.5">
+                    <% if top_agent_previews.any? %>
+                      <% top_agent_previews.each do |preview| %>
+                        <% preview_name = preview["full_name"].to_s %>
+                        <% preview_agent_id = preview["agent_id"].to_i %>
+                        <% avatar_tone = top_agent_avatar_palette[preview_agent_id % top_agent_avatar_palette.length] %>
+                        <div
+                          class="w-6 h-6 rounded-md border overflow-hidden flex items-center justify-center text-[9px] font-semibold uppercase <%= avatar_tone %>"
+                          title="<%= preview_name %>"
+                        ><%= agent_initials(preview_name) %></div>
+                      <% end %>
                     <% else %>
-                      <div class="text-right font-mono tabular-nums text-muted-foreground">—</div>
+                      <span class="text-muted-foreground/50"><%= placeholder_dash %></span>
                     <% end %>
                   </div>
+                </div>
 
-                  <div
-                    class="w-20 shrink-0 transition-colors duration-75"
-                    data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_agencieshovercolumn === 'clients' }"
-                  >
-                    <% if agency["client_count"].to_i > 0 %>
-                      <div class="entity-cell-two-line">
-                        <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= agency["client_count"] %></div>
-                        <div class="entity-cell-secondary justify-end font-mono tabular-nums">
-                          <% if representation_percentile_int(agency["client_count_percentile"]).present? %>
-                            <span class="<%= representation_percentile_color_class(agency['client_count_percentile']) %>">P<%= representation_percentile_int(agency["client_count_percentile"]) %></span>
-                          <% else %>
-                            <span class="text-muted-foreground/40">—</span>
-                          <% end %>
-                        </div>
+                <div class="w-20 shrink-0">
+                  <% if client_count_present %>
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary justify-center font-mono tabular-nums"><%= nbsp_pad.call(client_count_value, 3) %></div>
+                      <div class="entity-cell-secondary justify-center">
+                        <span class="font-mono tabular-nums <%= client_percentile[:color_class] %>">
+                          <%= client_percentile[:label] %>
+                          <span class="ml-0.5 opacity-70"><%= client_percentile[:blocks] %></span>
+                        </span>
                       </div>
+                    </div>
+                  <% else %>
+                    <div class="h-[34px] flex items-center justify-center font-mono tabular-nums text-muted-foreground/50"><%= placeholder_dash %></div>
+                  <% end %>
+                </div>
+
+                <div class="w-24 shrink-0 pr-2">
+                  <div class="h-[34px] flex items-center justify-start gap-1.5">
+                    <% if top_client_previews.any? %>
+                      <% top_client_previews.each do |preview| %>
+                        <% preview_name = preview["player_name"].to_s %>
+                        <% preview_player_id = preview["player_id"].to_i %>
+                        <div
+                          class="relative w-6 h-6 rounded-md border border-border bg-background overflow-hidden"
+                          title="<%= preview_name %>"
+                        >
+                          <img
+                            src="<%= player_headshot_url(preview_player_id) %>"
+                            alt="<%= preview_name %>"
+                            class="w-full h-full object-cover object-top bg-muted"
+                            loading="lazy"
+                            decoding="async"
+                            onerror="if (this.src !== '<%= fallback_headshot_data_uri %>') { this.src = '<%= fallback_headshot_data_uri %>'; }"
+                          />
+                        </div>
+                      <% end %>
                     <% else %>
-                      <div class="text-right font-mono tabular-nums text-muted-foreground">—</div>
+                      <span class="text-muted-foreground/50"><%= placeholder_dash %></span>
                     <% end %>
                   </div>
+                </div>
 
-                  <div
-                    class="w-16 shrink-0 text-right font-mono tabular-nums transition-colors duration-75"
-                    data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_agencieshovercolumn === 'teams' }"
-                  ><%= agency["team_count"].to_i.positive? ? agency["team_count"] : content_tag(:span, "—", class: "text-muted-foreground") %></div>
-
-                  <div
-                    class="w-24 shrink-0 transition-colors duration-75"
-                    data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_agencieshovercolumn === 'book' }"
-                  >
-                    <% if agency["book_total"].to_i > 0 %>
-                      <div class="entity-cell-two-line">
-                        <div class="entity-cell-primary justify-end font-mono tabular-nums font-medium"><%= format_salary(agency["book_total"]) %></div>
-                        <div class="entity-cell-secondary justify-end font-mono tabular-nums">
-                          <% if representation_percentile_int(agency["book_total_percentile"]).present? %>
-                            <span class="<%= representation_percentile_color_class(agency['book_total_percentile']) %>">P<%= representation_percentile_int(agency["book_total_percentile"]) %></span>
+                <div class="w-24 shrink-0 pr-2">
+                  <div class="h-[34px] flex items-center justify-start gap-1.5">
+                    <% if top_team_previews.any? %>
+                      <% top_team_previews.each do |preview| %>
+                        <% preview_team_id = preview["team_id"].presence %>
+                        <% preview_team_code = preview["team_code"].to_s %>
+                        <% preview_player_count = preview["player_count"].to_i %>
+                        <% preview_logo_url = team_logo_url(preview_team_id) %>
+                        <div
+                          class="w-6 h-6 rounded-full border border-border bg-background overflow-hidden flex items-center justify-center"
+                          title="<%= preview_team_code.presence || placeholder_dash %> · <%= preview_player_count %> players"
+                        >
+                          <% if preview_logo_url.present? %>
+                            <img
+                              src="<%= preview_logo_url %>"
+                              alt="<%= preview_team_code %> logo"
+                              class="w-full h-full object-contain p-0.5"
+                              loading="lazy"
+                              decoding="async"
+                              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                            />
+                            <span class="hidden text-[9px] font-semibold text-muted-foreground"><%= preview_team_code.presence || placeholder_dash %></span>
                           <% else %>
-                            <span class="text-muted-foreground/40">—</span>
+                            <span class="text-[9px] font-semibold text-muted-foreground"><%= preview_team_code.presence || placeholder_dash %></span>
                           <% end %>
                         </div>
-                      </div>
+                      <% end %>
                     <% else %>
-                      <div class="text-right font-mono tabular-nums text-muted-foreground">—</div>
+                      <span class="text-muted-foreground/50"><%= placeholder_dash %></span>
                     <% end %>
                   </div>
+                </div>
 
-                  <div
-                    class="w-16 shrink-0 transition-colors duration-75"
-                    data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_agencieshovercolumn === 'max' }"
-                  >
-                    <% if agency["max_contract_count"].to_i > 0 %>
-                      <div class="entity-cell-two-line">
-                        <div class="entity-cell-primary justify-end font-mono tabular-nums"><%= agency["max_contract_count"] %></div>
-                        <div class="entity-cell-secondary justify-end font-mono tabular-nums">
-                          <% if representation_percentile_int(agency["max_contract_count_percentile"]).present? %>
-                            <span class="<%= representation_percentile_color_class(agency['max_contract_count_percentile']) %>">P<%= representation_percentile_int(agency["max_contract_count_percentile"]) %></span>
-                          <% else %>
-                            <span class="text-muted-foreground/40">—</span>
-                          <% end %>
-                        </div>
+                <div class="w-16 shrink-0">
+                  <% if max_count_present %>
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary justify-center font-mono tabular-nums"><%= nbsp_pad.call(max_count_value, 2) %></div>
+                      <div class="entity-cell-secondary justify-center">
+                        <span class="font-mono tabular-nums <%= max_percentile[:color_class] %>">
+                          <%= max_percentile[:label] %>
+                          <span class="ml-0.5 opacity-70"><%= max_percentile[:blocks] %></span>
+                        </span>
                       </div>
-                    <% else %>
-                      <div class="text-right font-mono tabular-nums text-muted-foreground">—</div>
-                    <% end %>
-                  </div>
+                    </div>
+                  <% else %>
+                    <div class="h-[34px] flex items-center justify-center font-mono tabular-nums text-muted-foreground/50"><%= placeholder_dash %></div>
+                  <% end %>
+                </div>
 
-                  <div
-                    class="w-20 shrink-0 text-right font-mono tabular-nums transition-colors duration-75"
-                    data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_agencieshovercolumn === 'exp' }"
-                  ><%= agency["expiring_in_window"].to_i.positive? ? agency["expiring_in_window"] : content_tag(:span, "—", class: "text-muted-foreground") %></div>
+                <div class="w-20 shrink-0">
+                  <% if expiring_present %>
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary justify-center font-mono tabular-nums"><%= nbsp_pad.call(expiring_value, 3) %></div>
+                      <div class="entity-cell-secondary justify-center font-mono tabular-nums text-muted-foreground/30">&nbsp;</div>
+                    </div>
+                  <% else %>
+                    <div class="h-[34px] flex items-center justify-center font-mono tabular-nums text-muted-foreground/50"><%= placeholder_dash %></div>
+                  <% end %>
+                </div>
 
-                  <div
-                    class="w-20 shrink-0 text-right font-mono tabular-nums transition-colors duration-75"
-                    data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_agencieshovercolumn === 'restr' }"
-                  ><%= restrictions_count.positive? ? restrictions_count : content_tag(:span, "—", class: "text-muted-foreground") %></div>
+                <div class="w-20 shrink-0">
+                  <% if restrictions_present %>
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary justify-center font-mono tabular-nums"><%= nbsp_pad.call(restrictions_value, 3) %></div>
+                      <div class="entity-cell-secondary justify-center font-mono tabular-nums text-muted-foreground/30">&nbsp;</div>
+                    </div>
+                  <% else %>
+                    <div class="h-[34px] flex items-center justify-center font-mono tabular-nums text-muted-foreground/50"><%= placeholder_dash %></div>
+                  <% end %>
+                </div>
 
-                  <div
-                    class="w-20 shrink-0 text-right font-mono tabular-nums transition-colors duration-75"
-                    data-class="{ '!bg-yellow-50/70 dark:!bg-yellow-900/10': $_agencieshovercolumn === 'opts' }"
-                  ><%= options_count.positive? ? options_count : content_tag(:span, "—", class: "text-muted-foreground") %></div>
+                <div class="w-20 shrink-0">
+                  <% if options_present %>
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary justify-center font-mono tabular-nums"><%= nbsp_pad.call(options_value, 3) %></div>
+                      <div class="entity-cell-secondary justify-center font-mono tabular-nums text-muted-foreground/30">&nbsp;</div>
+                    </div>
+                  <% else %>
+                    <div class="h-[34px] flex items-center justify-center font-mono tabular-nums text-muted-foreground/50"><%= placeholder_dash %></div>
+                  <% end %>
+                </div>
+
+                <div class="w-20 shrink-0">
+                  <% if two_way_present %>
+                    <div class="entity-cell-two-line">
+                      <div class="entity-cell-primary justify-center font-mono tabular-nums"><%= nbsp_pad.call(two_way_value, 3) %></div>
+                      <div class="entity-cell-secondary justify-center font-mono tabular-nums text-muted-foreground/30">&nbsp;</div>
+                    </div>
+                  <% else %>
+                    <div class="h-[34px] flex items-center justify-center font-mono tabular-nums text-muted-foreground/50"><%= placeholder_dash %></div>
+                  <% end %>
                 </div>
               </div>
-            <% end %>
-          </div>
+            </div>
+          <% end %>
         </div>
       </div>
     </section>

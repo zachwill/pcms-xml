@@ -1,81 +1,68 @@
 <%
-  pane_query_expr = "'q=' + encodeURIComponent($agencyquery) +
-    '&activity=' + encodeURIComponent($agencyactivity) +
-    '&year=' + encodeURIComponent($agencyyear) +
+  pane_query_expr = "'year=' + encodeURIComponent($agencyyear) +
     '&sort=' + encodeURIComponent($agencysort) +
     '&dir=' + encodeURIComponent($agencydir)"
 
   selected_overlay_query_expr = "'selected_id=' + encodeURIComponent($overlayid)"
 
   refresh_expr = "@get('/agencies/sse/refresh?' + (#{pane_query_expr}) + '&' + (#{selected_overlay_query_expr})); window.history.replaceState({}, '', '/agencies?' + (#{pane_query_expr}))"
-  clear_query_expr = "$agencyquery = ''; #{refresh_expr}"
-  reset_expr = "$agencyquery = ''; $agencyactivity = 'all'; $agencyyear = '2025'; $agencysort = 'book'; $agencydir = 'desc'; $overlaytype = 'none'; $overlayid = ''; #{refresh_expr}"
-
-  posture_options = [
-    ["all", "All"],
-    ["active", "Active"],
-    ["inactive", "Inactive"],
-    ["inactive_live_book", "Inactive + live"],
-    ["live_book_risk", "Live risk"]
-  ]
+  sort_change_expr = "$agencydir = (el.value === 'name' ? 'asc' : 'desc'); #{refresh_expr}"
 
   sort_options = [
+    ["name", "A → Z"],
     ["book", "Book"],
-    ["clients", "Clients"],
     ["agents", "Agents"],
-    ["teams", "Teams"],
+    ["clients", "Clients"],
     ["max", "Max"],
-    ["expirings", "Exp"],
-    ["options", "Opts"],
-    ["name", "Name"]
+    ["expirings", "Expiring"],
+    ["restr", "Restr"],
+    ["options", "Options"],
+    ["two_ways", "Two-Ways"]
   ]
 
-  selected_posture_label = posture_options.to_h[@activity_lens.to_s] || "All"
-  selected_sort_label = sort_options.to_h[@sort_key.to_s] || "Book"
+  sort_options_by_key = sort_options.to_h
+  sort_primary_keys = %w[name book agents clients max]
+  sort_secondary_keys = %w[expirings restr options two_ways]
+
+  agents_sort_key = %w[book clients max expirings options name].include?(@sort_key.to_s) ? @sort_key.to_s : "book"
+  agents_view_href = "/agents?#{ { kind: 'agents', year: @book_year, sort: agents_sort_key, dir: @sort_dir }.to_query }"
+  agencies_view_href = "/agencies?#{ { year: @book_year, sort: @sort_key, dir: @sort_dir }.to_query }"
 %>
 
-<header id="commandbar" class="shrink-0 h-[130px] border-b border-border bg-background px-4 pt-3 flex items-start gap-4 select-none">
-  <div class="flex items-start min-w-0 overflow-x-auto pb-1">
-    <div class="min-w-[18rem] w-[18rem] space-y-2">
+<header id="commandbar" class="sticky top-0 z-40 shrink-0 h-[130px] border-b border-border bg-background px-4 pt-3 flex items-start gap-4 select-none">
+  <div class="flex items-start min-w-0 overflow-x-auto pb-1 pr-1">
+    <div class="min-w-[8.25rem] w-[8.25rem] space-y-1 shrink-0">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">View</div>
       <div class="space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Search</div>
-        <div class="flex items-center gap-1.5">
+        <label class="flex items-center gap-1.5 cursor-pointer select-none">
           <input
-            id="agencies-search"
-            type="text"
-            placeholder="Agency name or id"
-            class="h-7 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
-            data-bind="agencyquery"
-            data-on:keydown="if (evt.key === 'Enter') { evt.preventDefault(); <%= refresh_expr %>; }"
+            type="radio"
+            id="agencies-view-agencies"
+            name="agencies-view"
+            class="size-3.5 accent-primary"
+            checked
+            data-on:change="if (el.checked) { window.location.href = '<%= agencies_view_href %>'; }"
           />
-          <button
-            type="button"
-            class="cursor-pointer h-7 px-2 rounded border border-border text-[10px] font-semibold uppercase tracking-wide text-foreground/80 hover:text-foreground hover:border-foreground/20"
-            data-on:click="<%= refresh_expr %>"
-          >Apply</button>
-          <button
-            type="button"
-            class="cursor-pointer h-7 px-2 rounded border border-border text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/20"
-            data-show="$agencyquery !== ''"
-            style="display: none;"
-            data-on:click="<%= clear_query_expr %>"
-          >Clear</button>
-        </div>
-      </div>
+          <span class="text-[11px] leading-none font-semibold text-foreground">Agencies</span>
+        </label>
 
-      <div class="flex items-center gap-1.5 text-[10px] uppercase tracking-wide">
-        <span class="entity-chip entity-chip--muted"><%= @agencies.size %> rows</span>
-        <span class="entity-chip entity-chip--muted">Book <%= @book_year %></span>
-        <% if @activity_lens != "all" %>
-          <span class="entity-chip entity-chip--warning"><%= selected_posture_label %></span>
-        <% end %>
+        <label class="flex items-center gap-1.5 cursor-pointer select-none">
+          <input
+            type="radio"
+            id="agencies-view-agents"
+            name="agencies-view"
+            class="size-3.5 accent-primary"
+            data-on:change="if (el.checked) { window.location.href = '<%= agents_view_href %>'; }"
+          />
+          <span class="text-[11px] leading-none text-muted-foreground">Agents</span>
+        </label>
       </div>
     </div>
 
-    <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
+    <div class="h-20 w-px bg-border self-center shrink-0 mx-2"></div>
 
-    <div class="min-w-[10rem] w-[10rem] space-y-1">
-      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Book year</div>
+    <div class="min-w-[8rem] w-[8rem] space-y-1 shrink-0">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Book Year</div>
       <div class="space-y-1">
         <% [2025, 2026, 2027].each do |year| %>
           <label class="flex items-center gap-1.5 cursor-pointer select-none">
@@ -89,95 +76,62 @@
               data-bind="agencyyear"
               data-on:change="if (el.checked) { <%= refresh_expr %>; }"
             />
-            <span
-              class="text-[11px] leading-none tabular-nums"
-              data-class="{ 'text-foreground font-semibold': $agencyyear === '<%= year %>', 'text-muted-foreground': $agencyyear !== '<%= year %>' }"
-            ><%= year %></span>
+            <span class="text-[11px] leading-none tabular-nums text-foreground/90"><%= format_year_label(year) %></span>
           </label>
         <% end %>
       </div>
     </div>
 
-    <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
+    <div class="h-20 w-px bg-border self-center shrink-0 mx-2"></div>
 
-    <div class="min-w-[12rem] w-[12rem] space-y-1">
-      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Posture lens</div>
-      <div class="space-y-1">
-        <% posture_options.each do |value, label| %>
-          <label class="flex items-center gap-1.5 cursor-pointer select-none">
-            <input
-              type="radio"
-              id="agencies-activity-<%= value %>"
-              name="agencies-activity"
-              value="<%= value %>"
-              class="size-3.5 accent-primary"
-              <%= "checked" if @activity_lens == value %>
-              data-bind="agencyactivity"
-              data-on:change="if (el.checked) { <%= refresh_expr %>; }"
-            />
-            <span
-              class="text-[11px] leading-none"
-              data-class="{ 'text-foreground font-semibold': $agencyactivity === '<%= value %>', 'text-muted-foreground': $agencyactivity !== '<%= value %>' }"
-            ><%= label %></span>
-          </label>
-        <% end %>
-      </div>
-    </div>
-
-    <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
-
-    <div class="min-w-[12.5rem] w-[12.5rem] space-y-2">
-      <div class="space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sort</div>
-        <div class="flex items-center gap-1.5">
-          <select
-            id="agencies-sort-key"
-            class="h-7 w-24 rounded border border-border bg-background px-2 text-xs text-foreground"
-            data-bind="agencysort"
-            data-on:change="<%= refresh_expr %>"
-          >
-            <% sort_options.each do |value, label| %>
-              <option value="<%= value %>" <%= "selected" if @sort_key == value %>><%= label %></option>
-            <% end %>
-          </select>
-
-          <label class="flex items-center gap-1 cursor-pointer select-none">
-            <input
-              type="radio"
-              id="agencies-sort-desc"
-              name="agencies-sort-direction"
-              value="desc"
-              class="size-3.5 accent-primary"
-              <%= "checked" if @sort_dir == "desc" %>
-              data-bind="agencydir"
-              data-on:change="if (el.checked) { <%= refresh_expr %>; }"
-            />
-            <span class="text-[11px] leading-none text-foreground/90">↓</span>
-          </label>
-
-          <label class="flex items-center gap-1 cursor-pointer select-none">
-            <input
-              type="radio"
-              id="agencies-sort-asc"
-              name="agencies-sort-direction"
-              value="asc"
-              class="size-3.5 accent-primary"
-              <%= "checked" if @sort_dir == "asc" %>
-              data-bind="agencydir"
-              data-on:change="if (el.checked) { <%= refresh_expr %>; }"
-            />
-            <span class="text-[11px] leading-none text-foreground/90">↑</span>
-          </label>
+    <div class="min-w-[11.5rem] w-[11.5rem] space-y-1 shrink-0">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sort By</div>
+      <div class="grid grid-cols-2 gap-x-2 gap-y-1">
+        <div class="space-y-1">
+          <% sort_primary_keys.each do |key| %>
+            <% label = sort_options_by_key[key] %>
+            <% next if label.blank? %>
+            <label class="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="radio"
+                id="agencies-sort-<%= key %>"
+                name="agencies-sort"
+                value="<%= key %>"
+                class="size-3.5 accent-primary"
+                <%= "checked" if @sort_key == key %>
+                data-bind="agencysort"
+                data-on:change="if (el.checked) { <%= sort_change_expr %>; }"
+              />
+              <span
+                class="text-[11px] leading-none"
+                data-class="{ 'text-foreground font-semibold': $agencysort === '<%= key %>', 'text-muted-foreground': $agencysort !== '<%= key %>' }"
+              ><%= label %></span>
+            </label>
+          <% end %>
         </div>
-      </div>
 
-      <div class="flex items-center gap-1.5 text-[10px] uppercase tracking-wide">
-        <span class="entity-chip entity-chip--muted"><%= selected_sort_label %> <%= @sort_dir.to_s.upcase %></span>
-        <button
-          type="button"
-          class="cursor-pointer rounded border border-border px-1.5 py-0.5 text-muted-foreground hover:text-foreground hover:border-foreground/20"
-          data-on:click="<%= reset_expr %>"
-        >Reset</button>
+        <div class="space-y-1">
+          <% sort_secondary_keys.each do |key| %>
+            <% label = sort_options_by_key[key] %>
+            <% next if label.blank? %>
+            <label class="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="radio"
+                id="agencies-sort-<%= key %>"
+                name="agencies-sort"
+                value="<%= key %>"
+                class="size-3.5 accent-primary"
+                <%= "checked" if @sort_key == key %>
+                data-bind="agencysort"
+                data-on:change="if (el.checked) { <%= sort_change_expr %>; }"
+              />
+              <span
+                class="text-[11px] leading-none"
+                data-class="{ 'text-foreground font-semibold': $agencysort === '<%= key %>', 'text-muted-foreground': $agencysort !== '<%= key %>' }"
+              ><%= label %></span>
+            </label>
+          <% end %>
+        </div>
       </div>
     </div>
   </div>

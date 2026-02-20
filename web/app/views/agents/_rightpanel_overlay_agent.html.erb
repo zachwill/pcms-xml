@@ -92,9 +92,6 @@
   client_age_percentiles = age_percentiles_by_player_id(clients)
 %>
 
-<% prefetch_canonical_slugs(entity_type: "player", entity_ids: clients.map { |c| c["player_id"] }) %>
-<% prefetch_canonical_slugs(entity_type: "team", entity_ids: clients.map { |c| c["team_id"] }) %>
-<% prefetch_canonical_slugs(entity_type: "agency", entity_ids: [agent["agency_id"]]) %>
 
 <div id="rightpanel-overlay" class="h-full">
   <%# Sticky header %>
@@ -109,7 +106,7 @@
       <span class="font-medium"><%= back_label %></span>
     </button>
 
-    <a href="<%= agent_href(agent['agent_id']) %>" class="text-xs text-muted-foreground hover:text-foreground hover:underline">Open agent page</a>
+    <span class="text-[10px] uppercase tracking-wide text-muted-foreground/70">Agent overlay</span>
   </div>
 
   <div class="px-4 pb-4 pt-4 space-y-5">
@@ -131,10 +128,6 @@
               class="cursor-pointer min-w-0 truncate hover:text-foreground hover:underline"
               data-on:click="<%= agency_pivot_expr.presence || "$overlaytype = 'agency'; $overlayid = '#{agent['agency_id']}'; $overlayreturntype = 'none'; $overlayreturnid = ''; @get('/agents/sidebar/agency/#{agent['agency_id']}')" %>"
             ><%= agent["agency_name"] %></button>
-            <a
-              href="<%= agency_href(agent['agency_id']) %>"
-              class="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground/70 hover:text-foreground hover:underline"
-            >Page</a>
           <% elsif agent["agency_name"].present? %>
             <span class="truncate"><%= agent["agency_name"] %></span>
           <% end %>
@@ -320,11 +313,7 @@
               total_value = [c["cap_2025"], c["cap_2026"], c["cap_2027"]].compact.sum(&:to_f)
             %>
 
-            <a
-              href="<%= player_href(player_id) %>"
-              class="w-full text-left flex items-center justify-between gap-2 py-0.5 px-1.5 rounded-md hover:bg-muted/50 transition-colors
-                     focus-visible:outline-none focus-visible:ring-0 focus-visible:border-foreground dark:focus-visible:border-foreground"
-            >
+            <div class="w-full text-left flex items-center justify-between gap-2 py-0.5 px-1.5 rounded-md">
               <%# Team avatar + headshot %>
               <div class="flex items-center gap-1.5 flex-shrink-0">
                 <div
@@ -411,10 +400,7 @@
                   </div>
                 <% end %>
               </div>
-
-              <%# Chevron %>
-              <%= lucide_icon("chevron-right", class: "w-4 h-4 text-muted-foreground/50", "aria-hidden": true) %>
-            </a>
+            </div>
           <% end %>
         </div>
       <% end %>

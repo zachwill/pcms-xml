@@ -1,7 +1,7 @@
 class AgenciesController < ApplicationController
   BOOK_YEARS = [2025, 2026, 2027].freeze
   ACTIVITY_LENSES = %w[all active inactive inactive_live_book live_book_risk].freeze
-  SORT_KEYS = %w[book clients agents teams max expirings options name].freeze
+  SORT_KEYS = %w[book agents clients max expirings restr options two_ways name].freeze
   AGENT_LENS_SORT_KEYS = %w[book clients teams max expirings options name].freeze
   SHOW_COHORT_FILTERS = %w[max expiring restricted option_heavy].freeze
 

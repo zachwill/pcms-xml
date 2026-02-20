@@ -186,13 +186,10 @@ module SalaryBook
       p_int = representation_percentile_int(percentile)
       return "text-muted-foreground/70" if p_int.nil?
 
-      return "text-violet-700 dark:text-violet-300" if p_int >= 95
-      return "text-violet-600 dark:text-violet-400" if p_int >= 80
-      return "text-violet-500 dark:text-violet-500" if p_int >= 60
-      return "text-muted-foreground/90" if p_int >= 40
-      return "text-muted-foreground/80" if p_int >= 20
+      return "text-emerald-600 dark:text-emerald-400" if p_int >= 80
+      return "text-red-500 dark:text-red-400" if p_int <= 20
 
-      "text-muted-foreground/70"
+      "text-muted-foreground"
     end
   end
 end

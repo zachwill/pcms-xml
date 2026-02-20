@@ -29,19 +29,13 @@
   team_option_count = agency["team_option_count"].to_i
   prior_year_nba_now_free_agent_count = agency["prior_year_nba_now_free_agent_count"].to_i
 
-  agents_lens_href = agents_lens_pivot_href(agency["agency_id"])
-  pivot_year_label = format_year_label(@book_year || 2025).split("-").first
-  pivot_sort_label = agents_lens_pivot_sort_key.to_s.humanize
-  pivot_sort_dir = @sort_dir.to_s.upcase.presence || "DESC"
 %>
 
 <% prefetch_canonical_slugs(entity_type: "agency", entity_ids: [agency["agency_id"]]) %>
-<% prefetch_canonical_slugs(entity_type: "agent", entity_ids: top_agents.map { |a| a["agent_id"] } + top_clients.map { |c| c["agent_id"] }) %>
-<% prefetch_canonical_slugs(entity_type: "player", entity_ids: top_clients.map { |c| c["player_id"] }) %>
 <% prefetch_canonical_slugs(entity_type: "team", entity_ids: top_clients.map { |c| c["team_id"] }) %>
 
-<div id="rightpanel-overlay" class="absolute inset-0 z-20 h-full bg-background overflow-y-auto overflow-x-hidden overscroll-y-contain scroll-touch">
-  <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
+<div id="rightpanel-overlay" class="h-full bg-background overflow-y-auto overflow-x-hidden overscroll-y-contain scroll-touch">
+  <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-start border-b border-border bg-background">
     <button
       type="button"
       class="cursor-pointer flex items-center gap-1.5 text-sm transition-colors text-muted-foreground hover:text-foreground
@@ -51,16 +45,6 @@
       <%= lucide_icon("arrow-left", class: "w-4 h-4", "aria-hidden": true) %>
       <span class="font-medium">Back</span>
     </button>
-
-    <div class="flex items-center gap-2 text-xs">
-      <a
-        id="agencies-overlay-open-agents-lens-header"
-        href="<%= agents_lens_href %>"
-        class="text-violet-700 dark:text-violet-300 hover:text-violet-900 dark:hover:text-violet-200 hover:underline"
-      >Open in agents lens</a>
-      <span class="text-muted-foreground/40">·</span>
-      <a href="<%= agency_href(agency['agency_id']) %>" class="text-muted-foreground hover:text-foreground hover:underline">Open agency page</a>
-    </div>
   </div>
 
   <div class="px-4 pb-4 pt-4 space-y-5">
@@ -83,15 +67,6 @@
         </div>
       </div>
     </div>
-
-    <a
-      id="agencies-overlay-open-agents-lens"
-      href="<%= agents_lens_href %>"
-      class="flex items-center justify-between gap-2 rounded border border-violet-400/60 bg-violet-100/60 px-2.5 py-2 text-xs transition-colors hover:bg-violet-100 dark:border-violet-500/50 dark:bg-violet-900/25 dark:hover:bg-violet-900/35"
-    >
-      <span class="font-semibold uppercase tracking-wide text-violet-800 dark:text-violet-200">Open in agents lens</span>
-      <span class="font-mono tabular-nums text-violet-700 dark:text-violet-300"><%= pivot_year_label %> · <%= pivot_sort_label %> <%= pivot_sort_dir %></span>
-    </a>
 
     <div class="border-t border-border pt-4 space-y-2.5">
       <div class="grid grid-cols-4 gap-1.5">
@@ -252,14 +227,26 @@
       <% else %>
         <div class="divide-y divide-border/50">
           <% top_agents.each do |agent_row| %>
-            <a
-              href="<%= agent_href(agent_row['agent_id']) %>"
-              class="w-full text-left flex items-center justify-between gap-2 py-1.5 px-1.5 rounded-md hover:bg-muted/50 transition-colors
-                     focus-visible:outline-none focus-visible:ring-0 focus-visible:border-foreground dark:focus-visible:border-foreground"
-            >
+            <%
+              agent_id = agent_row["agent_id"]
+              agent_name = agent_row["full_name"].to_s
+              agent_avatar_initials = agent_initials(agent_name)
+            %>
+
+            <div class="w-full text-left flex items-center justify-between gap-2 py-0.5 px-1.5 rounded-md">
+              <div class="flex items-center gap-1.5 flex-shrink-0">
+                <div
+                  class="w-7 h-7 rounded border border-border bg-background overflow-hidden flex items-center justify-center"
+                  title="<%= agent_name %>"
+                  aria-label="<%= agent_name %>"
+                >
+                  <span class="text-[9px] font-semibold text-muted-foreground"><%= agent_avatar_initials %></span>
+                </div>
+              </div>
+
               <div class="flex-1 min-w-0">
                 <div class="h-[26px] flex items-end gap-1 min-w-0">
-                  <div class="font-medium text-[14px] truncate"><%= agent_row["full_name"] %></div>
+                  <div class="font-medium text-[14px] truncate"><%= agent_name %></div>
                 </div>
                 <div class="h-[18px] -mt-px flex items-start min-w-0 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
                   <span><%= agent_row["client_count"].to_i %> clients · <%= agent_row["team_count"].to_i %> teams</span>
@@ -276,9 +263,7 @@
                   <% end %>
                 </div>
               </div>
-
-              <%= lucide_icon("chevron-right", class: "w-4 h-4 text-muted-foreground/50", "aria-hidden": true) %>
-            </a>
+            </div>
           <% end %>
         </div>
       <% end %>
@@ -309,11 +294,7 @@
               total_value = client["total_salary_from_2025"].to_f
             %>
 
-            <a
-              href="<%= player_href(player_id) %>"
-              class="w-full text-left flex items-center justify-between gap-2 py-0.5 px-1.5 rounded-md hover:bg-muted/50 transition-colors
-                     focus-visible:outline-none focus-visible:ring-0 focus-visible:border-foreground dark:focus-visible:border-foreground"
-            >
+            <div class="w-full text-left flex items-center justify-between gap-2 py-0.5 px-1.5 rounded-md">
               <div class="flex items-center gap-1.5 flex-shrink-0">
                 <div
                   class="w-7 h-7 rounded-full border border-border bg-background overflow-hidden flex items-center justify-center"
@@ -352,8 +333,8 @@
                   <div class="font-medium text-[14px] truncate"><%= player_name %></div>
                 </div>
                 <div class="h-[18px] -mt-px flex items-start min-w-0 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
-                  <% if client["agent_id"].present? && client["agent_name"].present? %>
-                    <a href="<%= agent_href(client['agent_id']) %>" class="truncate hover:underline" onclick="event.stopPropagation()"><%= client["agent_name"] %></a>
+                  <% if client["agent_name"].present? %>
+                    <span class="truncate"><%= client["agent_name"] %></span>
                   <% elsif team_code != "—" %>
                     <span class="truncate"><%= team_code %></span>
                   <% else %>
@@ -382,9 +363,7 @@
                   </div>
                 <% end %>
               </div>
-
-              <%= lucide_icon("chevron-right", class: "w-4 h-4 text-muted-foreground/50", "aria-hidden": true) %>
-            </a>
+            </div>
           <% end %>
         </div>
       <% end %>

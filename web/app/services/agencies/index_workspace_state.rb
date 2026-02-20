@@ -31,8 +31,7 @@ module Agencies
     def setup_filters!
       @query = params[:q].to_s.strip
 
-      requested_activity = params[:activity].to_s.strip
-      @activity_lens = activity_lenses.include?(requested_activity) ? requested_activity : "all"
+      @activity_lens = "all"
 
       year = begin
         Integer(params[:year])
@@ -53,6 +52,7 @@ module Agencies
       book_percentile_sql = sql_book_percentile("w")
       expiring_sql = sql_expiring_in_window("w")
       where_clauses = ["1 = 1"]
+      where_clauses << "COALESCE(w.client_count, 0) > 0"
 
       case @activity_lens
       when "active"
@@ -84,6 +84,81 @@ module Agencies
         book_percentile_sql:,
         expiring_sql:
       )
+
+      attach_top_agents_preview!
+      attach_top_clients_preview!
+      attach_top_teams_preview!
+    end
+
+    def attach_top_agents_preview!
+      rows = Array(@agencies)
+      return if rows.empty?
+
+      agency_ids = rows.map { |row| row["agency_id"].to_i }.select(&:positive?).uniq
+      preview_rows = queries.fetch_index_top_agents_for_agencies(
+        agency_ids,
+        limit_per_agency: 3,
+        book_total_sql: sql_book_total("w")
+      )
+      previews_by_agency = preview_rows.group_by { |row| row["agency_id"].to_i }
+
+      rows.each do |row|
+        row["top_agents_preview"] = Array(previews_by_agency[row["agency_id"].to_i]).map do |preview|
+          {
+            "agent_id" => preview["agent_id"],
+            "full_name" => preview["full_name"],
+            "book_total" => preview["book_total"]
+          }
+        end
+      end
+    end
+
+    def attach_top_clients_preview!
+      rows = Array(@agencies)
+      return if rows.empty?
+
+      agency_ids = rows.map { |row| row["agency_id"].to_i }.select(&:positive?).uniq
+      preview_rows = queries.fetch_index_top_clients_for_agencies(
+        agency_ids,
+        limit_per_agency: 3,
+        book_total_sql: sql_client_book_total("sbw")
+      )
+      previews_by_agency = preview_rows.group_by { |row| row["agency_id"].to_i }
+
+      rows.each do |row|
+        row["top_clients_preview"] = Array(previews_by_agency[row["agency_id"].to_i]).map do |preview|
+          {
+            "player_id" => preview["player_id"],
+            "player_name" => preview["player_name"],
+            "team_code" => preview["team_code"],
+            "is_two_way" => preview["is_two_way"],
+            "book_total" => preview["book_total"]
+          }
+        end
+      end
+    end
+
+    def attach_top_teams_preview!
+      rows = Array(@agencies)
+      return if rows.empty?
+
+      agency_ids = rows.map { |row| row["agency_id"].to_i }.select(&:positive?).uniq
+      preview_rows = queries.fetch_index_top_teams_for_agencies(
+        agency_ids,
+        limit_per_agency: 3
+      )
+      previews_by_agency = preview_rows.group_by { |row| row["agency_id"].to_i }
+
+      rows.each do |row|
+        row["top_teams_preview"] = Array(previews_by_agency[row["agency_id"].to_i]).map do |preview|
+          {
+            "team_id" => preview["team_id"],
+            "team_code" => preview["team_code"],
+            "player_count" => preview["player_count"],
+            "book_total" => preview["book_total"]
+          }
+        end
+      end
     end
 
     def build_sidebar_summary!
@@ -159,6 +234,14 @@ module Agencies
       end
     end
 
+    def sql_client_book_total(table_alias)
+      case @book_year
+      when 2026 then "#{table_alias}.cap_2026"
+      when 2027 then "#{table_alias}.cap_2027"
+      else "#{table_alias}.cap_2025"
+      end
+    end
+
     def sql_book_percentile(table_alias)
       case @book_year
       when 2026 then "#{table_alias}.cap_2026_total_percentile"
@@ -177,12 +260,13 @@ module Agencies
 
     def sql_sort_for_agencies(book_total_sql:, expiring_sql:)
       case @sort_key
-      when "clients" then "w.client_count"
       when "agents" then "w.agent_count"
-      when "teams" then "w.team_count"
+      when "clients" then "w.client_count"
       when "max" then "w.max_contract_count"
       when "expirings" then expiring_sql
+      when "restr" then sql_restrictions_total("w")
       when "options" then "(COALESCE(w.player_option_count, 0) + COALESCE(w.team_option_count, 0))"
+      when "two_ways" then "w.two_way_count"
       when "name" then "w.agency_name"
       else book_total_sql
       end

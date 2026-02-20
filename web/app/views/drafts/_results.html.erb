@@ -13,7 +13,21 @@
   normal_count = ownership_risk_legend.fetch(:normal_count, severity_counts.fetch("normal", sidebar_summary[:normal_count].to_i)).to_i
   at_risk_count = ownership_risk_legend.fetch(:at_risk_count, severity_counts.fetch("at_risk", sidebar_summary[:at_risk_count].to_i)).to_i
   critical_count = ownership_risk_legend.fetch(:critical_count, severity_counts.fetch("critical", sidebar_summary[:critical_count].to_i)).to_i
-  risk_rubric_text = ownership_risk_legend[:rubric_text].to_s.presence || "Normal = clean ownership path with no trade-linked signal. At risk = ownership moved or trade-linked (traded/outgoing, swap rights, or one provenance trade). Critical = conditional/forfeited rights or 2+ provenance trades."
+  workspace_label = if @view == "grid"
+    "Draft ownership grid"
+  elsif @view == "picks"
+    "Draft picks"
+  else
+    "Draft selections"
+  end
+
+  scope_label = if @view == "grid"
+    "#{@grid_teams.size} teams · #{@grid_years.size} years"
+  else
+    "#{@results.size} rows"
+  end
+
+  sticky_header_top_class = "top-[56px]"
 
   risk_chip_class = lambda do |tier|
     case tier.to_s
@@ -38,49 +52,28 @@
   end
 %>
 
-<div id="drafts-results" class="py-3">
-  <section class="px-4 pb-3 border-b border-border">
-    <div class="flex items-end justify-between gap-4">
-      <div>
-        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          <% if @view == "grid" %>
-            Draft ownership grid · start <%= @year %>
-          <% elsif @view == "picks" %>
-            Draft picks · <%= @year %>
-          <% else %>
-            Draft selections · <%= @year %>
-          <% end %>
-          · <%= @sort_label %>
-        </h2>
-        <p class="text-[11px] text-muted-foreground mt-1">
-          <% if @view == "grid" %>
-            Scan severity-tagged ownership cells, then open only contested slots for protections and provenance detail.
-          <% elsif @view == "picks" %>
-            Scan severity-tagged ownership rows, then open picks with the highest contention signal.
-          <% else %>
-            Scan severity-tagged selection provenance, then open contested transaction chains.
-          <% end %>
-          <% if @lens != "all" %>
-            <span class="font-medium text-foreground">Lens: <%= @lens_label %></span>
-          <% end %>
-        </p>
-      </div>
-
-      <div class="text-[11px] text-muted-foreground tabular-nums shrink-0">
-        <% if @view == "grid" %>
-          <span><%= @grid_teams.size %> teams · <%= @grid_years.size %> years</span>
-        <% else %>
-          <span><%= @results.size %> rows</span>
+<div id="drafts-results" class="py-2">
+  <section class="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur px-4 py-2">
+    <div class="flex items-center justify-between gap-3">
+      <div class="min-w-0 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground/90">
+        <span><%= workspace_label %></span>
+        <span class="text-muted-foreground/50">·</span>
+        <span class="font-mono tabular-nums"><%= @year %></span>
+        <span class="text-muted-foreground/50">·</span>
+        <span><%= @sort_label %></span>
+        <% if @lens != "all" %>
+          <span class="text-muted-foreground/50">·</span>
+          <span class="font-medium text-foreground normal-case">Lens: <%= @lens_label %></span>
         <% end %>
       </div>
+
+      <div class="text-[11px] text-muted-foreground tabular-nums shrink-0"><%= scope_label %></div>
     </div>
 
-    <div class="mt-2.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-      <span class="uppercase tracking-wide text-muted-foreground/80">Ownership risk legend</span>
-      <span class="entity-chip entity-chip--muted">Normal · <span class="font-mono tabular-nums"><%= normal_count %></span></span>
-      <span class="entity-chip entity-chip--warning">At risk · <span class="font-mono tabular-nums"><%= at_risk_count %></span></span>
-      <span class="entity-chip entity-chip--danger">Critical · <span class="font-mono tabular-nums"><%= critical_count %></span></span>
-      <span class="leading-tight"><%= risk_rubric_text %></span>
+    <div class="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
+      <span class="entity-chip entity-chip--muted">Normal <span class="ml-0.5 font-mono tabular-nums"><%= normal_count %></span></span>
+      <span class="entity-chip entity-chip--warning">At risk <span class="ml-0.5 font-mono tabular-nums"><%= at_risk_count %></span></span>
+      <span class="entity-chip entity-chip--danger">Critical <span class="ml-0.5 font-mono tabular-nums"><%= critical_count %></span></span>
     </div>
   </section>
 
@@ -94,7 +87,7 @@
 
       <section class="border-b border-border overflow-x-auto">
         <div class="min-w-max">
-          <div id="draft-grid-flex-header" class="sticky top-0 z-20 bg-muted/40 border-b border-border">
+          <div id="draft-grid-flex-header" class="sticky <%= sticky_header_top_class %> z-10 bg-muted/40 border-b border-border">
             <div class="flex items-center h-8 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
               <div class="w-28 shrink-0 sticky left-0 z-30 bg-muted/70 border-r border-border px-2">Team</div>
               <div class="w-12 shrink-0 text-center border-r border-border">Rd</div>
@@ -198,7 +191,7 @@
   <% elsif @view == "picks" %>
     <section class="border-b border-border overflow-x-auto">
       <div class="min-w-[78rem]">
-        <div id="draft-picks-flex-header" class="sticky top-0 z-10 bg-muted/40 border-b border-border">
+        <div id="draft-picks-flex-header" class="sticky <%= sticky_header_top_class %> z-10 bg-muted/40 border-b border-border">
           <div class="flex items-center h-8 px-4 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
             <div class="w-28 shrink-0">Pick</div>
             <div class="w-40 shrink-0">Original</div>
@@ -325,7 +318,7 @@
   <% else %>
     <section class="border-b border-border overflow-x-auto">
       <div class="min-w-[72rem]">
-        <div id="draft-selections-flex-header" class="sticky top-0 z-10 bg-muted/40 border-b border-border">
+        <div id="draft-selections-flex-header" class="sticky <%= sticky_header_top_class %> z-10 bg-muted/40 border-b border-border">
           <div class="flex items-center h-8 px-4 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
             <div class="w-24 shrink-0 text-center">Pick</div>
             <div class="w-64 shrink-0">Player</div>

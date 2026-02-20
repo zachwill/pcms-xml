@@ -1,34 +1,37 @@
 <% summary = @sidebar_summary.is_a?(Hash) ? @sidebar_summary : {} %>
-<% view = summary[:view].to_s %>
+<% view = summary[:view].to_s.presence || @view.to_s %>
 <% severity_counts = summary[:severity_counts].is_a?(Hash) ? summary[:severity_counts] : {} %>
 <% ownership_risk_legend = @ownership_risk_legend.is_a?(Hash) ? @ownership_risk_legend : {} %>
 <% normal_count = ownership_risk_legend.fetch(:normal_count, severity_counts.fetch("normal", summary[:normal_count].to_i)).to_i %>
 <% at_risk_count = ownership_risk_legend.fetch(:at_risk_count, severity_counts.fetch("at_risk", summary[:at_risk_count].to_i)).to_i %>
 <% critical_count = ownership_risk_legend.fetch(:critical_count, severity_counts.fetch("critical", summary[:critical_count].to_i)).to_i %>
-<% risk_tier_copy = ownership_risk_legend[:rubric_text].to_s.presence || "Normal = clean ownership path with no trade-linked signal. At risk = ownership moved or trade-linked (traded/outgoing, swap rights, or one provenance trade). Critical = conditional/forfeited rights or 2+ provenance trades." %>
+<%
+  scope_total_label = if summary[:row_count].present?
+    "#{summary[:row_count].to_i} rows"
+  elsif summary[:cell_count].present?
+    "#{summary[:cell_count].to_i} cells"
+  else
+    "—"
+  end
+%>
 
-<div id="rightpanel-base" class="space-y-4">
+<div id="rightpanel-base" class="space-y-3">
   <section class="rounded border border-border overflow-hidden">
     <div class="px-3 py-2 border-b border-border bg-muted/40">
-      <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Workspace snapshot</div>
-      <div class="text-sm font-semibold text-foreground">
-        Drafts
-        <% if summary[:row_count].present? %>
-          <span class="text-muted-foreground font-medium">· <%= summary[:row_count].to_i %> rows</span>
-        <% elsif summary[:cell_count].present? %>
-          <span class="text-muted-foreground font-medium">· <%= summary[:cell_count].to_i %> cells</span>
-        <% end %>
-      </div>
-      <div class="text-[11px] text-muted-foreground tabular-nums">
-        <span>Sort: <%= summary[:sort_label].presence || @sort_label %></span>
-        <% if summary[:lens_label].present? && summary[:lens_label] != "All rows" %>
-          <span class="px-1 text-muted-foreground/50">·</span>
-          <span>Lens: <%= summary[:lens_label] %></span>
-        <% end %>
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Workspace</div>
+          <div class="text-sm font-semibold text-foreground">Drafts</div>
+        </div>
+
+        <div class="text-right text-[11px] tabular-nums text-muted-foreground">
+          <div class="text-foreground font-medium"><%= scope_total_label %></div>
+          <div><%= summary[:sort_label].presence || @sort_label %></div>
+        </div>
       </div>
     </div>
 
-    <div class="px-3 py-3 space-y-3">
+    <div class="px-3 py-2.5 space-y-2.5">
       <% if view == "picks" %>
         <div class="grid grid-cols-3 gap-1.5">
           <%= render partial: "salary_book/kpi_cell", locals: { label: "Rows", value: summary[:row_count].to_i.to_s, class_name: "w-full" } %>
@@ -58,18 +61,17 @@
         </div>
       <% end %>
 
-      <div class="pt-1 space-y-1.5 text-[10px] text-muted-foreground">
-        <div class="uppercase tracking-wide text-muted-foreground/80">Ownership risk legend</div>
-        <div class="flex flex-wrap items-center gap-1">
-          <span class="entity-chip entity-chip--muted">Normal <span class="ml-0.5 font-mono tabular-nums"><%= normal_count %></span></span>
-          <span class="entity-chip entity-chip--warning">At risk <span class="ml-0.5 font-mono tabular-nums"><%= at_risk_count %></span></span>
-          <span class="entity-chip entity-chip--danger">Critical <span class="ml-0.5 font-mono tabular-nums"><%= critical_count %></span></span>
-        </div>
-        <div><%= risk_tier_copy %></div>
+      <div class="flex flex-wrap items-center gap-1 text-[10px]">
+        <span class="entity-chip entity-chip--muted">Normal <span class="ml-0.5 font-mono tabular-nums"><%= normal_count %></span></span>
+        <span class="entity-chip entity-chip--warning">At risk <span class="ml-0.5 font-mono tabular-nums"><%= at_risk_count %></span></span>
+        <span class="entity-chip entity-chip--danger">Critical <span class="ml-0.5 font-mono tabular-nums"><%= critical_count %></span></span>
+        <% if summary[:lens_label].present? && summary[:lens_label] != "All rows" %>
+          <span class="entity-chip entity-chip--accent"><%= summary[:lens_label] %></span>
+        <% end %>
       </div>
 
       <% if Array(summary[:filters]).any? %>
-        <div class="pt-1 flex flex-wrap gap-1">
+        <div class="flex flex-wrap gap-1">
           <% Array(summary[:filters]).each do |label| %>
             <span class="entity-chip entity-chip--muted"><%= label %></span>
           <% end %>
@@ -80,9 +82,9 @@
 
   <% if view == "picks" && Array(summary[:top_rows]).any? %>
     <section class="rounded border border-border overflow-hidden">
-      <div class="px-3 py-2 border-b border-border bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick picks · <%= summary[:sort_label].presence || @sort_label %></div>
+      <div class="px-3 py-2 border-b border-border bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick picks</div>
       <div class="divide-y divide-border">
-        <% Array(summary[:top_rows]).each do |row| %>
+        <% Array(summary[:top_rows]).first(10).each do |row| %>
           <% key = "pick-#{row['original_team_code']}-#{row['draft_year']}-#{row['draft_round']}" %>
           <% open_expr = "$overlaytype = 'pick'; $overlaykey = '#{key}'; @get('/drafts/sidebar/pick?team=#{row['original_team_code']}&year=#{row['draft_year']}&round=#{row['draft_round']}&overlay_key=#{key}')" %>
           <button
@@ -108,9 +110,9 @@
     </section>
   <% elsif view == "selections" && Array(summary[:top_rows]).any? %>
     <section class="rounded border border-border overflow-hidden">
-      <div class="px-3 py-2 border-b border-border bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick selections · <%= summary[:sort_label].presence || @sort_label %></div>
+      <div class="px-3 py-2 border-b border-border bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick selections</div>
       <div class="divide-y divide-border">
-        <% Array(summary[:top_rows]).each do |row| %>
+        <% Array(summary[:top_rows]).first(10).each do |row| %>
           <% key = "selection-#{row['transaction_id']}" %>
           <% open_expr = "$overlaytype = 'selection'; $overlaykey = '#{key}'; @get('/drafts/sidebar/selection/#{row['transaction_id']}?overlay_key=#{key}')" %>
           <button
@@ -135,8 +137,8 @@
       </div>
     </section>
   <% else %>
-    <section class="rounded border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-      Use the workspace rows or grid to open pick/selection provenance in this panel.
+    <section class="rounded border border-border bg-muted/20 p-3 text-[11px] text-muted-foreground">
+      Select a row from the main table to inspect protections and provenance details.
     </section>
   <% end %>
 </div>

@@ -144,7 +144,6 @@
           <% row_id = row[:id] %>
           <% is_agency = row[:type].to_s == "agency" %>
           <% sidebar_url = is_agency ? "/agents/sidebar/agency/#{row_id}" : "/agents/sidebar/agent/#{row_id}" %>
-          <% href = is_agency ? agency_href(row_id) : agent_href(row_id) %>
 
           <button
             type="button"
@@ -153,7 +152,7 @@
           >
             <div class="entity-cell-two-line">
               <div class="entity-cell-primary justify-between gap-2">
-                <a href="<%= href %>" class="truncate font-medium hover:underline" onclick="event.stopPropagation()"><%= row[:title] %></a>
+                <span class="truncate font-medium"><%= row[:title] %></span>
                 <span class="font-mono tabular-nums text-[11px] shrink-0"><%= format_compact_currency(row[:book_total]) %></span>
               </div>
               <div class="entity-cell-secondary justify-between gap-2">

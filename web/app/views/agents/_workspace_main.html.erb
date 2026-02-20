@@ -176,7 +176,7 @@
                         <div class="w-7 h-7 rounded border border-border bg-muted/40 flex items-center justify-center text-[10px] font-semibold uppercase text-muted-foreground"><%= a["full_name"].to_s.first(2) %></div>
                       </div>
                       <div class="h-[24px] flex items-end min-w-0 pl-2">
-                        <a href="<%= agent_href(row_agent_id) %>" class="truncate font-medium text-[14px] group-hover:text-primary transition-colors hover:underline" onclick="event.stopPropagation()"><%= a["full_name"] %></a>
+                        <span class="truncate font-medium text-[14px] group-hover:text-primary transition-colors"><%= a["full_name"] %></span>
                       </div>
                       <div class="h-[16px] -mt-px flex items-start gap-1.5 min-w-0 pl-2 leading-none text-[10px] text-muted-foreground/80 tabular-nums overflow-hidden">
                         <% if row_agency_id.present? && a["agency_name"].present? %>
