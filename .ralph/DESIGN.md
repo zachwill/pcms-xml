@@ -30,9 +30,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
   Why: Recent drill-in unification removed inline canonical pivots, adding friction to entity navigation from scan rows.
   Note: Team-name anchors are back in both main scan rows and pressure-board quick rows, with click propagation stopped so row-click still opens overlay.
 
-- [ ] [P2] [INDEX] /teams — replace selector parsing with explicit row ids for active-row sync
+- [x] [P2] [INDEX] /teams — replace selector parsing with explicit row ids for active-row sync
   Files: web/app/views/teams/_pressure_section.html.erb, web/app/javascript/teams_index.js
   Why: Parsing team ids from `data-on:click` strings is brittle; row identity should come from stable `data-team-id` attributes.
+  Note: Team rows now emit explicit `data-team-id`, and teams_index active-row sync reads that stable attribute instead of parsing click handler strings.
 
 ## /players — triage flow
 

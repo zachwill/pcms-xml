@@ -166,6 +166,7 @@
               class="group h-10 border-b border-border/50 flex items-center text-xs transition-colors duration-75 hover:bg-yellow-50/70 dark:hover:bg-yellow-900/25 cursor-pointer"
               role="button"
               tabindex="0"
+              data-team-id="<%= team_id %>"
               data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $selectedteamid === '<%= team_id %>' }"
               data-on:click="<%= row_click_expr %>"
               data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= row_click_expr %>; }"

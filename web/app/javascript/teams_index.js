@@ -10,7 +10,7 @@
 
 let main = null;
 
-const TEAM_ROW_SELECTOR = "[role='button'][data-on\\:click*=\"@get('/teams/sidebar/\"]";
+const TEAM_ROW_SELECTOR = "[role='button'][data-team-id]";
 const ACTIVE_ROW_CLASSES = ["bg-yellow-100/80", "dark:bg-yellow-900/20", "ring-1", "ring-inset", "ring-yellow-300/50", "dark:ring-yellow-700/40"];
 const ACTIVE_STICKY_CLASSES = ["bg-yellow-100", "dark:bg-yellow-900"];
 
@@ -96,16 +96,7 @@ const syncAllTeamsTableScrollPositions = () => {
 
 const teamIdForRow = (rowEl) => {
   if (!rowEl) return "";
-
-  if (rowEl.dataset.teamId) return rowEl.dataset.teamId;
-
-  const clickExpr = rowEl.getAttribute("data-on:click") || "";
-  const match = clickExpr.match(/\/teams\/sidebar\/(\d+)/);
-  const teamId = match ? match[1] : "";
-
-  if (teamId) rowEl.dataset.teamId = teamId;
-
-  return teamId;
+  return rowEl.dataset.teamId || "";
 };
 
 const syncActiveTeamRowState = () => {
