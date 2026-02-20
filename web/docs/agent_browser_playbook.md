@@ -12,19 +12,9 @@ Use this instead of the full upstream README unless you need an advanced feature
 2. **Interaction smoke tests** (filters, sidebar drill-ins, view toggles).
 3. **Before/after visual checks** while refactoring ERB/Tailwind.
 
-Not our default focus right now:
-- Cloud providers (`browserbase`, `kernel`, `browseruse`)
-- iOS/Appium mode
-- CDP/streaming APIs
-- Full trace/profiler workflows
-
 ---
 
 ## Prerequisites
-
-```bash
-agent-browser install
-```
 
 Run the Rails app first (in another terminal):
 
@@ -68,12 +58,12 @@ Artifact path convention:
 
 When running inside `agents/design.ts`, screenshots are not just artifacts — they are inputs.
 
-1. Capture annotated screenshot for `/` (Salary Book).
-2. Capture annotated screenshot for `/ripcity/noah`.
-3. Capture annotated screenshot for target route before edits.
+1. Capture screenshot for `/` (Salary Book).
+2. Capture screenshot for `/ripcity/noah`.
+3. Capture screenshot for target route before edits.
 4. **Read those image files with the agent `read` tool** so the model actually inspects labels/layout.
 5. Implement the fix.
-6. Capture annotated after screenshot for target route.
+6. Capture after screenshot for target route.
 7. Read the after screenshot and verify the intended deltas landed.
 
 Naming convention (recommended):
@@ -99,6 +89,7 @@ agent-browser scroll down 800
 ### Visual output
 
 ```bash
+agent-browser screenshot <path>
 agent-browser screenshot --annotate <path>
 agent-browser screenshot --full <path>
 ```
@@ -130,23 +121,19 @@ agent-browser console
 
 For each page (`/two-way-utility`, `/system-values`, `/team-summary`, `/drafts`, `/trades`, `/transactions`, entity pages):
 
-1. **Shell pattern match**
-   - Pattern A/B/C from `web/docs/design_guide.md`.
-2. **Command bar invariants**
+1. **Command bar invariants**
    - `#commandbar` exists, `h-[130px]`, sticky behavior consistent.
-3. **Patch boundaries exist where expected**
+2. **Patch boundaries exist where expected**
    - `#maincanvas`, `#rightpanel-base`, `#rightpanel-overlay`, `#flash`.
-4. **Density and rows**
+3. **Density and rows**
    - No card drift; dense row/table treatment.
    - Numeric cells use `font-mono tabular-nums`.
-5. **Hover consistency**
+4. **Hover consistency**
    - Yellow hover treatment on row surfaces.
-6. **Scroll ownership**
+5. **Scroll ownership**
    - One intentional dense-surface scroll owner; no accidental nested scroll traps.
-7. **Dark mode sanity check**
+6. **Dark mode sanity check**
    - `dark:` variants remain readable and consistent.
-8. **Screenshot read-back complete**
-   - Annotated before/after images were read by the agent (not just captured).
 
 Capture before/after screenshots in `/tmp/agent-browser/` during active work.
 
