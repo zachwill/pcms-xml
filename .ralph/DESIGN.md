@@ -25,9 +25,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
 
 ## /players — triage flow
 
-- [ ] [P1] [INDEX] /players — reframe commandbar filters around triage sequence
+- [x] [P1] [INDEX] /players — reframe commandbar filters around triage sequence
   Files: web/app/views/players/index.html.erb, web/app/views/players/_workspace_main.html.erb, web/app/controllers/players_controller.rb
   Why: Too many controls with no implied ordering; users need scope → urgency → drill-in progression.
+  Note: Commandbar now groups controls into explicit 1) Scope, 2) Urgency triage, 3) Drill-in steps, with mirrored sequence summaries in main-canvas header context.
 
 - [ ] [P2] [INDEX] /players — align sidebar quick-feed urgency semantics with row badges
   Files: web/app/views/players/_rightpanel_base.html.erb, web/app/views/players/_workspace_main.html.erb

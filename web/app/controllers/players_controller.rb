@@ -2,10 +2,40 @@ class PlayersController < ApplicationController
   INDEX_CAP_HORIZONS = [2025, 2026, 2027].freeze
 
   PLAYER_STATUS_LENSES = %w[all two_way restricted no_trade].freeze
+  PLAYER_STATUS_LENS_LABELS = {
+    "all" => "All statuses",
+    "two_way" => "Two-Way",
+    "restricted" => "Trade restricted",
+    "no_trade" => "No-trade"
+  }.freeze
+
   PLAYER_CONSTRAINT_LENSES = %w[all lock_now options non_guaranteed trade_kicker expiring].freeze
+  PLAYER_CONSTRAINT_LENS_LABELS = {
+    "all" => "All commitments",
+    "lock_now" => "Lock now",
+    "options" => "Options ahead",
+    "non_guaranteed" => "Non-guaranteed",
+    "trade_kicker" => "Trade kicker",
+    "expiring" => "Expiring after horizon"
+  }.freeze
+
   PLAYER_URGENCY_LENSES = %w[all urgent upcoming stable].freeze
   PLAYER_URGENCY_SUB_LENSES = %w[all option_only expiring_only non_guaranteed_only].freeze
+  PLAYER_URGENCY_SUB_LENS_LABELS = {
+    "all" => "All triggers",
+    "option_only" => "Option-only",
+    "expiring_only" => "Expiring-only",
+    "non_guaranteed_only" => "Non-guaranteed-only"
+  }.freeze
+
   PLAYER_SORT_LENSES = %w[cap_desc cap_asc name_asc name_desc].freeze
+  PLAYER_SORT_LENS_LABELS = {
+    "cap_desc" => "Cap ↓",
+    "cap_asc" => "Cap ↑",
+    "name_asc" => "Name A→Z",
+    "name_desc" => "Name Z→A"
+  }.freeze
+
   PLAYER_DECISION_LENSES = %w[all urgent upcoming later].freeze
 
   PLAYER_URGENCY_DEFINITIONS = {
@@ -121,11 +151,47 @@ class PlayersController < ApplicationController
     state.each do |key, value|
       instance_variable_set("@#{key}", value)
     end
+
+    build_index_triage_sequence!
   end
 
   def load_player_decision_lens!
     requested_lens = params[:decision_lens].to_s.strip.downcase
     @decision_lens = PLAYER_DECISION_LENSES.include?(requested_lens) ? requested_lens : "all"
+  end
+
+  def build_index_triage_sequence!
+    @team_lens_label = team_lens_label_for(@team_lens)
+    @status_lens_label = PLAYER_STATUS_LENS_LABELS.fetch(@status_lens.to_s, PLAYER_STATUS_LENS_LABELS.fetch("all"))
+    @constraint_lens_label = PLAYER_CONSTRAINT_LENS_LABELS.fetch(@constraint_lens.to_s, PLAYER_CONSTRAINT_LENS_LABELS.fetch("all"))
+    @urgency_lens_label = urgency_lens_label_for(@urgency_lens)
+    @urgency_sub_lens_label = PLAYER_URGENCY_SUB_LENS_LABELS.fetch(@urgency_sub_lens.to_s, PLAYER_URGENCY_SUB_LENS_LABELS.fetch("all"))
+    @sort_lens_label = PLAYER_SORT_LENS_LABELS.fetch(@sort_lens.to_s, PLAYER_SORT_LENS_LABELS.fetch("cap_desc"))
+
+    @scope_sequence_label = "#{@team_lens_label} · #{@status_lens_label} · Cap #{helpers.format_year_label(@cap_horizon)}"
+
+    urgency_tokens = [@urgency_lens_label]
+    urgency_tokens << "Focus #{@urgency_sub_lens_label}" if @urgency_sub_lens.to_s != "all"
+    urgency_tokens << @constraint_lens_label if @constraint_lens.to_s != "all"
+    @urgency_sequence_label = urgency_tokens.join(" · ")
+
+    @drill_in_sequence_label = "Sort #{@sort_lens_label}"
+  end
+
+  def team_lens_label_for(team_lens)
+    return "All teams" if team_lens.to_s == "ALL"
+    return "Free agents" if team_lens.to_s == "FA"
+
+    team = Array(@team_options).find { |row| row["team_code"].to_s.upcase == team_lens.to_s.upcase }
+    return team_lens.to_s if team.blank?
+
+    "#{team['team_code']} · #{team['team_name']}"
+  end
+
+  def urgency_lens_label_for(urgency_lens)
+    return "All urgency lanes" if urgency_lens.to_s == "all"
+
+    PLAYER_URGENCY_DEFINITIONS.dig(urgency_lens.to_s, :title) || PLAYER_URGENCY_DEFINITIONS.dig("stable", :title)
   end
 
   def selected_overlay_visible?(overlay_id:)

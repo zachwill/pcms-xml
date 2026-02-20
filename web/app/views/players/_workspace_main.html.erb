@@ -26,17 +26,19 @@
   <div id="players-maincanvas" class="px-4 py-4 space-y-4">
     <div class="flex items-end justify-between gap-4">
       <div>
-        <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Players workspace</div>
+        <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Players workspace · Scope → urgency → drill-in</div>
         <h2 class="text-sm font-semibold text-foreground">
           Contract-horizon urgency scan
           <span class="text-muted-foreground font-medium">· <%= @players.size %> rows</span>
         </h2>
       </div>
 
-      <div class="text-[11px] text-muted-foreground tabular-nums text-right">
-        <span>Cap <%= cap_horizon_label %> total: <%= format_compact_currency(@sidebar_summary[:total_cap]) %></span>
+      <div class="text-[11px] text-muted-foreground tabular-nums text-right leading-tight">
+        <div class="truncate" title="<%= @scope_sequence_label %>">Scope: <%= @scope_sequence_label %></div>
+        <div class="truncate" title="<%= @urgency_sequence_label %>">Urgency: <%= @urgency_sequence_label %></div>
+        <div>Drill-in: <%= @drill_in_sequence_label %> · Cap <%= cap_horizon_label %> total: <%= format_compact_currency(@sidebar_summary[:total_cap]) %></div>
         <% if active_constraint_reason.present? %>
-          <span class="ml-2">· Constraint match: <%= active_constraint_reason %></span>
+          <div class="text-[10px] text-muted-foreground/80">Constraint match: <%= active_constraint_reason %></div>
         <% end %>
       </div>
     </div>
