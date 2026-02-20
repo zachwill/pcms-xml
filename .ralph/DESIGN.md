@@ -1,0 +1,300 @@
+# Design Evolution Backlog (fresh)
+
+- [ ] [P1] [INDEX] /teams — pressure-lane scan to single-row drill-in with predictable state
+  - Problem: Pressure lanes are strong, but row-selection and overlay predictability still feel inconsistent across lane/table/sidebar transitions.
+  - Hypothesis: Tightening one primary row action (open overlay), synchronizing lane counts, and clarifying active-row state will improve scan-to-drill flow speed.
+  - Evidence to gather first:
+    - Reference routes: / and /ripcity/noah
+    - Target route: /teams
+    - Artifacts: snapshot -i -C -c + annotated screenshot(s)
+  - Scope (files):
+    - web/app/views/teams/index.html.erb
+    - web/app/views/teams/_commandbar.html.erb
+    - web/app/views/teams/_workspace_main.html.erb
+    - web/app/views/teams/_pressure_section.html.erb
+    - web/app/views/teams/_rightpanel_base.html.erb
+    - web/app/views/teams/_rightpanel_overlay_team.html.erb
+    - web/app/controllers/teams_controller.rb
+    - web/app/controllers/teams_sse_controller.rb
+    - web/app/javascript/teams_index.js
+    - web/test/integration/entities_teams_index_test.rb
+  - Acceptance criteria:
+    - Before coding: capture baseline evidence + short diagnosis (strong/weak/highest-leverage flow issue).
+    - If interaction-sensitive changes are proposed, produce 1-2 options and confirm direction before implementation.
+    - Main lane rows remain dense scan rows with one primary predictable drill-in action.
+    - Commandbar counts, lane headers, and sidebar snapshot stay numerically consistent under filter changes.
+    - Refresh remains one-response multi-region patch flow.
+  - Rubric (before → target):
+    - Scan speed: 3 → 4
+    - Information hierarchy: 3 → 4
+    - Interaction predictability: 2 → 4
+    - Density/readability: 3 → 4
+    - Navigation/pivots: 3 → 4
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [INDEX] /players — contract-horizon triage flow with faster lens narrowing
+  - Problem: The commandbar has many controls, but urgency/constraint narrowing is still cognitively expensive before users reach useful rows.
+  - Hypothesis: Reframing filters around triage flow (who is urgent, why, by horizon) will shorten time-to-first-action.
+  - Evidence to gather first:
+    - Reference routes: / and /ripcity/noah
+    - Target route: /players
+    - Artifacts: snapshot -i -C -c + annotated screenshot(s)
+  - Scope (files):
+    - web/app/views/players/index.html.erb
+    - web/app/views/players/_workspace_main.html.erb
+    - web/app/views/players/_rightpanel_base.html.erb
+    - web/app/views/players/_rightpanel_overlay_player.html.erb
+    - web/app/controllers/players_controller.rb
+    - web/app/controllers/players_sse_controller.rb
+    - web/test/integration/entities_players_index_test.rb
+  - Acceptance criteria:
+    - Before coding: baseline evidence + diagnosis + approved direction for interaction-sensitive changes.
+    - Filter progression should support a clear triage sequence (scope → urgency reason → row drill-in).
+    - Row sections and quick-feed sidebar communicate the same urgency semantics.
+    - Overlay preservation/clear behavior remains deterministic after refresh filters.
+  - Rubric (before → target):
+    - Scan speed: 3 → 4
+    - Information hierarchy: 3 → 4
+    - Interaction predictability: 3 → 4
+    - Density/readability: 3 → 4
+    - Navigation/pivots: 3 → 4
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [INDEX] /agents — mode-switch + agency-scope flow that behaves like one coherent directory
+  - Problem: Agents/agencies dual-mode and scope-to-overlay behavior is powerful but feels split across multiple controls and states.
+  - Hypothesis: Consolidating mode/scope framing and making scope state persistent/obvious will reduce misclick loops and improve pivot confidence.
+  - Evidence to gather first:
+    - Reference routes: / and /ripcity/noah
+    - Target route: /agents
+    - Artifacts: snapshot -i -C -c + annotated screenshot(s)
+  - Scope (files):
+    - web/app/views/agents/index.html.erb
+    - web/app/views/agents/_commandbar.html.erb
+    - web/app/views/agents/_workspace_main.html.erb
+    - web/app/views/agents/_rightpanel_base.html.erb
+    - web/app/views/agents/_rightpanel_overlay_agent.html.erb
+    - web/app/views/agents/_rightpanel_overlay_agency.html.erb
+    - web/app/controllers/agents_controller.rb
+    - web/app/controllers/agents_sse_controller.rb
+    - web/test/integration/entities_agents_index_test.rb
+  - Acceptance criteria:
+    - Evidence-first sequence completed before coding; options/approval used for interaction-sensitive changes.
+    - Agency scope status is visible, reversible, and reflected consistently in row set + sidebar + signals.
+    - Overlay pivots (agent↔agency) feel immediate and preserve workbench context.
+    - Refresh keeps canonical one-response multi-region behavior.
+  - Rubric (before → target):
+    - Scan speed: 3 → 4
+    - Information hierarchy: 3 → 4
+    - Interaction predictability: 2 → 4
+    - Density/readability: 3 → 4
+    - Navigation/pivots: 4 → 5
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [INDEX] /agencies — posture-first agency triage with clearer agents-lens pivots
+  - Problem: Posture lenses are present, but the route from “agency risk posture” to “agent action list” is still too implicit.
+  - Hypothesis: Making posture lanes and agents-lens pivots first-class row actions will improve investigation flow.
+  - Evidence to gather first:
+    - Reference routes: / and /ripcity/noah
+    - Target route: /agencies
+    - Artifacts: snapshot -i -C -c + annotated screenshot(s)
+  - Scope (files):
+    - web/app/views/agencies/index.html.erb
+    - web/app/views/agencies/_workspace_main.html.erb
+    - web/app/views/agencies/_rightpanel_base.html.erb
+    - web/app/views/agencies/_rightpanel_overlay_agency.html.erb
+    - web/app/controllers/agencies_controller.rb
+    - web/app/controllers/agencies_sse_controller.rb
+    - web/test/integration/entities_agencies_index_test.rb
+  - Acceptance criteria:
+    - Evidence-first prework and diagnosis captured before implementation.
+    - “Inactive + live” and “live risk” posture meaning is immediately scannable and actionable.
+    - Agents-lens pivot preserves relevant state (year/sort/agency context) with no ambiguity.
+    - Overlay lifecycle remains predictable under filter refreshes.
+  - Rubric (before → target):
+    - Scan speed: 3 → 4
+    - Information hierarchy: 3 → 4
+    - Interaction predictability: 3 → 4
+    - Density/readability: 3 → 4
+    - Navigation/pivots: 3 → 5
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [INDEX] /draft-selections — provenance severity triage from feed to chain detail
+  - Problem: Provenance signals exist, but users still need too much interpretation to separate clean rows from contested ownership chains.
+  - Hypothesis: Stronger severity grouping + lens semantics will speed “shortlist contested picks” workflow.
+  - Evidence to gather first:
+    - Reference routes: / and /ripcity/noah
+    - Target route: /draft-selections
+    - Artifacts: snapshot -i -C -c + annotated screenshot(s)
+  - Scope (files):
+    - web/app/views/draft_selections/index.html.erb
+    - web/app/views/draft_selections/_workspace_main.html.erb
+    - web/app/views/draft_selections/_rightpanel_base.html.erb
+    - web/app/views/draft_selections/_rightpanel_overlay_selection.html.erb
+    - web/app/controllers/draft_selections_controller.rb
+    - web/app/controllers/draft_selections_sse_controller.rb
+    - web/test/integration/entities_draft_selections_index_test.rb
+  - Acceptance criteria:
+    - Baseline evidence + diagnosis + approved option direction before code.
+    - Severity lanes and lens labels reduce ambiguity between “with trade” and “deep chain”.
+    - Overlay selection persists only when still visible in filtered result set.
+    - Route preserves dense row explorer style (no card drift).
+  - Rubric (before → target):
+    - Scan speed: 3 → 4
+    - Information hierarchy: 3 → 4
+    - Interaction predictability: 3 → 4
+    - Density/readability: 4 → 4
+    - Navigation/pivots: 3 → 4
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [TOOL] /team-summary — sort/filter-to-overlay stepping as one continuous analysis loop
+  - Problem: Team Summary has rich controls and overlay stepping, but sorting/filtering and next/prev stepping can feel like separate modes.
+  - Hypothesis: Aligning commandbar state, row order cues, and overlay stepping context will make the loop feel continuous.
+  - Evidence to gather first:
+    - Reference routes: / and /ripcity/noah
+    - Target route: /team-summary
+    - Artifacts: snapshot -i -C -c + annotated screenshot(s)
+  - Scope (files):
+    - web/app/views/team_summary/show.html.erb
+    - web/app/views/team_summary/_workspace_main.html.erb
+    - web/app/views/team_summary/_rightpanel_overlay_team.html.erb
+    - web/app/views/team_summary/_rightpanel_base.html.erb
+    - web/app/controllers/team_summary_controller.rb
+    - web/app/javascript/team_summary.js
+    - web/test/integration/tools_team_summary_test.rb
+  - Acceptance criteria:
+    - Evidence-first diagnosis documented pre-implementation.
+    - Interaction-sensitive adjustments get 1-2 options + explicit direction approval.
+    - Stepping controls communicate list position and respect current sort/filter ordering.
+    - Multi-region refresh/step remains single-request behavior with canonical patch boundaries.
+  - Rubric (before → target):
+    - Scan speed: 3 → 4
+    - Information hierarchy: 3 → 4
+    - Interaction predictability: 3 → 4
+    - Density/readability: 4 → 4
+    - Navigation/pivots: 3 → 4
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [TOOL] /system-values — metric-finder-to-overlay flow with clearer section wayfinding
+  - Problem: The page is information-rich but requires too much context switching between section toggles, finder state, and overlay details.
+  - Hypothesis: Tightening section wayfinding and overlay continuity will improve “find metric → compare years → pivot out” speed.
+  - Evidence to gather first:
+    - Reference routes: / and /ripcity/noah
+    - Target route: /system-values
+    - Artifacts: snapshot -i -C -c + annotated screenshot(s)
+  - Scope (files):
+    - web/app/views/system_values/show.html.erb
+    - web/app/views/system_values/_commandbar.html.erb
+    - web/app/views/system_values/_workspace_main.html.erb
+    - web/app/views/system_values/_rightpanel_base.html.erb
+    - web/app/views/system_values/_rightpanel_overlay_metric.html.erb
+    - web/app/controllers/system_values_controller.rb
+    - web/app/javascript/system_values.js
+    - web/test/integration/tools_system_values_test.rb
+  - Acceptance criteria:
+    - Baseline evidence + diagnosis complete prior to implementation.
+    - Approved interaction option if changing finder/overlay behavior.
+    - Metric drill-in maintains stable context (section, baseline, row identity) across refreshes.
+    - Wayfinding state is easy to scan and consistent with visible sections.
+  - Rubric (before → target):
+    - Scan speed: 2 → 4
+    - Information hierarchy: 3 → 4
+    - Interaction predictability: 2 → 4
+    - Density/readability: 3 → 4
+    - Navigation/pivots: 3 → 4
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [TOOL] /trades — team-impact board that answers OUT/IN implications in one pass
+  - Problem: Trade rows are dense, but users still bounce between rows/overlay to understand each team’s practical OUT vs IN implications.
+  - Hypothesis: Strengthening per-team impact summaries in the index flow will reduce drill-in thrash before opening overlay.
+  - Evidence to gather first:
+    - Reference routes: / and /ripcity/noah
+    - Target route: /trades
+    - Artifacts: snapshot -i -C -c + annotated screenshot(s)
+  - Scope (files):
+    - web/app/views/trades/index.html.erb
+    - web/app/views/trades/_results.html.erb
+    - web/app/views/trades/_rightpanel_base.html.erb
+    - web/app/views/trades/_rightpanel_overlay_trade.html.erb
+    - web/app/controllers/trades_controller.rb
+    - web/app/controllers/trades_sse_controller.rb
+    - web/app/helpers/entities_helper.rb
+    - web/test/integration/entities_trades_show_test.rb
+  - Acceptance criteria:
+    - Evidence-first diagnosis captured pre-implementation.
+    - If interaction flow changes, options are proposed and approved before code.
+    - Index rows surface enough team-impact context to decide whether to open overlay.
+    - Overlay and row state stay synchronized after filter refresh.
+  - Rubric (before → target):
+    - Scan speed: 3 → 4
+    - Information hierarchy: 3 → 4
+    - Interaction predictability: 3 → 4
+    - Density/readability: 3 → 4
+    - Navigation/pivots: 3 → 4
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [TOOL] /transactions — severity-lane triage to causal timeline drill-in
+  - Problem: Severity lanes are useful, but transaction route understanding still requires manual parsing across multiple columns.
+  - Hypothesis: Clarifying lane semantics + route cues will speed “what changed and where” decisions.
+  - Evidence to gather first:
+    - Reference routes: / and /ripcity/noah
+    - Target route: /transactions
+    - Artifacts: snapshot -i -C -c + annotated screenshot(s)
+  - Scope (files):
+    - web/app/views/transactions/index.html.erb
+    - web/app/views/transactions/_results.html.erb
+    - web/app/views/transactions/_rightpanel_base.html.erb
+    - web/app/views/transactions/_rightpanel_overlay_transaction.html.erb
+    - web/app/controllers/transactions_controller.rb
+    - web/app/controllers/transactions_sse_controller.rb
+    - web/test/integration/entities_transactions_index_test.rb
+  - Acceptance criteria:
+    - Baseline evidence + diagnosis completed first.
+    - Interaction-sensitive changes require option approval before coding.
+    - Lane severity, route cues, and max-delta messaging are aligned and quickly legible.
+    - Selected overlay is preserved/cleared deterministically as filters change.
+  - Rubric (before → target):
+    - Scan speed: 3 → 4
+    - Information hierarchy: 3 → 4
+    - Interaction predictability: 3 → 4
+    - Density/readability: 3 → 4
+    - Navigation/pivots: 3 → 4
+  - Guardrails:
+    - Do not modify Salary Book files.
+
+- [ ] [P1] [TOOL] /drafts — cross-view (picks/selections/grid) triage with stable risk semantics
+  - Problem: The three draft views are powerful but still require re-learning risk cues as users move between views.
+  - Hypothesis: Unifying legend language and cross-view selection behavior will make /drafts a true explorer workbench.
+  - Evidence to gather first:
+    - Reference routes: / and /ripcity/noah
+    - Target route: /drafts
+    - Artifacts: snapshot -i -C -c + annotated screenshot(s)
+  - Scope (files):
+    - web/app/views/drafts/index.html.erb
+    - web/app/views/drafts/_results.html.erb
+    - web/app/views/drafts/_rightpanel_base.html.erb
+    - web/app/views/drafts/_rightpanel_overlay_pick.html.erb
+    - web/app/views/drafts/_rightpanel_overlay_selection.html.erb
+    - web/app/controllers/drafts_controller.rb
+    - web/app/controllers/drafts_sse_controller.rb
+    - web/test/integration/entities_draft_selections_index_test.rb
+  - Acceptance criteria:
+    - Baseline evidence and short diagnosis documented before implementation.
+    - Interaction-sensitive changes use option proposal/approval gate.
+    - Risk/ownership semantics read consistently across picks, selections, and grid.
+    - Overlay row/cell selection behavior is consistent across all three views.
+  - Rubric (before → target):
+    - Scan speed: 3 → 4
+    - Information hierarchy: 3 → 4
+    - Interaction predictability: 2 → 4
+    - Density/readability: 3 → 4
+    - Navigation/pivots: 3 → 4
+  - Guardrails:
+    - Do not modify Salary Book files.
