@@ -56,7 +56,7 @@ class TradesSseController < TradesController
   end
 
   def refreshed_overlay_payload(requested_type:, requested_id:)
-    return [overlay_clear_html, "none", ""] unless selected_overlay_visible?(overlay_type: requested_type, overlay_id: requested_id)
+    return [overlay_clear_html, "", ""] unless selected_overlay_visible?(overlay_type: requested_type, overlay_id: requested_id)
 
     html = without_view_annotations do
       render_to_string(
@@ -69,7 +69,7 @@ class TradesSseController < TradesController
 
     [html, "trade", requested_id.to_s]
   rescue ActiveRecord::RecordNotFound
-    [overlay_clear_html, "none", ""]
+    [overlay_clear_html, "", ""]
   end
 
   def overlay_clear_html

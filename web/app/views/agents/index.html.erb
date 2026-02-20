@@ -3,7 +3,7 @@
 
 <div
   id="agents-workspace"
-  class="h-screen w-full flex flex-col overflow-hidden bg-background"
+  class="h-screen w-screen flex flex-col overflow-hidden bg-background"
   style="height: 100dvh;"
   data-signals="{
     agentquery: <%= @query.to_json %>,
@@ -26,10 +26,15 @@
     overlayreturnid: ''
   }"
 >
+  <div id="flash"></div>
+
   <%= render partial: "agents/commandbar" %>
 
   <div id="viewport" class="flex flex-1 overflow-hidden relative">
-    <main id="maincanvas" class="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden bg-background">
+    <main
+      id="maincanvas"
+      class="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden bg-background relative overscroll-y-contain scroll-touch isolate"
+    >
       <%= render partial: "agents/workspace_main" %>
     </main>
 
@@ -39,7 +44,7 @@
     >
       <div
         id="rightpanel-base-layer"
-        class="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-y-contain scroll-touch pt-2 px-4 pb-4"
+        class="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-y-contain scroll-touch pt-3 px-4 pb-4"
       >
         <%= render partial: "agents/rightpanel_base" %>
       </div>

@@ -2,7 +2,7 @@
 <% top_rows = Array(summary[:top_rows]) %>
 
 <div id="rightpanel-base" class="space-y-4">
-  <div class="rounded-lg border border-border bg-background p-3 space-y-3">
+  <section class="rounded-lg border border-border bg-background p-3 space-y-3">
     <div>
       <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Workspace snapshot</div>
       <div class="text-sm font-semibold text-foreground">
@@ -31,11 +31,12 @@
         <% end %>
       </div>
     <% end %>
-  </div>
+  </section>
 
-  <% if top_rows.any? %>
-    <div class="rounded-lg border border-border bg-background">
-      <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick deals · <%= @sort_label %></div>
+  <section class="rounded-lg border border-border bg-background">
+    <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick deals · <%= @sort_label %></div>
+
+    <% if top_rows.any? %>
       <div class="divide-y divide-border">
         <% top_rows.each do |row| %>
           <% row_id = row["trade_id"].to_s %>
@@ -91,10 +92,8 @@
           </button>
         <% end %>
       </div>
-    </div>
-  <% else %>
-    <div class="p-4 rounded-lg border border-border bg-muted/20 text-sm text-muted-foreground">
-      No trades in the current filter set.
-    </div>
-  <% end %>
+    <% else %>
+      <div class="p-4 text-sm text-muted-foreground">No trades in the current filter set.</div>
+    <% end %>
+  </section>
 </div>

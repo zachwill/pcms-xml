@@ -12,7 +12,7 @@
 
 <div
   id="rightpanel-overlay"
-  class="absolute inset-0 z-20 overflow-y-auto overflow-x-hidden bg-background"
+  class="absolute inset-0 z-20 h-full overflow-y-auto overflow-x-hidden overscroll-y-contain scroll-touch bg-background pointer-events-auto"
   data-trade-overlay-id="<%= overlay_trade_id %>"
   data-show="$overlaytype === 'trade' && $overlayid === '<%= overlay_trade_id %>'"
 >
@@ -20,7 +20,7 @@
     <button
       type="button"
       class="cursor-pointer flex items-center gap-1.5 text-sm transition-colors text-muted-foreground hover:text-foreground"
-      data-on:click="$overlaytype = 'none'; $overlayid = ''; @get('/trades/sidebar/clear')"
+      data-on:click="$overlaytype = ''; $overlayid = ''; @get('/trades/sidebar/clear')"
     >
       <%= lucide_icon("arrow-left", class: "w-4 h-4", "aria-hidden": true) %>
       <span class="font-medium">Back</span>
