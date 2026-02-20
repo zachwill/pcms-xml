@@ -44,18 +44,22 @@ class DraftsSseController < DraftsController
   def resolve_overlay_refresh_payload(overlay_state_payload)
     partial = overlay_state_payload[:initial_overlay_partial]
     locals = overlay_state_payload[:initial_overlay_locals]
+    resolved_overlay_type = overlay_state_payload[:initial_overlay_type].presence || "none"
+    resolved_overlay_key = overlay_state_payload[:initial_overlay_key].to_s
 
     return [overlay_clear_html, "none", ""] if partial.blank?
 
+    overlay_locals = with_overlay_locals(
+      overlay_locals: locals,
+      overlay_type: resolved_overlay_type,
+      overlay_key: resolved_overlay_key
+    )
+
     html = without_view_annotations do
-      render_to_string(partial: partial, locals: locals)
+      render_to_string(partial: partial, locals: overlay_locals)
     end
 
-    [
-      html,
-      overlay_state_payload[:initial_overlay_type].presence || "none",
-      overlay_state_payload[:initial_overlay_key].to_s
-    ]
+    [html, resolved_overlay_type, resolved_overlay_key]
   rescue ActiveRecord::RecordNotFound
     [overlay_clear_html, "none", ""]
   end

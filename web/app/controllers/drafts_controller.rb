@@ -11,7 +11,13 @@ class DraftsController < ApplicationController
   # and pick grid (team × year × round ownership matrix).
   def index
     load_index_state!
-    assign_state!(overlay_state.initial_overlay_state)
+    initial_overlay_state = overlay_state.initial_overlay_state
+    assign_state!(initial_overlay_state)
+    @initial_overlay_locals = with_overlay_locals(
+      overlay_locals: @initial_overlay_locals,
+      overlay_type: @initial_overlay_type,
+      overlay_key: @initial_overlay_key
+    )
     render :index
   end
 
@@ -35,17 +41,32 @@ class DraftsController < ApplicationController
 
     raise ActiveRecord::RecordNotFound if team_code.blank? || year.nil? || round.nil?
 
+    overlay_key = normalize_pick_overlay_key_param(
+      params[:overlay_key],
+      team_code: team_code,
+      draft_year: year,
+      draft_round: round
+    )
+
     render partial: "drafts/rightpanel_overlay_pick", locals: load_sidebar_pick_payload(
       team_code: team_code,
       draft_year: year,
       draft_round: round
+    ).merge(
+      overlay_type: "pick",
+      overlay_key: overlay_key
     )
   end
 
   # GET /drafts/sidebar/selection/:id
   def sidebar_selection
     transaction_id = normalize_required_id!(params[:id])
-    render partial: "drafts/rightpanel_overlay_selection", locals: load_sidebar_selection_payload(transaction_id)
+    overlay_key = normalize_selection_overlay_key_param(params[:overlay_key], transaction_id: transaction_id)
+
+    render partial: "drafts/rightpanel_overlay_selection", locals: load_sidebar_selection_payload(transaction_id).merge(
+      overlay_type: "selection",
+      overlay_key: overlay_key
+    )
   end
 
   # GET /drafts/sidebar/clear
@@ -122,6 +143,34 @@ class DraftsController < ApplicationController
     id
   rescue ArgumentError, TypeError
     raise ActiveRecord::RecordNotFound
+  end
+
+  def with_overlay_locals(overlay_locals:, overlay_type:, overlay_key:)
+    locals_hash = overlay_locals.is_a?(Hash) ? overlay_locals : {}
+
+    locals_hash.merge(
+      overlay_type: overlay_type.to_s.presence || "none",
+      overlay_key: overlay_key.to_s
+    )
+  end
+
+  def normalize_pick_overlay_key_param(raw_key, team_code:, draft_year:, draft_round:)
+    key = raw_key.to_s.strip
+    canonical_pick_key = "pick-#{team_code}-#{draft_year}-#{draft_round}"
+    canonical_grid_key = "grid-#{team_code}-#{draft_year}-#{draft_round}"
+
+    return key if [canonical_pick_key, canonical_grid_key].include?(key)
+
+    canonical_pick_key
+  end
+
+  def normalize_selection_overlay_key_param(raw_key, transaction_id:)
+    key = raw_key.to_s.strip
+    canonical_key = "selection-#{transaction_id}"
+
+    return key if key == canonical_key
+
+    canonical_key
   end
 
   def normalize_team_code_param(raw)

@@ -12,9 +12,18 @@
   draft_pick_page_href = if drafting_team_code.match?(/\A[A-Z]{3}\z/) && draft_year.present? && draft_round.present?
     draft_pick_path(team_code: drafting_team_code, year: draft_year, round: draft_round)
   end
+
+  overlay_type = local_assigns[:overlay_type].to_s.presence || "selection"
+  selection_overlay_key = local_assigns[:overlay_key].to_s.presence || "selection-#{transaction_id}"
 %>
 
-<div id="rightpanel-overlay" class="h-full">
+<div
+  id="rightpanel-overlay"
+  class="h-full"
+  data-draft-overlay-type="<%= overlay_type %>"
+  data-draft-overlay-key="<%= selection_overlay_key %>"
+  data-show="$overlaytype === '<%= overlay_type %>' && $overlaykey === '<%= selection_overlay_key %>'"
+>
   <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
     <button
       type="button"

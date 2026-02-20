@@ -82,7 +82,7 @@
       <div class="divide-y divide-border">
         <% Array(summary[:top_rows]).each do |row| %>
           <% key = "pick-#{row['original_team_code']}-#{row['draft_year']}-#{row['draft_round']}" %>
-          <% open_expr = "$overlaytype = 'pick'; $overlaykey = '#{key}'; @get('/drafts/sidebar/pick?team=#{row['original_team_code']}&year=#{row['draft_year']}&round=#{row['draft_round']}')" %>
+          <% open_expr = "$overlaytype = 'pick'; $overlaykey = '#{key}'; @get('/drafts/sidebar/pick?team=#{row['original_team_code']}&year=#{row['draft_year']}&round=#{row['draft_round']}&overlay_key=#{key}')" %>
           <button
             type="button"
             class="cursor-pointer w-full px-3 py-2 text-left hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
@@ -110,7 +110,7 @@
       <div class="divide-y divide-border">
         <% Array(summary[:top_rows]).each do |row| %>
           <% key = "selection-#{row['transaction_id']}" %>
-          <% open_expr = "$overlaytype = 'selection'; $overlaykey = '#{key}'; @get('/drafts/sidebar/selection/#{row['transaction_id']}')" %>
+          <% open_expr = "$overlaytype = 'selection'; $overlaykey = '#{key}'; @get('/drafts/sidebar/selection/#{row['transaction_id']}?overlay_key=#{key}')" %>
           <button
             type="button"
             class="cursor-pointer w-full px-3 py-2 text-left hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"

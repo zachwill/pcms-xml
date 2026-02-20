@@ -127,7 +127,7 @@
                         cell = @grid_data.dig(team_code, round, year)
                         cell_text = cell ? cell[:text].to_s : "—"
                         cell_key = "grid-#{team_code}-#{year}-#{round}"
-                        cell_open_expr = "$overlaytype = 'pick'; $overlaykey = '#{cell_key}'; @get('/drafts/sidebar/pick?team=#{team_code}&year=#{year}&round=#{round}')"
+                        cell_open_expr = "$overlaytype = 'pick'; $overlaykey = '#{cell_key}'; @get('/drafts/sidebar/pick?team=#{team_code}&year=#{year}&round=#{round}&overlay_key=#{cell_key}')"
                       %>
 
                       <div
@@ -206,7 +206,7 @@
           <% @results.each do |pick| %>
             <%
               row_key = "pick-#{pick['original_team_code']}-#{pick['draft_year']}-#{pick['draft_round']}"
-              open_expr = "$overlaytype = 'pick'; $overlaykey = '#{row_key}'; @get('/drafts/sidebar/pick?team=#{pick['original_team_code']}&year=#{pick['draft_year']}&round=#{pick['draft_round']}')"
+              open_expr = "$overlaytype = 'pick'; $overlaykey = '#{row_key}'; @get('/drafts/sidebar/pick?team=#{pick['original_team_code']}&year=#{pick['draft_year']}&round=#{pick['draft_round']}&overlay_key=#{row_key}')"
               status_text = pick["pick_status"].presence || "Own"
               risk_tier = pick["risk_tier"].to_s.presence || "normal"
               risk_label = pick["risk_tier_label"].to_s.presence || "Normal"
@@ -332,7 +332,7 @@
           <% @results.each do |sel| %>
             <%
               row_key = "selection-#{sel['transaction_id']}"
-              open_expr = "$overlaytype = 'selection'; $overlaykey = '#{row_key}'; @get('/drafts/sidebar/selection/#{sel['transaction_id']}')"
+              open_expr = "$overlaytype = 'selection'; $overlaykey = '#{row_key}'; @get('/drafts/sidebar/selection/#{sel['transaction_id']}?overlay_key=#{row_key}')"
               provenance_count = sel["provenance_trade_count"].to_i
               risk_tier = sel["risk_tier"].to_s.presence || "normal"
               risk_label = sel["risk_tier_label"].to_s.presence || "Normal"

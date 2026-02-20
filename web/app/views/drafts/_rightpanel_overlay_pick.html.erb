@@ -11,9 +11,31 @@
 
   draft_pick_href = draft_pick_path(team_code: original_code, year: draft_year, round: draft_round)
   trade_ids = provenance_rows.map { |row| row["trade_id"] }.compact.uniq
+
+  overlay_type = local_assigns[:overlay_type].to_s.presence || "pick"
+  explicit_overlay_key = local_assigns[:overlay_key].to_s.presence
+  pick_overlay_key = if original_code.present? && draft_year.present? && draft_round.present?
+    "pick-#{original_code.upcase}-#{draft_year}-#{draft_round}"
+  end
+  grid_overlay_key = if original_code.present? && draft_year.present? && draft_round.present?
+    "grid-#{original_code.upcase}-#{draft_year}-#{draft_round}"
+  end
+  overlay_keys = [explicit_overlay_key, pick_overlay_key, grid_overlay_key].compact.uniq
+  overlay_show_expr = if overlay_keys.any?
+    "$overlaytype === '#{overlay_type}' && (#{overlay_keys.map { |key| "$overlaykey === '#{key}'" }.join(' || ')})"
+  else
+    "$overlaytype === '#{overlay_type}'"
+  end
+  primary_overlay_key = explicit_overlay_key || pick_overlay_key || grid_overlay_key || ""
 %>
 
-<div id="rightpanel-overlay" class="h-full">
+<div
+  id="rightpanel-overlay"
+  class="h-full"
+  data-draft-overlay-type="<%= overlay_type %>"
+  data-draft-overlay-key="<%= primary_overlay_key %>"
+  data-show="<%= overlay_show_expr %>"
+>
   <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
     <button
       type="button"
