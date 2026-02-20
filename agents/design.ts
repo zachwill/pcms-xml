@@ -1,111 +1,47 @@
 #!/usr/bin/env bun
-import { readFileSync } from "node:fs";
-
-import { loop, work, generate, halt, runPi } from "./core";
+import { loop, work, halt, supervisor, type State } from "./core";
 
 /**
- * design.ts — UX/design evolution loop for web/
+ * design.ts — nonstop visual convergence loop for non-Salary-Book surfaces.
  *
- * Intent:
- * - Converge non-Salary-Book surfaces toward the Salary Book + Noah quality bar.
- * - Work in concrete, committable chunks — not multi-step ceremonies.
- * - Keep Salary Book read-only except approved Tankathon surface work.
+ * Reset goals:
+ * - Keep iterating forever across non-Salary-Book, non-Noah routes.
+ * - Always compare against Salary Book + Noah via agent-browser evidence.
+ * - Fix one assigned route per iteration, commit, repeat.
  */
 
 const TASK_FILE = ".ralph/DESIGN.md";
 
-// ── Knowledge the agent should have access to ──────────────────
-
-const DESIGN_DOCS = [
+const REQUIRED_READS = [
   "web/AGENTS.md",
-  "web/docs/design_guide.md",
-  "web/docs/datastar_sse_playbook.md",
+  "agents/AGENTS.md",
   "web/docs/agent_browser_playbook.md",
-  "reference/sites/INTERACTION_MODELS.md",
+  TASK_FILE,
 ];
 
-const SALARY_BOOK_EXEMPLARS = [
-  "web/app/views/salary_book/show.html.erb",
-  "web/app/views/salary_book/_team_section.html.erb",
-  "web/app/views/salary_book/_player_row.html.erb",
-  "web/app/views/salary_book/_sidebar_team.html.erb",
-  "web/app/views/salary_book/_sidebar_player.html.erb",
-  "web/app/views/salary_book/_sidebar_agent.html.erb",
-  "web/app/views/salary_book/_maincanvas.html.erb",
+const ROUTE_CYCLE = [
+  "/agents",
+  "/players",
+  "/teams",
+  "/agencies",
+  "/drafts",
+  "/draft-selections",
+  "/trades",
+  "/transactions",
+  "/team-summary",
+  "/system-values",
+  "/two-way-utility",
 ];
 
-const NOAH_EXEMPLARS = [
-  "web/app/views/ripcity/noah/show.html.erb",
-  "web/app/views/ripcity/noah/_maincanvas.html.erb",
-  "web/app/views/ripcity/noah/_sidebar_base.html.erb",
-  "web/app/controllers/ripcity/noah_controller.rb",
-  "web/app/javascript/ripcity/noah_shotchart.js",
+const FORBIDDEN_PATH_PREFIXES = [
+  "web/app/views/salary_book/",
+  "web/app/controllers/salary_book",
+  "web/app/helpers/salary_book",
+  "web/test/integration/salary_book",
+  "web/app/views/ripcity/noah/",
+  "web/app/controllers/ripcity/noah",
+  "web/app/javascript/ripcity/noah",
 ];
-
-const TARGET_SURFACES = [
-  "web/app/views/team_summary/",
-  "web/app/views/system_values/",
-  "web/app/views/two_way_utility/",
-  "web/app/views/players/",
-  "web/app/views/teams/",
-  "web/app/views/agents/",
-  "web/app/views/agencies/",
-  "web/app/views/drafts/",
-  "web/app/views/draft_selections/",
-  "web/app/views/trades/",
-  "web/app/views/transactions/",
-  "web/app/controllers/",
-  "web/app/helpers/",
-  "web/app/javascript/",
-  "web/test/integration/",
-];
-
-const SALARY_BOOK_ALLOWED = [
-  "web/app/views/salary_book/_maincanvas_tankathon_frame.html.erb",
-];
-
-const SALARY_BOOK_FORBIDDEN_EXACT = new Set<string>([
-  "web/app/controllers/salary_book_controller.rb",
-  "web/app/controllers/salary_book_switch_controller.rb",
-  "web/app/helpers/salary_book_helper.rb",
-]);
-
-const ENTITY_OVERRIDE_PATTERN =
-  /\[ENTITY-OVERRIDE\]|supervisor\s+override\s*:\s*entity|entity\s+override\s*:\s*allowed/i;
-
-const COMMIT_TITLE_SCHEMA = "design: [TRACK] /surface — outcome";
-
-// ── Strategy (compact) ─────────────────────────────────────────
-
-const STRATEGY = `
-## North star
-- Salary Book + Noah are the reference taste and interaction grammar.
-- Non-Salary surfaces should converge toward explorer workbenches
-  (fast scan, dense rows, low-friction pivots).
-- Preserve canonical patch boundaries: #commandbar, #maincanvas,
-  #rightpanel-base, #rightpanel-overlay.
-- Ship coherent chunk outcomes, not isolated style edits.
-
-## Agent-browser evidence loop
-- Use agent-browser for visual QA on every design task.
-- Before implementing: open the target page, snapshot + screenshot baseline.
-- After implementing: re-snapshot + screenshot, compare against baseline.
-- Save all screenshots under /tmp/agent-browser/ (never repo-local).
-- Read web/docs/agent_browser_playbook.md for the full command subset.
-- For [AUDIT] tasks: the entire deliverable is browser-driven diagnosis + fix.
-`.trim();
-
-const TANKATHON_RULES = `
-## Tankathon rules (when touching Tankathon UX)
-- Standings rows are non-clickable scan rows.
-- No hover/cursor affordance for non-actions.
-- Highlight implications from selected team perspective (keeps vs conveys).
-- Team-column-first pick context before record metrics.
-- Validate conveyance direction using pcms.draft_pick_summary_assets
-  and pcms.draft_pick_shorthand_assets before changing implication labels.
-`.trim();
-
-// ── Guardrails ─────────────────────────────────────────────────
 
 function bullets(items: string[]): string {
   return items.map((x) => `- ${x}`).join("\n");
@@ -123,270 +59,149 @@ function gitLines(args: string[]): string[] {
   return out.split("\n").map((l) => l.trim()).filter(Boolean);
 }
 
-function readTaskFileContent(): string {
-  try { return readFileSync(TASK_FILE, "utf8"); } catch { return ""; }
-}
-
-function hasEntityOverride(taskContent: string): boolean {
-  return ENTITY_OVERRIDE_PATTERN.test(taskContent);
-}
-
 function pendingChangedPaths(): string[] {
   const unstaged = gitLines(["diff", "--name-only"]);
   const staged = gitLines(["diff", "--cached", "--name-only"]);
   return Array.from(new Set([...unstaged, ...staged]));
 }
 
-function forbiddenSalaryBookPaths(paths: string[]): string[] {
-  return paths.filter((p) => {
-    if (p.startsWith("web/app/views/salary_book/")) return !SALARY_BOOK_ALLOWED.includes(p);
-    if (SALARY_BOOK_FORBIDDEN_EXACT.has(p)) return true;
-    if (p.startsWith("web/test/integration/salary_book")) return true;
-    return false;
-  });
+function guardrailErrors(): string[] {
+  const pending = pendingChangedPaths();
+  const forbidden = pending.filter((path) =>
+    FORBIDDEN_PATH_PREFIXES.some((prefix) => path.startsWith(prefix))
+  );
+
+  if (forbidden.length === 0) return [];
+  return [
+    "Diff includes Salary Book or Noah implementation paths (read-only in this loop):",
+    ...forbidden.map((path) => `  - ${path}`),
+  ];
 }
 
-function evaluateGuards(state: { hasTodos: boolean; nextTodo: string | null }): string[] {
-  const errors: string[] = [];
-  const taskContent = readTaskFileContent();
-  const entityOverrideEnabled = hasEntityOverride(taskContent);
-
-  if (state.hasTodos && /\[ENTITY\]/i.test(state.nextTodo ?? "") && !entityOverrideEnabled) {
-    errors.push(
-      `Blocked: ${state.nextTodo}. [ENTITY] requires override marker in ${TASK_FILE}.`
-    );
-  }
-
-  const pendingForbidden = forbiddenSalaryBookPaths(pendingChangedPaths());
-  if (pendingForbidden.length > 0) {
-    errors.push(`Diff touches forbidden Salary Book paths: ${pendingForbidden.join(", ")}`);
-  }
-
-  return errors;
+function extractRoute(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const match = text.match(/\/(?:[a-z0-9-]+)(?:\/:?[a-z0-9_-]+)?/i);
+  return match?.[0] ?? null;
 }
 
-function logGuardFailure(scope: string, errors: string[]): void {
-  console.log(`[${scope} Guard][FAIL]`);
-  for (const e of errors) console.log(`- ${e}`);
+function chooseRoute(state: State): string {
+  // Priority 1: explicit override via unchecked task in .ralph/DESIGN.md
+  const todoRoute = extractRoute(state.nextTodo);
+  if (todoRoute) return todoRoute;
+
+  // Priority 2: CLI context override, e.g. --context "/players"
+  const contextRoute = extractRoute(state.context);
+  if (contextRoute) return contextRoute;
+
+  // Priority 3: deterministic rotation
+  const idx = (state.iteration - 1) % ROUTE_CYCLE.length;
+  return ROUTE_CYCLE[idx];
 }
 
-// ── Prompts ────────────────────────────────────────────────────
+function workerPrompt(route: string, nextTodo: string | null): string {
+  const todoBlock = nextTodo
+    ? `Assigned todo: ${nextTodo}`
+    : `No unchecked override todo found. Assigned route from cycle: ${route}`;
+
+  const routeSlug = route.replace(/^\//, "").replace(/\//g, "_") || "root";
+
+  return `
+Read the following first:
+${bullets(REQUIRED_READS)}
+
+Previous design direction drifted. Reset to exemplar behavior and visual language.
+
+${todoBlock}
+
+Your task (single route only):
+1) Use agent-browser to inspect BOTH reference pages first:
+   - http://localhost:3000/
+   - http://localhost:3000/ripcity/noah
+2) Capture annotated screenshots for those references:
+   - /tmp/agent-browser/reference-salary-book.png
+   - /tmp/agent-browser/reference-noah.png
+3) Use the read tool on both annotated screenshots so you actually inspect the visual labels.
+4) Inspect target route with agent-browser:
+   - http://localhost:3000${route}
+   - capture /tmp/agent-browser/${routeSlug}-before.png (annotated)
+   - use the read tool on that screenshot
+5) Implement fixes on ${route} so it converges toward Salary Book + Noah:
+   - command bar structure + density
+   - main canvas scan speed
+   - sidebar base/overlay behavior
+   - row hover + numeric typography consistency
+   - patch boundaries and interaction predictability
+6) Capture after screenshot:
+   - /tmp/agent-browser/${routeSlug}-after.png (annotated)
+   - use the read tool on the after screenshot and sanity check your own result
+7) Update ${TASK_FILE}:
+   - If there is an unchecked "Fix: ${route}" task, check it off.
+   - Add a brief pass note under that route with what changed.
+8) Commit:
+   - git add -A && git commit -m "design: ${route} converge toward salary/noah"
+
+Rules:
+- Do not edit Salary Book or Noah implementation files.
+- Use agent-browser evidence; no code-only design guesses.
+- One coherent route outcome per iteration.
+- If Rails is down, start it or note blocker in ${TASK_FILE} before committing.
+`.trim();
+}
 
 const SUPERVISOR_PROMPT = `
-You are supervising the design-evolution loop.
+You are supervising the non-Salary-Book design convergence loop.
 
-${STRATEGY}
-${TANKATHON_RULES}
+Read:
+${bullets(REQUIRED_READS)}
 
-Task file: ${TASK_FILE}
+Audit the most recent design commit(s) and verify:
+1) The worker focused on exactly one assigned non-Salary/Noah route.
+2) /tmp/agent-browser includes fresh annotated evidence files:
+   - reference-salary-book.png
+   - reference-noah.png
+   - <route>-before.png
+   - <route>-after.png
+3) Changes improve command bar, main canvas density, and sidebar behavior toward exemplar patterns.
+4) Worker did not edit Salary Book or Noah implementation files.
 
-Review the recent commits (git log --oneline -10, then read changed files).
+If drift is present:
+- Add/adjust unchecked override tasks in ${TASK_FILE} using format: "- [ ] Fix: /route".
+- Keep queue focused on broken routes first (/agents, /players, /drafts, etc.).
 
-Check:
-1. Is each commit tied to one surface and one flow outcome?
-2. Are changes improving hierarchy, wayfinding, or interaction predictability?
-3. Are Datastar patch boundaries and response semantics still correct?
-4. Is this real UX movement, not style-only churn?
-5. **Was agent-browser used for evidence?** Check /tmp/agent-browser/ for recent screenshots.
-   If evidence is missing on visual/interaction tasks, add corrective [AUDIT] tasks to ${TASK_FILE}.
-
-If the Rails app is running, use agent-browser yourself to spot-check recent changes:
-  agent-browser open http://localhost:3000/<recently-changed-route>
-  agent-browser wait --load networkidle
-  agent-browser snapshot -i -C -c
-  agent-browser screenshot --annotate /tmp/agent-browser/supervisor-check.png
-
-If drift:
-- Revert low-value churn.
-- Tighten task wording in ${TASK_FILE}.
-- Add corrective tasks.
-
-Design reference (read as needed):
-${bullets(DESIGN_DOCS)}
-
-Quality exemplars (read-only — do not edit):
-Salary Book: ${bullets(SALARY_BOOK_EXEMPLARS)}
-Noah: ${bullets(NOAH_EXEMPLARS)}
-
-After review, commit:
-  git add -A && git commit -m "design: [PROCESS] supervisor review"
+Commit any supervisor backlog edits:
+  git add -A && git commit -m "design: supervisor route correction"
 `.trim();
-
-function workerPrompt(nextTodo: string | null): string {
-  return `
-You are executing one design task. Read the task, read the relevant files, implement, commit.
-
-## Current task
-${nextTodo}
-
-${STRATEGY}
-${TANKATHON_RULES}
-
-## How to work
-1. Read ${TASK_FILE} for context.
-2. Read the target files for this task (the views, controller, JS listed in the task or that you discover).
-3. Read 1-2 exemplar files to calibrate taste (pick from the lists below based on relevance).
-4. **Use agent-browser** to capture baseline evidence before implementing:
-   - agent-browser open http://localhost:3000/<target-route>
-   - agent-browser wait --load networkidle
-   - agent-browser snapshot -i -C -c
-   - agent-browser screenshot --annotate /tmp/agent-browser/<surface>-before.png
-5. Implement the change.
-6. **Use agent-browser** to capture after evidence:
-   - Reload or navigate to the same page.
-   - agent-browser snapshot -i -C -c
-   - agent-browser screenshot --annotate /tmp/agent-browser/<surface>-after.png
-7. Check off the task in ${TASK_FILE} and add a one-line note if useful.
-8. Commit: git add -A && git commit -m "${COMMIT_TITLE_SCHEMA}"
-
-If agent-browser fails to connect (e.g., Rails not running), skip evidence steps and proceed with code-only work. Note this in the task checkbox note.
-
-If the task is bigger than you can finish, do as much as you can, commit what you have,
-and add a follow-up unchecked task to ${TASK_FILE} for the remainder.
-
-## Design system reference (read as needed, not all up front)
-${bullets(DESIGN_DOCS)}
-
-## Quality exemplars (read-only — study for taste, do not edit)
-Salary Book:
-${bullets(SALARY_BOOK_EXEMPLARS)}
-Noah:
-${bullets(NOAH_EXEMPLARS)}
-
-## Implementation scope (allowed to edit)
-${bullets(TARGET_SURFACES)}
-
-## Salary Book exception (only this file)
-${bullets(SALARY_BOOK_ALLOWED)}
-
-## Hard rules
-1. Do NOT edit Salary Book files except the one allowed exception above.
-2. Do NOT edit Salary Book controllers/helpers/tests.
-3. [ENTITY] work is blocked unless override marker exists in ${TASK_FILE}.
-4. Keep changes to one coherent chunk. No drive-by class sweeps.
-5. Business/CBA math stays in SQL, not Ruby/JS.
-6. Density is the design — rows, links, data. Not cards, not whitespace.
-7. Commit early. Partial progress > timeout with nothing saved.
-  `.trim();
-}
-
-function generatePrompt(context: string | null): string {
-  const contextBlock = context ? `\nFocus area: ${context}\n` : "";
-
-  return `
-${TASK_FILE} has no unchecked tasks.${contextBlock}
-Generate a fresh design-evolution backlog.
-
-${STRATEGY}
-
-Read first:
-${bullets(DESIGN_DOCS)}
-
-Study these exemplars for quality bar:
-Salary Book: ${bullets(SALARY_BOOK_EXEMPLARS.slice(0, 3))}
-Noah: ${bullets(NOAH_EXEMPLARS.slice(0, 2))}
-
-Then **use agent-browser to audit these surfaces visually** before writing tasks:
-${bullets(TARGET_SURFACES)}
-
-## Agent-browser audit loop
-For each major route, run:
-  agent-browser open http://localhost:3000/<route>
-  agent-browser wait --load networkidle
-  agent-browser snapshot -i -C -c
-  agent-browser screenshot --annotate /tmp/agent-browser/<route>-audit.png
-
-Compare what you see against Salary Book and Noah. Note:
-- Shell pattern compliance (A/B/C from design_guide.md)
-- Command bar height and content
-- Patch boundary existence (#maincanvas, #rightpanel-base, #rightpanel-overlay)
-- Row density and scan speed
-- Hover/active state consistency
-- Scroll ownership (one owner, no traps)
-- Wayfinding (breadcrumbs, context chips, position indicators)
-- Pivot density (are data points links? can you get to related entities?)
-
-If agent-browser cannot connect, fall back to reading ERB/controller files directly.
-
-## Task format
-Each task should be a concrete, achievable unit of work (one iteration = one task).
-Do NOT write tasks that require multi-step ceremony or approval gates.
-
-Use [AUDIT] track for browser-evidence-driven QA tasks:
-- [ ] [P1|P2|P3] [AUDIT] /surface — concrete visual/interaction issue found via agent-browser
-  Files: list of files to change
-  Why: what agent-browser evidence revealed
-
-Use [INDEX|TOOL|ENTITY] tracks for implementation tasks as before:
-- [ ] [P1|P2|P3] [INDEX|TOOL|PROCESS] /surface — concrete outcome
-  Files: list of files to change
-  Why: one sentence on the flow problem being fixed
-
-Backlog rules:
-1. Tasks are user-flow outcomes, not cosmetic sweeps.
-2. Each task = one surface + one outcome, achievable in ~10 minutes of focused coding.
-3. Break big changes into multiple sequential tasks.
-4. If a task touches interaction patterns, say what the new pattern should be.
-5. Do not create tasks that modify Salary Book (exception: Tankathon frame).
-6. Prioritize: P1 = broken/confusing flows, P2 = convergence toward exemplar quality, P3 = polish.
-7. Include at least some [AUDIT] tasks that require agent-browser before/after evidence.
-
-After writing:
-  git add -A && git commit -m "design: [PROCESS] generate backlog"
-  `.trim();
-}
-
-// ── Loop ───────────────────────────────────────────────────────
 
 loop({
   name: "design",
   taskFile: TASK_FILE,
   timeout: "15m",
   pushEvery: 4,
-  maxIterations: 240,
+  maxIterations: 500,
   maxConsecutiveTimeouts: 0,
   continuous: true,
 
-  supervisor: {
+  supervisor: supervisor(SUPERVISOR_PROMPT, {
     every: 6,
-    async run(state) {
-      const errors = evaluateGuards(state);
-      if (errors.length > 0) {
-        logGuardFailure("Supervisor", errors);
-        throw new Error("Supervisor guardrail check failed.");
-      }
-
-      await runPi(SUPERVISOR_PROMPT, {
-        role: "supervisor",
-        provider: "openai-codex",
-        model: "gpt-5.3-codex",
-        thinking: "high",
-        timeout: "15m",
-      });
-    },
-  },
+    provider: "openai-codex",
+    model: "gpt-5.3-codex",
+    thinking: "high",
+    timeout: "15m",
+  }),
 
   run(state) {
-    const errors = evaluateGuards(state);
+    const errors = guardrailErrors();
     if (errors.length > 0) {
-      logGuardFailure("Loop", errors);
-      return halt("Guardrails failed. Resolve violations before continuing.");
+      return halt(errors.join("\n"));
     }
 
-    if (state.hasTodos) {
-      return work(workerPrompt(state.nextTodo), {
-        provider: "openai-codex",
-        model: "gpt-5.3-codex",
-        thinking: "high",
-        timeout: "12m",
-      });
-    }
+    const route = chooseRoute(state);
 
-    return generate(generatePrompt(state.context), {
+    return work(workerPrompt(route, state.nextTodo), {
       provider: "openai-codex",
       model: "gpt-5.3-codex",
       thinking: "high",
-      timeout: "15m",
+      timeout: "12m",
     });
   },
 });

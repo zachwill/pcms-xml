@@ -59,11 +59,11 @@ agent-browser snapshot -i -C -c
 ## Evidence package contract (required for redesign tasks)
 
 Use this order every time:
-1. Baseline evidence (`/`, `/ripcity/noah`, then the target route).
-2. Diagnosis (what to keep, what is weak/confusing, highest-leverage flow issue).
-3. Options (1-2 chunk options) for interaction-sensitive redesigns.
-4. Approval on direction.
-5. Implementation + after evidence.
+1. Baseline evidence for references (`/` and `/ripcity/noah`).
+2. Baseline evidence for the target route.
+3. Diagnosis (what to keep, what is weak/confusing, highest-leverage flow issue).
+4. Implementation of one coherent fix chunk.
+5. After evidence on the same route.
 
 Artifact path convention:
 - Save all snapshots/screenshots under `/tmp/agent-browser/...`.
@@ -74,6 +74,24 @@ Artifact path convention:
 - `snapshot` refs (`@e1`, `@e2`, …) are deterministic and stable for AI agents.
 - `--annotate` screenshots map visual labels to the same refs.
 - Re-snapshot after any meaningful page change.
+
+## Annotated screenshot review loop (required for autonomous redesign runs)
+
+When running inside `agents/design.ts`, screenshots are not just artifacts — they are inputs.
+
+1. Capture annotated screenshot for `/` (Salary Book).
+2. Capture annotated screenshot for `/ripcity/noah`.
+3. Capture annotated screenshot for target route before edits.
+4. **Read those image files with the agent `read` tool** so the model actually inspects labels/layout.
+5. Implement the fix.
+6. Capture annotated after screenshot for target route.
+7. Read the after screenshot and verify the intended deltas landed.
+
+Naming convention (recommended):
+- `/tmp/agent-browser/reference-salary-book.png`
+- `/tmp/agent-browser/reference-noah.png`
+- `/tmp/agent-browser/<route>-before.png`
+- `/tmp/agent-browser/<route>-after.png`
 
 ---
 
@@ -138,6 +156,8 @@ For each page (`/two-way-utility`, `/system-values`, `/team-summary`, `/drafts`,
    - One intentional dense-surface scroll owner; no accidental nested scroll traps.
 7. **Dark mode sanity check**
    - `dark:` variants remain readable and consistent.
+8. **Screenshot read-back complete**
+   - Annotated before/after images were read by the agent (not just captured).
 
 Capture before/after screenshots in `/tmp/agent-browser/` during active work.
 
