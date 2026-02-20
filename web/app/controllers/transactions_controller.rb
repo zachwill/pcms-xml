@@ -30,7 +30,9 @@ class TransactionsController < ApplicationController
     transaction_id = Integer(params[:id])
     raise ActiveRecord::RecordNotFound if transaction_id <= 0
 
-    render partial: "transactions/rightpanel_overlay_transaction", locals: load_sidebar_transaction_payload(transaction_id)
+    render partial: "transactions/rightpanel_overlay_transaction", locals: load_sidebar_transaction_payload(transaction_id).merge(
+      overlay_transaction_id: transaction_id.to_s
+    )
   rescue ArgumentError
     raise ActiveRecord::RecordNotFound
   end

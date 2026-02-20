@@ -54,6 +54,8 @@ class EntitiesTransactionsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="transactions-results"'
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, 'data-transaction-overlay-id="9001"'
+      assert_includes response.body, "data-show=\"$overlaytype === 'transaction' && $overlayid === '9001'\""
       assert_includes response.body, "Severity + route scan cues"
       assert_includes response.body, "League-wide route perspective"
       assert_includes response.body, "Open transaction page"
@@ -88,10 +90,27 @@ class EntitiesTransactionsIndexTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "transactions sidebar returns overlay visibility guard and clear endpoint empties overlay" do
+    with_stubbed_transactions_index do
+      get "/transactions/sidebar/9001", headers: modern_headers
+
+      assert_response :success
+      assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, 'data-transaction-overlay-id="9001"'
+      assert_includes response.body, "data-show=\"$overlaytype === 'transaction' && $overlayid === '9001'\""
+      assert_includes response.body, "Open canonical transaction page"
+
+      get "/transactions/sidebar/clear", headers: modern_headers
+
+      assert_response :success
+      assert_equal '<div id="rightpanel-overlay"></div>', response.body.strip
+    end
+  end
+
   private
 
   def with_stubbed_transactions_index
-    controller_class = Entities::TransactionsController
+    controller_class = TransactionsController
 
     controller_class.class_eval do
       alias_method :__transactions_index_test_original_index__, :index
@@ -278,6 +297,147 @@ class EntitiesTransactionsIndexTest < ActionDispatch::IntegrationTest
         build_transaction_date_groups!
         build_transaction_severity_lanes!
         build_sidebar_summary!(selected_transaction_id: @selected_transaction_id)
+      end
+
+      define_method :normalize_selected_transaction_id_param do |raw_value|
+        value = Integer(raw_value, 10)
+        value.positive? ? value : nil
+      rescue ArgumentError, TypeError
+        nil
+      end
+
+      define_method :normalize_transaction_date do |raw_value|
+        return raw_value if raw_value.is_a?(Date)
+        return raw_value.to_date if raw_value.respond_to?(:to_date)
+
+        Date.parse(raw_value.to_s)
+      rescue ArgumentError, TypeError
+        nil
+      end
+
+      define_method :annotate_transaction_severity! do |rows:|
+        Array(rows).each do |row|
+          cap_delta = row["cap_change_total"].to_f.abs
+          tax_delta = row["tax_change_total"].to_f.abs
+          apron_delta = row["apron_change_total"].to_f.abs
+          max_delta = [cap_delta, tax_delta, apron_delta].max
+
+          severity_key = if row["dead_money_count"].to_i.positive? || max_delta >= 20_000_000 || apron_delta >= 8_000_000
+            "critical"
+          elsif row["exception_usage_count"].to_i.positive? || max_delta >= 10_000_000 || apron_delta >= 4_000_000
+            "high"
+          elsif row["ledger_row_count"].to_i.positive? || max_delta >= 2_000_000
+            "medium"
+          else
+            "low"
+          end
+
+          row["impact_max_delta"] = max_delta
+          row["severity_key"] = severity_key
+          row["severity_label"] = {
+            "critical" => "Critical impact",
+            "high" => "High impact",
+            "medium" => "Medium impact",
+            "low" => "Low impact"
+          }[severity_key]
+        end
+      end
+
+      define_method :apply_impact_filter! do
+        return if @impact == "all"
+
+        @transactions = Array(@transactions).select do |row|
+          row["severity_key"].to_s == @impact
+        end
+      end
+
+      define_method :build_transaction_date_groups! do
+        grouped_rows = Array(@transactions).group_by do |row|
+          normalize_transaction_date(row["transaction_date"]) || Date.new(1900, 1, 1)
+        end
+
+        @transaction_date_groups = grouped_rows.sort_by { |(date, _rows)| date }.reverse.map do |(date, rows)|
+          {
+            key: date.to_s,
+            headline: date.strftime("%b %-d, %Y"),
+            subline: nil,
+            relative_label: nil,
+            row_count: rows.size,
+            rows: rows
+          }
+        end
+      end
+
+      define_method :build_transaction_severity_lanes! do
+        lane_meta = [
+          ["critical", "Critical impact"],
+          ["high", "High impact"],
+          ["medium", "Medium impact"],
+          ["low", "Low impact"]
+        ]
+
+        @transaction_severity_lanes = lane_meta.filter_map do |(key, headline)|
+          lane_rows = Array(@transactions).select { |row| row["severity_key"].to_s == key }
+          next if lane_rows.empty?
+
+          date_groups = lane_rows.group_by do |row|
+            normalize_transaction_date(row["transaction_date"]) || Date.new(1900, 1, 1)
+          end.sort_by { |(date, _rows)| date }.reverse.map do |(date, rows)|
+            {
+              key: date.to_s,
+              headline: date.strftime("%b %-d, %Y"),
+              subline: nil,
+              relative_label: nil,
+              row_count: rows.size,
+              rows: rows
+            }
+          end
+
+          {
+            key: key,
+            headline: headline,
+            subline: nil,
+            row_count: lane_rows.size,
+            date_groups: date_groups
+          }
+        end
+      end
+
+      define_method :build_sidebar_summary! do |selected_transaction_id:|
+        counts_by_type = Array(@transactions).each_with_object(Hash.new(0)) do |row, counts|
+          counts[row["transaction_type_lk"].to_s] += 1
+        end
+
+        filters = []
+        filters << "#{@team} team scope" if @team.present?
+        filters << "#{@impact.capitalize} impact" if @impact != "all"
+        filters << "Query: #{@query}" if @query.present?
+
+        quick_lanes = Array(@transaction_severity_lanes).map do |lane|
+          lane_rows = Array(lane[:date_groups]).map do |group|
+            group.merge(rows: Array(group[:rows]).first(2))
+          end
+
+          lane.merge(date_groups: lane_rows)
+        end
+
+        @sidebar_summary = {
+          selected_transaction_id: selected_transaction_id,
+          row_count: Array(@transactions).size,
+          severity_lane_count: Array(@transaction_severity_lanes).size,
+          signings_count: counts_by_type["SIGN"] + counts_by_type["RSIGN"],
+          waivers_count: counts_by_type["WAIVE"] + counts_by_type["WAIVR"],
+          extensions_count: counts_by_type["EXTSN"],
+          other_count: Array(@transactions).count do |row|
+            !%w[SIGN RSIGN WAIVE WAIVR EXTSN].include?(row["transaction_type_lk"].to_s)
+          end,
+          critical_count: Array(@transactions).count { |row| row["severity_key"] == "critical" },
+          high_count: Array(@transactions).count { |row| row["severity_key"] == "high" },
+          medium_count: Array(@transactions).count { |row| row["severity_key"] == "medium" },
+          low_count: Array(@transactions).count { |row| row["severity_key"] == "low" },
+          filters: filters,
+          top_row_lanes: quick_lanes
+        }
       end
 
       define_method :load_sidebar_transaction_payload do |transaction_id|

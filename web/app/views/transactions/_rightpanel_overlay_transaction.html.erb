@@ -4,6 +4,7 @@
   artifacts = artifact_summary || {}
 
   transaction_id = txn["transaction_id"]
+  overlay_transaction_id = local_assigns[:overlay_transaction_id].presence || transaction_id.to_s
   transaction_href_value = transaction_href(transaction_id)
   trade_id = txn["trade_id"]
 
@@ -22,7 +23,12 @@
   end
 %>
 
-<div id="rightpanel-overlay" class="h-full">
+<div
+  id="rightpanel-overlay"
+  class="h-full"
+  data-transaction-overlay-id="<%= overlay_transaction_id %>"
+  data-show="$overlaytype === 'transaction' && $overlayid === '<%= overlay_transaction_id %>'"
+>
   <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
     <button
       type="button"

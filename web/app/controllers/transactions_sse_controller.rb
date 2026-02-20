@@ -62,7 +62,12 @@ class TransactionsSseController < TransactionsController
     return [overlay_clear_html, "none", ""] unless selected_overlay_visible?(overlay_type: requested_type, overlay_id: requested_id)
 
     html = without_view_annotations do
-      render_to_string(partial: "transactions/rightpanel_overlay_transaction", locals: load_sidebar_transaction_payload(requested_id))
+      render_to_string(
+        partial: "transactions/rightpanel_overlay_transaction",
+        locals: load_sidebar_transaction_payload(requested_id).merge(
+          overlay_transaction_id: requested_id.to_s
+        )
+      )
     end
 
     [html, "transaction", requested_id.to_s]
