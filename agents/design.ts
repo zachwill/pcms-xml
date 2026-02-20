@@ -55,12 +55,12 @@ Your task: fix ${route}
 - Don't spend time on tests unless they directly block shipping the route improvement
 
 Execution requirements:
-1) Use agent-browser and inspect references first:
+1) Use agent-browser to screenshot and reference:
    - http://localhost:3000/
    - http://localhost:3000/ripcity/noah
-2) Inspect target route:
+2) Screenshot and reference your target route:
    - http://localhost:3000${route}
-3) Implement improvements in web/.
+3) Implement improvements in ${route} and verify with reading screenshot
 4) Commit when done:
    - git add -A && git commit -m "design: improve ${route}"
 `.trim();
