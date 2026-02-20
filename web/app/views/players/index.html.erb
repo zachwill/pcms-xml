@@ -16,6 +16,24 @@
   refresh_expr = "@get('/players/sse/refresh?' + (#{refresh_query_expr})); window.history.replaceState({}, '', '/players?' + (#{pane_query_expr}))"
 
   signals_literal = "{ playerquery: #{@query.to_json}, playerteam: #{@team_lens.to_json}, playerstatus: #{@status_lens.to_json}, playerconstraint: #{@constraint_lens.to_json}, playerurgency: #{@urgency_lens.to_json}, playerurgencysub: #{@urgency_sub_lens.to_json}, playerhorizon: #{@cap_horizon.to_s.to_json}, playersort: #{@sort_lens.to_json}, selectedplayerid: #{@selected_player_id.to_s.to_json}, overlaytype: #{@selected_player_id.present? ? 'player'.to_json : 'none'.to_json} }"
+
+  urgency_lane_counts = {
+    "all" => @sidebar_summary&.dig(:row_count).to_i,
+    "urgent" => @sidebar_summary&.dig(:urgent_count).to_i,
+    "upcoming" => @sidebar_summary&.dig(:upcoming_count).to_i,
+    "stable" => @sidebar_summary&.dig(:stable_count).to_i
+  }
+
+  urgency_lane_chip_class = lambda do |key|
+    case key.to_s
+    when "urgent"
+      "entity-chip entity-chip--danger gap-1"
+    when "upcoming"
+      "entity-chip entity-chip--warning gap-1"
+    else
+      "entity-chip entity-chip--muted gap-1"
+    end
+  end
 %>
 
 <div id="players-workspace" class="h-screen w-screen flex flex-col overflow-hidden bg-background" data-signals="<%= signals_literal %>">
@@ -107,41 +125,54 @@
           <span class="font-mono tabular-nums normal-case tracking-normal text-muted-foreground truncate" title="<%= @urgency_sequence_label %>"><%= @urgency_sequence_label %></span>
         </div>
 
-        <div class="flex items-start gap-3">
-          <div class="min-w-[8rem] space-y-1">
-            <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Lane</div>
-            <div class="space-y-1">
-              <% [["all", "All"], ["urgent", "Urgent"], ["upcoming", "Upcoming"], ["stable", "Stable"]].each do |urgency_value, urgency_label| %>
-                <label class="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="players-urgency-lens"
-                    value="<%= urgency_value %>"
-                    class="size-3.5 accent-primary"
-                    <%= "checked" if @urgency_lens == urgency_value %>
-                    data-bind="playerurgency"
-                    data-on:change="if (el.checked) { <%= refresh_expr %>; }"
-                  />
-                  <span class="text-[11px] leading-none select-none" data-class="{ 'text-foreground font-semibold': $playerurgency === '<%= urgency_value %>', 'text-muted-foreground': $playerurgency !== '<%= urgency_value %>' }"><%= urgency_label %></span>
-                </label>
-              <% end %>
-            </div>
+        <div class="space-y-1.5">
+          <div id="players-urgency-lane-rail" class="flex flex-wrap items-center gap-1">
+            <% [["urgent", "Urgent decisions"], ["upcoming", "Upcoming pressure"], ["stable", "Stable commitments"]].each do |urgency_key, urgency_title| %>
+              <span class="<%= urgency_lane_chip_class.call(urgency_key) %>">
+                <span><%= urgency_title %></span>
+                <span class="border-l border-current/30 pl-1 font-mono tabular-nums min-w-[1.25rem] text-right"><%= urgency_lane_counts[urgency_key].to_i %></span>
+              </span>
+            <% end %>
           </div>
 
-          <div class="min-w-[11rem] space-y-1">
-            <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Focus</div>
-            <select
-              id="players-urgency-sub-lens"
-              class="h-7 w-44 rounded border border-border bg-background px-2 text-xs text-foreground"
-              data-bind="playerurgencysub"
-              data-on:change="<%= refresh_expr %>"
-            >
-              <option value="all" <%= "selected" if @urgency_sub_lens == "all" %>>All triggers</option>
-              <option value="option_only" <%= "selected" if @urgency_sub_lens == "option_only" %>>Option-only</option>
-              <option value="expiring_only" <%= "selected" if @urgency_sub_lens == "expiring_only" %>>Expiring-only</option>
-              <option value="non_guaranteed_only" <%= "selected" if @urgency_sub_lens == "non_guaranteed_only" %>>Non-guaranteed-only</option>
-            </select>
-          </div>
+          <div class="flex items-start gap-3">
+            <div class="min-w-[13rem] space-y-1">
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Lane</div>
+              <div class="space-y-1">
+                <% [["all", "All lanes"], ["urgent", "Urgent decisions"], ["upcoming", "Upcoming pressure"], ["stable", "Stable commitments"]].each do |urgency_value, urgency_label| %>
+                  <label class="flex items-center justify-between gap-2 cursor-pointer rounded-sm px-1 py-0.5 hover:bg-muted/30">
+                    <span class="flex items-center gap-1.5 min-w-0">
+                      <input
+                        type="radio"
+                        name="players-urgency-lens"
+                        value="<%= urgency_value %>"
+                        class="size-3.5 accent-primary"
+                        <%= "checked" if @urgency_lens == urgency_value %>
+                        data-bind="playerurgency"
+                        data-on:change="if (el.checked) { <%= refresh_expr %>; }"
+                      />
+                      <span class="text-[11px] leading-none select-none truncate" data-class="{ 'text-foreground font-semibold': $playerurgency === '<%= urgency_value %>', 'text-muted-foreground': $playerurgency !== '<%= urgency_value %>' }"><%= urgency_label %></span>
+                    </span>
+                    <span class="font-mono tabular-nums text-[10px] text-muted-foreground min-w-[1.5rem] text-right"><%= urgency_lane_counts[urgency_value].to_i %></span>
+                  </label>
+                <% end %>
+              </div>
+            </div>
+
+            <div class="min-w-[11rem] space-y-1">
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Focus</div>
+              <select
+                id="players-urgency-sub-lens"
+                class="h-7 w-44 rounded border border-border bg-background px-2 text-xs text-foreground"
+                data-bind="playerurgencysub"
+                data-on:change="<%= refresh_expr %>"
+              >
+                <option value="all" <%= "selected" if @urgency_sub_lens == "all" %>>All triggers</option>
+                <option value="option_only" <%= "selected" if @urgency_sub_lens == "option_only" %>>Option-only</option>
+                <option value="expiring_only" <%= "selected" if @urgency_sub_lens == "expiring_only" %>>Expiring-only</option>
+                <option value="non_guaranteed_only" <%= "selected" if @urgency_sub_lens == "non_guaranteed_only" %>>Non-guaranteed-only</option>
+              </select>
+            </div>
 
           <div class="min-w-[11rem] space-y-1">
             <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Trigger lens</div>
@@ -158,6 +189,7 @@
               <option value="trade_kicker" <%= "selected" if @constraint_lens == "trade_kicker" %>>Trade kicker</option>
               <option value="expiring" <%= "selected" if @constraint_lens == "expiring" %>>Expiring after horizon</option>
             </select>
+          </div>
           </div>
         </div>
       </section>

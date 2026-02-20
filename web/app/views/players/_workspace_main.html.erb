@@ -53,10 +53,19 @@
       </div>
     </div>
 
-    <div class="flex flex-wrap gap-1.5">
-      <span class="<%= urgency_chip_class.call('urgent') %>"><%= urgency_lane_label.call('urgent') %> <%= @sidebar_summary[:urgent_count].to_i %></span>
-      <span class="<%= urgency_chip_class.call('upcoming') %>"><%= urgency_lane_label.call('upcoming') %> <%= @sidebar_summary[:upcoming_count].to_i %></span>
-      <span class="<%= urgency_chip_class.call('stable') %>"><%= urgency_lane_label.call('stable') %> <%= @sidebar_summary[:stable_count].to_i %></span>
+    <div id="players-urgency-badges" class="flex flex-wrap gap-1.5">
+      <span class="<%= urgency_chip_class.call('urgent') %> gap-1">
+        <span><%= urgency_lane_label.call('urgent') %></span>
+        <span class="border-l border-current/30 pl-1 font-mono tabular-nums min-w-[1.25rem] text-right"><%= @sidebar_summary[:urgent_count].to_i %></span>
+      </span>
+      <span class="<%= urgency_chip_class.call('upcoming') %> gap-1">
+        <span><%= urgency_lane_label.call('upcoming') %></span>
+        <span class="border-l border-current/30 pl-1 font-mono tabular-nums min-w-[1.25rem] text-right"><%= @sidebar_summary[:upcoming_count].to_i %></span>
+      </span>
+      <span class="<%= urgency_chip_class.call('stable') %> gap-1">
+        <span><%= urgency_lane_label.call('stable') %></span>
+        <span class="border-l border-current/30 pl-1 font-mono tabular-nums min-w-[1.25rem] text-right"><%= @sidebar_summary[:stable_count].to_i %></span>
+      </span>
       <span class="entity-chip entity-chip--muted">Horizon <%= cap_horizon_label %></span>
       <% if active_urgency_sub_lens != "all" %>
         <span class="entity-chip entity-chip--accent">Focus <%= active_urgency_sub_label %></span>
