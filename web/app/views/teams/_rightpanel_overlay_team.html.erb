@@ -40,10 +40,10 @@
   salary_book_href = "/?team=#{team_code}##{team_code}"
 %>
 
-<div id="rightpanel-overlay" class="h-full bg-background">
+<div id="rightpanel-overlay" class="absolute inset-0 z-30 h-full bg-background">
   <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
     <%= render partial: "shared/rightpanel_back_button", locals: {
-      click_expr: "$overlaytype = 'none'; $selectedteamid = ''; @get('/teams/sidebar/clear')"
+      click_expr: "$overlaytype = ''; $selectedteamid = ''; @get('/teams/sidebar/clear')"
     } %>
 
     <a href="<%= team_page_href %>" class="text-xs text-muted-foreground hover:text-foreground hover:underline">Open team page</a>

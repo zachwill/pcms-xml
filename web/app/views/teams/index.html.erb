@@ -4,7 +4,7 @@
   overlay_team_active = @selected_team_id.present? && @sidebar_team_row.present?
   selected_team_signal = overlay_team_active ? @selected_team_id.to_s : ""
 
-  signals_literal = "{ teamsquery: #{@query.to_json}, teamsconference: #{@conference_lens.to_json}, teamspressure: #{@pressure_lens.to_json}, teamssort: #{@sort_lens.to_json}, selectedteamid: #{selected_team_signal.to_json}, overlaytype: #{(overlay_team_active ? 'team' : 'none').to_json} }"
+  signals_literal = "{ teamsquery: #{@query.to_json}, teamsconference: #{@conference_lens.to_json}, teamspressure: #{@pressure_lens.to_json}, teamssort: #{@sort_lens.to_json}, selectedteamid: #{selected_team_signal.to_json}, overlaytype: #{(overlay_team_active ? 'team' : '').to_json} }"
 %>
 
 <div id="teams-workspace" class="h-screen w-full flex flex-col overflow-hidden bg-background" style="height: 100dvh;" data-signals="<%= signals_literal %>">
