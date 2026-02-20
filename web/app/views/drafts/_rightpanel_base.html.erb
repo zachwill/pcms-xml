@@ -1,5 +1,11 @@
-<% summary = @sidebar_summary || {} %>
+<% summary = @sidebar_summary.is_a?(Hash) ? @sidebar_summary : {} %>
 <% view = summary[:view].to_s %>
+<% severity_counts = summary[:severity_counts].is_a?(Hash) ? summary[:severity_counts] : {} %>
+<% ownership_risk_legend = @ownership_risk_legend.is_a?(Hash) ? @ownership_risk_legend : {} %>
+<% normal_count = ownership_risk_legend.fetch(:normal_count, severity_counts.fetch("normal", summary[:normal_count].to_i)).to_i %>
+<% at_risk_count = ownership_risk_legend.fetch(:at_risk_count, severity_counts.fetch("at_risk", summary[:at_risk_count].to_i)).to_i %>
+<% critical_count = ownership_risk_legend.fetch(:critical_count, severity_counts.fetch("critical", summary[:critical_count].to_i)).to_i %>
+<% risk_tier_copy = ownership_risk_legend[:rubric_text].to_s.presence || "Normal = clean ownership path with no trade-linked signal. At risk = ownership moved or trade-linked (traded/outgoing, swap rights, or one provenance trade). Critical = conditional/forfeited rights or 2+ provenance trades." %>
 
 <div id="rightpanel-base" class="space-y-4">
   <div class="rounded-lg border border-border bg-background p-3 space-y-3">
@@ -51,20 +57,8 @@
       </div>
     <% end %>
 
-    <% severity_counts = summary[:severity_counts] || {} %>
-    <% normal_count = severity_counts.fetch("normal", summary[:normal_count].to_i) %>
-    <% at_risk_count = severity_counts.fetch("at_risk", summary[:at_risk_count].to_i) %>
-    <% critical_count = severity_counts.fetch("critical", summary[:critical_count].to_i) %>
-    <% risk_tier_copy = case view
-    when "selections"
-      "Critical = 2+ provenance trades. At risk = trade-linked or provenance-active selection context."
-    when "picks"
-      "Critical = conditional/forfeited/2+ provenance. At risk = traded, swap, or provenance-active ownership."
-    else
-      "Critical = conditional/forfeited/2+ provenance. At risk = swap/outgoing/provenance-active ownership."
-    end %>
     <div class="rounded-md border border-border/60 bg-muted/10 px-2 py-2 text-[10px] text-muted-foreground space-y-1">
-      <div class="uppercase tracking-wide text-muted-foreground/80"><%= view == "grid" ? "Grid risk tiers" : "Risk tiers" %></div>
+      <div class="uppercase tracking-wide text-muted-foreground/80">Ownership risk legend</div>
       <div class="flex flex-wrap items-center gap-1">
         <span class="entity-chip entity-chip--muted">Normal <span class="ml-0.5 font-mono tabular-nums"><%= normal_count %></span></span>
         <span class="entity-chip entity-chip--warning">At risk <span class="ml-0.5 font-mono tabular-nums"><%= at_risk_count %></span></span>

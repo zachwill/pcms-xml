@@ -4,6 +4,8 @@ class DraftsController < ApplicationController
   INDEX_SORTS = %w[board risk provenance].freeze
   INDEX_LENSES = %w[all at_risk critical].freeze
 
+  OWNERSHIP_RISK_LEGEND_TEXT = "Normal = clean ownership path with no trade-linked signal. At risk = ownership moved or trade-linked (traded/outgoing, swap rights, or one provenance trade). Critical = conditional/forfeited rights or 2+ provenance trades.".freeze
+
   # GET /drafts
   # Unified workspace for draft picks (future assets), draft selections (historical),
   # and pick grid (team × year × round ownership matrix).
@@ -74,16 +76,29 @@ class DraftsController < ApplicationController
   end
 
   def load_index_state!
-    assign_state!(
-      ::Drafts::IndexWorkspaceState.new(
-        params: params,
-        queries: queries,
-        index_views: INDEX_VIEWS,
-        index_rounds: INDEX_ROUNDS,
-        index_sorts: INDEX_SORTS,
-        index_lenses: INDEX_LENSES
-      ).build
-    )
+    workspace_state = ::Drafts::IndexWorkspaceState.new(
+      params: params,
+      queries: queries,
+      index_views: INDEX_VIEWS,
+      index_rounds: INDEX_ROUNDS,
+      index_sorts: INDEX_SORTS,
+      index_lenses: INDEX_LENSES
+    ).build
+
+    assign_state!(workspace_state)
+    @ownership_risk_legend = build_ownership_risk_legend(@sidebar_summary)
+  end
+
+  def build_ownership_risk_legend(summary)
+    summary_hash = summary.is_a?(Hash) ? summary : {}
+    severity_counts = summary_hash[:severity_counts].is_a?(Hash) ? summary_hash[:severity_counts] : {}
+
+    {
+      normal_count: severity_counts.fetch("normal", summary_hash[:normal_count].to_i),
+      at_risk_count: severity_counts.fetch("at_risk", summary_hash[:at_risk_count].to_i),
+      critical_count: severity_counts.fetch("critical", summary_hash[:critical_count].to_i),
+      rubric_text: OWNERSHIP_RISK_LEGEND_TEXT
+    }
   end
 
   def load_sidebar_pick_payload(team_code:, draft_year:, draft_round:)

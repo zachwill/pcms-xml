@@ -138,9 +138,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
 
 ## /drafts — cross-view consistency
 
-- [ ] [P1] [TOOL] /drafts — unify risk/ownership legend across picks, selections, and grid views
+- [x] [P1] [TOOL] /drafts — unify risk/ownership legend across picks, selections, and grid views
   Files: web/app/views/drafts/index.html.erb, web/app/views/drafts/_results.html.erb, web/app/controllers/drafts_controller.rb
   Why: Risk cues use different language across the three views; one legend, one meaning.
+  Note: Drafts controller now emits one shared ownership-risk legend payload, and both main results + sidebar base render the same rubric/counted tiers for picks, selections, and grid.
 
 - [ ] [P2] [TOOL] /drafts — consistent overlay selection across all three views
   Files: web/app/views/drafts/_rightpanel_overlay_pick.html.erb, web/app/views/drafts/_rightpanel_overlay_selection.html.erb, web/app/controllers/drafts_sse_controller.rb
