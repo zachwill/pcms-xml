@@ -112,9 +112,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
   Why: Rendering every team impact line can create tall rows on 4+ team deals, slowing side-by-side scan in explorer mode.
   Note: Trades rows now cap inline impact-map lines to two when a deal has 4+ teams and show a compact +N-more chip on the last visible line.
 
-- [ ] [P2] [TOOL] /trades — stabilize non-focus team impact ordering after scope pin
+- [x] [P2] [TOOL] /trades — stabilize non-focus team impact ordering after scope pin
   Files: web/app/views/trades/_results.html.erb
   Why: After pinning the selected team first, remaining teams should sort deterministically (e.g., by team code) so refreshes do not reshuffle row interpretation.
+  Note: Scoped rows now derive impact display from the full team-impact map, keep the focus team pinned first, and alphabetize non-focus team codes before truncating to scan lines.
 
 ## /transactions — severity lanes
 
