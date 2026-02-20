@@ -11,7 +11,7 @@ Each task is one iteration of focused work (~10 min). Commit when done.
 - [x] [P1] [INDEX] /teams — unify row click → overlay drill-in behavior
   Files: web/app/views/teams/index.html.erb, web/app/views/teams/_workspace_main.html.erb, web/app/views/teams/_rightpanel_overlay_team.html.erb, web/app/controllers/teams_controller.rb
   Why: Row click should predictably open the team overlay in #rightpanel-overlay, matching Salary Book's click-row-to-sidebar pattern.
-  Note: Team rows now consistently drill into overlay (no inline row-level nav escape), and index boot hydrates/clears overlay state from selected_id deterministically.
+  Note: Team rows now use overlay-open as the primary action, and index boot hydrates/clears overlay state from selected_id deterministically.
 
 - [x] [P1] [INDEX] /teams — sync commandbar lane counts with filtered row set
   Files: web/app/views/teams/_commandbar.html.erb, web/app/views/teams/_pressure_section.html.erb, web/app/controllers/teams_controller.rb
@@ -22,6 +22,16 @@ Each task is one iteration of focused work (~10 min). Commit when done.
   Files: web/app/views/teams/_workspace_main.html.erb, web/app/javascript/teams_index.js
   Why: When a team overlay is open, the source row should show active state so users know where they are.
   Note: Main canvas now mirrors selectedteamid/overlaytype into data attrs, and teams_index.js reapplies active row + sticky-cell highlight after morphs and signal-driven overlay changes.
+
+## Supervisor corrective tasks (2026-02-20)
+
+- [ ] [P1] [INDEX] /teams — restore one-click canonical team pivot while preserving row-click overlay primary action
+  Files: web/app/views/teams/_pressure_section.html.erb, web/app/views/teams/_rightpanel_base.html.erb
+  Why: Recent drill-in unification removed inline canonical pivots, adding friction to entity navigation from scan rows.
+
+- [ ] [P2] [INDEX] /teams — replace selector parsing with explicit row ids for active-row sync
+  Files: web/app/views/teams/_pressure_section.html.erb, web/app/javascript/teams_index.js
+  Why: Parsing team ids from `data-on:click` strings is brittle; row identity should come from stable `data-team-id` attributes.
 
 ## /players — triage flow
 
