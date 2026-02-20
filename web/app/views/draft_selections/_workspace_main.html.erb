@@ -47,48 +47,48 @@
   end
 %>
 
-<div id="draft-selections-maincanvas" class="px-4 py-4 space-y-3">
-  <div class="flex items-end justify-between gap-4">
-    <div>
-      <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Draft selections workspace</div>
-      <h2 class="text-sm font-semibold text-foreground">
-        Historical pick explorer · <%= @sort_label %>
-        <span class="text-muted-foreground font-medium">· <%= @results.size %> rows</span>
-      </h2>
-      <p class="text-[11px] text-muted-foreground mt-1">
-        Rows are grouped into severity lanes so contested ownership chains surface first and clean rows stay isolated for quick validation.
-        <% if @lens != "all" %>
-          <span class="font-medium text-foreground">Lens: <%= @lens_label %></span>
+<div id="draft-selections-maincanvas" class="py-3">
+  <section class="px-4 pb-3 border-b border-border">
+    <div class="flex items-end justify-between gap-4">
+      <div>
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Draft selections · <%= @year_lens %> · <%= @sort_label %>
+        </h2>
+        <p class="text-[11px] text-muted-foreground mt-1">
+          Historical pick explorer grouped by provenance severity lane.
+          <% if @lens != "all" %>
+            <span class="font-medium text-foreground">Lens: <%= @lens_label %></span>
+          <% end %>
+        </p>
+      </div>
+
+      <div class="text-[11px] text-muted-foreground tabular-nums shrink-0 text-right">
+        <div><%= @results.size %> rows</div>
+        <% if @round_lens != "all" %>
+          <div>Round <%= @round_lens %></div>
         <% end %>
-      </p>
+      </div>
     </div>
 
-    <div class="text-[11px] text-muted-foreground tabular-nums text-right">
-      <div>Year <%= @year_lens %><% if @round_lens != "all" %> · R<%= @round_lens %><% end %></div>
-      <div>Sort: <%= @sort_label %></div>
-    </div>
-  </div>
-
-  <div class="rounded-lg border border-border/60 bg-muted/10 px-3 py-2">
-    <div class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">Provenance severity legend</div>
-    <div class="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+    <div class="mt-2.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+      <span class="uppercase tracking-wide text-muted-foreground/80">Provenance severity</span>
       <span class="entity-chip entity-chip--warning">Contested · <span class="font-mono tabular-nums"><%= contested_count %></span></span>
       <span class="entity-chip entity-chip--danger">Deep chain · <span class="font-mono tabular-nums"><%= deep_chain_count %></span></span>
       <span class="entity-chip entity-chip--warning">With trade · <span class="font-mono tabular-nums"><%= with_trade_count %></span></span>
       <span class="entity-chip entity-chip--muted">Clean · <span class="font-mono tabular-nums"><%= clean_count %></span></span>
       <span>Contested = With trade + Deep chain. Deep chain = P2+ provenance links.</span>
     </div>
-  </div>
+  </section>
 
   <% if @results.empty? %>
-    <div class="p-6 rounded-lg border border-border bg-muted/20 text-sm text-muted-foreground italic text-center">
+    <div class="px-4 py-6 border-b border-border text-sm text-muted-foreground italic">
       No draft selections match these lenses.
     </div>
   <% else %>
-    <div class="rounded-lg border border-border overflow-x-auto">
+    <section class="border-b border-border overflow-x-auto">
       <div class="min-w-[74rem]">
-        <div id="draft-selections-flex-header" class="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm border-b border-border">
-          <div class="flex items-center h-8 px-3 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
+        <div id="draft-selections-flex-header" class="sticky top-0 z-10 bg-muted/40 border-b border-border">
+          <div class="flex items-center h-8 px-4 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
             <div class="w-24 shrink-0 text-center">Pick</div>
             <div class="w-64 shrink-0">Player</div>
             <div class="w-48 shrink-0">Drafting team</div>
@@ -105,7 +105,7 @@
 
             <section id="draft-selections-severity-lane-<%= lane_key %>" class="border-b border-border/60 last:border-b-0">
               <div class="sticky top-8 z-[9] border-b border-border/50 backdrop-blur-sm <%= severity_lane_header_class.call(lane_key) %>">
-                <div class="flex items-center h-8 px-3 text-[10px] uppercase tracking-wide">
+                <div class="flex items-center h-8 px-4 text-[10px] uppercase tracking-wide">
                   <div class="w-48 shrink-0"><span class="<%= severity_chip_class.call(lane_key) %>"><%= lane[:headline] %></span></div>
                   <div class="min-w-0 flex-1 text-muted-foreground truncate"><%= lane[:subline] %></div>
                   <div class="w-20 shrink-0 text-right font-mono tabular-nums text-foreground/90"><%= lane[:row_count].to_i %></div>
@@ -130,7 +130,7 @@
                     data-on:click="<%= open_expr %>"
                     data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= open_expr %>; }"
                   >
-                    <div class="flex items-center min-h-[56px] px-3 text-xs">
+                    <div class="flex items-center min-h-[56px] px-4 text-xs">
                       <div class="w-24 shrink-0 text-center font-mono tabular-nums">
                         <div class="text-sm font-medium"><%= row["pick_number"] %></div>
                         <div class="text-[10px] text-muted-foreground">R<%= row["draft_round"] %> · <%= row["draft_year"] %></div>
@@ -234,6 +234,6 @@
           <% end %>
         </div>
       </div>
-    </div>
+    </section>
   <% end %>
 </div>
