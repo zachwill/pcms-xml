@@ -36,7 +36,7 @@
     id="commandbar"
     class="shrink-0 h-[130px] border-b border-border bg-background px-4 pt-3 flex items-start gap-4 select-none"
   >
-    <div class="flex items-start min-w-0 overflow-x-auto pb-1" role="group" aria-label="Trades filters">
+    <div class="flex items-start min-w-0 overflow-x-auto pb-1 gap-4" role="group" aria-label="Trades filters">
       <div class="min-w-[8.75rem] w-[8.75rem] space-y-1.5">
         <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Date range</div>
         <div class="space-y-1">
@@ -56,14 +56,14 @@
         </div>
       </div>
 
-      <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
+      <div class="h-20 w-px bg-border self-center shrink-0"></div>
 
-      <div class="min-w-[13rem] w-[13rem] space-y-2">
+      <div class="min-w-[12rem] w-[12rem] space-y-2">
         <div class="space-y-1">
           <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Team scope</div>
           <select
             id="trades-team-select"
-            class="h-7 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
+            class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground"
             data-bind="tradeteam"
           >
             <option value="" <%= "selected" if @team.blank? %>>All teams</option>
@@ -78,7 +78,7 @@
           <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sort</div>
           <select
             id="trades-sort-select"
-            class="h-7 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
+            class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground"
             data-bind="tradesort"
           >
             <option value="newest" <%= "selected" if @sort == "newest" %>>Newest</option>
@@ -88,14 +88,14 @@
         </div>
       </div>
 
-      <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
+      <div class="h-20 w-px bg-border self-center shrink-0"></div>
 
       <div class="min-w-[13rem] w-[13rem] space-y-2">
         <div class="space-y-1">
           <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Complexity lens</div>
           <select
             id="trades-lens-select"
-            class="h-7 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
+            class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground"
             data-bind="tradelens"
           >
             <option value="all" <%= "selected" if @lens == "all" %>>All deals</option>
@@ -108,7 +108,7 @@
           <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Composition</div>
           <select
             id="trades-composition-select"
-            class="h-7 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
+            class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground"
             data-bind="tradecomposition"
           >
             <option value="all" <%= "selected" if @composition == "all" %>>All archetypes</option>
@@ -119,18 +119,20 @@
         </div>
       </div>
 
-      <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
+      <div class="h-20 w-px bg-border self-center shrink-0"></div>
 
-      <div class="min-w-[11rem] w-[11rem] space-y-2">
+      <div class="min-w-[13rem] w-[13rem] space-y-2">
         <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Context</div>
+
         <div class="flex flex-wrap gap-1 text-[10px]">
           <span class="entity-chip entity-chip--muted" data-text="$tradeteam ? ('Team ' + $tradeteam) : 'League-wide'"></span>
           <span class="entity-chip entity-chip--muted" data-text="$tradedaterange === 'all' ? 'All dates' : ($tradedaterange === 'season' ? 'This season' : ($tradedaterange === 'month' ? 'This month' : ($tradedaterange === 'week' ? 'This week' : 'Today'))) "></span>
+          <span class="entity-chip entity-chip--muted" data-text="$tradesort === 'newest' ? 'Newest first' : ($tradesort === 'most_teams' ? 'Most teams first' : 'Most assets first')"></span>
         </div>
 
         <button
           type="button"
-          class="cursor-pointer h-6 px-2 rounded border border-border text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/20"
+          class="cursor-pointer h-6 px-2 rounded border border-border bg-muted/50 text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/20"
           data-on:click="<%= reset_filters_expr %>"
         >Reset filters</button>
       </div>

@@ -1,8 +1,8 @@
 <% summary = @sidebar_summary || {} %>
 <% top_rows = Array(summary[:top_rows]) %>
 
-<div id="rightpanel-base" class="space-y-4">
-  <section class="rounded-lg border border-border bg-background p-3 space-y-3">
+<div id="rightpanel-base" class="space-y-0">
+  <section class="pb-3 border-b border-border space-y-3">
     <div>
       <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Workspace snapshot</div>
       <div class="text-sm font-semibold text-foreground">
@@ -33,11 +33,11 @@
     <% end %>
   </section>
 
-  <section class="rounded-lg border border-border bg-background">
-    <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick deals · <%= @sort_label %></div>
+  <section class="pt-3">
+    <div class="pb-2 text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick deals · <%= @sort_label %></div>
 
     <% if top_rows.any? %>
-      <div class="divide-y divide-border">
+      <div class="-mx-4 border-y border-border divide-y divide-border">
         <% top_rows.each do |row| %>
           <% row_id = row["trade_id"].to_s %>
           <% teams_label = row["teams_involved"].presence || "No teams" %>
@@ -47,7 +47,7 @@
           <% open_expr = "$overlaytype = 'trade'; $overlayid = '#{row_id}'; @get('/trades/sidebar/#{row_id}')" %>
           <button
             type="button"
-            class="cursor-pointer w-full px-3 py-2 text-left hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
+            class="cursor-pointer w-full px-4 py-2 text-left hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
             data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'trade' && $overlayid === '<%= row_id %>' }"
             data-on:click="<%= open_expr %>"
           >
@@ -66,7 +66,7 @@
 
             <% if quick_impacts.any? %>
               <div class="mt-1 space-y-1">
-                <% quick_impacts.each do |impact| %>
+                <% quick_impacts.first(2).each do |impact| %>
                   <% net_variant = trade_impact_net_variant(impact) %>
                   <% net_chip_class = case net_variant
                      when :net_in then "entity-chip entity-chip--success"

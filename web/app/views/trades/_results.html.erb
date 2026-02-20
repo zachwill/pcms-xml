@@ -5,14 +5,14 @@
     entity_ids: Array(@trades).flat_map { |t| Array(t["player_previews"]).map { |p| p["player_id"] } }
   )
 %>
-<div id="trades-results" class="py-2">
+
+<div id="trades-results" class="py-3">
   <% if @trades.empty? %>
     <div class="px-4 py-8 text-sm text-muted-foreground italic text-center border-b border-border">
       No trades found for this time period and filters.
     </div>
   <% else %>
     <%
-      headshot_fallback = fallback_headshot_data_uri
       summary = @sidebar_summary || {}
 
       daterange_label = case @daterange.to_s
@@ -71,15 +71,15 @@
     </div>
 
     <section class="overflow-x-auto border-b border-border">
-      <div id="trades-board" class="min-w-[96rem] bg-background">
+      <div id="trades-board" class="min-w-[88rem] bg-background">
         <div id="trades-flex-header" class="sticky top-0 z-30 border-b border-border bg-muted">
-          <div class="flex items-center h-9 px-3 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
-            <div class="w-40 shrink-0">Deal</div>
-            <div class="w-44 shrink-0">Route</div>
-            <div class="w-[33rem] shrink-0">Team impact (OUT / IN)</div>
+          <div class="flex items-center h-9 px-4 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
+            <div class="w-36 shrink-0">Deal</div>
+            <div class="w-40 shrink-0">Route</div>
+            <div class="w-[26rem] shrink-0">Team impact (OUT / IN)</div>
             <div class="w-52 shrink-0">Assets</div>
-            <div class="w-48 shrink-0">Composition</div>
-            <div class="w-[18rem] shrink-0">Notes</div>
+            <div class="w-44 shrink-0">Composition</div>
+            <div class="w-72 shrink-0">Notes</div>
           </div>
         </div>
 
@@ -109,8 +109,8 @@
               data-on:click="<%= open_expr %>"
               data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= open_expr %>; }"
             >
-              <div class="flex items-center min-h-[58px] px-3 text-xs">
-                <div class="w-40 shrink-0 pr-2">
+              <div class="flex items-center min-h-[56px] px-4 text-xs">
+                <div class="w-36 shrink-0 pr-2">
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start gap-1.5 min-w-0">
                       <a href="<%= trade_path(trade['trade_id']) %>" class="font-medium font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">#<%= trade["trade_id"] %></a>
@@ -122,19 +122,17 @@
                   </div>
                 </div>
 
-                <div class="w-44 shrink-0 pr-2">
+                <div class="w-40 shrink-0 pr-2">
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start gap-1.5">
-                      <span class="entity-chip entity-chip--muted"><%= trade["team_count"].to_i %> teams</span>
+                      <span class="entity-chip entity-chip--muted"><%= trade["team_count"].to_i %>T</span>
                       <span class="entity-chip entity-chip--warning"><%= trade["complexity_asset_count"].to_i %> assets</span>
                     </div>
-                    <div class="entity-cell-secondary justify-start truncate">
-                      <%= teams.any? ? teams.join(" · ") : "No team map" %>
-                    </div>
+                    <div class="entity-cell-secondary justify-start truncate"><%= teams.any? ? teams.join(" · ") : "No team map" %></div>
                   </div>
                 </div>
 
-                <div class="w-[33rem] shrink-0 pr-2">
+                <div class="w-[26rem] shrink-0 pr-2">
                   <% if team_impacts.any? %>
                     <div class="space-y-0.5">
                       <% team_impacts.each_with_index do |impact, impact_index| %>
@@ -147,28 +145,10 @@
                         <% team_code = impact["team_code"].presence || "—" %>
                         <% normalized_team_code = impact["team_code"].to_s.upcase %>
                         <% is_focus_team = focus_team_code.present? && normalized_team_code == focus_team_code %>
-                        <% team_logo = impact["team_id"].present? ? team_logo_url(impact["team_id"]) : nil %>
                         <% is_last_visible_impact = impact_index == team_impacts.size - 1 %>
 
                         <div class="flex items-center gap-1 min-w-0 overflow-hidden text-[10px] leading-none tabular-nums">
-                          <a href="<%= team_href(team_code: impact['team_code'], team_id: impact['team_id']) %>" class="inline-flex items-center gap-1.5 shrink-0 min-w-0 font-semibold hover:underline" onclick="event.stopPropagation()">
-                            <span class="w-4 h-4 rounded border border-border bg-background overflow-hidden flex items-center justify-center shrink-0">
-                              <% if team_logo.present? %>
-                                <img
-                                  src="<%= team_logo %>"
-                                  alt="<%= team_code %>"
-                                  class="w-full h-full object-contain"
-                                  loading="lazy"
-                                  decoding="async"
-                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                                />
-                                <span class="hidden text-[8px] font-semibold text-muted-foreground">•</span>
-                              <% else %>
-                                <span class="text-[8px] font-semibold text-muted-foreground">•</span>
-                              <% end %>
-                            </span>
-                            <span class="truncate"><%= team_code %></span>
-                          </a>
+                          <a href="<%= team_href(team_code: impact['team_code'], team_id: impact['team_id']) %>" class="font-semibold shrink-0 hover:underline" onclick="event.stopPropagation()"><%= team_code %></a>
 
                           <% if is_focus_team %>
                             <span class="entity-chip entity-chip--accent shrink-0">scope</span>
@@ -196,30 +176,18 @@
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start gap-1.5 min-w-0">
                       <% if player_previews.any? %>
-                        <div class="flex items-center -space-x-1 shrink-0">
-                          <% player_previews.each do |preview| %>
+                        <div class="min-w-0 flex items-center gap-1 truncate">
+                          <% player_previews.first(2).each_with_index do |preview, index| %>
                             <% player_id = preview["player_id"].to_i %>
                             <% player_name = preview["player_name"].presence || (player_id.positive? ? "Player ##{player_id}" : "Player") %>
-                            <% player_href_value = player_id.positive? ? player_href(player_id) : "#" %>
-                            <a
-                              href="<%= player_href_value %>"
-                              class="w-5 h-5 rounded-full border border-border bg-background overflow-hidden flex items-center justify-center"
-                              title="<%= player_name %>"
-                              onclick="event.stopPropagation()"
-                            >
-                              <% if player_id.positive? %>
-                                <img
-                                  src="<%= player_headshot_url(player_id) %>"
-                                  alt="<%= player_name %>"
-                                  class="w-full h-full object-cover object-top"
-                                  loading="lazy"
-                                  decoding="async"
-                                  onerror="if (this.src !== '<%= headshot_fallback %>') { this.src = '<%= headshot_fallback %>'; }"
-                                />
-                              <% else %>
-                                <span class="text-[8px] font-semibold text-muted-foreground">NBA</span>
-                              <% end %>
-                            </a>
+                            <% if index.positive? %>
+                              <span class="text-muted-foreground/40">·</span>
+                            <% end %>
+                            <% if player_id.positive? %>
+                              <a href="<%= player_href(player_id) %>" class="font-medium truncate hover:underline" onclick="event.stopPropagation()"><%= player_name %></a>
+                            <% else %>
+                              <span class="font-medium truncate"><%= player_name %></span>
+                            <% end %>
                           <% end %>
                         </div>
 
@@ -227,7 +195,7 @@
                           <span class="entity-chip entity-chip--muted">+<%= additional_player_preview_count %></span>
                         <% end %>
                       <% else %>
-                        <span class="entity-chip entity-chip--muted">No player avatars</span>
+                        <span class="entity-chip entity-chip--muted">No player preview</span>
                       <% end %>
                     </div>
 
@@ -241,7 +209,7 @@
                   </div>
                 </div>
 
-                <div class="w-48 shrink-0 pr-2">
+                <div class="w-44 shrink-0 pr-2">
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start gap-1 flex-wrap">
                       <% composition_labels.each do |label| %>
@@ -254,13 +222,11 @@
                         <span class="<%= chip_class %>"><%= label %></span>
                       <% end %>
                     </div>
-                    <div class="entity-cell-secondary justify-start">
-                      <%= trade["trade_finalized_date"].present? ? "Finalized" : "Pending finalization" %>
-                    </div>
+                    <div class="entity-cell-secondary justify-start"><%= trade["trade_finalized_date"].present? ? "Finalized" : "Pending finalization" %></div>
                   </div>
                 </div>
 
-                <div class="w-[18rem] shrink-0 pr-1">
+                <div class="w-72 shrink-0 pr-1">
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start text-[11px] truncate"><%= trade["trade_comments"].presence || "—" %></div>
                     <div class="entity-cell-secondary justify-start truncate"><%= teams.any? ? teams.join(" · ") : "No team map" %></div>
