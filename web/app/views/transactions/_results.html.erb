@@ -144,8 +144,9 @@
       </div>
     </div>
 
-    <div id="transactions-board" class="min-w-[96rem] border-b border-border bg-background">
-      <div id="transactions-flex-header" class="sticky top-0 z-30 border-b border-border bg-muted">
+    <div class="overflow-x-auto">
+      <div id="transactions-board" class="min-w-[96rem] border-b border-border bg-background">
+        <div id="transactions-flex-header" class="sticky top-0 z-30 border-b border-border bg-muted">
         <div class="flex items-center h-9 px-3 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
           <div class="w-32 shrink-0">When</div>
           <div class="w-36 shrink-0">Severity</div>
@@ -375,6 +376,7 @@
           </section>
         <% end %>
       </div>
+    </div>
     </div>
   <% end %>
 </div>

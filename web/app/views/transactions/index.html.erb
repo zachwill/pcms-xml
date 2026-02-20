@@ -10,28 +10,47 @@
     '&other=' + ($txnother ? '1' : '0') +
     '&impact=' + encodeURIComponent($txnimpact)"
 
-  selected_overlay_query_expr = "'selected_type=' + encodeURIComponent($overlaytype) +
-    '&selected_id=' + encodeURIComponent($overlayid)"
-  refresh_query_expr = "(#{pane_query_expr}) + '&' + (#{selected_overlay_query_expr})"
+  selected_overlay_query_expr = "'selected_type=' + encodeURIComponent($overlaytype || '') +
+    '&selected_id=' + encodeURIComponent($overlayid || '')"
 
-  refresh_expr = "@get('/transactions/sse/refresh?' + (#{refresh_query_expr})); window.history.replaceState({}, '', '/transactions?' + (#{pane_query_expr}))"
+  refresh_loader_expr = "const paneQuery = (#{pane_query_expr}); if ($_txnrefreshpanequery !== paneQuery) { $_txnrefreshpanequery = paneQuery; const refreshQuery = paneQuery + '&' + (#{selected_overlay_query_expr}); @get('/transactions/sse/refresh?' + refreshQuery); const nextUrl = '/transactions?' + paneQuery; if ((window.location.pathname + window.location.search) !== nextUrl) { window.history.replaceState({}, '', nextUrl); } }"
 
-  signals_literal = "{ txnquery: #{@query.to_s.to_json}, txndaterange: #{@daterange.to_json}, txnteam: #{(@team || '').to_json}, txnsignings: #{@signings.to_json}, txnwaivers: #{@waivers.to_json}, txnextensions: #{@extensions.to_json}, txnother: #{@other.to_json}, txnimpact: #{@impact.to_json}, overlaytype: '', overlayid: '' }"
+  initial_pane_query = {
+    q: @query.to_s,
+    daterange: @daterange.to_s,
+    team: (@team || "").to_s,
+    signings: @signings ? "1" : "0",
+    waivers: @waivers ? "1" : "0",
+    extensions: @extensions ? "1" : "0",
+    other: @other ? "1" : "0",
+    impact: @impact.to_s
+  }.to_query
+
+  reset_filters_expr = "$txndaterange = 'season'; $txnteam = ''; $txnimpact = 'all'; $txnsignings = true; $txnwaivers = true; $txnextensions = true; $txnother = false; $txnquerydraft = ''; $txnquery = '';"
+
+  signals_literal = "{ txnquery: #{@query.to_s.to_json}, txnquerydraft: #{@query.to_s.to_json}, txndaterange: #{@daterange.to_json}, txnteam: #{(@team || '').to_json}, txnsignings: #{@signings.to_json}, txnwaivers: #{@waivers.to_json}, txnextensions: #{@extensions.to_json}, txnother: #{@other.to_json}, txnimpact: #{@impact.to_json}, overlaytype: '', overlayid: '', _txnrefreshpanequery: #{initial_pane_query.to_json} }"
 %>
 
 <div id="transactions-workspace" class="h-screen w-full flex flex-col overflow-hidden bg-background" style="height: 100dvh;" data-signals="<%= signals_literal %>">
   <div id="flash"></div>
 
+  <div
+    id="transactions-refresh-loader"
+    class="hidden"
+    aria-hidden="true"
+    data-effect="<%= refresh_loader_expr %>"
+  ></div>
+
   <header
     id="commandbar"
     class="shrink-0 h-[130px] border-b border-border bg-background px-4 pt-3 flex items-start gap-4 select-none"
   >
-    <div class="flex items-start min-w-0 overflow-x-auto pb-1" role="group" aria-label="Transactions filters">
-      <div class="min-w-[8.25rem] w-[8.25rem] space-y-1.5">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Date Range</div>
+    <div class="flex items-start min-w-0 overflow-x-auto pb-1 gap-4" role="group" aria-label="Transactions filters">
+      <div class="min-w-[8.75rem] w-[8.75rem] space-y-1.5">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Date range</div>
         <div class="space-y-1">
-          <% [["today", "Today"], ["week", "This Week"], ["month", "This Month"], ["season", "This Season"], ["all", "All"]].each do |value, label| %>
-            <label class="flex items-center gap-1.5 cursor-pointer">
+          <% [["today", "Today"], ["week", "This Week"], ["month", "This Month"], ["season", "This Season"], ["all", "All Dates"]].each do |value, label| %>
+            <label class="flex items-center gap-1.5 cursor-pointer select-none">
               <input
                 type="radio"
                 name="txn-daterange"
@@ -39,17 +58,16 @@
                 class="size-3.5 accent-primary"
                 <%= "checked" if @daterange == value %>
                 data-bind="txndaterange"
-                data-on:change="if (el.checked) { <%= refresh_expr %>; }"
               />
-              <span class="text-[11px] leading-none select-none" data-class="{ 'text-foreground font-semibold': $txndaterange === '<%= value %>', 'text-muted-foreground': $txndaterange !== '<%= value %>' }"><%= label %></span>
+              <span class="text-[11px] leading-none" data-class="{ 'text-foreground font-semibold': $txndaterange === '<%= value %>', 'text-muted-foreground': $txndaterange !== '<%= value %>' }"><%= label %></span>
             </label>
           <% end %>
         </div>
       </div>
 
-      <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
+      <div class="h-20 w-px bg-border self-center shrink-0"></div>
 
-      <div class="min-w-[16.25rem] w-[16.25rem] space-y-2">
+      <div class="min-w-[15rem] w-[15rem] space-y-2">
         <div class="space-y-1">
           <label for="transactions-query" class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Search</label>
           <div class="flex items-center gap-1.5">
@@ -59,24 +77,24 @@
               class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground"
               placeholder="Player, team, tx id"
               value="<%= @query.to_s %>"
-              data-bind="txnquery"
-              data-on:keydown="if (evt.key === 'Enter') { evt.preventDefault(); <%= refresh_expr %>; }"
+              data-bind="txnquerydraft"
+              data-on:keydown="if (evt.key === 'Enter') { evt.preventDefault(); $txnquery = ($txnquerydraft || '').trim(); }"
             />
             <button
               type="button"
               class="h-7 shrink-0 rounded border border-border bg-muted/50 px-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
-              data-on:click="<%= refresh_expr %>"
+              data-on:click="$txnquery = ($txnquerydraft || '').trim();"
             >Apply</button>
           </div>
+          <div class="text-[10px] text-muted-foreground/70 truncate" data-text="$txnquery ? ('Active query: ' + $txnquery) : 'No active query'"></div>
         </div>
 
         <div class="space-y-1">
-          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Team</div>
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Team scope</div>
           <select
             id="transactions-team-select"
             class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground"
             data-bind="txnteam"
-            data-on:change="<%= refresh_expr %>"
           >
             <option value="" <%= "selected" if @team.blank? %>>All teams</option>
             <% Array(@team_options).each do |team| %>
@@ -87,29 +105,34 @@
         </div>
       </div>
 
-      <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
+      <div class="h-20 w-px bg-border self-center shrink-0"></div>
 
-      <div class="min-w-[13rem] w-[13rem] space-y-1.5">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Impact Lane</div>
-        <select
-          id="transactions-impact-select"
-          class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground"
-          data-bind="txnimpact"
-          data-on:change="<%= refresh_expr %>"
-        >
-          <option value="all" <%= "selected" if @impact == "all" %>>All impact lanes</option>
-          <option value="critical" <%= "selected" if @impact == "critical" %>>Critical impact · dead money / Δ20M+</option>
-          <option value="high" <%= "selected" if @impact == "high" %>>High impact · exception / Δ10M+</option>
-          <option value="medium" <%= "selected" if @impact == "medium" %>>Medium impact · ledger-active</option>
-          <option value="low" <%= "selected" if @impact == "low" %>>Low impact · quiet ledger</option>
-        </select>
-        <div class="text-[10px] leading-none text-muted-foreground/70" data-text="$txnteam ? ($txnteam + ' route perspective') : 'League-wide route perspective'"></div>
+      <div class="min-w-[12.5rem] w-[12.5rem] space-y-2">
+        <div class="space-y-1">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Impact lane</div>
+          <select
+            id="transactions-impact-select"
+            class="h-7 w-full rounded border border-border bg-muted/50 px-2 text-xs text-foreground"
+            data-bind="txnimpact"
+          >
+            <option value="all" <%= "selected" if @impact == "all" %>>All impact lanes</option>
+            <option value="critical" <%= "selected" if @impact == "critical" %>>Critical · dead money / Δ20M+</option>
+            <option value="high" <%= "selected" if @impact == "high" %>>High · exception / Δ10M+</option>
+            <option value="medium" <%= "selected" if @impact == "medium" %>>Medium · ledger-active</option>
+            <option value="low" <%= "selected" if @impact == "low" %>>Low · quiet ledger</option>
+          </select>
+        </div>
+
+        <div class="flex flex-wrap gap-1 text-[10px]">
+          <span class="entity-chip entity-chip--muted" data-text="$txnteam ? ('Team ' + $txnteam) : 'League-wide'"></span>
+          <span class="entity-chip entity-chip--muted" data-text="$txndaterange === 'all' ? 'All dates' : ($txndaterange === 'season' ? 'This season' : ($txndaterange === 'month' ? 'This month' : ($txndaterange === 'week' ? 'This week' : 'Today'))) "></span>
+        </div>
       </div>
 
-      <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
+      <div class="h-20 w-px bg-border self-center shrink-0"></div>
 
-      <div class="min-w-[11.5rem] w-[11.5rem] space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Type</div>
+      <div class="min-w-[11.5rem] w-[11.5rem] space-y-2">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Type filters</div>
         <div class="grid grid-cols-2 gap-x-2 gap-y-1">
           <div class="flex items-center gap-1.5">
             <input
@@ -118,7 +141,6 @@
               class="size-3.5 accent-primary"
               <%= "checked" if @signings %>
               data-bind="txnsignings"
-              data-on:change="<%= refresh_expr %>"
             />
             <label for="txn-type-signings" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Signings</label>
           </div>
@@ -130,7 +152,6 @@
               class="size-3.5 accent-primary"
               <%= "checked" if @waivers %>
               data-bind="txnwaivers"
-              data-on:change="<%= refresh_expr %>"
             />
             <label for="txn-type-waivers" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Waivers</label>
           </div>
@@ -142,7 +163,6 @@
               class="size-3.5 accent-primary"
               <%= "checked" if @extensions %>
               data-bind="txnextensions"
-              data-on:change="<%= refresh_expr %>"
             />
             <label for="txn-type-extensions" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Extensions</label>
           </div>
@@ -154,11 +174,16 @@
               class="size-3.5 accent-primary"
               <%= "checked" if @other %>
               data-bind="txnother"
-              data-on:change="<%= refresh_expr %>"
             />
             <label for="txn-type-other" class="text-[11px] leading-none cursor-pointer select-none text-foreground/80 hover:text-foreground transition-colors">Other</label>
           </div>
         </div>
+
+        <button
+          type="button"
+          class="cursor-pointer h-6 px-2 rounded border border-border bg-muted/50 text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground hover:border-foreground/20"
+          data-on:click="<%= reset_filters_expr %>"
+        >Reset filters</button>
       </div>
     </div>
 
@@ -167,7 +192,7 @@
   </header>
 
   <div id="viewport" class="flex flex-1 overflow-hidden relative">
-    <main id="maincanvas" class="flex-1 min-w-0 min-h-0 overflow-auto bg-background relative overscroll-y-contain scroll-touch isolate">
+    <main id="maincanvas" class="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-background relative overscroll-y-contain scroll-touch isolate">
       <%= render partial: "transactions/results" %>
     </main>
 
@@ -177,12 +202,12 @@
     >
       <div
         id="rightpanel-base-layer"
-        class="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-y-contain scroll-touch pt-2 px-4 pb-4"
+        class="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-y-contain scroll-touch pt-2 px-4 pb-4 transition-opacity duration-300"
       >
         <%= render partial: "transactions/rightpanel_base" %>
       </div>
 
-      <div id="rightpanel-overlay" class="absolute inset-0 z-20 pointer-events-none"></div>
+      <%= render partial: "transactions/rightpanel_clear" %>
     </aside>
   </div>
 </div>

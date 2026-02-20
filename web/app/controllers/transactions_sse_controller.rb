@@ -31,6 +31,7 @@ class TransactionsSseController < TransactionsController
       patch_signals(
         sse,
         txnquery: @query.to_s,
+        txnquerydraft: @query.to_s,
         txndaterange: @daterange,
         txnteam: @team.to_s,
         txnsignings: @signings,

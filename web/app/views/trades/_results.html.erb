@@ -6,7 +6,7 @@
   )
 %>
 
-<div id="trades-results" class="py-3">
+<div id="trades-results" class="py-2">
   <% if @trades.empty? %>
     <div class="px-4 py-8 text-sm text-muted-foreground italic text-center border-b border-border">
       No trades found for this time period and filters.
@@ -24,7 +24,7 @@
       end
     %>
 
-    <section class="px-4 pb-3 border-b border-border">
+    <section class="px-4 py-3 border-b border-border">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div class="min-w-0 space-y-2">
           <h2 class="text-sm font-semibold text-foreground">
@@ -56,30 +56,16 @@
       </div>
     </section>
 
-    <div id="trades-scan-rail" class="border-b border-border bg-muted/20">
-      <div class="overflow-x-auto">
-        <div class="flex h-8 min-w-max items-center gap-1.5 px-4 text-[10px] leading-none text-muted-foreground">
-          <span class="uppercase tracking-wide text-muted-foreground/80">Deal scan rail</span>
-          <span class="entity-chip entity-chip--muted"><%= @team.present? ? "#{@team} scope" : "League-wide" %></span>
-          <span class="entity-chip entity-chip--muted">Rows <span class="font-mono tabular-nums"><%= summary[:row_count].to_i %></span></span>
-          <span class="entity-chip entity-chip--warning">Assets <span class="font-mono tabular-nums"><%= summary[:complexity_asset_total].to_i %></span></span>
-          <span class="entity-chip entity-chip--success">Player-heavy <span class="font-mono tabular-nums"><%= summary[:player_heavy_deal_count].to_i %></span></span>
-          <span class="entity-chip entity-chip--accent">Pick-heavy <span class="font-mono tabular-nums"><%= summary[:pick_heavy_deal_count].to_i %></span></span>
-          <span class="entity-chip entity-chip--muted">Cash/TPE <span class="font-mono tabular-nums"><%= summary[:cash_tpe_deal_count].to_i %></span></span>
-        </div>
-      </div>
-    </div>
-
     <section class="overflow-x-auto border-b border-border">
-      <div id="trades-board" class="min-w-[88rem] bg-background">
+      <div id="trades-board" class="min-w-[82rem] bg-background">
         <div id="trades-flex-header" class="sticky top-0 z-30 border-b border-border bg-muted">
           <div class="flex items-center h-9 px-4 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
-            <div class="w-36 shrink-0">Deal</div>
-            <div class="w-40 shrink-0">Route</div>
-            <div class="w-[26rem] shrink-0">Team impact (OUT / IN)</div>
-            <div class="w-52 shrink-0">Assets</div>
+            <div class="w-40 shrink-0">Deal</div>
+            <div class="w-36 shrink-0">Route</div>
+            <div class="w-[23rem] shrink-0">Team impact (OUT / IN)</div>
+            <div class="w-56 shrink-0">Assets</div>
             <div class="w-44 shrink-0">Composition</div>
-            <div class="w-72 shrink-0">Notes</div>
+            <div class="w-56 shrink-0">Status / notes</div>
           </div>
         </div>
 
@@ -100,6 +86,7 @@
             <% end %>
             <% player_previews = Array(trade["player_previews"]) %>
             <% additional_player_preview_count = trade["additional_player_preview_count"].to_i %>
+            <% finalized = trade["trade_finalized_date"].present? %>
 
             <div
               class="group cursor-pointer hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
@@ -109,12 +96,12 @@
               data-on:click="<%= open_expr %>"
               data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= open_expr %>; }"
             >
-              <div class="flex items-center min-h-[56px] px-4 text-xs">
-                <div class="w-36 shrink-0 pr-2">
+              <div class="flex items-center min-h-[54px] px-4 text-xs">
+                <div class="w-40 shrink-0 pr-2">
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start gap-1.5 min-w-0">
                       <a href="<%= trade_path(trade['trade_id']) %>" class="font-medium font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">#<%= trade["trade_id"] %></a>
-                      <% if trade["trade_finalized_date"].present? %>
+                      <% if finalized %>
                         <span class="entity-chip entity-chip--accent">finalized</span>
                       <% end %>
                     </div>
@@ -122,7 +109,7 @@
                   </div>
                 </div>
 
-                <div class="w-40 shrink-0 pr-2">
+                <div class="w-36 shrink-0 pr-2">
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start gap-1.5">
                       <span class="entity-chip entity-chip--muted"><%= trade["team_count"].to_i %>T</span>
@@ -132,7 +119,7 @@
                   </div>
                 </div>
 
-                <div class="w-[26rem] shrink-0 pr-2">
+                <div class="w-[23rem] shrink-0 pr-2">
                   <% if team_impacts.any? %>
                     <div class="space-y-0.5">
                       <% team_impacts.each_with_index do |impact, impact_index| %>
@@ -172,7 +159,7 @@
                   <% end %>
                 </div>
 
-                <div class="w-52 shrink-0 pr-2">
+                <div class="w-56 shrink-0 pr-2">
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start gap-1.5 min-w-0">
                       <% if player_previews.any? %>
@@ -222,14 +209,14 @@
                         <span class="<%= chip_class %>"><%= label %></span>
                       <% end %>
                     </div>
-                    <div class="entity-cell-secondary justify-start"><%= trade["trade_finalized_date"].present? ? "Finalized" : "Pending finalization" %></div>
+                    <div class="entity-cell-secondary justify-start"><%= finalized ? "Finalized" : "Pending" %></div>
                   </div>
                 </div>
 
-                <div class="w-72 shrink-0 pr-1">
+                <div class="w-56 shrink-0 pr-1">
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start text-[11px] truncate"><%= trade["trade_comments"].presence || "—" %></div>
-                    <div class="entity-cell-secondary justify-start truncate"><%= teams.any? ? teams.join(" · ") : "No team map" %></div>
+                    <div class="entity-cell-secondary justify-start truncate">Trade #<%= trade["trade_id"] %> · <%= teams.any? ? teams.join(" · ") : "No team map" %></div>
                   </div>
                 </div>
               </div>

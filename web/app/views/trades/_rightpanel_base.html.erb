@@ -1,9 +1,9 @@
 <% summary = @sidebar_summary || {} %>
 <% top_rows = Array(summary[:top_rows]) %>
 
-<div id="rightpanel-base" class="space-y-0">
-  <section class="pb-3 border-b border-border space-y-3">
-    <div>
+<div id="rightpanel-base" class="space-y-4">
+  <section class="border border-border bg-background overflow-hidden">
+    <div class="px-3 py-2 border-b border-border bg-muted/20">
       <div class="text-[10px] uppercase tracking-wide text-muted-foreground/80">Workspace snapshot</div>
       <div class="text-sm font-semibold text-foreground">
         Trades
@@ -11,33 +11,35 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-1.5">
-      <%= render partial: "salary_book/kpi_cell", locals: { label: "Players", value: summary[:player_assets_total].to_i.to_s, class_name: "w-full" } %>
-      <%= render partial: "salary_book/kpi_cell", locals: { label: "Picks", value: summary[:pick_assets_total].to_i.to_s, class_name: "w-full" } %>
-      <%= render partial: "salary_book/kpi_cell", locals: { label: "Assets", value: summary[:complexity_asset_total].to_i.to_s, class_name: "w-full" } %>
-      <%= render partial: "salary_book/kpi_cell", locals: { label: "Complex", value: summary[:complex_deal_count].to_i.to_s, class_name: "w-full" } %>
-    </div>
-
-    <div class="grid grid-cols-3 gap-1.5">
-      <%= render partial: "salary_book/kpi_cell", locals: { label: "Player", value: summary[:player_heavy_deal_count].to_i.to_s, class_name: "w-full" } %>
-      <%= render partial: "salary_book/kpi_cell", locals: { label: "Pick", value: summary[:pick_heavy_deal_count].to_i.to_s, class_name: "w-full" } %>
-      <%= render partial: "salary_book/kpi_cell", locals: { label: "Cash/TPE", value: summary[:cash_tpe_deal_count].to_i.to_s, class_name: "w-full" } %>
-    </div>
-
-    <% if Array(summary[:filters]).any? %>
-      <div class="pt-1 flex flex-wrap gap-1">
-        <% Array(summary[:filters]).each do |label| %>
-          <span class="entity-chip entity-chip--muted"><%= label %></span>
-        <% end %>
+    <div class="p-3 space-y-3">
+      <div class="grid grid-cols-2 gap-1.5">
+        <%= render partial: "salary_book/kpi_cell", locals: { label: "Players", value: summary[:player_assets_total].to_i.to_s, class_name: "w-full" } %>
+        <%= render partial: "salary_book/kpi_cell", locals: { label: "Picks", value: summary[:pick_assets_total].to_i.to_s, class_name: "w-full" } %>
+        <%= render partial: "salary_book/kpi_cell", locals: { label: "Assets", value: summary[:complexity_asset_total].to_i.to_s, class_name: "w-full" } %>
+        <%= render partial: "salary_book/kpi_cell", locals: { label: "Complex", value: summary[:complex_deal_count].to_i.to_s, class_name: "w-full" } %>
       </div>
-    <% end %>
+
+      <div class="grid grid-cols-3 gap-1.5">
+        <%= render partial: "salary_book/kpi_cell", locals: { label: "Player", value: summary[:player_heavy_deal_count].to_i.to_s, class_name: "w-full" } %>
+        <%= render partial: "salary_book/kpi_cell", locals: { label: "Pick", value: summary[:pick_heavy_deal_count].to_i.to_s, class_name: "w-full" } %>
+        <%= render partial: "salary_book/kpi_cell", locals: { label: "Cash/TPE", value: summary[:cash_tpe_deal_count].to_i.to_s, class_name: "w-full" } %>
+      </div>
+
+      <% if Array(summary[:filters]).any? %>
+        <div class="pt-1 flex flex-wrap gap-1">
+          <% Array(summary[:filters]).each do |label| %>
+            <span class="entity-chip entity-chip--muted"><%= label %></span>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
   </section>
 
-  <section class="pt-3">
-    <div class="pb-2 text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick deals · <%= @sort_label %></div>
+  <section class="border border-border bg-background overflow-hidden">
+    <div class="px-3 py-2 border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground/80">Quick deals · <%= @sort_label %></div>
 
     <% if top_rows.any? %>
-      <div class="-mx-4 border-y border-border divide-y divide-border">
+      <div class="divide-y divide-border">
         <% top_rows.each do |row| %>
           <% row_id = row["trade_id"].to_s %>
           <% teams_label = row["teams_involved"].presence || "No teams" %>
@@ -47,7 +49,7 @@
           <% open_expr = "$overlaytype = 'trade'; $overlayid = '#{row_id}'; @get('/trades/sidebar/#{row_id}')" %>
           <button
             type="button"
-            class="cursor-pointer w-full px-4 py-2 text-left hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
+            class="cursor-pointer w-full px-3 py-2 text-left hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
             data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'trade' && $overlayid === '<%= row_id %>' }"
             data-on:click="<%= open_expr %>"
           >
