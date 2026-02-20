@@ -1,4 +1,30 @@
 <% overlay_query_expr ||= "''" %>
+<%
+  overlay_payload = @overlay_payload || {}
+  overlay_context_label = overlay_payload[:context_label].presence || overlay_payload[:bracket_label].presence || "League row"
+  overlay_identity_token = if overlay_payload.present?
+    [
+      overlay_payload[:section].to_s,
+      overlay_payload[:metric].to_s,
+      overlay_payload[:focus_year].to_s,
+      overlay_payload[:overlay_lower].presence || "-",
+      overlay_payload[:overlay_upper].presence || "-"
+    ].join("|")
+  else
+    ""
+  end
+  overlay_state_params = if overlay_payload.present?
+    @state_params.merge(
+      overlay_section: overlay_payload[:section].to_s,
+      overlay_metric: overlay_payload[:metric].to_s,
+      overlay_year: overlay_payload[:focus_year].to_s,
+      overlay_lower: overlay_payload[:overlay_lower].to_s,
+      overlay_upper: overlay_payload[:overlay_upper].to_s
+    )
+  else
+    @state_params
+  end
+%>
 
 <div id="rightpanel-base" class="space-y-4">
   <div class="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
@@ -26,7 +52,13 @@
       <div class="text-xs text-muted-foreground">Use table cells and quick drill-ins to open selected-vs-baseline context in the overlay.</div>
     <% end %>
 
-    <% if @active_metric_finder_option.present? %>
+    <% if overlay_payload.present? %>
+      <div class="rounded border border-amber-500/50 bg-amber-100/60 dark:bg-amber-900/20 px-2 py-1.5 text-xs space-y-1">
+        <div class="font-medium text-foreground">Pinned drill-in context</div>
+        <div class="text-muted-foreground"><%= overlay_payload[:section_title] %> · <%= overlay_payload[:metric_label] %></div>
+        <div class="font-mono tabular-nums text-[10px] text-muted-foreground/90">Focus <%= overlay_payload[:focus_year_label] %> · <%= overlay_context_label %> · key <%= overlay_identity_token %></div>
+      </div>
+    <% elsif @active_metric_finder_option.present? %>
       <div class="rounded border border-amber-500/50 bg-amber-100/60 dark:bg-amber-900/20 px-2 py-1.5 text-xs">
         <div class="font-medium text-foreground">Overlay target active</div>
         <div class="mt-0.5 text-muted-foreground"><%= @active_metric_finder_option[:label] %></div>
@@ -77,8 +109,8 @@
       <a href="<%= team_summary_path(year: @selected_year, conference: "all", pressure: "all", sort: "cap_space_desc") %>" class="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline">
         Open Team Summary (<%= format_year_label(@selected_year) %>)
       </a>
-      <a href="<%= system_values_path(@state_params) %>" class="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline">
-        Open canonical System Values URL
+      <a href="<%= system_values_path(overlay_state_params) %>" class="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline">
+        <%= overlay_payload.present? ? "Open canonical System Values URL (pinned context)" : "Open canonical System Values URL" %>
       </a>
     </div>
   </div>

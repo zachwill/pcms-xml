@@ -88,9 +88,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
   Why: Section toggles and finder state require too much context switching; which sections are on should be obvious.
   Note: Commandbar now has explicit section-wayfinding tiles (on/off + active + go-to), finder hit/cursor state chips, and show/scroll logic now share one server-defined section map.
 
-- [ ] [P2] [TOOL] /system-values — stable metric context across refreshes
+- [x] [P2] [TOOL] /system-values — stable metric context across refreshes
   Files: web/app/views/system_values/_rightpanel_overlay_metric.html.erb, web/app/views/system_values/_rightpanel_base.html.erb
   Why: Metric drill-in should maintain section/baseline/row identity when year or section toggles change.
+  Note: Sidebar base + overlay now render a pinned drill-in context key (section/metric/year/row bounds), preserve canonical links with overlay params, and keep context legible even when finder scope changes.
 
 ## /trades — team impact scan
 
