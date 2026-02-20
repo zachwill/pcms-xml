@@ -1,4 +1,16 @@
 <% overlay_query_expr ||= "''" %>
+<%
+  section_rows = Array(@section_wayfinding_rows)
+  section_rows = [
+    { key: "system", label: "System", signal: "showsystemvalues", target_id: "section-system", metric_label: "", delta_label: "", delta_variant: "muted" },
+    { key: "tax", label: "Tax Rates", signal: "showtaxrates", target_id: "section-tax", metric_label: "", delta_label: "", delta_variant: "muted" },
+    { key: "minimum", label: "Minimum", signal: "showsalaryscales", target_id: "section-minimum", metric_label: "", delta_label: "", delta_variant: "muted" },
+    { key: "rookie", label: "Rookie", signal: "showrookiescales", target_id: "section-rookie", metric_label: "", delta_label: "", delta_variant: "muted" }
+  ] if section_rows.empty?
+
+  section_state_expr = "[#{section_rows.map { |row| "{ key: '#{row[:key]}', label: '#{row[:label]}', visible: $#{row[:signal]}, target: '#{row[:target_id]}' }" }.join(', ')}]"
+  section_summary_expr = "(() => { const sections = #{section_state_expr}; const visible = sections.filter((section) => section.visible); const active = visible.find((section) => section.key === $activesection) || visible[0]; return 'On ' + visible.length + '/#{section_rows.length} · Active ' + (active ? active.label : 'None'); })()"
+%>
 
 <div class="flex-1 min-w-0">
   <form
@@ -71,25 +83,54 @@
 
     <div class="h-20 w-px bg-border self-center shrink-0"></div>
 
-    <div class="min-w-[15rem] space-y-1">
-      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Visible sections</div>
-      <div class="grid grid-cols-2 gap-x-3 gap-y-1">
-        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80 cursor-pointer select-none">
-          <input type="checkbox" class="size-3.5 accent-primary" data-bind="showsystemvalues" />
-          System
-        </label>
-        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80 cursor-pointer select-none">
-          <input type="checkbox" class="size-3.5 accent-primary" data-bind="showtaxrates" />
-          Tax Rates
-        </label>
-        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80 cursor-pointer select-none">
-          <input type="checkbox" class="size-3.5 accent-primary" data-bind="showsalaryscales" />
-          Minimum
-        </label>
-        <label class="flex items-center gap-1.5 text-[11px] text-foreground/80 cursor-pointer select-none">
-          <input type="checkbox" class="size-3.5 accent-primary" data-bind="showrookiescales" />
-          Rookie
-        </label>
+    <div class="min-w-[22rem] space-y-1">
+      <div class="flex items-center justify-between gap-2">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Section wayfinding</div>
+        <div class="text-[10px] font-mono tabular-nums text-muted-foreground/80" data-text="<%= section_summary_expr %>"></div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-1.5">
+        <% section_rows.each do |row| %>
+          <% delta_class = case row[:delta_variant]
+          when "positive"
+            "text-emerald-700 dark:text-emerald-300 border-emerald-300/70 dark:border-emerald-500/40 bg-emerald-50/60 dark:bg-emerald-900/20"
+          when "negative"
+            "text-red-700 dark:text-red-300 border-red-300/70 dark:border-red-500/40 bg-red-50/60 dark:bg-red-900/20"
+          when "neutral"
+            "text-foreground border-border/80 bg-background"
+          else
+            "text-muted-foreground border-border/70 bg-background"
+          end %>
+
+          <div
+            class="rounded border px-2 py-1 space-y-1"
+            data-class="{
+              'border-primary/60 bg-primary/10': $<%= row[:signal] %>,
+              'border-border/70 bg-background': !$<%= row[:signal] %>,
+              'ring-1 ring-amber-500/60': $<%= row[:signal] %> && $activesection === '<%= row[:key] %>'
+            }"
+          >
+            <div class="flex items-center gap-1.5">
+              <label class="flex min-w-0 flex-1 items-center gap-1.5 cursor-pointer select-none">
+                <input type="checkbox" class="size-3.5 accent-primary" data-bind="<%= row[:signal] %>" />
+                <span class="text-[11px] text-foreground/90 truncate"><%= row[:label] %></span>
+              </label>
+
+              <button
+                type="button"
+                class="h-5 px-1.5 rounded border border-border/70 bg-background text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted"
+                data-on:click="if (!$<%= row[:signal] %>) { return; } const target = document.getElementById('<%= row[:target_id] %>'); const scroller = document.getElementById('maincanvas'); if (target && scroller) { scroller.scrollTo({ top: Math.max(target.offsetTop - 8, 0), behavior: 'smooth' }); } $activesection = '<%= row[:key] %>';"
+              >Go</button>
+            </div>
+
+            <div class="pl-5">
+              <span class="h-4 px-1 rounded border text-[9px] font-mono tabular-nums inline-flex items-center gap-1 <%= delta_class %>">
+                <span><%= row[:metric_label].presence || row[:label] %></span>
+                <span><%= row[:delta_label] %></span>
+              </span>
+            </div>
+          </div>
+        <% end %>
       </div>
     </div>
 
@@ -120,23 +161,31 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-1.5">
-        <% @section_shift_cards.each do |card| %>
-          <% card_class = case card[:variant]
-          when "positive"
-            "text-emerald-700 dark:text-emerald-300 border-emerald-300/70 dark:border-emerald-500/40 bg-emerald-50/60 dark:bg-emerald-900/20"
-          when "negative"
-            "text-red-700 dark:text-red-300 border-red-300/70 dark:border-red-500/40 bg-red-50/60 dark:bg-red-900/20"
-          when "neutral"
-            "text-foreground border-border/80 bg-background"
-          else
-            "text-muted-foreground border-border/70 bg-background"
-          end %>
+        <span
+          class="h-5 px-1.5 rounded border border-border/70 bg-background text-[10px] font-mono tabular-nums inline-flex items-center text-muted-foreground"
+          data-show="$svmetricfinderquery === ''"
+        >Finder idle</span>
 
-          <span class="h-5 px-1.5 rounded border text-[10px] font-mono tabular-nums inline-flex items-center gap-1 <%= card_class %>">
-            <span class="font-semibold"><%= card[:label] %></span>
-            <span><%= card[:metric_label] %> <%= card[:delta_label] %></span>
-          </span>
-        <% end %>
+        <span
+          class="h-5 px-1.5 rounded border border-border/70 bg-background text-[10px] font-mono tabular-nums inline-flex items-center text-foreground"
+          data-show="$svmetricfinderquery !== ''"
+          style="display: none;"
+          data-text="'Finder · ' + ($svmetricfinderquery || '')"
+        ></span>
+
+        <span
+          class="h-5 px-1.5 rounded border border-border/70 bg-background text-[10px] font-mono tabular-nums inline-flex items-center text-muted-foreground"
+          data-show="$svmetricfinderquery !== ''"
+          style="display: none;"
+          data-text="'Hits ' + ($svmetricfindercount || 0)"
+        ></span>
+
+        <span
+          class="h-5 px-1.5 rounded border border-border/70 bg-background text-[10px] font-mono tabular-nums inline-flex items-center text-muted-foreground"
+          data-show="$svmetricfindercursor !== ''"
+          style="display: none;"
+          data-text="'Cursor #' + (($svmetricfindercursorindex || 0) + 1)"
+        ></span>
       </div>
     </div>
   </form>

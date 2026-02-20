@@ -1,6 +1,9 @@
 <% content_for :title, "System Values" %>
 
 <%
+  section_wayfinding_rows = Array(@section_wayfinding_rows)
+  section_scroll_state_expr = "[#{section_wayfinding_rows.map { |row| "{ key: '#{row[:key]}', id: '#{row[:target_id]}', visible: $#{row[:signal]} }" }.join(', ')}]"
+
   state_query_expr = "'year=' + encodeURIComponent($svyear) +
     '&baseline_year=' + encodeURIComponent($svbaseline) +
     '&from_year=' + encodeURIComponent($svfrom) +
@@ -21,7 +24,7 @@
 
   sync_url_expr = "const nextUrl = '#{system_values_path}?' + (#{overlay_query_expr}); if ((window.location.pathname + window.location.search) !== nextUrl) { window.history.replaceState({}, '', nextUrl); }"
 
-  normalize_active_section_expr = "const visibleSections = [ { key: 'system', visible: $showsystemvalues }, { key: 'tax', visible: $showtaxrates }, { key: 'minimum', visible: $showsalaryscales }, { key: 'rookie', visible: $showrookiescales } ]; const activeStillVisible = visibleSections.find((section) => section.key === $activesection && section.visible); if (!activeStillVisible) { const firstVisible = visibleSections.find((section) => section.visible); const nextActive = firstVisible ? firstVisible.key : ''; if ($activesection !== nextActive) { $activesection = nextActive; } }"
+  normalize_active_section_expr = "const visibleSections = #{section_scroll_state_expr}; const activeStillVisible = visibleSections.find((section) => section.key === $activesection && section.visible); if (!activeStillVisible) { const firstVisible = visibleSections.find((section) => section.visible); const nextActive = firstVisible ? firstVisible.key : ''; if ($activesection !== nextActive) { $activesection = nextActive; } }"
 
   root_effect_expr = "#{normalize_active_section_expr} #{sync_url_expr}"
 
@@ -30,7 +33,7 @@
     showtaxrates: @show_tax_rates,
     showsalaryscales: @show_salary_scales,
     showrookiescales: @show_rookie_scales,
-    activesection: "system",
+    activesection: @default_active_section.to_s,
     svyear: @selected_year.to_s,
     svbaseline: @baseline_year.to_s,
     svfrom: @from_year.to_s,
@@ -39,6 +42,7 @@
     svmetricfinderquery: @metric_finder_query.to_s,
     svmetricfindercursor: @metric_finder_cursor_value.to_s,
     svmetricfindercursorindex: @metric_finder_cursor_index.to_i,
+    svmetricfindercount: Array(@metric_finder_shortlist).size,
     svoverlaysection: @overlay_signals.fetch(:section, ""),
     svoverlaymetric: @overlay_signals.fetch(:metric, ""),
     svoverlayyear: @overlay_signals.fetch(:year, ""),
@@ -68,12 +72,7 @@
       id="maincanvas"
       class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-background relative overscroll-y-contain scroll-touch isolate pb-8"
       data-on:scroll="
-        const sections = [
-          { key: 'system', id: 'section-system', visible: $showsystemvalues },
-          { key: 'tax', id: 'section-tax', visible: $showtaxrates },
-          { key: 'minimum', id: 'section-minimum', visible: $showsalaryscales },
-          { key: 'rookie', id: 'section-rookie', visible: $showrookiescales }
-        ];
+        const sections = <%= section_scroll_state_expr %>;
 
         let active = '';
         for (const section of sections) {

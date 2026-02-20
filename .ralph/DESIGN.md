@@ -83,9 +83,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
 
 ## /system-values — metric wayfinding
 
-- [ ] [P1] [TOOL] /system-values — tighten section wayfinding and toggle state
+- [x] [P1] [TOOL] /system-values — tighten section wayfinding and toggle state
   Files: web/app/views/system_values/show.html.erb, web/app/views/system_values/_commandbar.html.erb, web/app/controllers/system_values_controller.rb
   Why: Section toggles and finder state require too much context switching; which sections are on should be obvious.
+  Note: Commandbar now has explicit section-wayfinding tiles (on/off + active + go-to), finder hit/cursor state chips, and show/scroll logic now share one server-defined section map.
 
 - [ ] [P2] [TOOL] /system-values — stable metric context across refreshes
   Files: web/app/views/system_values/_rightpanel_overlay_metric.html.erb, web/app/views/system_values/_rightpanel_base.html.erb

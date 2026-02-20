@@ -12,6 +12,13 @@ class SystemValuesController < ApplicationController
     showrookiescales: "show_rookie_scales"
   }.freeze
 
+  SECTION_WAYFINDING_DEFINITIONS = [
+    { key: "system", label: "System", signal: "showsystemvalues", target_id: "section-system", visible_attr: :@show_system_values },
+    { key: "tax", label: "Tax Rates", signal: "showtaxrates", target_id: "section-tax", visible_attr: :@show_tax_rates },
+    { key: "minimum", label: "Minimum", signal: "showsalaryscales", target_id: "section-minimum", visible_attr: :@show_salary_scales },
+    { key: "rookie", label: "Rookie", signal: "showrookiescales", target_id: "section-rookie", visible_attr: :@show_rookie_scales }
+  ].freeze
+
   # GET /system-values
   def show
     load_workspace_state!
@@ -97,6 +104,7 @@ class SystemValuesController < ApplicationController
         svmetricfinderquery: @metric_finder_query.to_s,
         svmetricfindercursor: @metric_finder_cursor_value.to_s,
         svmetricfindercursorindex: @metric_finder_cursor_index.to_i,
+        svmetricfindercount: Array(@metric_finder_shortlist).size,
         svoverlaysection: @overlay_signals.fetch(:section),
         svoverlaymetric: @overlay_signals.fetch(:metric),
         svoverlayyear: @overlay_signals.fetch(:year),
@@ -194,5 +202,29 @@ class SystemValuesController < ApplicationController
         }
       ).build
     )
+
+    load_section_wayfinding_state!
+  end
+
+  def load_section_wayfinding_state!
+    section_shift_cards_by_key = Array(@section_shift_cards).index_by { |card| card[:key].to_s }
+
+    @section_wayfinding_rows = SECTION_WAYFINDING_DEFINITIONS.map do |definition|
+      key = definition.fetch(:key)
+      shift_card = section_shift_cards_by_key[key]
+
+      {
+        key: key,
+        label: definition.fetch(:label),
+        signal: definition.fetch(:signal),
+        target_id: definition.fetch(:target_id),
+        visible: !!instance_variable_get(definition.fetch(:visible_attr)),
+        metric_label: shift_card&.dig(:metric_label).to_s,
+        delta_label: shift_card&.dig(:delta_label).to_s.presence || "n/a",
+        delta_variant: shift_card&.dig(:variant).to_s.presence || "muted"
+      }
+    end
+
+    @default_active_section = @section_wayfinding_rows.find { |row| row[:visible] }&.fetch(:key, "").to_s
   end
 end
