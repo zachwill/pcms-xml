@@ -38,63 +38,63 @@
   end
 %>
 
-<div id="drafts-results" class="space-y-3">
-  <div class="flex items-end justify-between gap-4">
-    <div>
-      <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+<div id="drafts-results" class="py-3">
+  <section class="px-4 pb-3 border-b border-border">
+    <div class="flex items-end justify-between gap-4">
+      <div>
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <% if @view == "grid" %>
+            Draft ownership grid · start <%= @year %>
+          <% elsif @view == "picks" %>
+            Draft picks · <%= @year %>
+          <% else %>
+            Draft selections · <%= @year %>
+          <% end %>
+          · <%= @sort_label %>
+        </h2>
+        <p class="text-[11px] text-muted-foreground mt-1">
+          <% if @view == "grid" %>
+            Scan severity-tagged ownership cells, then open only contested slots for protections and provenance detail.
+          <% elsif @view == "picks" %>
+            Scan severity-tagged ownership rows, then open picks with the highest contention signal.
+          <% else %>
+            Scan severity-tagged selection provenance, then open contested transaction chains.
+          <% end %>
+          <% if @lens != "all" %>
+            <span class="font-medium text-foreground">Lens: <%= @lens_label %></span>
+          <% end %>
+        </p>
+      </div>
+
+      <div class="text-[11px] text-muted-foreground tabular-nums shrink-0">
         <% if @view == "grid" %>
-          Draft ownership grid · start <%= @year %>
-        <% elsif @view == "picks" %>
-          Draft picks · <%= @year %>
+          <span><%= @grid_teams.size %> teams · <%= @grid_years.size %> years</span>
         <% else %>
-          Draft selections · <%= @year %>
+          <span><%= @results.size %> rows</span>
         <% end %>
-        · <%= @sort_label %>
-      </h2>
-      <p class="text-[11px] text-muted-foreground mt-1">
-        <% if @view == "grid" %>
-          Scan severity-tagged ownership cells, then open only contested slots for full protections/provenance detail.
-        <% elsif @view == "picks" %>
-          Scan severity-tagged ownership rows, then open picks with the highest contention signal.
-        <% else %>
-          Scan severity-tagged selection provenance, then open contested transaction chains.
-        <% end %>
-        <% if @lens != "all" %>
-          <span class="font-medium text-foreground">Lens: <%= @lens_label %></span>
-        <% end %>
-      </p>
+      </div>
     </div>
 
-    <div class="text-[11px] text-muted-foreground tabular-nums">
-      <% if @view == "grid" %>
-        <span><%= @grid_teams.size %> teams · <%= @grid_years.size %> years</span>
-      <% else %>
-        <span><%= @results.size %> rows</span>
-      <% end %>
-    </div>
-  </div>
-
-  <div class="rounded-lg border border-border/60 bg-muted/10 px-3 py-2">
-    <div class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">Ownership risk legend</div>
-    <div class="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+    <div class="mt-2.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+      <span class="uppercase tracking-wide text-muted-foreground/80">Ownership risk legend</span>
       <span class="entity-chip entity-chip--muted">Normal · <span class="font-mono tabular-nums"><%= normal_count %></span></span>
       <span class="entity-chip entity-chip--warning">At risk · <span class="font-mono tabular-nums"><%= at_risk_count %></span></span>
       <span class="entity-chip entity-chip--danger">Critical · <span class="font-mono tabular-nums"><%= critical_count %></span></span>
-      <span><%= risk_rubric_text %></span>
+      <span class="leading-tight"><%= risk_rubric_text %></span>
     </div>
-  </div>
+  </section>
 
   <% if @view == "grid" %>
     <% if @grid_teams.empty? %>
-      <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">
+      <div class="px-4 py-6 border-b border-border text-sm text-muted-foreground italic">
         No draft pick data available for this grid window.
       </div>
     <% else %>
       <% show_rounds = (@round.present? && @round != "all") ? [@round.to_i] : [1, 2] %>
 
-      <div class="rounded-lg border border-border overflow-x-auto">
+      <section class="border-b border-border overflow-x-auto">
         <div class="min-w-max">
-          <div id="draft-grid-flex-header" class="sticky top-0 z-20 bg-muted/70 backdrop-blur-sm border-b border-border">
+          <div id="draft-grid-flex-header" class="sticky top-0 z-20 bg-muted/40 border-b border-border">
             <div class="flex items-center h-8 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
               <div class="w-28 shrink-0 sticky left-0 z-30 bg-muted/70 border-r border-border px-2">Team</div>
               <div class="w-12 shrink-0 text-center border-r border-border">Rd</div>
@@ -187,19 +187,19 @@
             <% end %>
           </div>
         </div>
-      </div>
+      </section>
     <% end %>
 
   <% elsif @results.empty? %>
-    <div class="p-4 rounded-lg bg-muted/30 border border-border/50 text-sm text-muted-foreground italic">
+    <div class="px-4 py-6 border-b border-border text-sm text-muted-foreground italic">
       No <%= @view == "picks" ? "draft picks" : "draft selections" %> found for this filter set.
     </div>
 
   <% elsif @view == "picks" %>
-    <div class="rounded-lg border border-border overflow-x-auto">
+    <section class="border-b border-border overflow-x-auto">
       <div class="min-w-[78rem]">
-        <div id="draft-picks-flex-header" class="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm border-b border-border">
-          <div class="flex items-center h-8 px-3 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
+        <div id="draft-picks-flex-header" class="sticky top-0 z-10 bg-muted/40 border-b border-border">
+          <div class="flex items-center h-8 px-4 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
             <div class="w-28 shrink-0">Pick</div>
             <div class="w-40 shrink-0">Original</div>
             <div class="w-44 shrink-0">Current owner</div>
@@ -227,7 +227,7 @@
               data-on:click="<%= open_expr %>"
               data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= open_expr %>; }"
             >
-              <div class="flex items-center min-h-[56px] px-3 text-xs">
+              <div class="flex items-center min-h-[56px] px-4 text-xs">
                 <div class="w-28 shrink-0 font-mono tabular-nums">
                   <a href="<%= draft_pick_path(team_code: pick['original_team_code'], year: pick['draft_year'], round: pick['draft_round']) %>" class="hover:underline" onclick="event.stopPropagation()">R<%= pick["draft_round"] %> · <%= pick["draft_year"] %></a>
                 </div>
@@ -320,13 +320,13 @@
           <% end %>
         </div>
       </div>
-    </div>
+    </section>
 
   <% else %>
-    <div class="rounded-lg border border-border overflow-x-auto">
+    <section class="border-b border-border overflow-x-auto">
       <div class="min-w-[72rem]">
-        <div id="draft-selections-flex-header" class="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm border-b border-border">
-          <div class="flex items-center h-8 px-3 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
+        <div id="draft-selections-flex-header" class="sticky top-0 z-10 bg-muted/40 border-b border-border">
+          <div class="flex items-center h-8 px-4 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
             <div class="w-24 shrink-0 text-center">Pick</div>
             <div class="w-64 shrink-0">Player</div>
             <div class="w-48 shrink-0">Drafting team</div>
@@ -354,7 +354,7 @@
               data-on:click="<%= open_expr %>"
               data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= open_expr %>; }"
             >
-              <div class="flex items-center min-h-[56px] px-3 text-xs">
+              <div class="flex items-center min-h-[56px] px-4 text-xs">
                 <div class="w-24 shrink-0 text-center font-mono tabular-nums">
                   <div class="text-sm font-medium"><%= sel["pick_number"] %></div>
                   <div class="text-[10px] text-muted-foreground">R<%= sel["draft_round"] %> · <%= sel["draft_year"] %></div>
@@ -439,6 +439,6 @@
           <% end %>
         </div>
       </div>
-    </div>
+    </section>
   <% end %>
 </div>
