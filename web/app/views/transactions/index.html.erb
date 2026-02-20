@@ -65,19 +65,20 @@
       </div>
 
       <div class="min-w-[10rem] space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Impact lane</div>
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Severity lane</div>
         <select
           id="transactions-impact-select"
-          class="h-7 w-44 rounded border border-border bg-background px-2 text-xs text-foreground"
+          class="h-7 w-52 rounded border border-border bg-background px-2 text-xs text-foreground"
           data-bind="txnimpact"
           data-on:change="<%= refresh_expr %>"
         >
           <option value="all" <%= "selected" if @impact == "all" %>>All impact lanes</option>
-          <option value="critical" <%= "selected" if @impact == "critical" %>>Critical impact</option>
-          <option value="high" <%= "selected" if @impact == "high" %>>High impact</option>
-          <option value="medium" <%= "selected" if @impact == "medium" %>>Medium impact</option>
-          <option value="low" <%= "selected" if @impact == "low" %>>Low impact</option>
+          <option value="critical" <%= "selected" if @impact == "critical" %>>Critical impact · dead money / Δ20M+</option>
+          <option value="high" <%= "selected" if @impact == "high" %>>High impact · exception / Δ10M+</option>
+          <option value="medium" <%= "selected" if @impact == "medium" %>>Medium impact · ledger-active</option>
+          <option value="low" <%= "selected" if @impact == "low" %>>Low impact · quiet ledger</option>
         </select>
+        <div class="text-[10px] leading-none text-muted-foreground/70" data-text="$txnteam ? ($txnteam + ' route perspective') : 'League-wide route perspective'"></div>
       </div>
 
       <div class="min-w-[7.5rem] space-y-1">

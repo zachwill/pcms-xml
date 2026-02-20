@@ -119,9 +119,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
 
 ## /transactions — severity lanes
 
-- [ ] [P1] [TOOL] /transactions — clarify lane severity and route cues
+- [x] [P1] [TOOL] /transactions — clarify lane severity and route cues
   Files: web/app/views/transactions/index.html.erb, web/app/views/transactions/_results.html.erb, web/app/controllers/transactions_controller.rb
   Why: Lane labels and severity cues require manual parsing; should communicate "what changed and where" instantly.
+  Note: Severity filter labels now carry threshold hints, results add a severity+route cue legend with lane-level route mix, and each row route cell now shows explicit inbound/outbound/team-flow cue chips.
 
 - [ ] [P2] [TOOL] /transactions — deterministic overlay lifecycle on filter change
   Files: web/app/views/transactions/_rightpanel_overlay_transaction.html.erb, web/app/controllers/transactions_sse_controller.rb

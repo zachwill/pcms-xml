@@ -1,4 +1,12 @@
 class TransactionsController < ApplicationController
+  ROUTE_CUE_ORDER = %w[outbound inbound team_to_team internal entry exit unmapped].freeze
+  SEVERITY_RULE_CUES = {
+    "critical" => "Dead-money rows or max Δ ≥ $20M / apron Δ ≥ $8M",
+    "high" => "Exception usage or max Δ ≥ $10M / apron Δ ≥ $4M",
+    "medium" => "Ledger movement or max Δ ≥ $2M",
+    "low" => "Low/no immediate financial movement"
+  }.freeze
+
   # GET /transactions
   def index
     load_index_state!
@@ -77,6 +85,9 @@ class TransactionsController < ApplicationController
     state.each do |key, value|
       instance_variable_set("@#{key}", value)
     end
+
+    annotate_transaction_route_cues!(rows: @transactions, scoped_team_code: @team)
+    build_transaction_scan_cues!
   end
 
   def load_sidebar_transaction_payload(transaction_id)
@@ -96,6 +107,135 @@ class TransactionsController < ApplicationController
       artifact_summary:,
       trade_summary:
     }
+  end
+
+  def annotate_transaction_route_cues!(rows:, scoped_team_code:)
+    normalized_scope_code = scoped_team_code.to_s.upcase.presence
+
+    Array(rows).each do |row|
+      cue = route_cue_for_transaction(row, scoped_team_code: normalized_scope_code)
+      row["route_cue_key"] = cue[:key]
+      row["route_cue_label"] = cue[:label]
+      row["route_cue_detail"] = cue[:detail]
+    end
+  end
+
+  def build_transaction_scan_cues!
+    @transaction_route_scope_label = if @team.present?
+      "#{@team} route perspective"
+    else
+      "League-wide route perspective"
+    end
+
+    @transaction_route_cues = summarize_route_cues(rows: @transactions)
+
+    @transaction_lane_scan_rows = Array(@transaction_severity_lanes).map do |lane|
+      lane_rows = Array(lane[:date_groups]).flat_map { |group| Array(group[:rows]) }
+
+      {
+        key: lane[:key].to_s,
+        headline: lane[:headline],
+        row_count: lane[:row_count].to_i,
+        rubric: SEVERITY_RULE_CUES[lane[:key].to_s] || lane[:subline].to_s,
+        route_cues: summarize_route_cues(rows: lane_rows).first(2)
+      }
+    end
+  end
+
+  def summarize_route_cues(rows:)
+    counts = Hash.new(0)
+
+    Array(rows).each do |row|
+      cue_key = row["route_cue_key"].to_s.presence || "unmapped"
+      counts[cue_key] += 1
+    end
+
+    counts.map do |cue_key, count|
+      {
+        key: cue_key,
+        label: route_cue_label(cue_key),
+        count: count.to_i
+      }
+    end.sort_by do |cue|
+      [
+        (ROUTE_CUE_ORDER.index(cue[:key]) || ROUTE_CUE_ORDER.length),
+        -cue[:count].to_i,
+        cue[:label]
+      ]
+    end
+  end
+
+  def route_cue_for_transaction(row, scoped_team_code:)
+    from_code = row["from_team_code"].to_s.upcase.presence
+    to_code = row["to_team_code"].to_s.upcase.presence
+
+    if from_code.present? && to_code.present?
+      if from_code == to_code
+        return {
+          key: "internal",
+          label: route_cue_label("internal"),
+          detail: "#{to_code} internal move"
+        }
+      end
+
+      if scoped_team_code.present?
+        if to_code == scoped_team_code
+          return {
+            key: "inbound",
+            label: route_cue_label("inbound"),
+            detail: "#{scoped_team_code} received from #{from_code}"
+          }
+        end
+
+        if from_code == scoped_team_code
+          return {
+            key: "outbound",
+            label: route_cue_label("outbound"),
+            detail: "#{scoped_team_code} sent to #{to_code}"
+          }
+        end
+      end
+
+      return {
+        key: "team_to_team",
+        label: route_cue_label("team_to_team"),
+        detail: "#{from_code} → #{to_code}"
+      }
+    end
+
+    if to_code.present?
+      return {
+        key: scoped_team_code.present? && to_code == scoped_team_code ? "inbound" : "entry",
+        label: route_cue_label(scoped_team_code.present? && to_code == scoped_team_code ? "inbound" : "entry"),
+        detail: "→ #{to_code} (source team not tagged)"
+      }
+    end
+
+    if from_code.present?
+      return {
+        key: scoped_team_code.present? && from_code == scoped_team_code ? "outbound" : "exit",
+        label: route_cue_label(scoped_team_code.present? && from_code == scoped_team_code ? "outbound" : "exit"),
+        detail: "#{from_code} → (destination not tagged)"
+      }
+    end
+
+    {
+      key: "unmapped",
+      label: route_cue_label("unmapped"),
+      detail: "No route teams tagged"
+    }
+  end
+
+  def route_cue_label(cue_key)
+    case cue_key.to_s
+    when "outbound" then "Outbound"
+    when "inbound" then "Inbound"
+    when "team_to_team" then "Team→team"
+    when "internal" then "In-place"
+    when "entry" then "Entry"
+    when "exit" then "Exit"
+    else "Unmapped"
+    end
   end
 
   def selected_overlay_visible?(overlay_type:, overlay_id:)

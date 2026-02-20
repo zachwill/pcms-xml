@@ -15,8 +15,13 @@ class EntitiesTransactionsIndexTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_includes response.body, 'id="transactions-impact-select"'
+      assert_includes response.body, "Severity lane"
+      assert_includes response.body, "Critical impact · dead money / Δ20M+"
       assert_includes response.body, 'id="transactions-severity-lanes"'
       assert_includes response.body, 'id="transactions-severity-lane-critical"'
+      assert_includes response.body, "Severity + route scan cues"
+      assert_includes response.body, "Route totals"
+      assert_includes response.body, "Route cue"
       assert_includes response.body, "Critical impact"
       assert_includes response.body, "Max Δ"
       assert_includes response.body, "Severity quick feed"
@@ -49,6 +54,8 @@ class EntitiesTransactionsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="transactions-results"'
       assert_includes response.body, 'id="rightpanel-base"'
       assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, "Severity + route scan cues"
+      assert_includes response.body, "League-wide route perspective"
       assert_includes response.body, "Open transaction page"
       assert_includes response.body, "event: datastar-patch-signals"
       assert_includes response.body, '"txnimpact":"critical"'
