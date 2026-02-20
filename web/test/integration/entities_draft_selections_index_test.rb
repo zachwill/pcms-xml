@@ -134,8 +134,9 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.body, 'id="draft-selections-sort-select"'
       assert_includes response.body, 'id="draft-selections-lens-select"'
       assert_includes response.body, 'id="draft-selections-flex-header"'
+      assert_includes response.body, 'id="draft-selections-severity-lanes"'
       assert_includes response.body, "Provenance severity legend"
-      assert_includes response.body, "Deep chain"
+      assert_includes response.body, "Contested · Deep chain"
       assert_includes response.body, "With trade"
       refute_includes response.body, 'entity-table min-w-full text-xs'
       assert_includes response.body, 'id="maincanvas"'
@@ -248,7 +249,7 @@ class EntitiesDraftSelectionsIndexTest < ActionDispatch::IntegrationTest
       assert_includes response.media_type, "text/event-stream"
       assert_includes response.body, 'id="draft-selections-flex-header"'
       assert_includes response.body, "Prospect Three"
-      assert_includes response.body, "With trade"
+      assert_includes response.body, "Contested · With trade"
       refute_includes response.body, 'entity-table min-w-full text-xs'
       assert_includes response.body, '"draftselectionlens":"with_trade"'
     end

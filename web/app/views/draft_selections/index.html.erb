@@ -17,6 +17,12 @@
   refresh_expr = "@get('/draft-selections/sse/refresh?' + (#{refresh_query_expr})); window.history.replaceState({}, '', '/draft-selections?' + (#{pane_query_expr}))"
 
   signals_literal = "{ draftselectionquery: #{@query.to_json}, draftselectionyear: #{@year_lens.to_json}, draftselectionround: #{@round_lens.to_json}, draftselectionteam: #{@team_lens.to_json}, draftselectionsort: #{@sort.to_json}, draftselectionlens: #{@lens.to_json}, overlaytype: #{initial_overlay_type.to_json}, overlayid: #{initial_overlay_id.to_json} }"
+
+  severity_snapshot = @workspace_severity_snapshot.is_a?(Hash) ? @workspace_severity_snapshot : {}
+  clean_count = severity_snapshot[:clean_count].to_i
+  with_trade_count = severity_snapshot[:with_trade_count].to_i
+  deep_chain_count = severity_snapshot[:deep_chain_count].to_i
+  contested_count = severity_snapshot[:contested_count].to_i
 %>
 
 <div id="draft-selections-workspace" class="h-screen w-screen flex flex-col overflow-hidden bg-background" data-signals="<%= signals_literal %>">
@@ -84,9 +90,9 @@
           data-bind="draftselectionlens"
           data-on:change="<%= refresh_expr %>"
         >
-          <option value="all" <%= "selected" if @lens == "all" %>>All rows</option>
-          <option value="with_trade" <%= "selected" if @lens == "with_trade" %>>Trade-active only (trade or P1+)</option>
-          <option value="deep_chain" <%= "selected" if @lens == "deep_chain" %>>Deep chain only (P2+)</option>
+          <option value="all" <%= "selected" if @lens == "all" %>>All severity lanes</option>
+          <option value="with_trade" <%= "selected" if @lens == "with_trade" %>>Contested only (with trade + deep chain)</option>
+          <option value="deep_chain" <%= "selected" if @lens == "deep_chain" %>>Deep-contested only (P2+)</option>
         </select>
       </div>
 
@@ -105,6 +111,16 @@
           <% end %>
         </select>
       </div>
+    </div>
+
+    <div class="min-w-[12rem] space-y-1">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Severity lanes</div>
+      <div class="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
+        <span class="entity-chip entity-chip--danger">Deep <span class="font-mono tabular-nums"><%= deep_chain_count %></span></span>
+        <span class="entity-chip entity-chip--warning">With trade <span class="font-mono tabular-nums"><%= with_trade_count %></span></span>
+        <span class="entity-chip entity-chip--muted">Clean <span class="font-mono tabular-nums"><%= clean_count %></span></span>
+      </div>
+      <div class="text-[10px] text-muted-foreground/80 tabular-nums">Contested: <span class="text-foreground"><%= contested_count %></span></div>
     </div>
 
     <div class="h-20 w-px bg-border self-center ml-auto shrink-0"></div>

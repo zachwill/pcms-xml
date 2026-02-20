@@ -150,9 +150,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
 
 ## /draft-selections — provenance triage
 
-- [ ] [P1] [INDEX] /draft-selections — severity grouping for contested ownership chains
+- [x] [P1] [INDEX] /draft-selections — severity grouping for contested ownership chains
   Files: web/app/views/draft_selections/index.html.erb, web/app/views/draft_selections/_workspace_main.html.erb, web/app/controllers/draft_selections_controller.rb
   Why: Users need to shortlist contested picks fast; severity lanes should separate clean from contested.
+  Note: Added server-owned severity lane payload (contested deep-chain, contested with-trade, clean), grouped maincanvas rows into sticky lane sections, and surfaced contested/clean lane counts directly in commandbar context.
 
 - [ ] [P2] [INDEX] /draft-selections — overlay persistence tied to visible result set
   Files: web/app/views/draft_selections/_rightpanel_overlay_selection.html.erb, web/app/controllers/draft_selections_sse_controller.rb

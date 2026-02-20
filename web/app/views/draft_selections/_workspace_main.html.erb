@@ -4,10 +4,14 @@
 <%
   summary = @sidebar_summary || {}
   severity_counts = summary[:severity_counts] || {}
+  severity_snapshot = @workspace_severity_snapshot.is_a?(Hash) ? @workspace_severity_snapshot : {}
+  severity_lanes = Array(@workspace_severity_lanes)
+  row_rank_lookup = @workspace_row_rank_lookup.is_a?(Hash) ? @workspace_row_rank_lookup : {}
 
-  clean_count = severity_counts.fetch("clean", summary[:clean_count].to_i)
-  with_trade_count = severity_counts.fetch("with_trade", summary[:with_trade_count].to_i)
-  deep_chain_count = severity_counts.fetch("deep_chain", summary[:deep_chain_count].to_i)
+  clean_count = severity_snapshot.fetch(:clean_count, severity_counts.fetch("clean", summary[:clean_count].to_i)).to_i
+  with_trade_count = severity_snapshot.fetch(:with_trade_count, severity_counts.fetch("with_trade", summary[:with_trade_count].to_i)).to_i
+  deep_chain_count = severity_snapshot.fetch(:deep_chain_count, severity_counts.fetch("deep_chain", summary[:deep_chain_count].to_i)).to_i
+  contested_count = severity_snapshot.fetch(:contested_count, with_trade_count + deep_chain_count).to_i
 
   severity_chip_class = lambda do |severity|
     case severity.to_s
@@ -30,6 +34,17 @@
       "border-border/60 bg-background"
     end
   end
+
+  severity_lane_header_class = lambda do |severity|
+    case severity.to_s
+    when "deep_chain"
+      "bg-red-50/55 dark:bg-red-950/25"
+    when "with_trade"
+      "bg-amber-50/55 dark:bg-amber-950/20"
+    else
+      "bg-muted/25"
+    end
+  end
 %>
 
 <div id="draft-selections-maincanvas" class="px-4 py-4 space-y-3">
@@ -41,7 +56,7 @@
         <span class="text-muted-foreground font-medium">· <%= @results.size %> rows</span>
       </h2>
       <p class="text-[11px] text-muted-foreground mt-1">
-        Provenance severity is surfaced in-row so you can shortlist clean picks vs contested chains before opening overlay.
+        Rows are grouped into severity lanes so contested ownership chains surface first and clean rows stay isolated for quick validation.
         <% if @lens != "all" %>
           <span class="font-medium text-foreground">Lens: <%= @lens_label %></span>
         <% end %>
@@ -57,10 +72,11 @@
   <div class="rounded-lg border border-border/60 bg-muted/10 px-3 py-2">
     <div class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">Provenance severity legend</div>
     <div class="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-      <span class="entity-chip entity-chip--muted">Clean · <span class="font-mono tabular-nums"><%= clean_count %></span></span>
-      <span class="entity-chip entity-chip--warning">With trade · <span class="font-mono tabular-nums"><%= with_trade_count %></span></span>
+      <span class="entity-chip entity-chip--warning">Contested · <span class="font-mono tabular-nums"><%= contested_count %></span></span>
       <span class="entity-chip entity-chip--danger">Deep chain · <span class="font-mono tabular-nums"><%= deep_chain_count %></span></span>
-      <span>Deep chain = P2+. With trade lens includes both With trade + Deep chain rows.</span>
+      <span class="entity-chip entity-chip--warning">With trade · <span class="font-mono tabular-nums"><%= with_trade_count %></span></span>
+      <span class="entity-chip entity-chip--muted">Clean · <span class="font-mono tabular-nums"><%= clean_count %></span></span>
+      <span>Contested = With trade + Deep chain. Deep chain = P2+ provenance links.</span>
     </div>
   </div>
 
@@ -81,122 +97,140 @@
           </div>
         </div>
 
-        <div class="divide-y divide-border/50">
-          <% @results.each_with_index do |row, index| %>
-            <% selection_id = row["transaction_id"].to_s %>
-            <% row_rank = index + 1 %>
-            <% provenance_count = row["provenance_trade_count"].to_i %>
-            <% with_trade = row["trade_id"].present? %>
-            <% severity = row["provenance_severity"].to_s.presence || "clean" %>
-            <% severity_label = row["provenance_severity_label"].to_s.presence || "Clean" %>
-            <% open_expr = "$overlaytype = 'selection'; $overlayid = '#{selection_id}'; @get('/draft-selections/sidebar/#{selection_id}')" %>
+        <div id="draft-selections-severity-lanes" class="divide-y divide-border/60">
+          <% severity_lanes.each do |lane| %>
+            <% lane_key = lane[:key].to_s %>
+            <% lane_rows = Array(lane[:rows]) %>
+            <% next if lane_rows.empty? %>
 
-            <div
-              class="group cursor-pointer hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
-              role="button"
-              tabindex="0"
-              data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'selection' && $overlayid === '<%= selection_id %>' }"
-              data-on:click="<%= open_expr %>"
-              data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= open_expr %>; }"
-            >
-              <div class="flex items-center min-h-[56px] px-3 text-xs">
-                <div class="w-24 shrink-0 text-center font-mono tabular-nums">
-                  <div class="text-sm font-medium"><%= row["pick_number"] %></div>
-                  <div class="text-[10px] text-muted-foreground">R<%= row["draft_round"] %> · <%= row["draft_year"] %></div>
-                </div>
-
-                <div class="w-64 shrink-0 pr-2">
-                  <div class="grid grid-cols-[30px_1fr] grid-rows-[24px_16px] min-w-0">
-                    <div class="row-span-2 flex items-center justify-start">
-                      <div class="w-7 h-7 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
-                        <% if row["player_id"].present? %>
-                          <img
-                            src="<%= player_headshot_url(row['player_id']) %>"
-                            alt="<%= row['player_name'] %>"
-                            class="w-full h-full object-cover object-top bg-muted"
-                            loading="lazy"
-                            decoding="async"
-                            onerror="if (this.src !== '<%= fallback_headshot_data_uri %>') { this.src = '<%= fallback_headshot_data_uri %>'; }"
-                          />
-                        <% else %>
-                          <span class="text-[9px] font-semibold text-muted-foreground">—</span>
-                        <% end %>
-                      </div>
-                    </div>
-
-                    <div class="h-[24px] flex items-end min-w-0 pl-2">
-                      <% if row["player_id"].present? %>
-                        <a href="<%= player_href(row['player_id']) %>" class="font-medium truncate hover:underline" onclick="event.stopPropagation()"><%= row["player_name"] %></a>
-                      <% else %>
-                        <span class="text-muted-foreground truncate"><%= row["player_name"].presence || "Unknown player" %></span>
-                      <% end %>
-                    </div>
-
-                    <div class="h-[16px] -mt-px flex items-start min-w-0 pl-2 leading-none text-[10px] text-muted-foreground/80 truncate">
-                      <span><%= row["transaction_date"].present? ? format_plain_date(row["transaction_date"]) : "No transaction date" %></span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="w-48 shrink-0 pr-2">
-                  <div class="grid grid-cols-[28px_1fr] grid-rows-[24px_16px] min-w-0">
-                    <div class="row-span-2 flex items-center justify-start">
-                      <div class="w-6 h-6 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
-                        <% if row["drafting_team_id"].present? %>
-                          <img
-                            src="<%= team_logo_url(row['drafting_team_id']) %>"
-                            alt="<%= row['drafting_team_code'] %>"
-                            class="w-full h-full object-contain"
-                            loading="lazy"
-                            decoding="async"
-                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                          />
-                          <span class="hidden text-[9px] font-mono text-muted-foreground"><%= row["drafting_team_code"].presence || "—" %></span>
-                        <% else %>
-                          <span class="text-[9px] font-mono text-muted-foreground"><%= row["drafting_team_code"].presence || "—" %></span>
-                        <% end %>
-                      </div>
-                    </div>
-
-                    <div class="h-[24px] flex items-end min-w-0 pl-1.5">
-                      <% if row["drafting_team_code"].present? %>
-                        <a href="<%= team_href(team_code: row['drafting_team_code'], team_id: row['drafting_team_id']) %>" class="font-medium hover:underline" onclick="event.stopPropagation()"><%= row["drafting_team_code"] %></a>
-                      <% else %>
-                        <span class="text-muted-foreground">—</span>
-                      <% end %>
-                    </div>
-
-                    <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1.5 leading-none text-[10px] text-muted-foreground/80 truncate"><%= row["drafting_team_name"].presence || "—" %></div>
-                  </div>
-                </div>
-
-                <div class="w-48 shrink-0 pr-2 text-muted-foreground">
-                  <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary justify-start">
-                      <a href="<%= transaction_href(row['transaction_id']) %>" class="font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">#<%= row["transaction_id"] %></a>
-                      <% if with_trade %>
-                        <span class="px-1 text-muted-foreground/50">·</span>
-                        <a href="<%= trade_href(row['trade_id']) %>" class="font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">T#<%= row["trade_id"] %></a>
-                      <% end %>
-                    </div>
-                    <div class="entity-cell-secondary justify-start">
-                      <span><%= row["transaction_date"].present? ? format_plain_date(row["transaction_date"]) : "—" %></span>
-                      <% if with_trade %>
-                        <span class="px-1 text-muted-foreground/50">·</span>
-                        <span class="text-amber-600 dark:text-amber-400">trade-linked</span>
-                      <% end %>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="w-32 shrink-0 text-right">
-                  <div class="inline-flex flex-col items-end rounded border px-1.5 py-1 <%= severity_container_class.call(severity) %>">
-                    <span class="<%= severity_chip_class.call(severity) %>"><%= severity_label %></span>
-                    <span class="mt-1 text-[10px] font-mono tabular-nums text-muted-foreground">P<%= provenance_count %> · #<%= row_rank %></span>
-                  </div>
+            <section id="draft-selections-severity-lane-<%= lane_key %>" class="border-b border-border/60 last:border-b-0">
+              <div class="sticky top-8 z-[9] border-b border-border/50 backdrop-blur-sm <%= severity_lane_header_class.call(lane_key) %>">
+                <div class="flex items-center h-8 px-3 text-[10px] uppercase tracking-wide">
+                  <div class="w-48 shrink-0"><span class="<%= severity_chip_class.call(lane_key) %>"><%= lane[:headline] %></span></div>
+                  <div class="min-w-0 flex-1 text-muted-foreground truncate"><%= lane[:subline] %></div>
+                  <div class="w-20 shrink-0 text-right font-mono tabular-nums text-foreground/90"><%= lane[:row_count].to_i %></div>
                 </div>
               </div>
-            </div>
+
+              <div class="divide-y divide-border/40">
+                <% lane_rows.each_with_index do |row, lane_index| %>
+                  <% selection_id = row["transaction_id"].to_s %>
+                  <% row_rank = row_rank_lookup.fetch(selection_id, lane_index + 1).to_i %>
+                  <% provenance_count = row["provenance_trade_count"].to_i %>
+                  <% with_trade = row["trade_id"].present? %>
+                  <% severity = row["provenance_severity"].to_s.presence || lane_key.presence || "clean" %>
+                  <% severity_label = row["provenance_severity_label"].to_s.presence || "Clean" %>
+                  <% open_expr = "$overlaytype = 'selection'; $overlayid = '#{selection_id}'; @get('/draft-selections/sidebar/#{selection_id}')" %>
+
+                  <div
+                    class="group cursor-pointer hover:bg-yellow-50/70 dark:hover:bg-yellow-900/10 transition-colors duration-75"
+                    role="button"
+                    tabindex="0"
+                    data-class="{ 'bg-yellow-100/80 dark:bg-yellow-900/20': $overlaytype === 'selection' && $overlayid === '<%= selection_id %>' }"
+                    data-on:click="<%= open_expr %>"
+                    data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= open_expr %>; }"
+                  >
+                    <div class="flex items-center min-h-[56px] px-3 text-xs">
+                      <div class="w-24 shrink-0 text-center font-mono tabular-nums">
+                        <div class="text-sm font-medium"><%= row["pick_number"] %></div>
+                        <div class="text-[10px] text-muted-foreground">R<%= row["draft_round"] %> · <%= row["draft_year"] %></div>
+                      </div>
+
+                      <div class="w-64 shrink-0 pr-2">
+                        <div class="grid grid-cols-[30px_1fr] grid-rows-[24px_16px] min-w-0">
+                          <div class="row-span-2 flex items-center justify-start">
+                            <div class="w-7 h-7 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                              <% if row["player_id"].present? %>
+                                <img
+                                  src="<%= player_headshot_url(row['player_id']) %>"
+                                  alt="<%= row['player_name'] %>"
+                                  class="w-full h-full object-cover object-top bg-muted"
+                                  loading="lazy"
+                                  decoding="async"
+                                  onerror="if (this.src !== '<%= fallback_headshot_data_uri %>') { this.src = '<%= fallback_headshot_data_uri %>'; }"
+                                />
+                              <% else %>
+                                <span class="text-[9px] font-semibold text-muted-foreground">—</span>
+                              <% end %>
+                            </div>
+                          </div>
+
+                          <div class="h-[24px] flex items-end min-w-0 pl-2">
+                            <% if row["player_id"].present? %>
+                              <a href="<%= player_href(row['player_id']) %>" class="font-medium truncate hover:underline" onclick="event.stopPropagation()"><%= row["player_name"] %></a>
+                            <% else %>
+                              <span class="text-muted-foreground truncate"><%= row["player_name"].presence || "Unknown player" %></span>
+                            <% end %>
+                          </div>
+
+                          <div class="h-[16px] -mt-px flex items-start min-w-0 pl-2 leading-none text-[10px] text-muted-foreground/80 truncate">
+                            <span><%= row["transaction_date"].present? ? format_plain_date(row["transaction_date"]) : "No transaction date" %></span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="w-48 shrink-0 pr-2">
+                        <div class="grid grid-cols-[28px_1fr] grid-rows-[24px_16px] min-w-0">
+                          <div class="row-span-2 flex items-center justify-start">
+                            <div class="w-6 h-6 rounded border border-border bg-background overflow-hidden flex items-center justify-center">
+                              <% if row["drafting_team_id"].present? %>
+                                <img
+                                  src="<%= team_logo_url(row['drafting_team_id']) %>"
+                                  alt="<%= row['drafting_team_code'] %>"
+                                  class="w-full h-full object-contain"
+                                  loading="lazy"
+                                  decoding="async"
+                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                />
+                                <span class="hidden text-[9px] font-mono text-muted-foreground"><%= row["drafting_team_code"].presence || "—" %></span>
+                              <% else %>
+                                <span class="text-[9px] font-mono text-muted-foreground"><%= row["drafting_team_code"].presence || "—" %></span>
+                              <% end %>
+                            </div>
+                          </div>
+
+                          <div class="h-[24px] flex items-end min-w-0 pl-1.5">
+                            <% if row["drafting_team_code"].present? %>
+                              <a href="<%= team_href(team_code: row['drafting_team_code'], team_id: row['drafting_team_id']) %>" class="font-medium hover:underline" onclick="event.stopPropagation()"><%= row["drafting_team_code"] %></a>
+                            <% else %>
+                              <span class="text-muted-foreground">—</span>
+                            <% end %>
+                          </div>
+
+                          <div class="h-[16px] -mt-px flex items-start min-w-0 pl-1.5 leading-none text-[10px] text-muted-foreground/80 truncate"><%= row["drafting_team_name"].presence || "—" %></div>
+                        </div>
+                      </div>
+
+                      <div class="w-48 shrink-0 pr-2 text-muted-foreground">
+                        <div class="entity-cell-two-line">
+                          <div class="entity-cell-primary justify-start">
+                            <a href="<%= transaction_href(row['transaction_id']) %>" class="font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">#<%= row["transaction_id"] %></a>
+                            <% if with_trade %>
+                              <span class="px-1 text-muted-foreground/50">·</span>
+                              <a href="<%= trade_href(row['trade_id']) %>" class="font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">T#<%= row["trade_id"] %></a>
+                            <% end %>
+                          </div>
+                          <div class="entity-cell-secondary justify-start">
+                            <span><%= row["transaction_date"].present? ? format_plain_date(row["transaction_date"]) : "—" %></span>
+                            <% if with_trade %>
+                              <span class="px-1 text-muted-foreground/50">·</span>
+                              <span class="text-amber-600 dark:text-amber-400">trade-linked</span>
+                            <% end %>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="w-32 shrink-0 text-right">
+                        <div class="inline-flex flex-col items-end rounded border px-1.5 py-1 <%= severity_container_class.call(severity) %>">
+                          <span class="<%= severity_chip_class.call(severity) %>"><%= severity_label %></span>
+                          <span class="mt-1 text-[10px] font-mono tabular-nums text-muted-foreground">P<%= provenance_count %> · #<%= row_rank %></span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            </section>
           <% end %>
         </div>
       </div>

@@ -3,6 +3,22 @@ class DraftSelectionsController < ApplicationController
   INDEX_SORTS = %w[provenance board trade].freeze
   INDEX_LENSES = %w[all with_trade deep_chain].freeze
 
+  SEVERITY_LANE_ORDER = %w[deep_chain with_trade clean].freeze
+  SEVERITY_LANE_META = {
+    "deep_chain" => {
+      headline: "Contested · Deep chain",
+      subline: "P2+ ownership chain (2+ provenance trades)"
+    },
+    "with_trade" => {
+      headline: "Contested · With trade",
+      subline: "Single-link contest signal (direct trade or P1)"
+    },
+    "clean" => {
+      headline: "Clean ownership",
+      subline: "No trade-linked provenance signal"
+    }
+  }.freeze
+
   # GET /draft-selections
   def index
     load_index_workspace_state!
@@ -85,6 +101,8 @@ class DraftSelectionsController < ApplicationController
     state.each do |key, value|
       instance_variable_set("@#{key}", value)
     end
+
+    build_severity_grouping_payload!
   end
 
   def load_show_workspace_data!
@@ -154,6 +172,78 @@ class DraftSelectionsController < ApplicationController
     return false if normalized_id <= 0
 
     @results.any? { |row| row["transaction_id"].to_i == normalized_id }
+  end
+
+  def build_severity_grouping_payload!
+    rows = Array(@results)
+
+    row_rank_lookup = {}
+    grouped_rows = Hash.new { |hash, key| hash[key] = [] }
+
+    rows.each_with_index do |row, index|
+      row_id = row["transaction_id"].to_s
+      row_rank_lookup[row_id] = index + 1 if row_id.present?
+
+      severity = normalize_provenance_severity(row["provenance_severity"])
+      grouped_rows[severity] << row
+    end
+
+    severity_counts = normalized_severity_counts(@sidebar_summary)
+    contested_count = severity_counts.fetch("with_trade", 0) + severity_counts.fetch("deep_chain", 0)
+
+    @workspace_severity_snapshot = {
+      clean_count: severity_counts.fetch("clean", 0),
+      with_trade_count: severity_counts.fetch("with_trade", 0),
+      deep_chain_count: severity_counts.fetch("deep_chain", 0),
+      contested_count: contested_count,
+      total_count: rows.size,
+      lens_label: severity_lens_focus_label(@lens)
+    }
+
+    @workspace_severity_lanes = SEVERITY_LANE_ORDER.filter_map do |severity_key|
+      lane_rows = grouped_rows.fetch(severity_key, [])
+      next if lane_rows.empty?
+
+      lane_meta = SEVERITY_LANE_META.fetch(severity_key)
+      {
+        key: severity_key,
+        headline: lane_meta[:headline],
+        subline: lane_meta[:subline],
+        row_count: lane_rows.size,
+        rows: lane_rows
+      }
+    end
+
+    @workspace_row_rank_lookup = row_rank_lookup
+  end
+
+  def normalized_severity_counts(summary)
+    summary_hash = summary.is_a?(Hash) ? summary : {}
+    severity_counts = summary_hash[:severity_counts].is_a?(Hash) ? summary_hash[:severity_counts] : {}
+
+    {
+      "clean" => severity_counts.fetch("clean", summary_hash[:clean_count].to_i).to_i,
+      "with_trade" => severity_counts.fetch("with_trade", summary_hash[:with_trade_count].to_i).to_i,
+      "deep_chain" => severity_counts.fetch("deep_chain", summary_hash[:deep_chain_count].to_i).to_i
+    }
+  end
+
+  def normalize_provenance_severity(raw)
+    severity = raw.to_s
+    return severity if SEVERITY_LANE_ORDER.include?(severity)
+
+    "clean"
+  end
+
+  def severity_lens_focus_label(raw_lens)
+    case raw_lens.to_s
+    when "with_trade"
+      "Contested lanes only"
+    when "deep_chain"
+      "Deep-contested lane only"
+    else
+      "All severity lanes"
+    end
   end
 
   def normalize_required_transaction_id!(raw)
