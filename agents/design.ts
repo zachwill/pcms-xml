@@ -175,10 +175,10 @@ Commit any supervisor backlog edits:
 loop({
   name: "design",
   taskFile: TASK_FILE,
-  timeout: "15m",
-  pushEvery: 4,
-  maxIterations: 500,
-  maxConsecutiveTimeouts: 0,
+  timeout: "18m",
+  pushEvery: 2,
+  maxIterations: 200,
+  maxConsecutiveTimeouts: 4,
   continuous: true,
 
   supervisor: supervisor(SUPERVISOR_PROMPT, {
@@ -186,7 +186,7 @@ loop({
     provider: "openai-codex",
     model: "gpt-5.3-codex",
     thinking: "high",
-    timeout: "15m",
+    timeout: "18m",
   }),
 
   run(state) {
@@ -201,7 +201,7 @@ loop({
       provider: "openai-codex",
       model: "gpt-5.3-codex",
       thinking: "high",
-      timeout: "12m",
+      timeout: "18m",
     });
   },
 });
