@@ -1,3 +1,8 @@
+<%
+  # Batch-load canonical slugs for all players and agents to avoid N+1 queries.
+  prefetch_canonical_slugs(entity_type: "player", entity_ids: Array(@players).map { |p| p["player_id"] })
+  prefetch_canonical_slugs(entity_type: "agent", entity_ids: Array(@players).map { |p| p["agent_id"] }.compact)
+%>
 <% cap_horizon = @cap_horizon.to_i %>
 <% cap_horizon_label = format_year_label(cap_horizon) %>
 <% next_horizon = cap_horizon + 1 %>

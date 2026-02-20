@@ -1,6 +1,6 @@
-<div id="trades-results" class="py-3">
+<div id="trades-results" class="py-2">
   <% if @trades.empty? %>
-    <div class="px-4 py-6 text-sm text-muted-foreground italic text-center border-b border-border">
+    <div class="px-4 py-8 text-sm text-muted-foreground italic text-center border-b border-border">
       No trades found for this time period and filters.
     </div>
   <% else %>
@@ -63,16 +63,16 @@
       </div>
     </div>
 
-    <div class="border-b border-border overflow-x-auto">
-      <div id="trades-board" class="min-w-[98rem] bg-background">
+    <section class="overflow-x-auto border-b border-border">
+      <div id="trades-board" class="min-w-[96rem] bg-background">
         <div id="trades-flex-header" class="sticky top-0 z-30 border-b border-border bg-muted">
           <div class="flex items-center h-9 px-3 text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium">
-            <div class="w-32 shrink-0">When</div>
+            <div class="w-40 shrink-0">Deal</div>
             <div class="w-44 shrink-0">Route</div>
-            <div class="w-[32rem] shrink-0">Team impact (OUT / IN)</div>
-            <div class="w-56 shrink-0">Assets</div>
-            <div class="w-44 shrink-0">Composition</div>
-            <div class="w-[15rem] shrink-0">Notes</div>
+            <div class="w-[33rem] shrink-0">Team impact (OUT / IN)</div>
+            <div class="w-52 shrink-0">Assets</div>
+            <div class="w-48 shrink-0">Composition</div>
+            <div class="w-[18rem] shrink-0">Notes</div>
           </div>
         </div>
 
@@ -102,11 +102,14 @@
               data-on:click="<%= open_expr %>"
               data-on:keydown="if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); <%= open_expr %>; }"
             >
-              <div class="flex items-center min-h-[62px] px-3 text-xs">
-                <div class="w-32 shrink-0 pr-2">
+              <div class="flex items-center min-h-[58px] px-3 text-xs">
+                <div class="w-40 shrink-0 pr-2">
                   <div class="entity-cell-two-line">
-                    <div class="entity-cell-primary justify-start">
+                    <div class="entity-cell-primary justify-start gap-1.5 min-w-0">
                       <a href="<%= trade_path(trade['trade_id']) %>" class="font-medium font-mono tabular-nums hover:underline" onclick="event.stopPropagation()">#<%= trade["trade_id"] %></a>
+                      <% if trade["trade_finalized_date"].present? %>
+                        <span class="entity-chip entity-chip--accent">finalized</span>
+                      <% end %>
                     </div>
                     <div class="entity-cell-secondary justify-start font-mono tabular-nums"><%= format_plain_date(trade["trade_date"]) %></div>
                   </div>
@@ -118,17 +121,13 @@
                       <span class="entity-chip entity-chip--muted"><%= trade["team_count"].to_i %> teams</span>
                       <span class="entity-chip entity-chip--warning"><%= trade["complexity_asset_count"].to_i %> assets</span>
                     </div>
-                    <div class="entity-cell-secondary justify-start">
-                      <% if trade["trade_finalized_date"].present? %>
-                        <span class="entity-chip entity-chip--accent">finalized</span>
-                      <% else %>
-                        <span class="text-muted-foreground/70">pending finalization</span>
-                      <% end %>
+                    <div class="entity-cell-secondary justify-start truncate">
+                      <%= teams.any? ? teams.join(" · ") : "No team map" %>
                     </div>
                   </div>
                 </div>
 
-                <div class="w-[32rem] shrink-0 pr-2">
+                <div class="w-[33rem] shrink-0 pr-2">
                   <% if team_impacts.any? %>
                     <div class="space-y-0.5">
                       <% team_impacts.each_with_index do |impact, impact_index| %>
@@ -156,9 +155,9 @@
                                   decoding="async"
                                   onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                                 />
-                                <span class="hidden text-[8px] font-mono text-muted-foreground"><%= team_code %></span>
+                                <span class="hidden text-[8px] font-semibold text-muted-foreground">•</span>
                               <% else %>
-                                <span class="text-[8px] font-mono text-muted-foreground"><%= team_code %></span>
+                                <span class="text-[8px] font-semibold text-muted-foreground">•</span>
                               <% end %>
                             </span>
                             <span class="truncate"><%= team_code %></span>
@@ -186,7 +185,7 @@
                   <% end %>
                 </div>
 
-                <div class="w-56 shrink-0 pr-2">
+                <div class="w-52 shrink-0 pr-2">
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start gap-1.5 min-w-0">
                       <% if player_previews.any? %>
@@ -235,21 +234,26 @@
                   </div>
                 </div>
 
-                <div class="w-44 shrink-0 pr-2">
-                  <div class="flex flex-wrap gap-1">
-                    <% composition_labels.each do |label| %>
-                      <% chip_class = case label
-                         when "Player-heavy" then "entity-chip entity-chip--success"
-                         when "Pick-heavy" then "entity-chip entity-chip--accent"
-                         when "Cash/TPE" then "entity-chip entity-chip--warning"
-                         else "entity-chip entity-chip--muted"
-                         end %>
-                      <span class="<%= chip_class %>"><%= label %></span>
-                    <% end %>
+                <div class="w-48 shrink-0 pr-2">
+                  <div class="entity-cell-two-line">
+                    <div class="entity-cell-primary justify-start gap-1 flex-wrap">
+                      <% composition_labels.each do |label| %>
+                        <% chip_class = case label
+                           when "Player-heavy" then "entity-chip entity-chip--success"
+                           when "Pick-heavy" then "entity-chip entity-chip--accent"
+                           when "Cash/TPE" then "entity-chip entity-chip--warning"
+                           else "entity-chip entity-chip--muted"
+                           end %>
+                        <span class="<%= chip_class %>"><%= label %></span>
+                      <% end %>
+                    </div>
+                    <div class="entity-cell-secondary justify-start">
+                      <%= trade["trade_finalized_date"].present? ? "Finalized" : "Pending finalization" %>
+                    </div>
                   </div>
                 </div>
 
-                <div class="w-[15rem] shrink-0 pr-1">
+                <div class="w-[18rem] shrink-0 pr-1">
                   <div class="entity-cell-two-line">
                     <div class="entity-cell-primary justify-start text-[11px] truncate"><%= trade["trade_comments"].presence || "—" %></div>
                     <div class="entity-cell-secondary justify-start truncate"><%= teams.any? ? teams.join(" · ") : "No team map" %></div>
@@ -260,6 +264,6 @@
           <% end %>
         </div>
       </div>
-    </div>
+    </section>
   <% end %>
 </div>

@@ -8,6 +8,9 @@
   restrictions_definition_text = "no-trade + trade kicker + trade-restricted"
   top_rows = Array(summary[:top_rows])
   overlay_query_expr = "'year=' + encodeURIComponent($agencyyear) + '&sort=' + encodeURIComponent($agencysort) + '&dir=' + encodeURIComponent($agencydir)"
+
+  # Batch-load canonical slugs for agencies in top rows to avoid N+1 queries.
+  prefetch_canonical_slugs(entity_type: "agency", entity_ids: top_rows.map { |r| r[:id] })
 %>
 
 <div id="rightpanel-base" class="space-y-4">

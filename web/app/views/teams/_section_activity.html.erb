@@ -1,3 +1,10 @@
+<%
+  # Batch-load canonical slugs for all players in activity rows to avoid N+1 queries.
+  prefetch_canonical_slugs(
+    entity_type: "player",
+    entity_ids: Array(@recent_ledger_entries).map { |r| r["player_id"] }
+  )
+%>
 <% ledger_rows = Array(@recent_ledger_entries) %>
 <% exception_rows = Array(@exception_usage_rows) %>
 <% ledger_preview = ledger_rows.first(30) %>

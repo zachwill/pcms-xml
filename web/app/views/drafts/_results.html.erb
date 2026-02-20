@@ -1,4 +1,11 @@
 <%
+  # Batch-load canonical slugs for all players in results to avoid N+1 queries.
+  prefetch_canonical_slugs(
+    entity_type: "player",
+    entity_ids: Array(@results).map { |r| r["player_id"] }
+  )
+%>
+<%
   sidebar_summary = @sidebar_summary.is_a?(Hash) ? @sidebar_summary : {}
   severity_counts = sidebar_summary[:severity_counts].is_a?(Hash) ? sidebar_summary[:severity_counts] : {}
   ownership_risk_legend = @ownership_risk_legend.is_a?(Hash) ? @ownership_risk_legend : {}

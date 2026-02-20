@@ -1,5 +1,12 @@
 <% if @sidebar_summary.present? %>
   <% summary = @sidebar_summary %>
+  <%
+    # Batch-load canonical slugs for top rows to avoid N+1 queries.
+    prefetch_canonical_slugs(
+      entity_type: "player",
+      entity_ids: Array(summary[:top_rows]).map { |r| r["player_id"] }
+    )
+  %>
   <% cap_horizon = summary[:cap_horizon].to_i %>
   <% cap_horizon_label = summary[:cap_horizon_label].presence || format_year_label(cap_horizon) %>
   <% active_constraint_reason = summary[:constraint_lens_match_reason].to_s.presence %>

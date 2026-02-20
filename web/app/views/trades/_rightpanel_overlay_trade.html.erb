@@ -5,6 +5,12 @@
   detail_rows = Array(asset_rows)
   tx_rows = Array(related_transactions)
 
+  # Batch-load canonical slugs for players in asset snippets to avoid N+1 queries.
+  prefetch_canonical_slugs(
+    entity_type: "player",
+    entity_ids: detail_rows.filter_map { |r| r["player_id"] }
+  )
+
   formatted_date = trade_row["trade_date"].present? ? Date.parse(trade_row["trade_date"].to_s).strftime("%b %d, %Y") : "—"
   comments = trade_row["trade_comments"].presence
   overlay_trade_id = local_assigns[:overlay_trade_id].presence || trade_row["trade_id"].to_s

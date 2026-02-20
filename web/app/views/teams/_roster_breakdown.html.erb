@@ -15,6 +15,14 @@
 <% dead_money = Array(local_assigns[:dead_money]) %>
 <% team_code = local_assigns[:team_code].to_s.upcase %>
 
+<%
+  # Batch-load canonical slugs for all players and agents to avoid N+1 queries.
+  # (When rendered via SSE bootstrap, the show.html.erb prefetch doesn't run.)
+  all_player_ids = roster.map { |p| p["player_id"] } + cap_holds.map { |r| r["player_id"] } + dead_money.map { |r| r["player_id"] }
+  prefetch_canonical_slugs(entity_type: "player", entity_ids: all_player_ids)
+  prefetch_canonical_slugs(entity_type: "agent", entity_ids: roster.map { |p| p["agent_id"] }.compact)
+%>
+
 <% standard_players = roster.reject { |p| p["is_two_way"] } %>
 <% two_way_players = roster.select { |p| p["is_two_way"] } %>
 

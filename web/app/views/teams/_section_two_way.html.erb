@@ -1,3 +1,10 @@
+<%
+  # Batch-load canonical slugs for all players in watchlist to avoid N+1 queries.
+  prefetch_canonical_slugs(
+    entity_type: "player",
+    entity_ids: Array(@two_way_watchlist_rows).map { |r| r["player_id"] }
+  )
+%>
 <% capacity = @two_way_capacity_row || {} %>
 <% watchlist_rows = Array(@two_way_watchlist_rows) %>
 <% team_code = @team&.fetch("team_code", nil).to_s %>
