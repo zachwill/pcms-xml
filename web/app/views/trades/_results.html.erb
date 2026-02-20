@@ -24,10 +24,11 @@
             <% teams = trade["teams_involved"].to_s.split(", ").reject(&:blank?) %>
             <% composition_labels = Array(trade["composition_labels"]) %>
             <% focus_team_code = @team.to_s.upcase.presence %>
-            <% team_impacts = Array(trade["team_impacts"]) %>
-            <% if focus_team_code.present? %>
-              <% team_impacts = team_impacts.sort_by { |impact| impact["team_code"].to_s.upcase == focus_team_code ? 0 : 1 } %>
+            <% team_impacts = Array(trade["scan_team_impacts"]) %>
+            <% if team_impacts.empty? %>
+              <% team_impacts = Array(trade["team_impacts"]) %>
             <% end %>
+            <% additional_team_impact_count = trade["scan_additional_team_impact_count"].to_i %>
             <% player_previews = Array(trade["player_previews"]) %>
             <% additional_player_preview_count = trade["additional_player_preview_count"].to_i %>
 
@@ -67,8 +68,8 @@
 
                 <div class="w-[30rem] shrink-0 pr-2">
                   <% if team_impacts.any? %>
-                    <div class="space-y-1">
-                      <% team_impacts.each do |impact| %>
+                    <div class="space-y-0.5">
+                      <% team_impacts.each_with_index do |impact, impact_index| %>
                         <% net_variant = trade_impact_net_variant(impact) %>
                         <% net_chip_class = case net_variant
                            when :net_in then "entity-chip entity-chip--success"
@@ -79,6 +80,7 @@
                         <% normalized_team_code = impact["team_code"].to_s.upcase %>
                         <% is_focus_team = focus_team_code.present? && normalized_team_code == focus_team_code %>
                         <% team_logo = impact["team_id"].present? ? team_logo_url(impact["team_id"]) : nil %>
+                        <% is_last_visible_impact = impact_index == team_impacts.size - 1 %>
 
                         <div class="flex items-center gap-1 min-w-0 overflow-hidden text-[10px] leading-none tabular-nums">
                           <a href="<%= team_href(team_code: impact['team_code'], team_id: impact['team_id']) %>" class="inline-flex items-center gap-1.5 shrink-0 min-w-0 font-semibold hover:underline" onclick="event.stopPropagation()">
@@ -108,6 +110,10 @@
                           <span class="text-red-600 dark:text-red-400 shrink-0">OUT <%= trade_impact_flow_label(impact, direction: :out) %></span>
                           <span class="text-muted-foreground/50 shrink-0">·</span>
                           <span class="text-emerald-600 dark:text-emerald-400 min-w-0 truncate">IN <%= trade_impact_flow_label(impact, direction: :in) %></span>
+
+                          <% if is_last_visible_impact && additional_team_impact_count.positive? %>
+                            <span class="entity-chip entity-chip--muted shrink-0">+<%= additional_team_impact_count %> more</span>
+                          <% end %>
                         </div>
                       <% end %>
                     </div>

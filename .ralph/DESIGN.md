@@ -107,9 +107,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
 
 ## Supervisor corrective tasks (2026-02-20, review pass)
 
-- [ ] [P1] [TOOL] /trades — preserve scan density when per-team impact maps run long
+- [x] [P1] [TOOL] /trades — preserve scan density when per-team impact maps run long
   Files: web/app/views/trades/_results.html.erb, web/app/controllers/trades_controller.rb
   Why: Rendering every team impact line can create tall rows on 4+ team deals, slowing side-by-side scan in explorer mode.
+  Note: Trades rows now cap inline impact-map lines to two when a deal has 4+ teams and show a compact +N-more chip on the last visible line.
 
 - [ ] [P2] [TOOL] /trades — stabilize non-focus team impact ordering after scope pin
   Files: web/app/views/trades/_results.html.erb

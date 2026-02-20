@@ -1,4 +1,7 @@
 class TradesController < ApplicationController
+  LONG_IMPACT_MAP_THRESHOLD = 4
+  LONG_IMPACT_MAP_VISIBLE_COUNT = 2
+
   # GET /trades
   def index
     load_index_state!
@@ -68,6 +71,8 @@ class TradesController < ApplicationController
       queries: queries
     ).build
 
+    prepare_trade_scan_impacts!(rows: state[:trades], focus_team_code: state[:team])
+
     state.each do |key, value|
       instance_variable_set("@#{key}", value)
     end
@@ -87,6 +92,35 @@ class TradesController < ApplicationController
       asset_rows:,
       related_transactions:
     }
+  end
+
+  def prepare_trade_scan_impacts!(rows:, focus_team_code:)
+    normalized_focus_code = focus_team_code.to_s.upcase.presence
+
+    Array(rows).each do |row|
+      ordered_impacts = order_trade_team_impacts(
+        Array(row["team_impacts"]),
+        focus_team_code: normalized_focus_code
+      )
+
+      visible_count = if ordered_impacts.size >= LONG_IMPACT_MAP_THRESHOLD
+        LONG_IMPACT_MAP_VISIBLE_COUNT
+      else
+        ordered_impacts.size
+      end
+
+      row["scan_team_impacts"] = ordered_impacts.first(visible_count)
+      row["scan_additional_team_impact_count"] = [ordered_impacts.size - visible_count, 0].max
+    end
+  end
+
+  def order_trade_team_impacts(impacts, focus_team_code:)
+    return impacts if focus_team_code.blank?
+
+    impacts.each_with_index.sort_by do |impact, index|
+      team_code = impact["team_code"].to_s.upcase
+      [team_code == focus_team_code ? 0 : 1, index]
+    end.map(&:first)
   end
 
   def selected_overlay_visible?(overlay_type:, overlay_id:)
