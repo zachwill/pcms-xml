@@ -3,6 +3,85 @@
 ## Context
 Salary Book + Noah are the quality bar. These tasks converge other surfaces toward that standard.
 Each task is one iteration of focused work (~10 min). Commit when done.
+**Use agent-browser** for visual evidence on every task (see web/docs/agent_browser_playbook.md).
+
+---
+
+## Browser-evidence visual QA — post-interaction-refactor audit
+
+Recent iterations improved overlay lifecycle, severity lanes, and interaction predictability
+across all non-Salary-Book surfaces. None of that work used agent-browser for visual verification.
+This round fixes that: open each surface, screenshot, diagnose, fix.
+
+- [ ] [P1] [AUDIT] /team-summary — browser-verify stepping controls and position chip render
+  Files: web/app/views/team_summary/show.html.erb, web/app/views/team_summary/_rightpanel_overlay_team.html.erb, web/app/views/team_summary/_workspace_main.html.erb
+  Why: Stepping loop and "x of y" position chip were added code-only; need visual confirmation that stepper layout, focus state, and position badge render correctly across sort contexts.
+
+- [ ] [P1] [AUDIT] /trades — browser-verify inline per-team impact map density and truncation
+  Files: web/app/views/trades/index.html.erb, web/app/views/trades/_results.html.erb
+  Why: Inline impact maps and +N-more chips were added without visual QA; need to verify row scan density isn't broken on 2-team vs 4+ team deals.
+
+- [ ] [P1] [AUDIT] /transactions — browser-verify scan rail and severity lane rendering
+  Files: web/app/views/transactions/index.html.erb, web/app/views/transactions/_results.html.erb
+  Why: Severity/route scan rail was compressed from a stacked legend; need visual proof that lane headers + row route cue chips read correctly at scan speed.
+
+- [ ] [P1] [AUDIT] /players index — browser-verify triage-sequenced commandbar and urgency badges
+  Files: web/app/views/players/index.html.erb, web/app/views/players/_workspace_main.html.erb
+  Why: Commandbar was restructured into scope → urgency → drill-in progression; need visual confirmation that grouping and lane badge alignment match the intended triage flow.
+
+- [ ] [P1] [AUDIT] /teams index — browser-verify row-click overlay + active-row highlight sync
+  Files: web/app/views/teams/index.html.erb, web/app/views/teams/_pressure_section.html.erb, web/app/javascript/teams_index.js
+  Why: Row click → overlay drill-in and data-team-id active-row sync were wired code-only; need to click a row via agent-browser, verify overlay opens, and confirm active-row highlight stays in sync.
+
+- [ ] [P2] [AUDIT] /agents index — browser-verify agency scope controls and overlay pivot flow
+  Files: web/app/views/agents/index.html.erb, web/app/views/agents/_commandbar.html.erb, web/app/views/agents/_rightpanel_overlay_agent.html.erb
+  Why: Agency scope state and agent↔agency overlay pivots were added; need visual confirmation that scope chips persist through lens changes and overlay back-navigation feels intentional.
+
+- [ ] [P2] [AUDIT] /drafts — browser-verify unified ownership risk legend across all three views
+  Files: web/app/views/drafts/index.html.erb, web/app/views/drafts/_results.html.erb
+  Why: Shared legend payload was wired in controller; need visual proof that picks, selections, and grid views all render the same risk rubric tiers.
+
+- [ ] [P2] [AUDIT] /draft-selections — browser-verify severity grouping lanes and contested chip styling
+  Files: web/app/views/draft_selections/index.html.erb, web/app/views/draft_selections/_workspace_main.html.erb
+  Why: Severity lanes (contested deep-chain, with-trade, clean) and focus chips were added; visual verification needed for lane section stickiness and chip readability.
+
+- [ ] [P2] [AUDIT] /system-values — browser-verify section wayfinding tiles and finder state chips
+  Files: web/app/views/system_values/show.html.erb, web/app/views/system_values/_commandbar.html.erb
+  Why: Section wayfinding tiles and finder hit/cursor state chips were added; need visual proof that on/off toggle states and active section highlighting are scannable.
+
+## Two-Way Utility convergence
+
+Two-Way Utility hasn't been touched in the recent interaction rounds. It needs
+the same overlay-lifecycle and density treatment as the other tools.
+
+- [ ] [P1] [TOOL] /two-way-utility — deterministic overlay lifecycle on filter change
+  Files: web/app/views/two_way_utility/_rightpanel_overlay_player.html.erb, web/app/views/two_way_utility/show.html.erb, web/app/controllers/two_way_utility_controller.rb
+  Why: Same overlay-clear-on-filter pattern applied to every other tool; Two-Way Utility still has stale overlay state after conference/team/risk filter changes.
+
+- [ ] [P2] [TOOL] /two-way-utility — browser-audit row density and compare against Salary Book scan speed
+  Files: web/app/views/two_way_utility/_workspace_main.html.erb, web/app/views/two_way_utility/_player_row.html.erb
+  Why: Two-Way player rows may have drifted from the dense row grammar; use agent-browser to compare side-by-side with Salary Book row density.
+
+## Entity show pages — wayfinding convergence
+
+Entity show pages (/players/:slug, /teams/:slug, /trades/:id, /transactions/:id) were
+not targeted in the recent interaction pass. They need scroll-first wayfinding checks.
+
+- [ ] [P2] [AUDIT] /players/:slug — browser-verify section stack, scrollspy anchors, and pivot density
+  Files: web/app/views/players/show.html.erb, web/app/views/players/_sticky_header.html.erb, web/app/views/players/_section_*.html.erb
+  Why: Player entity workspace has many sections; need visual proof that sticky header, section anchors, and inline entity pivots (team links, agent links, contract links) are all working.
+
+- [ ] [P2] [AUDIT] /teams/:slug — browser-verify section ordering and cap horizon table scan
+  Files: web/app/views/teams/show.html.erb, web/app/views/teams/_sticky_header.html.erb, web/app/views/teams/_section_*.html.erb
+  Why: Team entity workspace stacks vitals, roster, cap horizon, draft assets, constraints, activity, two-way, and apron provenance; visual QA needed for section density and table readability.
+
+- [ ] [P3] [AUDIT] /trades/:id — browser-verify trade detail layout and team impact card density
+  Files: web/app/views/trades/show.html.erb
+  Why: Trade show pages are large (1010 lines ERB); need visual audit to confirm team-by-team impact sections, player detail rows, and exception accounting render at scan speed.
+
+- [ ] [P3] [AUDIT] /transactions/:id — browser-verify transaction detail and ledger entry layout
+  Files: web/app/views/transactions/show.html.erb
+  Why: Transaction show pages are 737 lines ERB; need visual confirmation that ledger entries, cap exception usage, dead money, and budget snapshots are scannable.
 
 ---
 

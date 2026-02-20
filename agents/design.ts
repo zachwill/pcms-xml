@@ -20,6 +20,7 @@ const DESIGN_DOCS = [
   "web/AGENTS.md",
   "web/docs/design_guide.md",
   "web/docs/datastar_sse_playbook.md",
+  "web/docs/agent_browser_playbook.md",
   "reference/sites/INTERACTION_MODELS.md",
 ];
 
@@ -84,6 +85,14 @@ const STRATEGY = `
 - Preserve canonical patch boundaries: #commandbar, #maincanvas,
   #rightpanel-base, #rightpanel-overlay.
 - Ship coherent chunk outcomes, not isolated style edits.
+
+## Agent-browser evidence loop
+- Use agent-browser for visual QA on every design task.
+- Before implementing: open the target page, snapshot + screenshot baseline.
+- After implementing: re-snapshot + screenshot, compare against baseline.
+- Save all screenshots under /tmp/agent-browser/ (never repo-local).
+- Read web/docs/agent_browser_playbook.md for the full command subset.
+- For [AUDIT] tasks: the entire deliverable is browser-driven diagnosis + fix.
 `.trim();
 
 const TANKATHON_RULES = `
@@ -178,6 +187,14 @@ Check:
 2. Are changes improving hierarchy, wayfinding, or interaction predictability?
 3. Are Datastar patch boundaries and response semantics still correct?
 4. Is this real UX movement, not style-only churn?
+5. **Was agent-browser used for evidence?** Check /tmp/agent-browser/ for recent screenshots.
+   If evidence is missing on visual/interaction tasks, add corrective [AUDIT] tasks to ${TASK_FILE}.
+
+If the Rails app is running, use agent-browser yourself to spot-check recent changes:
+  agent-browser open http://localhost:3000/<recently-changed-route>
+  agent-browser wait --load networkidle
+  agent-browser snapshot -i -C -c
+  agent-browser screenshot --annotate /tmp/agent-browser/supervisor-check.png
 
 If drift:
 - Revert low-value churn.
@@ -209,9 +226,20 @@ ${TANKATHON_RULES}
 1. Read ${TASK_FILE} for context.
 2. Read the target files for this task (the views, controller, JS listed in the task or that you discover).
 3. Read 1-2 exemplar files to calibrate taste (pick from the lists below based on relevance).
-4. Implement the change.
-5. Check off the task in ${TASK_FILE} and add a one-line note if useful.
-6. Commit: git add -A && git commit -m "${COMMIT_TITLE_SCHEMA}"
+4. **Use agent-browser** to capture baseline evidence before implementing:
+   - agent-browser open http://localhost:3000/<target-route>
+   - agent-browser wait --load networkidle
+   - agent-browser snapshot -i -C -c
+   - agent-browser screenshot --annotate /tmp/agent-browser/<surface>-before.png
+5. Implement the change.
+6. **Use agent-browser** to capture after evidence:
+   - Reload or navigate to the same page.
+   - agent-browser snapshot -i -C -c
+   - agent-browser screenshot --annotate /tmp/agent-browser/<surface>-after.png
+7. Check off the task in ${TASK_FILE} and add a one-line note if useful.
+8. Commit: git add -A && git commit -m "${COMMIT_TITLE_SCHEMA}"
+
+If agent-browser fails to connect (e.g., Rails not running), skip evidence steps and proceed with code-only work. Note this in the task checkbox note.
 
 If the task is bigger than you can finish, do as much as you can, commit what you have,
 and add a follow-up unchecked task to ${TASK_FILE} for the remainder.
@@ -258,14 +286,38 @@ Study these exemplars for quality bar:
 Salary Book: ${bullets(SALARY_BOOK_EXEMPLARS.slice(0, 3))}
 Noah: ${bullets(NOAH_EXEMPLARS.slice(0, 2))}
 
-Then audit these surfaces (read their current files):
+Then **use agent-browser to audit these surfaces visually** before writing tasks:
 ${bullets(TARGET_SURFACES)}
+
+## Agent-browser audit loop
+For each major route, run:
+  agent-browser open http://localhost:3000/<route>
+  agent-browser wait --load networkidle
+  agent-browser snapshot -i -C -c
+  agent-browser screenshot --annotate /tmp/agent-browser/<route>-audit.png
+
+Compare what you see against Salary Book and Noah. Note:
+- Shell pattern compliance (A/B/C from design_guide.md)
+- Command bar height and content
+- Patch boundary existence (#maincanvas, #rightpanel-base, #rightpanel-overlay)
+- Row density and scan speed
+- Hover/active state consistency
+- Scroll ownership (one owner, no traps)
+- Wayfinding (breadcrumbs, context chips, position indicators)
+- Pivot density (are data points links? can you get to related entities?)
+
+If agent-browser cannot connect, fall back to reading ERB/controller files directly.
 
 ## Task format
 Each task should be a concrete, achievable unit of work (one iteration = one task).
 Do NOT write tasks that require multi-step ceremony or approval gates.
 
-Format:
+Use [AUDIT] track for browser-evidence-driven QA tasks:
+- [ ] [P1|P2|P3] [AUDIT] /surface — concrete visual/interaction issue found via agent-browser
+  Files: list of files to change
+  Why: what agent-browser evidence revealed
+
+Use [INDEX|TOOL|ENTITY] tracks for implementation tasks as before:
 - [ ] [P1|P2|P3] [INDEX|TOOL|PROCESS] /surface — concrete outcome
   Files: list of files to change
   Why: one sentence on the flow problem being fixed
@@ -277,6 +329,7 @@ Backlog rules:
 4. If a task touches interaction patterns, say what the new pattern should be.
 5. Do not create tasks that modify Salary Book (exception: Tankathon frame).
 6. Prioritize: P1 = broken/confusing flows, P2 = convergence toward exemplar quality, P3 = polish.
+7. Include at least some [AUDIT] tasks that require agent-browser before/after evidence.
 
 After writing:
   git add -A && git commit -m "design: [PROCESS] generate backlog"
