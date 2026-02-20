@@ -13,9 +13,10 @@ Recent iterations improved overlay lifecycle, severity lanes, and interaction pr
 across all non-Salary-Book surfaces. None of that work used agent-browser for visual verification.
 This round fixes that: open each surface, screenshot, diagnose, fix.
 
-- [ ] [P1] [AUDIT] /team-summary — browser-verify stepping controls and position chip render
+- [x] [P1] [AUDIT] /team-summary — browser-verify stepping controls and position chip render
   Files: web/app/views/team_summary/show.html.erb, web/app/views/team_summary/_rightpanel_overlay_team.html.erb, web/app/views/team_summary/_workspace_main.html.erb
   Why: Stepping loop and "x of y" position chip were added code-only; need visual confirmation that stepper layout, focus state, and position badge render correctly across sort contexts.
+  Note: Agent-browser baseline/after passes (default + cap-space sort) confirmed step navigation; overlay now renders consistent position chips and adds focus-visible button treatment for prev/next controls.
 
 - [ ] [P1] [AUDIT] /trades — browser-verify inline per-team impact map density and truncation
   Files: web/app/views/trades/index.html.erb, web/app/views/trades/_results.html.erb

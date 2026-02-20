@@ -15,15 +15,15 @@
   selected_index = ordered_team_codes.index(team_code)
   can_step_prev = selected_index.present? && selected_index.positive?
   can_step_next = selected_index.present? && selected_index < (ordered_team_codes.length - 1)
-  selected_position_label = if selected_index.present?
-    "#{selected_index + 1} / #{ordered_team_codes.length}"
-  else
-    "—"
-  end
   step_position_label = if selected_index.present?
     "#{selected_index + 1} of #{ordered_team_codes.length}"
   else
     "Outside list"
+  end
+  selected_position_chip_label = if selected_index.present?
+    "Position #{step_position_label}"
+  else
+    "Outside current list"
   end
 
   step_state_query_expr = team_summary_state_query_expr(selected_expression: "$selectedteam || '#{team_code}'")
@@ -89,7 +89,7 @@
       </div>
 
       <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
-        <span class="entity-chip entity-chip--muted">Row <%= selected_position_label %></span>
+        <span class="entity-chip entity-chip--muted font-mono tabular-nums"><%= selected_position_chip_label %></span>
         <span class="<%= pressure_chip_classes %>"><%= pressure_label %></span>
         <% if row["is_repeater_taxpayer"] %>
           <span class="entity-chip entity-chip--danger">Repeater</span>
@@ -102,23 +102,23 @@
     <section class="mt-4 border-t border-border pt-3 space-y-2">
       <div class="flex items-center justify-between gap-2">
         <div class="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/80">Browse in current view</div>
-        <div class="text-[10px] tabular-nums text-muted-foreground"><%= selected_position_label %></div>
+        <div class="entity-chip entity-chip--muted font-mono tabular-nums" data-team-summary-step-position><%= step_position_label %></div>
       </div>
 
       <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         <button
           type="button"
-          class="cursor-pointer h-8 rounded border border-border text-[11px] font-medium hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          class="cursor-pointer h-8 rounded border border-border text-[11px] font-medium hover:bg-muted active:bg-muted/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
           data-team-summary-step-prev
           data-on:click="<%= prev_step_expr %>"
           <%= "disabled" unless can_step_prev %>
         >← Prev</button>
 
-        <div class="min-w-[72px] rounded border border-border/60 bg-muted/20 px-2 py-1 text-center text-[10px] font-mono tabular-nums text-muted-foreground" data-team-summary-step-position><%= step_position_label %></div>
+        <div class="min-w-[84px] h-8 inline-flex items-center justify-center rounded border border-border bg-background px-2 text-center text-[11px] font-medium font-mono tabular-nums text-foreground" role="status" aria-live="polite" data-team-summary-step-position><%= step_position_label %></div>
 
         <button
           type="button"
-          class="cursor-pointer h-8 rounded border border-border text-[11px] font-medium hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          class="cursor-pointer h-8 rounded border border-border text-[11px] font-medium hover:bg-muted active:bg-muted/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
           data-team-summary-step-next
           data-on:click="<%= next_step_expr %>"
           <%= "disabled" unless can_step_next %>
