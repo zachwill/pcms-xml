@@ -500,6 +500,8 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "OUT 1P + 1K"
       assert_includes response.body, "OUT 1 TPE"
       assert_includes response.body, "Trade #88001"
+      assert_includes response.body, 'data-trade-overlay-id="88001"'
+      assert_includes response.body, "data-show=\"$overlaytype === 'trade' && $overlayid === '88001'\""
       assert_includes response.body, '"tradesort":"most_assets"'
       assert_includes response.body, '"tradelens":"complex"'
       assert_includes response.body, '"tradecomposition":"player_heavy"'
@@ -550,6 +552,8 @@ class EntitiesPaneEndpointsTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_includes response.body, 'id="rightpanel-overlay"'
+      assert_includes response.body, 'data-trade-overlay-id="88001"'
+      assert_includes response.body, "data-show=\"$overlaytype === 'trade' && $overlayid === '88001'\""
       assert_includes response.body, "Team anatomy"
       assert_includes response.body, "Open canonical trade page"
 

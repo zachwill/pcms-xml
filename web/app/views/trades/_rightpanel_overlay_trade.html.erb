@@ -7,9 +7,15 @@
 
   formatted_date = trade_row["trade_date"].present? ? Date.parse(trade_row["trade_date"].to_s).strftime("%b %d, %Y") : "—"
   comments = trade_row["trade_comments"].presence
+  overlay_trade_id = local_assigns[:overlay_trade_id].presence || trade_row["trade_id"].to_s
 %>
 
-<div id="rightpanel-overlay" class="h-full">
+<div
+  id="rightpanel-overlay"
+  class="h-full"
+  data-trade-overlay-id="<%= overlay_trade_id %>"
+  data-show="$overlaytype === 'trade' && $overlayid === '<%= overlay_trade_id %>'"
+>
   <div class="sticky top-0 z-20 h-10 px-4 flex items-center justify-between border-b border-border bg-background">
     <button
       type="button"

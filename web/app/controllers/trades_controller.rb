@@ -22,7 +22,9 @@ class TradesController < ApplicationController
     trade_id = Integer(params[:id])
     raise ActiveRecord::RecordNotFound if trade_id <= 0
 
-    render partial: "trades/rightpanel_overlay_trade", locals: load_sidebar_trade_payload(trade_id)
+    render partial: "trades/rightpanel_overlay_trade", locals: load_sidebar_trade_payload(trade_id).merge(
+      overlay_trade_id: trade_id.to_s
+    )
   rescue ArgumentError
     raise ActiveRecord::RecordNotFound
   end

@@ -59,7 +59,12 @@ class TradesSseController < TradesController
     return [overlay_clear_html, "none", ""] unless selected_overlay_visible?(overlay_type: requested_type, overlay_id: requested_id)
 
     html = without_view_annotations do
-      render_to_string(partial: "trades/rightpanel_overlay_trade", locals: load_sidebar_trade_payload(requested_id))
+      render_to_string(
+        partial: "trades/rightpanel_overlay_trade",
+        locals: load_sidebar_trade_payload(requested_id).merge(
+          overlay_trade_id: requested_id.to_s
+        )
+      )
     end
 
     [html, "trade", requested_id.to_s]

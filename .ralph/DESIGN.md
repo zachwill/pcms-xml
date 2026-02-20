@@ -100,9 +100,10 @@ Each task is one iteration of focused work (~10 min). Commit when done.
   Why: Users bounce between row and overlay to understand team impact; enough context should be in the row.
   Note: Trades rows now render the full per-team impact map (OUT/IN + net chip) inline, with scoped team impacts pinned first for faster scan.
 
-- [ ] [P2] [TOOL] /trades — sync overlay and row state on filter refresh
+- [x] [P2] [TOOL] /trades — sync overlay and row state on filter refresh
   Files: web/app/views/trades/_rightpanel_overlay_trade.html.erb, web/app/controllers/trades_sse_controller.rb
   Why: Overlay should stay consistent (or clear) when filters change the visible row set, and row highlight should always match active overlay trade id.
+  Note: Trades overlay now self-gates with `data-show` against live `overlaytype/overlayid`, and both sidebar + SSE overlay renders stamp explicit `overlay_trade_id` so stale responses cannot desync row highlight from visible detail.
 
 ## Supervisor corrective tasks (2026-02-20, review pass)
 
