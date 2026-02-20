@@ -7,7 +7,7 @@
   selected_overlay_query_expr = "'selected_id=' + encodeURIComponent($overlaytype === 'team' ? $selectedteamid : '')"
   refresh_query_expr = "(#{pane_query_expr}) + '&' + (#{selected_overlay_query_expr})"
 
-  refresh_expr = "@get('/teams/sse/refresh?' + (#{refresh_query_expr})); window.history.replaceState({}, '', '/teams?' + (#{pane_query_expr}))"
+  refresh_expr = "@get('/teams/sse/refresh?' + (#{refresh_query_expr})); const nextUrl = '/teams?' + (#{pane_query_expr}); if ((window.location.pathname + window.location.search) !== nextUrl) { window.history.replaceState({}, '', nextUrl); }"
   apply_search_expr = "if ((evt.key || '') === 'Enter') { evt.preventDefault(); #{refresh_expr}; }"
   clear_search_expr = "$teamsquery = ''; #{refresh_expr}"
 
@@ -27,28 +27,13 @@
   ]
 
   conference_options = [
-    ["ALL", "All conferences"],
+    ["ALL", "All"],
     ["Eastern", "East"],
     ["Western", "West"]
   ]
 
   pressure_counts = @commandbar_lane_counts || @pressure_counts || {}
-
-  active_pressure_label = case @pressure_lens
-  when "over_cap" then "Over Cap"
-  when "over_tax" then "Over Tax"
-  when "over_apron1" then "Over Apron 1"
-  when "over_apron2" then "Over Apron 2"
-  else "All teams"
-  end
-
-  active_conference_label = case @conference_lens
-  when "Eastern" then "East"
-  when "Western" then "West"
-  else "All conferences"
-  end
-
-  active_pressure_count = @commandbar_active_count || Array(@teams).size
+  active_count = @commandbar_active_count || Array(@teams).size
 %>
 
 <header
@@ -56,8 +41,8 @@
   class="shrink-0 h-[130px] border-b border-border bg-background px-4 pt-3 flex items-start gap-4 select-none"
 >
   <div class="flex items-start min-w-0 overflow-x-auto pb-1">
-    <div class="min-w-[13rem] w-[13rem] space-y-1.5">
-      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Search</div>
+    <div class="min-w-[14rem] w-[14rem] space-y-1.5">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Search Teams</div>
 
       <input
         type="text"
@@ -68,10 +53,10 @@
         data-on:keydown="<%= apply_search_expr %>"
       />
 
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-1.5 text-[10px] text-muted-foreground/80">
         <button
           type="button"
-          class="cursor-pointer h-7 px-2 rounded border border-border bg-muted/40 text-[11px] font-medium hover:bg-muted transition-colors"
+          class="cursor-pointer h-7 px-2 rounded border border-border bg-muted/40 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
           data-on:click="<%= refresh_expr %>"
         >Apply</button>
 
@@ -81,20 +66,19 @@
           data-on:click="<%= clear_search_expr %>"
         >Clear</button>
 
-        <span class="text-[10px] text-muted-foreground/80 truncate"><%= active_conference_label %> · <%= active_pressure_count %> rows</span>
+        <span class="ml-auto font-mono tabular-nums"><%= active_count %> rows</span>
       </div>
     </div>
 
     <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
 
-    <div class="min-w-[7rem] w-[7rem] space-y-1">
+    <div class="min-w-[8.5rem] w-[8.5rem] space-y-1">
       <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Conference</div>
       <div class="space-y-1">
         <% conference_options.each do |value, label| %>
           <label class="flex items-center gap-1.5 cursor-pointer select-none">
             <input
               type="radio"
-              id="teams-conference-<%= value.downcase %>"
               name="teams-conference"
               value="<%= value %>"
               class="size-3.5 accent-primary"
@@ -110,19 +94,13 @@
 
     <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
 
-    <div class="min-w-[10.5rem] w-[10.5rem] space-y-1">
-      <div class="flex items-baseline justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-        <span>Pressure</span>
-        <span class="font-mono tabular-nums normal-case tracking-normal text-muted-foreground"><%= active_pressure_label %></span>
-      </div>
-
+    <div class="min-w-[11rem] w-[11rem] space-y-1">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Pressure</div>
       <div class="space-y-1">
         <% pressure_options.each do |value, label| %>
-          <% count = pressure_counts[value].to_i %>
           <label class="flex items-center gap-1.5 cursor-pointer select-none">
             <input
               type="radio"
-              id="teams-pressure-<%= value.tr('_', '-') %>"
               name="teams-pressure"
               value="<%= value %>"
               class="size-3.5 accent-primary"
@@ -131,7 +109,7 @@
               data-on:change="if (el.checked) { <%= refresh_expr %>; }"
             />
             <span class="text-[11px] leading-none" data-class="{ 'text-foreground font-semibold': $teamspressure === '<%= value %>', 'text-muted-foreground': $teamspressure !== '<%= value %>' }"><%= label %></span>
-            <span class="ml-auto font-mono tabular-nums text-[10px]" data-class="{ 'text-foreground': $teamspressure === '<%= value %>', 'text-muted-foreground/80': $teamspressure !== '<%= value %>' }"><%= count %></span>
+            <span class="ml-auto font-mono tabular-nums text-[10px]" data-class="{ 'text-foreground': $teamspressure === '<%= value %>', 'text-muted-foreground/80': $teamspressure !== '<%= value %>' }"><%= pressure_counts[value].to_i %></span>
           </label>
         <% end %>
       </div>
@@ -139,14 +117,13 @@
 
     <div class="h-20 w-px bg-border self-center shrink-0 mx-3"></div>
 
-    <div class="min-w-[8.5rem] w-[8.5rem] space-y-1">
+    <div class="min-w-[9rem] w-[9rem] space-y-1">
       <div class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sort</div>
       <div class="space-y-1">
         <% sort_options.each do |value, label| %>
           <label class="flex items-center gap-1.5 cursor-pointer select-none">
             <input
               type="radio"
-              id="teams-sort-<%= value.tr('_', '-') %>"
               name="teams-sort"
               value="<%= value %>"
               class="size-3.5 accent-primary"

@@ -23,76 +23,31 @@
   min_table_width_px = sticky_left_px + (metric_col_px * 6) + pressure_col_px
 %>
 
-<section id="teams-section-<%= section_key.tr('_', '-') %>" class="scroll-mt-[172px] bg-background">
+<section id="teams-section-<%= section_key.tr('_', '-') %>" class="scroll-mt-[176px] bg-background">
   <div class="relative" data-teams-table>
-    <div class="border-b border-border bg-muted/40">
-      <div class="h-12 px-4 flex items-center justify-between gap-3">
+    <div class="border-b border-border bg-background">
+      <div class="h-11 px-4 flex items-center justify-between gap-3">
         <div class="min-w-0">
           <div class="text-sm font-semibold text-foreground truncate"><%= section[:title] %></div>
           <div class="text-[10px] text-muted-foreground/80 truncate"><%= section[:subtitle] %></div>
         </div>
 
-        <div class="flex items-center gap-1.5 text-[10px] tabular-nums">
+        <div class="flex items-center gap-2 text-[10px] tabular-nums">
           <span class="<%= lane_chip_classes %>"><%= section_row_count %> rows</span>
-          <span class="text-muted-foreground whitespace-nowrap">
-            Taxpayers <%= section[:taxpayer_count] %><% if section[:repeater_count].to_i.positive? %> · R <%= section[:repeater_count] %><% end %>
-          </span>
-        </div>
-      </div>
-
-      <div class="px-4 pb-2">
-        <div class="grid grid-cols-3 xl:grid-cols-6 gap-1.5">
-          <%= render partial: "salary_book/kpi_cell", locals: {
-            label: "Rows",
-            value: section_row_count.to_s,
-            class_name: "w-full"
-          } %>
-
-          <%= render partial: "salary_book/kpi_cell", locals: {
-            label: "Cap",
-            value: format_room_amount(section[:cap_space_total]),
-            class_name: "w-full",
-            variant: (section[:cap_space_total].to_f < 0 ? "negative" : "default")
-          } %>
-
-          <%= render partial: "salary_book/kpi_cell", locals: {
-            label: "Tax",
-            value: format_room_amount(section[:room_under_tax_total]),
-            class_name: "w-full",
-            variant: (section[:room_under_tax_total].to_f < 0 ? "negative" : "default")
-          } %>
-
-          <%= render partial: "salary_book/kpi_cell", locals: {
-            label: "A1",
-            value: format_room_amount(section[:room_under_apron1_total]),
-            class_name: "w-full",
-            variant: (section[:room_under_apron1_total].to_f < 0 ? "negative" : "default")
-          } %>
-
-          <%= render partial: "salary_book/kpi_cell", locals: {
-            label: "A2",
-            value: format_room_amount(section[:room_under_apron2_total]),
-            class_name: "w-full",
-            variant: (section[:room_under_apron2_total].to_f < 0 ? "negative" : "default")
-          } %>
-
-          <%= render partial: "salary_book/kpi_cell", locals: {
-            label: "Roster",
-            value: "#{section[:roster_total]} / #{section[:two_way_total]}",
-            class_name: "w-full",
-            value_class_name: "text-[10px]"
-          } %>
+          <span class="text-muted-foreground whitespace-nowrap">Taxpayers <%= section[:taxpayer_count] %></span>
+          <span class="text-muted-foreground whitespace-nowrap">R <%= section[:repeater_count] %></span>
+          <span class="text-muted-foreground whitespace-nowrap">Tax <%= format_compact_currency(section[:luxury_tax_total]) %></span>
         </div>
       </div>
 
       <div
         data-teams-table-header-scroll
-        class="overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden border-t border-border/60 bg-background"
+        class="overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden border-t border-border/60 bg-muted/40"
       >
         <div class="min-w-max" style="min-width: <%= min_table_width_px %>px;">
           <div class="h-8 flex items-center text-[10px] uppercase tracking-wide text-muted-foreground/90 font-medium select-none cursor-default">
             <div
-              class="w-56 shrink-0 pl-4 sticky left-0 z-[2] bg-background relative
+              class="w-56 shrink-0 pl-4 sticky left-0 z-[2] bg-muted/40 relative
                      after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-border/50"
             >
               Team / Context
